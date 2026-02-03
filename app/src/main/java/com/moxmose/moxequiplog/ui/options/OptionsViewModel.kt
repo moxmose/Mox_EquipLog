@@ -27,6 +27,11 @@ class OptionsViewModel(
         data object RemoveMediaFailed : OptionsUiEvent()
         data object UpdateColorFailed : OptionsUiEvent()
         data object ColorNameInvalid : OptionsUiEvent()
+        data object PhotoUriInvalid : OptionsUiEvent()
+        data object DatabaseCheckFailed : OptionsUiEvent()
+        data object ColorListInvalid : OptionsUiEvent()
+        data object ColorInvalid : OptionsUiEvent()
+        data object DeleteColorFailed : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>()
@@ -133,6 +138,10 @@ class OptionsViewModel(
     }
 
     fun updateColorsOrder(colors: List<AppColor>) {
+        if (colors.isEmpty()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorListInvalid) }
+            return
+        }
         viewModelScope.launch {
             mediaRepository.updateColorsOrder(colors)
         }
@@ -145,12 +154,29 @@ class OptionsViewModel(
     }
 
     fun deleteColor(color: AppColor) {
+        if (color.id == 0L) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorInvalid) }
+            return
+        } // Non puoi eliminare)
         viewModelScope.launch {
-            mediaRepository.deleteColor(color)
+            try {
+                mediaRepository.deleteColor(color)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.DeleteColorFailed)
+            }
         }
     }
 
     suspend fun isPhotoUsed(uri: String): Boolean {
-        return equipmentDao.countEquipmentsUsingPhoto(uri) > 0
+        if (uri.isBlank()) {
+            _uiEvents.send(OptionsUiEvent.PhotoUriInvalid)
+            return true // Ritorna 'true' per sicurezza, per prevenire eliminazioni
+        }
+        return try {
+            equipmentDao.countEquipmentsUsingPhoto(uri) > 0
+        } catch (e: Exception) {
+            _uiEvents.send(OptionsUiEvent.DatabaseCheckFailed)
+            true // In caso di dubbio/errore, assumi che la foto sia in uso per sicurezza.
+        }
     }
 }
