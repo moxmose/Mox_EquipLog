@@ -114,28 +114,6 @@ class OptionsViewModelTest {
     }
 
     @Test
-    fun isPhotoUsed_whenPhotoIsInUse_returnsTrue() = runTest {
-        val uri = "used_uri"
-        // Istruisci il mock: quando il DAO viene chiamato, restituisci 1
-        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 1
-
-        // Chiama la funzione e verifica il risultato
-        val isUsed = viewModel.isPhotoUsed(uri)
-        assertTrue(isUsed)
-    }
-
-    @Test
-    fun isPhotoUsed_whenPhotoIsNotInUse_returnsFalse() = runTest {
-        val uri = "unused_uri"
-        // Istruisci il mock: quando il DAO viene chiamato, restituisci 0
-        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 0
-
-        // Chiama la funzione e verifica il risultato
-        val isUsed = viewModel.isPhotoUsed(uri)
-        assertFalse(isUsed)
-    }
-
-    @Test
     fun addMedia_withValidData_callsRepository() = runTest {
         val uri = "test_uri"
         val category = "test_category"
@@ -203,9 +181,17 @@ class OptionsViewModelTest {
     }
 
     @Test
+    fun updateMediaOrder_withEmptyList_doesNothing() = runTest {
+        viewModel.updateMediaOrder(emptyList())
+
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { mediaRepository.updateMediaOrder(any()) }
+    }
+
+    @Test
     fun updateMediaOrder_withValidData_callsRepository() = runTest {
         val mediaList: List<Media> = listOf(mockk(), mockk())
-
 
         // Chiama la funzione sul ViewModel
         viewModel.updateMediaOrder(mediaList)
@@ -273,5 +259,46 @@ class OptionsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify { mediaRepository.updateColor(validColor) }
+    }
+
+    @Test
+    fun isPhotoUsed_whenUriIsBlank_sendsUriInvalidEventAndReturnsTrue() = runTest {
+        viewModel.uiEvents.test {
+            val result = viewModel.isPhotoUsed(" ")
+            assertTrue(result)
+            assertEquals(OptionsViewModel.OptionsUiEvent.PhotoUriInvalid, awaitItem())
+        }
+    }
+
+    @Test
+    fun isPhotoUsed_whenDaoThrowsError_sendsCheckFailedEventAndReturnsTrue() = runTest {
+        val uri = "test_uri"
+        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } throws RuntimeException()
+
+        viewModel.uiEvents.test {
+            val result = viewModel.isPhotoUsed(uri)
+            assertTrue(result)
+            assertEquals(OptionsViewModel.OptionsUiEvent.DatabaseCheckFailed, awaitItem())
+        }
+    }
+
+    @Test
+    fun isPhotoUsed_whenPhotoIsInUse_returnsTrue() = runTest {
+        val uri = "test_uri"
+        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 1
+
+        val result = viewModel.isPhotoUsed(uri)
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun isPhotoUsed_whenPhotoIsNotInUse_returnsFalse() = runTest {
+        val uri = "test_uri"
+        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 0
+
+        val result = viewModel.isPhotoUsed(uri)
+
+        assertFalse(result)
     }
 }

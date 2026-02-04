@@ -12,7 +12,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -24,13 +23,50 @@ class OptionsViewModel(
 ) : ViewModel() {
 
     sealed class OptionsUiEvent {
+        // Errori Generici di Repository
+        data object DatabaseCheckFailed : OptionsUiEvent()
+
+        // Errori Funzione `removeMedia`
         data object RemoveMediaFailed : OptionsUiEvent()
+
+        // Errori Funzione `updateColor`
         data object UpdateColorFailed : OptionsUiEvent()
         data object ColorNameInvalid : OptionsUiEvent()
+
+        // Errori Funzione `isPhotoUsed`
         data object PhotoUriInvalid : OptionsUiEvent()
-        data object DatabaseCheckFailed : OptionsUiEvent()
+
+        // Errori Funzione `setCategoryDefault`
+        data object SetCategoryDefaultFailed : OptionsUiEvent()
+        data object CategoryIdInvalid : OptionsUiEvent()
+        data object NoMediaSelectedForDefault : OptionsUiEvent()
+
+        // Errori Funzione `toggleMediaVisibility`
+        data object ToggleMediaVisibilityFailed : OptionsUiEvent()
+        data object MediaInfoInvalid : OptionsUiEvent()
+
+        // Errori Funzione `addMedia`
+        data object AddMediaFailed : OptionsUiEvent()
+
+        // Errori Funzione `updateMediaOrder`
+        data object UpdateMediaOrderFailed : OptionsUiEvent()
+
+        // Errori Funzione `updateCategoryColor`
+        data object UpdateCategoryColorFailed : OptionsUiEvent()
+        data object ColorHexInvalid : OptionsUiEvent()
+
+        // Errori Funzione `addColor`
+        data object AddColorFailed : OptionsUiEvent()
+
+        // Errori Funzione `updateColorsOrder`
+        data object UpdateColorsOrderFailed : OptionsUiEvent()
         data object ColorListInvalid : OptionsUiEvent()
-        data object ColorInvalid : OptionsUiEvent()
+
+        // Errori Funzione `toggleColorVisibility`
+        data object ToggleColorVisibilityFailed : OptionsUiEvent()
+        data object ColorIdInvalid : OptionsUiEvent()
+
+        // Errori Funzione `deleteColor`
         data object DeleteColorFailed : OptionsUiEvent()
     }
 
@@ -78,24 +114,57 @@ class OptionsViewModel(
     }
 
     fun setCategoryDefault(categoryId: String, iconId: String?, photoUri: String?) {
+        if (categoryId.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            return
+        }
+        if (iconId == null && photoUri == null) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.NoMediaSelectedForDefault) }
+            return
+        }
+
         viewModelScope.launch {
-            mediaRepository.setCategoryDefault(categoryId, iconId, photoUri)
+            try {
+                mediaRepository.setCategoryDefault(categoryId, iconId, photoUri)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.SetCategoryDefaultFailed)
+            }
         }
     }
 
     fun toggleMediaVisibility(uri: String, category: String) {
+        if (uri.isBlank() || category.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.MediaInfoInvalid) }
+            return
+        }
         viewModelScope.launch {
-            mediaRepository.toggleMediaVisibility(uri, category)
+            try {
+                mediaRepository.toggleMediaVisibility(uri, category)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.ToggleMediaVisibilityFailed)
+            }
         }
     }
 
     fun addMedia(uri: String, category: String) {
+        if (uri.isBlank() || category.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.MediaInfoInvalid) }
+            return
+        }
         viewModelScope.launch {
-            mediaRepository.addMedia(uri, category)
+            try {
+                mediaRepository.addMedia(uri, category)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.AddMediaFailed)
+            }
         }
     }
 
     fun removeMedia(uri: String, category: String) {
+        if (uri.isBlank() || category.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.MediaInfoInvalid) }
+            return
+        }
         viewModelScope.launch {
             try {
                 mediaRepository.removeMedia(uri, category)
@@ -106,20 +175,51 @@ class OptionsViewModel(
     }
 
     fun updateMediaOrder(mediaList: List<Media>) {
+        if (mediaList.isEmpty()) {
+            return // Esegui una no-op efficiente, non è un errore
+        }
         viewModelScope.launch {
-            mediaRepository.updateMediaOrder(mediaList)
+            try {
+                mediaRepository.updateMediaOrder(mediaList)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateMediaOrderFailed)
+            }
         }
     }
 
     fun updateCategoryColor(categoryId: String, colorHex: String) {
+        if (categoryId.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            return
+        }
+        if (colorHex.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorHexInvalid) }
+            return
+        }
         viewModelScope.launch {
-            mediaRepository.updateCategoryColor(categoryId, colorHex)
+            try {
+                mediaRepository.updateCategoryColor(categoryId, colorHex)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateCategoryColorFailed)
+            }
         }
     }
 
     fun addColor(hex: String, name: String) {
+        if (name.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorNameInvalid) }
+            return
+        }
+        if (hex.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorHexInvalid) }
+            return
+        }
         viewModelScope.launch {
-            mediaRepository.addColor(hex, name)
+            try {
+                mediaRepository.addColor(hex, name)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.AddColorFailed)
+            }
         }
     }
 
@@ -143,21 +243,33 @@ class OptionsViewModel(
             return
         }
         viewModelScope.launch {
-            mediaRepository.updateColorsOrder(colors)
+            try {
+                mediaRepository.updateColorsOrder(colors)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateColorsOrderFailed)
+            }
         }
     }
 
     fun toggleColorVisibility(id: Long) {
+        if (id == 0L) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorIdInvalid) }
+            return
+        }
         viewModelScope.launch {
-            mediaRepository.toggleColorVisibility(id)
+            try {
+                mediaRepository.toggleColorVisibility(id)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.ToggleColorVisibilityFailed)
+            }
         }
     }
 
     fun deleteColor(color: AppColor) {
         if (color.id == 0L) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorInvalid) }
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorIdInvalid) }
             return
-        } // Non puoi eliminare)
+        }
         viewModelScope.launch {
             try {
                 mediaRepository.deleteColor(color)
