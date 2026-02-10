@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.first
 class MediaRepository(
     private val mediaDao: MediaDao,
     private val categoryDao: CategoryDao,
-    private val appColorDao: AppColorDao
+    private val appColorDao: AppColorDao,
+    private val defaultColors: Array<String>,
+    private val defaultCategories: Array<String>
 ) {
 
     val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
@@ -18,31 +20,25 @@ class MediaRepository(
     fun getMediaByCategory(category: String): Flow<List<Media>> = mediaDao.getMediaByCategory(category)
 
     suspend fun initializeAppData() {
-        // 1. Inizializza Colori
-        val existingColors = appColorDao.getAllColors().first()
-        if (existingColors.isEmpty()) {
-            val defaultColors = mutableListOf<AppColor>()
-            var order = 0
-            val standard = listOf("#4CAF50" to "Verde", "#2196F3" to "Blu", "#F44336" to "Rosso")
-            standard.forEach { (hex, name) -> defaultColors.add(AppColor(hexValue = hex, name = name, isDefault = true, displayOrder = order++, hidden = false)) }
-
-            val vivid = listOf("#00FFFF" to "Vivid Cyan", "#FF00FF" to "Vivid Magenta", "#FFFF00" to "Vivid Yellow")
-            vivid.forEach { (hex, name) -> defaultColors.add(AppColor(hexValue = hex, name = name, isDefault = true, displayOrder = order++, hidden = false)) }
-
-            val pastel = listOf("#FFD1DC" to "Pastel Pink", "#AEC6CF" to "Pastel Blue", "#77DD77" to "Pastel Green", "#FFFAA0" to "Pastel Yellow", "#ADD8E6" to "Pastel Light Blue", "#98FB98" to "Pastel Mint Green")
-            pastel.forEach { (hex, name) -> defaultColors.add(AppColor(hexValue = hex, name = name, isDefault = true, displayOrder = order++, hidden = false)) }
-
-            defaultColors.forEach { appColorDao.insertColor(it) }
+        // 1. Inizializza Colori da Array di Risorse se il DB è vuoto
+        if (appColorDao.getAllColors().first().isEmpty()) {
+            val colorsToInsert = defaultColors.mapIndexed { index, colorString ->
+                val (hex, name) = colorString.split(";")
+                AppColor(hexValue = hex, name = name, isDefault = true, displayOrder = index, hidden = false)
+            }
+            appColorDao.insertAllColors(colorsToInsert)
         }
 
-        // 2. Inizializza Categorie
-        val existingCategories = categoryDao.getAllCategories().first()
-        if (existingCategories.isEmpty()) {
-            categoryDao.insertCategory(Category("EQUIPMENT", "Equipaggiamento", "#4CAF50"))
-            categoryDao.insertCategory(Category("OPERATION", "Operazioni", "#2196F3"))
+        // 2. Inizializza Categorie da Array di Risorse se il DB è vuoto
+        if (categoryDao.getAllCategories().first().isEmpty()) {
+            val categoriesToInsert = defaultCategories.map { categoryString ->
+                val (id, name, color) = categoryString.split(";")
+                Category(id = id, name = name, color = color)
+            }
+            categoryDao.insertAllCategories(categoriesToInsert)
         }
 
-        // 3. Inizializza Icone
+        // 3. Inizializza Icone (logica esistente)
         categoryDao.getAllCategories().first().forEach { category ->
             initializeIconsForCategory(category.id)
         }

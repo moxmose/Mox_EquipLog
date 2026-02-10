@@ -11,6 +11,9 @@ interface AppColorDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertColor(color: AppColor)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllColors(colors: List<AppColor>)
+
     @Update
     suspend fun updateColor(color: AppColor)
 
