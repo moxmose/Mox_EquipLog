@@ -10,7 +10,7 @@ class MediaRepository(
     private val categoryDao: CategoryDao,
     private val appColorDao: AppColorDao
 ) {
-    
+
     val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
     val allMedia: Flow<List<Media>> = mediaDao.getAllMedia()
     val allColors: Flow<List<AppColor>> = appColorDao.getAllColors()
@@ -25,7 +25,7 @@ class MediaRepository(
             var order = 0
             val standard = listOf("#4CAF50" to "Verde", "#2196F3" to "Blu", "#F44336" to "Rosso")
             standard.forEach { (hex, name) -> defaultColors.add(AppColor(hexValue = hex, name = name, isDefault = true, displayOrder = order++, hidden = false)) }
-            
+
             val vivid = listOf("#00FFFF" to "Vivid Cyan", "#FF00FF" to "Vivid Magenta", "#FFFF00" to "Vivid Yellow")
             vivid.forEach { (hex, name) -> defaultColors.add(AppColor(hexValue = hex, name = name, isDefault = true, displayOrder = order++, hidden = false)) }
 
@@ -73,9 +73,13 @@ class MediaRepository(
         mediaDao.insertAllMedia(iconsToInsert)
     }
 
-    suspend fun addMedia(uri: String, category: String) {
+    suspend fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
         val maxOrder = mediaDao.getMaxOrder(category) ?: -1
-        mediaDao.insertMedia(Media(uri = uri, category = category, mediaType = "IMAGE", displayOrder = maxOrder + 1, hidden = false))
+        val media = when (mediaIdentifier) {
+            is MediaIdentifier.Icon -> Media(uri = "icon:${mediaIdentifier.name}", category = category, mediaType = "ICON", displayOrder = maxOrder + 1, hidden = false)
+            is MediaIdentifier.Photo -> Media(uri = mediaIdentifier.uri, category = category, mediaType = "IMAGE", displayOrder = maxOrder + 1, hidden = false)
+        }
+        mediaDao.insertMedia(media)
     }
 
     suspend fun updateMediaOrder(mediaList: List<Media>) {
@@ -93,13 +97,15 @@ class MediaRepository(
         mediaDao.toggleHidden(uri, category)
     }
 
-    suspend fun setCategoryDefault(categoryId: String, iconId: String?, photoUri: String?) {
+    suspend fun setCategoryDefault(categoryId: String, mediaIdentifier: MediaIdentifier?) {
         val category = categoryDao.getCategoryById(categoryId)
         if (category != null) {
-            categoryDao.insertCategory(category.copy(
-                defaultIconIdentifier = iconId,
-                defaultPhotoUri = photoUri
-            ))
+            val updatedCategory = when (mediaIdentifier) {
+                is MediaIdentifier.Icon -> category.copy(defaultIconIdentifier = mediaIdentifier.name, defaultPhotoUri = null)
+                is MediaIdentifier.Photo -> category.copy(defaultIconIdentifier = null, defaultPhotoUri = mediaIdentifier.uri)
+                null -> category.copy(defaultIconIdentifier = null, defaultPhotoUri = null) // Reset
+            }
+            categoryDao.insertCategory(updatedCategory)
         }
     }
 

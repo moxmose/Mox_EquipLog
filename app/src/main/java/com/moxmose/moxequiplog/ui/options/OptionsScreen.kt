@@ -67,6 +67,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Media
+import com.moxmose.moxequiplog.data.local.MediaIdentifier
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.MediaIcon
 import com.moxmose.moxequiplog.ui.components.MediaSelector
@@ -98,15 +99,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
             title = { Text(stringResource(R.string.error_dialog_title)) },
             text = {
                 when (event) {
-                    is OptionsViewModel.OptionsUiEvent.RemoveMediaFailed -> {
-                        Text(stringResource(R.string.error_remove_media_failed))
-                    }
-                    is OptionsViewModel.OptionsUiEvent.UpdateColorFailed -> {
-                        Text(stringResource(R.string.error_update_color_failed))
-                    }
-                    is OptionsViewModel.OptionsUiEvent.ColorNameInvalid -> {
-                        Text(stringResource(R.string.error_color_name_invalid))
-                    }
+                    is OptionsViewModel.OptionsUiEvent.RemoveMediaFailed -> Text(stringResource(R.string.error_remove_media_failed))
+                    is OptionsViewModel.OptionsUiEvent.UpdateColorFailed -> Text(stringResource(R.string.error_update_color_failed))
+                    is OptionsViewModel.OptionsUiEvent.ColorNameInvalid -> Text(stringResource(R.string.error_color_name_invalid))
                     else -> {
                         if (BuildConfig.DEBUG) {
                             throw IllegalStateException("Unhandled UI Event: $event")
@@ -131,8 +126,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         allCategories = allCategories,
         allColors = allColors,
         onUsernameChange = viewModel::setUsername,
-        onSetCategoryDefault = viewModel::setCategoryDefault,
-        onAddMedia = viewModel::addMedia,
+        onSetCategoryDefault = { categoryId, mediaIdentifier -> viewModel.setCategoryDefault(categoryId, mediaIdentifier) },
+        onAddMedia = { mediaIdentifier, category -> viewModel.addMedia(mediaIdentifier, category) },
         onRemoveMedia = viewModel::removeMedia,
         onUpdateMediaOrder = viewModel::updateMediaOrder,
         onToggleMediaVisibility = viewModel::toggleMediaVisibility,
@@ -162,8 +157,8 @@ fun OptionsScreenContent(
     allCategories: List<Category>,
     allColors: List<AppColor>,
     onUsernameChange: (String) -> Unit,
-    onSetCategoryDefault: (String, String?, String?) -> Unit,
-    onAddMedia: (String, String) -> Unit,
+    onSetCategoryDefault: (String, MediaIdentifier?) -> Unit,
+    onAddMedia: (MediaIdentifier, String) -> Unit,
     onRemoveMedia: (String, String) -> Unit,
     onUpdateMediaOrder: (List<Media>) -> Unit,
     onToggleMediaVisibility: (String, String) -> Unit,
@@ -200,11 +195,18 @@ fun OptionsScreenContent(
             mediaLibrary = allMedia,
             categories = allCategories,
             onMediaSelected = { _, _ -> },
-            onAddMedia = onAddMedia,
+            onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
             onRemoveMedia = onRemoveMedia,
             onUpdateMediaOrder = onUpdateMediaOrder,
             onToggleMediaVisibility = onToggleMediaVisibility,
-            onSetDefaultInCategory = onSetCategoryDefault,
+            onSetDefaultInCategory = { categoryId, iconId, photoUri ->
+                val identifier = when {
+                    iconId != null -> MediaIdentifier.Icon(iconId)
+                    photoUri != null -> MediaIdentifier.Photo(photoUri)
+                    else -> null
+                }
+                onSetCategoryDefault(categoryId, identifier)
+            },
             isPhotoUsed = isPhotoUsed,
             isPrefsMode = true,
             onDismissRequest = { onShowMediaDialogChange(false) }

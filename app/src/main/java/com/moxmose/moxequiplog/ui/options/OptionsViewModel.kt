@@ -8,6 +8,7 @@ import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Media
+import com.moxmose.moxequiplog.data.local.MediaIdentifier
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,7 +40,6 @@ class OptionsViewModel(
         // Errori Funzione `setCategoryDefault`
         data object SetCategoryDefaultFailed : OptionsUiEvent()
         data object CategoryIdInvalid : OptionsUiEvent()
-        data object NoMediaSelectedForDefault : OptionsUiEvent()
 
         // Errori Funzione `toggleMediaVisibility`
         data object ToggleMediaVisibilityFailed : OptionsUiEvent()
@@ -113,19 +113,14 @@ class OptionsViewModel(
         }
     }
 
-    fun setCategoryDefault(categoryId: String, iconId: String?, photoUri: String?) {
+    fun setCategoryDefault(categoryId: String, mediaIdentifier: MediaIdentifier?) {
         if (categoryId.isBlank()) {
             viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
             return
         }
-        if (iconId == null && photoUri == null) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.NoMediaSelectedForDefault) }
-            return
-        }
-
         viewModelScope.launch {
             try {
-                mediaRepository.setCategoryDefault(categoryId, iconId, photoUri)
+                mediaRepository.setCategoryDefault(categoryId, mediaIdentifier)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.SetCategoryDefaultFailed)
             }
@@ -146,14 +141,14 @@ class OptionsViewModel(
         }
     }
 
-    fun addMedia(uri: String, category: String) {
-        if (uri.isBlank() || category.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.MediaInfoInvalid) }
+    fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
+        if (category.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.addMedia(uri, category)
+                mediaRepository.addMedia(mediaIdentifier, category)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.AddMediaFailed)
             }

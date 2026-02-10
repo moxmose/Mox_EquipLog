@@ -7,6 +7,7 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Media
+import com.moxmose.moxequiplog.data.local.MediaIdentifier
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -46,14 +47,23 @@ class EquipmentsViewModel(
             initialValue = emptyList()
         )
 
-    fun addEquipment(description: String, photoUri: String?, iconIdentifier: String?) {
+    fun addEquipment(description: String, mediaIdentifier: MediaIdentifier?) {
         viewModelScope.launch {
             val currentList = allEquipments.value
             val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
             val equipmentCategory = allCategories.first().find { it.id == "EQUIPMENT" }
 
-            val equipmentPhotoUri = photoUri ?: equipmentCategory?.defaultPhotoUri
-            val equipmentIconIdentifier = iconIdentifier ?: equipmentCategory?.defaultIconIdentifier
+            var equipmentPhotoUri: String? = null
+            var equipmentIconIdentifier: String? = null
+
+            when (mediaIdentifier) {
+                is MediaIdentifier.Icon -> equipmentIconIdentifier = mediaIdentifier.name
+                is MediaIdentifier.Photo -> equipmentPhotoUri = mediaIdentifier.uri
+                null -> { // Usa i default di categoria
+                    equipmentPhotoUri = equipmentCategory?.defaultPhotoUri
+                    equipmentIconIdentifier = equipmentCategory?.defaultIconIdentifier
+                }
+            }
 
             equipmentDao.insertEquipment(
                 Equipment(
@@ -90,9 +100,9 @@ class EquipmentsViewModel(
         }
     }
 
-    fun addMedia(uri: String, category: String) {
+    fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
         viewModelScope.launch {
-            mediaRepository.addMedia(uri, category)
+            mediaRepository.addMedia(mediaIdentifier, category)
         }
     }
 

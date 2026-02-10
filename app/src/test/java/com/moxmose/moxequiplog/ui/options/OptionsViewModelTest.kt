@@ -13,6 +13,7 @@ import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Media
+import com.moxmose.moxequiplog.data.local.MediaIdentifier
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -100,32 +101,31 @@ class OptionsViewModelTest {
     @Test
     fun setCategoryDefault_withValidData_callsRepository() = runTest {
         val categoryId = "test_category"
-        val iconId = "test_icon"
-        val photoUri = "test_uri"
+        val identifier = MediaIdentifier.Icon("test_icon")
 
         // Esegui la funzione sul ViewModel
-        viewModel.setCategoryDefault(categoryId, iconId, photoUri)
+        viewModel.setCategoryDefault(categoryId, identifier)
 
         // Esegui le coroutine in sospeso
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Verifica che il metodo corrispondente sul repository sia stato chiamato con i parametri corretti
-        coVerify { mediaRepository.setCategoryDefault(categoryId, iconId, photoUri) }
+        coVerify { mediaRepository.setCategoryDefault(categoryId, identifier) }
     }
 
     @Test
     fun addMedia_withValidData_callsRepository() = runTest {
-        val uri = "test_uri"
+        val identifier = MediaIdentifier.Photo("test_uri")
         val category = "test_category"
 
         // Chiama la funzione sul ViewModel
-        viewModel.addMedia(uri, category)
+        viewModel.addMedia(identifier, category)
 
         // Fai avanzare lo scheduler per eseguire la coroutine in sospeso
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Verifica che il metodo del repository sia stato chiamato con i parametri corretti
-        coVerify { mediaRepository.addMedia(uri, category) }
+        coVerify { mediaRepository.addMedia(identifier, category) }
     }
 
     @Test

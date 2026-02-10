@@ -63,6 +63,7 @@ import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.MediaIdentifier
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.MediaPickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
@@ -116,12 +117,12 @@ fun EquipmentsScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, String?, String?) -> Unit,
+    onAddEquipment: (String, MediaIdentifier?) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
-    onAddMedia: (String, String) -> Unit,
+    onAddMedia: (MediaIdentifier, String) -> Unit,
     onToggleMediaVisibility: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -155,8 +156,8 @@ fun EquipmentsScreenContent(
                 categories = allCategories,
                 equipmentCategoryColor = equipmentCategoryColor,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, uri, icon ->
-                    onAddEquipment(desc, uri, icon)
+                onConfirm = { desc, identifier ->
+                    onAddEquipment(desc, identifier)
                     onShowAddDialogChange(false)
                 },
                 onAddMedia = onAddMedia,
@@ -207,13 +208,13 @@ fun EquipmentsScreenContent(
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, String?, String?) -> Unit,
+    onConfirm: (String, MediaIdentifier?) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     mediaLibrary: List<com.moxmose.moxequiplog.data.local.Media>,
     categories: List<Category>,
     equipmentCategoryColor: String?,
-    onAddMedia: (String, String) -> Unit,
+    onAddMedia: (MediaIdentifier, String) -> Unit,
     onToggleMediaVisibility: (String, String) -> Unit
 ) {
     var description by rememberSaveable { mutableStateOf("") }
@@ -242,7 +243,7 @@ fun AddEquipmentDialog(
             },
             mediaLibrary = mediaLibrary,
             categories = categories,
-            onAddMedia = onAddMedia,
+            onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
             onRemoveMedia = null,
             onUpdateMediaOrder = null,
             onToggleMediaVisibility = onToggleMediaVisibility,
@@ -313,7 +314,14 @@ fun AddEquipmentDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(description, photoUri, iconId) }
+                onClick = { 
+                    val identifier = when {
+                        photoUri != null -> MediaIdentifier.Photo(photoUri!!)
+                        iconId != null -> MediaIdentifier.Icon(iconId!!)
+                        else -> null
+                    }
+                    onConfirm(description, identifier) 
+                }
             ) {
                 Text(stringResource(R.string.button_add))
             }
@@ -355,7 +363,7 @@ fun EquipmentCard(
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
-    onAddMedia: (String, String) -> Unit,
+    onAddMedia: (MediaIdentifier, String) -> Unit,
     onToggleMediaVisibility: (String, String) -> Unit,
     equipmentCategoryColor: String?,
     modifier: Modifier = Modifier
@@ -393,7 +401,7 @@ fun EquipmentCard(
             },
             mediaLibrary = equipmentMedia,
             categories = allCategories,
-            onAddMedia = onAddMedia,
+            onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
             onRemoveMedia = null,
             onUpdateMediaOrder = null,
             onToggleMediaVisibility = onToggleMediaVisibility,

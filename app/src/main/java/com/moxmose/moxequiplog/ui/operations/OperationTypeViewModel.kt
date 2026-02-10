@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.MediaRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Media
+import com.moxmose.moxequiplog.data.local.MediaIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import kotlinx.coroutines.flow.SharingStarted
@@ -46,14 +47,28 @@ class OperationTypeViewModel(
             initialValue = emptyList()
         )
 
-    fun addOperationType(description: String, iconIdentifier: String?, photoUri: String?) {
+    fun addOperationType(description: String, mediaIdentifier: MediaIdentifier?) {
         viewModelScope.launch {
             val maxDisplayOrder = allOperationTypes.first().maxOfOrNull { it.displayOrder } ?: -1
+            val operationCategory = allCategories.first().find { it.id == "OPERATION" }
+
+            var operationPhotoUri: String? = null
+            var operationIconIdentifier: String? = null
+
+            when (mediaIdentifier) {
+                is MediaIdentifier.Icon -> operationIconIdentifier = mediaIdentifier.name
+                is MediaIdentifier.Photo -> operationPhotoUri = mediaIdentifier.uri
+                null -> { // Usa i default di categoria
+                    operationPhotoUri = operationCategory?.defaultPhotoUri
+                    operationIconIdentifier = operationCategory?.defaultIconIdentifier
+                }
+            }
+
             operationTypeDao.insertOperationType(
                 OperationType(
                     description = description,
-                    iconIdentifier = iconIdentifier,
-                    photoUri = photoUri,
+                    iconIdentifier = operationIconIdentifier,
+                    photoUri = operationPhotoUri,
                     displayOrder = maxDisplayOrder + 1
                 )
             )
@@ -84,9 +99,9 @@ class OperationTypeViewModel(
         }
     }
 
-    fun addMedia(uri: String, category: String) {
+    fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
         viewModelScope.launch {
-            mediaRepository.addMedia(uri, category)
+            mediaRepository.addMedia(mediaIdentifier, category)
         }
     }
 
