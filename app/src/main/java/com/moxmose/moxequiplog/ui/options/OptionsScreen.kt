@@ -256,7 +256,7 @@ fun OptionsScreenContent(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    if (editedUsername != username && !editedUsername.isEmpty()) {
+                    if (editedUsername != username && editedUsername.isNotBlank()) {
                         IconButton(onClick = { onUsernameChange(editedUsername) }) {
                             Icon(Icons.Default.Done, contentDescription = "Save Username")
                         }
