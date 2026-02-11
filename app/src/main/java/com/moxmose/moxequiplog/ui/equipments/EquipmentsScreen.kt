@@ -1,7 +1,6 @@
 package com.moxmose.moxequiplog.ui.equipments
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,8 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -63,6 +60,7 @@ import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.Media
 import com.moxmose.moxequiplog.data.local.MediaIdentifier
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.MediaPickerDialog
@@ -108,7 +106,7 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
 @Composable
 fun EquipmentsScreenContent(
     equipments: List<Equipment>,
-    equipmentMedia: List<com.moxmose.moxequiplog.data.local.Media>,
+    equipmentMedia: List<Media>,
     allCategories: List<Category>,
     defaultIcon: String?,
     defaultPhotoUri: String?,
@@ -123,7 +121,7 @@ fun EquipmentsScreenContent(
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
     onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (String, String) -> Unit,
+    onToggleMediaVisibility: (Media) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
@@ -211,11 +209,11 @@ fun AddEquipmentDialog(
     onConfirm: (String, MediaIdentifier?) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
-    mediaLibrary: List<com.moxmose.moxequiplog.data.local.Media>,
+    mediaLibrary: List<Media>,
     categories: List<Category>,
     equipmentCategoryColor: String?,
     onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (String, String) -> Unit
+    onToggleMediaVisibility: (Media) -> Unit
 ) {
     var description by rememberSaveable { mutableStateOf("") }
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
@@ -246,7 +244,7 @@ fun AddEquipmentDialog(
             onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
             onRemoveMedia = null,
             onUpdateMediaOrder = null,
-            onToggleMediaVisibility = onToggleMediaVisibility,
+            onToggleMediaVisibility = { uri, category -> mediaLibrary.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
@@ -358,13 +356,13 @@ fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
 @Composable
 fun EquipmentCard(
     equipment: Equipment,
-    equipmentMedia: List<com.moxmose.moxequiplog.data.local.Media>,
+    equipmentMedia: List<Media>,
     allCategories: List<Category>,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
     onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (String, String) -> Unit,
+    onToggleMediaVisibility: (Media) -> Unit,
     equipmentCategoryColor: String?,
     modifier: Modifier = Modifier
 ) {
@@ -404,7 +402,7 @@ fun EquipmentCard(
             onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
             onRemoveMedia = null,
             onUpdateMediaOrder = null,
-            onToggleMediaVisibility = onToggleMediaVisibility,
+            onToggleMediaVisibility = { uri, category -> equipmentMedia.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,

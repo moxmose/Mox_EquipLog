@@ -106,9 +106,9 @@ class EquipmentsViewModel(
         }
     }
 
-    fun removeMedia(uri: String, category: String) {
+    fun removeMedia(media: Media) {
         viewModelScope.launch {
-            mediaRepository.removeMedia(uri, category)
+            mediaRepository.removeMedia(media)
         }
     }
 
@@ -118,9 +118,9 @@ class EquipmentsViewModel(
         }
     }
 
-    fun toggleMediaVisibility(uri: String, category: String) {
+    fun toggleMediaVisibility(media: Media) {
         viewModelScope.launch {
-            mediaRepository.toggleMediaVisibility(uri, category)
+            mediaRepository.toggleMediaVisibility(media)
         }
     }
 

@@ -82,15 +82,15 @@ class MediaRepository(
         mediaDao.updateAllMedia(mediaList)
     }
 
-    suspend fun removeMedia(uri: String, category: String) {
-        val media = mediaDao.getMediaByUriAndCategory(uri, category)
-        if (media != null && media.mediaType == "IMAGE") {
+    suspend fun removeMedia(media: Media) {
+        // Solo i media di tipo IMMAGINE possono essere eliminati per prevenire la rimozione delle icone di default.
+        if (media.mediaType == "IMAGE") {
             mediaDao.deleteMedia(media)
         }
     }
 
-    suspend fun toggleMediaVisibility(uri: String, category: String) {
-        mediaDao.toggleHidden(uri, category)
+    suspend fun toggleMediaVisibility(media: Media) {
+        mediaDao.toggleHidden(media.uri, media.category)
     }
 
     suspend fun setCategoryDefault(categoryId: String, mediaIdentifier: MediaIdentifier?) {

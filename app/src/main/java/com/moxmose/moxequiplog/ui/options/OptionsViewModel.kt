@@ -40,10 +40,10 @@ class OptionsViewModel(
         // Errori Funzione `setCategoryDefault`
         data object SetCategoryDefaultFailed : OptionsUiEvent()
         data object CategoryIdInvalid : OptionsUiEvent()
+        data object NoMediaSelectedForDefault : OptionsUiEvent()
 
         // Errori Funzione `toggleMediaVisibility`
         data object ToggleMediaVisibilityFailed : OptionsUiEvent()
-        data object MediaInfoInvalid : OptionsUiEvent()
 
         // Errori Funzione `addMedia`
         data object AddMediaFailed : OptionsUiEvent()
@@ -127,14 +127,10 @@ class OptionsViewModel(
         }
     }
 
-    fun toggleMediaVisibility(uri: String, category: String) {
-        if (uri.isBlank() || category.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.MediaInfoInvalid) }
-            return
-        }
+    fun toggleMediaVisibility(media: Media) {
         viewModelScope.launch {
             try {
-                mediaRepository.toggleMediaVisibility(uri, category)
+                mediaRepository.toggleMediaVisibility(media)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.ToggleMediaVisibilityFailed)
             }
@@ -155,14 +151,10 @@ class OptionsViewModel(
         }
     }
 
-    fun removeMedia(uri: String, category: String) {
-        if (uri.isBlank() || category.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.MediaInfoInvalid) }
-            return
-        }
+    fun removeMedia(media: Media) {
         viewModelScope.launch {
             try {
-                mediaRepository.removeMedia(uri, category)
+                mediaRepository.removeMedia(media)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.RemoveMediaFailed)
             }

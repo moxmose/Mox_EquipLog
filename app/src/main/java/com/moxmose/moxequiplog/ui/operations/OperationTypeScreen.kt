@@ -95,7 +95,7 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
         showAddDialog = showAddDialog,
         onShowAddDialogChange = { showAddDialog = it },
         onAddMedia = viewModel::addMedia,
-        onToggleMediaVisibility = viewModel::toggleMediaVisibility,
+        onToggleMediaVisibility = { media -> viewModel.toggleMediaVisibility(media) },
         operationCategoryColor = operationCategory?.color
     )
 }
@@ -117,7 +117,7 @@ fun OperationTypeScreenContent(
     onDismissOperationType: (OperationType) -> Unit,
     onRestoreOperationType: (OperationType) -> Unit,
     onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (String, String) -> Unit,
+    onToggleMediaVisibility: (Media) -> Unit,
     operationCategoryColor: String?,
     modifier: Modifier = Modifier
 ) {
@@ -213,7 +213,7 @@ fun AddOperationTypeDialog(
     defaultIcon: String?,
     defaultPhotoUri: String?,
     onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (String, String) -> Unit,
+    onToggleMediaVisibility: (Media) -> Unit,
     operationCategoryColor: String?
 ) {
     var description by rememberSaveable { mutableStateOf("") }
@@ -246,7 +246,7 @@ fun AddOperationTypeDialog(
             onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
             onRemoveMedia = null,
             onUpdateMediaOrder = null,
-            onToggleMediaVisibility = onToggleMediaVisibility,
+            onToggleMediaVisibility = null,
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
@@ -338,7 +338,7 @@ fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = { onDismiss() }) {
                 Text(stringResource(R.string.button_ok))
             }
         },
@@ -363,7 +363,7 @@ fun OperationTypeCard(
     operationTypeMedia: List<Media>,
     allCategories: List<Category>,
     onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (String, String) -> Unit,
+    onToggleMediaVisibility: (Media) -> Unit,
     operationCategoryColor: String?,
     modifier: Modifier = Modifier
 ) {
@@ -403,7 +403,7 @@ fun OperationTypeCard(
             onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
             onRemoveMedia = null,
             onUpdateMediaOrder = null,
-            onToggleMediaVisibility = onToggleMediaVisibility,
+            onToggleMediaVisibility = { uri, category -> operationTypeMedia.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,

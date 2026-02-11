@@ -159,9 +159,9 @@ fun OptionsScreenContent(
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, MediaIdentifier?) -> Unit,
     onAddMedia: (MediaIdentifier, String) -> Unit,
-    onRemoveMedia: (String, String) -> Unit,
+    onRemoveMedia: (Media) -> Unit,
     onUpdateMediaOrder: (List<Media>) -> Unit,
-    onToggleMediaVisibility: (String, String) -> Unit,
+    onToggleMediaVisibility: (Media) -> Unit,
     onUpdateCategoryColor: (String, String) -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
@@ -196,9 +196,9 @@ fun OptionsScreenContent(
             categories = allCategories,
             onMediaSelected = { _, _ -> },
             onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
-            onRemoveMedia = onRemoveMedia,
+            onRemoveMedia = { uri, category -> allMedia.find { it.uri == uri && it.category == category }?.let { onRemoveMedia(it) } },
             onUpdateMediaOrder = onUpdateMediaOrder,
-            onToggleMediaVisibility = onToggleMediaVisibility,
+            onToggleMediaVisibility = { uri, category -> allMedia.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
             onSetDefaultInCategory = { categoryId, iconId, photoUri ->
                 val identifier = when {
                     iconId != null -> MediaIdentifier.Icon(iconId)

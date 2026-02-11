@@ -105,9 +105,9 @@ class OperationTypeViewModel(
         }
     }
 
-    fun toggleMediaVisibility(uri: String, category: String) {
+    fun toggleMediaVisibility(media: Media) {
         viewModelScope.launch {
-            mediaRepository.toggleMediaVisibility(uri, category)
+            mediaRepository.toggleMediaVisibility(media)
         }
     }
 }
