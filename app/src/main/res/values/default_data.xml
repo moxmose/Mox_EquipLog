@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="default_username">User</string>
+
     <string-array name="default_colors">
         <item>#4CAF50;Verde</item>
         <item>#2196F3;Blu</item>

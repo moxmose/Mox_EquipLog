@@ -27,6 +27,10 @@ class OptionsViewModel(
         // Errori Generici di Repository
         data object DatabaseCheckFailed : OptionsUiEvent()
 
+        // Errori Funzione `setUsername`
+        data object UsernameInvalid : OptionsUiEvent()
+        data object UpdateUsernameFailed : OptionsUiEvent()
+
         // Errori Funzione `removeMedia`
         data object RemoveMediaFailed : OptionsUiEvent()
 
@@ -108,8 +112,16 @@ class OptionsViewModel(
         )
 
     fun setUsername(newUsername: String) {
+        if (newUsername.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.UsernameInvalid) }
+            return
+        }
         viewModelScope.launch {
-            appSettingsManager.setUsername(newUsername)
+            try {
+                appSettingsManager.setUsername(newUsername)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateUsernameFailed)
+            }
         }
     }
 

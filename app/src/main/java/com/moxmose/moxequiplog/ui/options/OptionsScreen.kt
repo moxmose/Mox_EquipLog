@@ -81,6 +81,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val allMedia by viewModel.allMedia.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
+    val uiEvent by viewModel.uiEvents.collectAsState(initial = null)
 
     var showAboutDialog by rememberSaveable { mutableStateOf(false) }
     var showColorPicker by rememberSaveable { mutableStateOf<String?>(null) }
@@ -99,6 +100,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
             title = { Text(stringResource(R.string.error_dialog_title)) },
             text = {
                 when (event) {
+                    is OptionsViewModel.OptionsUiEvent.UsernameInvalid -> Text(stringResource(R.string.error_username_invalid))
+                    is OptionsViewModel.OptionsUiEvent.UpdateUsernameFailed -> Text(stringResource(R.string.error_update_username_failed))
                     is OptionsViewModel.OptionsUiEvent.RemoveMediaFailed -> Text(stringResource(R.string.error_remove_media_failed))
                     is OptionsViewModel.OptionsUiEvent.UpdateColorFailed -> Text(stringResource(R.string.error_update_color_failed))
                     is OptionsViewModel.OptionsUiEvent.ColorNameInvalid -> Text(stringResource(R.string.error_color_name_invalid))
@@ -175,6 +178,8 @@ fun OptionsScreenContent(
     onUpdateColorsOrder: (List<AppColor>) -> Unit,
     onToggleColorVisibility: (Long) -> Unit
 ) {
+    var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
+
     if (showAboutDialog) {
         AlertDialog(
             onDismissRequest = { onShowAboutDialogChange(false) },
@@ -245,10 +250,18 @@ fun OptionsScreenContent(
 
         OptionsSectionCard(title = "Profilo") {
             OutlinedTextField(
-                value = username,
-                onValueChange = onUsernameChange,
+                value = editedUsername,
+                onValueChange = { editedUsername = it },
                 label = { Text("Nome Utente") },
-                modifier = Modifier.fillMaxWidth()
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    if (editedUsername != username && !editedUsername.isEmpty()) {
+                        IconButton(onClick = { onUsernameChange(editedUsername) }) {
+                            Icon(Icons.Default.Done, contentDescription = "Save Username")
+                        }
+                    }
+                }
             )
         }
 

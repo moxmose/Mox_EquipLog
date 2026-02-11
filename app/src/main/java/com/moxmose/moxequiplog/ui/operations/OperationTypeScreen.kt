@@ -95,7 +95,7 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
         showAddDialog = showAddDialog,
         onShowAddDialogChange = { showAddDialog = it },
         onAddMedia = viewModel::addMedia,
-        onToggleMediaVisibility = { media -> viewModel.toggleMediaVisibility(media) },
+        onToggleMediaVisibility = viewModel::toggleMediaVisibility,
         operationCategoryColor = operationCategory?.color
     )
 }
@@ -246,7 +246,7 @@ fun AddOperationTypeDialog(
             onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
             onRemoveMedia = null,
             onUpdateMediaOrder = null,
-            onToggleMediaVisibility = null,
+            onToggleMediaVisibility = { uri, category -> mediaLibrary.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,

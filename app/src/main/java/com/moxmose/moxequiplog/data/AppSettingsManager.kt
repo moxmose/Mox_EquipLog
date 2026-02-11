@@ -1,11 +1,9 @@
 package com.moxmose.moxequiplog.data
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,9 +11,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-
-class AppSettingsManager(private val context: Context) {
+class AppSettingsManager(
+    private val dataStore: DataStore<Preferences>,
+    private val defaultUsername: String
+) {
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
@@ -23,24 +22,27 @@ class AppSettingsManager(private val context: Context) {
     private val favoriteIconKey = stringPreferencesKey("favorite_icon")
     private val favoritePhotoUriKey = stringPreferencesKey("favorite_photo_uri")
 
-    val username: StateFlow<String> = context.dataStore.data
-        .map { it[usernameKey] ?: "" }
-        .stateIn(coroutineScope, SharingStarted.WhileSubscribed(5000), "")
+    val username: StateFlow<String> = dataStore.data
+        .map { preferences ->
+            val savedUsername = preferences[usernameKey]
+            if (savedUsername.isNullOrBlank()) defaultUsername else savedUsername
+        }
+        .stateIn(coroutineScope, SharingStarted.WhileSubscribed(5000), defaultUsername)
 
-    val favoriteIcon: StateFlow<String?> = context.dataStore.data
+    val favoriteIcon: StateFlow<String?> = dataStore.data
         .map { it[favoriteIconKey] }
         .stateIn(coroutineScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val favoritePhotoUri: StateFlow<String?> = context.dataStore.data
+    val favoritePhotoUri: StateFlow<String?> = dataStore.data
         .map { it[favoritePhotoUriKey] }
         .stateIn(coroutineScope, SharingStarted.WhileSubscribed(5000), null)
 
     suspend fun setUsername(username: String) {
-        context.dataStore.edit { it[usernameKey] = username }
+        dataStore.edit { it[usernameKey] = username }
     }
 
     suspend fun setFavoriteResource(iconId: String?, photoUri: String?) {
-        context.dataStore.edit {
+        dataStore.edit {
             if (iconId != null) {
                 it[favoriteIconKey] = iconId
                 it.remove(favoritePhotoUriKey)
