@@ -3,16 +3,17 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    id("jacoco")
 }
 
 android {
-    namespace = "com.moxmose.moxmybike"
+    namespace = "com.moxmose.moxequiplog"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.moxmose.moxmybike"
+        applicationId = "com.moxmose.moxequiplog"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -29,6 +30,9 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            enableUnitTestCoverage = true
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -41,6 +45,33 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+}
+
+tasks.register("jacocoTestReport", JacocoReport::class) {
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+
+    val fileFilter = listOf(
+        "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*", "**/*Test*.*", "android/**/*.*"
+    )
+
+    val debugTree = fileTree("${buildDir}/tmp/kotlin-classes/debug") { exclude(fileFilter) }
+    val mainSrc = "${project.projectDir}/src/main/java"
+
+    sourceDirectories.setFrom(files(mainSrc))
+    classDirectories.setFrom(files(debugTree))
+    executionData.setFrom(fileTree(buildDir) {
+        include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+    })
 }
 
 dependencies {
@@ -77,8 +108,9 @@ dependencies {
     testImplementation("app.cash.turbine:turbine:1.1.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
     testImplementation("androidx.test:core-ktx:1.5.0")
-    testImplementation("org.robolectric:robolectric:4.12.1")
+    testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("androidx.room:room-testing:2.8.4")
+    testImplementation("io.mockk:mockk:1.13.11")
 
     androidTestImplementation(libs.junit)
     androidTestImplementation(kotlin("test")) // <-- THIS LINE IS KEY

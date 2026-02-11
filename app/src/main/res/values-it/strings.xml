@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mox My Bike</string>
+    <string name="navigation_logs">Registro</string>
+    <string name="navigation_equipments">Mezzi</string>
+    <string name="navigation_operations">Attività</string>
+    <string name="navigation_reports">Report</string>
+    <string name="navigation_options">Opzioni</string>
+    <string name="options_version_label">Versione %1$s</string>
+    <string name="options_username_label">Nome utente</string>
+    <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
+    <string name="add_bike">Aggiungi Mezzo</string>
+    <string name="add_operation_type">Aggiungi Tipo di Operazione</string>
+    <string name="hide_dismissed">Nascondi Dismessi</string>
+    <string name="show_dismissed">Mostra Dismessi</string>
+    <string name="add_a_new_bike">Aggiungi un nuovo Mezzo</string>
+    <string name="add_a_new_operation_type">Aggiungi un nuovo Tipo di Operazione</string>
+    <string name="bike_description">Descrizione Mezzo</string>
+    <string name="operation_type_description">Descrizione Tipo di Operazione</string>
+    <string name="add_image">Aggiungi immagine</string>
+    <string name="selected_image">Seleziona immagine</string>
+    <string name="button_add">Aggiungi</string>
+    <string name="button_cancel">Cancella</string>
+    <string name="no_image_title">Nessuna Immagine</string>
+    <string name="no_image_message">Nessuna foto caricata, aggiungine una.</string>
+    <string name="full_size_bike_photo">Foto Mezzo dimensioni grande</string>
+    <string name="full_size_operation_photo">Foto Operazioni dimensioni grande</string>
+    <string name="bike_photo">Foto Mezzo</string>
+    <string name="operation_type_photo">Foto Tipo di Operazione</string>
+    <string name="edit_bike">Modifica Mezzo</string>
+    <string name="save_bike">Salva</string>
+    <string name="dismiss_bike">Dismetti Mezzo</string>
+    <string name="restore_bike">Ripristina Mezzo</string>
+    <string name="edit_operation_type">Modifica Tipo Operazione</string>
+    <string name="save_operation_type">Salva</string>
+    <string name="dismiss_operation_type">Dismetti Tipo di Operazione</string>
+    <string name="restore_operation_type">Ripristina Tipo di Operazione</string>
+    <string name="drag_to_reorder">Trascina per riordinare</string>
+    <string name="search_logs">Cerca</string>
+    <string name="add_log">Aggiungi registrazione</string>
+    <string name="sort_by">Ordina per</string>
+    <string name="sort_direction">Direzione ordinamento</string>
+    <string name="button_about">Informazioni</string>
+    <string name="about_dialog_title">Informazioni su Mox My Bike</string>
+    <string name="add_new_maintenance_log">Aggiungi nuova registrazione di manutenzione</string>
+    <string name="select_a_bike">Seleziona un mezzo</string>
+    <string name="select_an_operation">Selezione un operazione</string>
+    <string name="kilometers_optional">Chilometri (opzionale)</string>
+    <string name="notes_optional">Note (opzionale)</string>
+    <string name="date">Data</string>
+    <string name="about_dialog_content">Questa app aiuta a tracciare registrazioni di manutenzione per i vostri mezzi. Mantienili in forma perfetta!</string>
+    <string name="select_date">Seleziona data</string>
+    <string name="edit_log">Modifica registrazione</string>
+    <string name="save_log">Salva registrazione</string>
+    <string name="dismiss_log">Dismetti registrazione</string>
+    <string name="restore_log">Riprstina registrazione</string>
+    <string name="bike_icon">Icona mezzo</string>
+    <string name="operation_icon">Icona operazione</string>
+
+    <!-- Gestione Errori -->
+    <string name="error_dialog_title">Errore</string>
+    <string name="error_remove_media_failed">Impossibile rimuovere il media. Potrebbe essere in uso.</string>
+    <string name="error_update_color_failed">Impossibile aggiornare il colore.</string>
+    <string name="error_color_name_invalid">Il nome del colore non può essere vuoto.</string>
+    <string name="error_username_invalid">Il nome utente non può essere vuoto.</string>
+    <string name="error_update_username_failed">Impossibile salvare il nome utente.</string>
+    <string name="error_unknown">Si è verificato un errore sconosciuto.</string>
+
+</resources>

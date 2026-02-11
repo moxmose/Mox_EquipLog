@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Mox My Bike"
+rootProject.name = "Mox EquipLog"
 include(":app")
  

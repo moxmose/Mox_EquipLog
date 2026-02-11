@@ -1,13 +1,13 @@
-# Mox My Bike
+# Mox EquipLog
 
-An Android application to help you manage and track maintenance logs for your bicycles. Keep your bikes in top condition by logging every operation, from cleaning the chain to complex repairs.
+An Android application to help you manage and track maintenance logs for your equipments. Keep your equipments in top condition by logging every operation, from cleaning the chain to complex repairs.
 
 ## ✨ Features
 
-*   **Bike Management**: Add, edit, dismiss, and reorder your list of personal bikes.
+*   **Equipment Management**: Add, edit, dismiss, and reorder your list of personal equipments.
 *   **Operation Types**: Create and manage a custom list of maintenance operations.
-*   **Maintenance Logs**: Log every maintenance activity, linking a bike with an operation, date, and notes.
-*   **Advanced Sorting & Filtering**: Easily search through your logs and sort them by date, bike, operation, kilometers, or notes.
+*   **Maintenance Logs**: Log every maintenance activity, linking a equipment with an operation, date, and notes.
+*   **Advanced Sorting & Filtering**: Easily search through your logs and sort them by date, equipment, operation, kilometers, or notes.
 *   **Data Persistence**: Your data is saved locally using a Room database.
 *   **User Settings**: Simple user preference management using DataStore.
 
