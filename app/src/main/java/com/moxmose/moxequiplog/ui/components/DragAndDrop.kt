@@ -1,7 +1,9 @@
 package com.moxmose.moxequiplog.ui.components
 
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridItemInfo
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
@@ -10,6 +12,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerInputChange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -30,10 +33,7 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
     val isDragging: Boolean get() = draggedItemKey != null
 
     private var currentIndexOfDraggedItem by mutableStateOf<Int?>(null)
-
-    // Offset di "ancoraggio" che viene aggiornato dopo ogni swap.
     private var dragAnchorOffset by mutableFloatStateOf(0f)
-
     private var initialDragOffsetInElement by mutableFloatStateOf(0f)
 
     fun isDragging(itemKey: Any): Boolean = itemKey == draggedItemKey
@@ -43,74 +43,75 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
     }
 
     fun onDragStart(offset: Offset) {
-        val listState = stateHolder.lazyListState
-        val gridState = stateHolder.lazyGridState
+        stateHolder.lazyListState?.layoutInfo?.visibleItemsInfo
+            ?.firstOrNull { offset.y.toInt() in it.offset..(it.offset + it.size) }
+            ?.also { item ->
+                currentIndexOfDraggedItem = item.index
+                draggedItemKey = item.key
+                initialDragOffsetInElement = offset.y - item.offset
+                dragAnchorOffset = item.offset.toFloat()
+                draggedDistance = 0f
+            }
 
-        if (listState != null) {
-            listState.layoutInfo.visibleItemsInfo
-                .firstOrNull { offset.y.toInt() in it.offset..(it.offset + it.size) }
-                ?.also {
-                    currentIndexOfDraggedItem = it.index
-                    draggedItemKey = it.key
-                    initialDragOffsetInElement = offset.y - it.offset
-                    dragAnchorOffset = it.offset.toFloat()
-                    draggedDistance = 0f
-                }
-        } else if (gridState != null) {
-            gridState.layoutInfo.visibleItemsInfo
-                .firstOrNull { offset.y.toInt() in it.offset.y..(it.offset.y + it.size.height) && offset.x.toInt() in it.offset.x..(it.offset.x + it.size.width) }
-                ?.also {
-                    currentIndexOfDraggedItem = it.index
-                    draggedItemKey = it.key
-                    initialDragOffsetInElement = offset.y - it.offset.y
-                    dragAnchorOffset = it.offset.y.toFloat()
-                    draggedDistance = 0f
-                }
-        }
+        stateHolder.lazyGridState?.layoutInfo?.visibleItemsInfo
+            ?.firstOrNull { offset.y.toInt() in it.offset.y..(it.offset.y + it.size.height) && offset.x.toInt() in it.offset.x..(it.offset.x + it.size.width) }
+            ?.also { item ->
+                currentIndexOfDraggedItem = item.index
+                draggedItemKey = item.key
+                initialDragOffsetInElement = offset.y - item.offset.y
+                dragAnchorOffset = item.offset.y.toFloat()
+                draggedDistance = 0f
+            }
     }
 
-    fun onDrag(dragAmount: Offset) {
+    fun onDrag(change: PointerInputChange, dragAmount: Offset) {
         draggedDistance += dragAmount.y
-
-        val currentDraggedIndex = currentIndexOfDraggedItem ?: return
+        val fromIndex = currentIndexOfDraggedItem ?: return
         val absoluteFingerY = dragAnchorOffset + draggedDistance + initialDragOffsetInElement
 
         val listState = stateHolder.lazyListState
-        val gridState = stateHolder.lazyGridState
-
         if (listState != null) {
-            val targetItem = listState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
-                if (item.index == currentDraggedIndex) return@firstOrNull false
-                when {
-                    dragAmount.y > 0 && item.index > currentDraggedIndex -> absoluteFingerY > item.offset + item.size / 2
-                    dragAmount.y < 0 && item.index < currentDraggedIndex -> absoluteFingerY < item.offset + item.size / 2
-                    else -> false
+            findTarget(absoluteFingerY, dragAmount, listState.layoutInfo.visibleItemsInfo, fromIndex)?.also { targetItem ->
+                val toIndex = targetItem.index
+                if (fromIndex != toIndex) {
+                    val diff = if (fromIndex < toIndex) (targetItem.size + spacing) else -(targetItem.size + spacing)
+                    draggedDistance -= diff
+                    dragAnchorOffset += diff
+                    stateHolder.onMove(fromIndex, toIndex)
+                    currentIndexOfDraggedItem = toIndex
                 }
             }
+            return
+        }
 
-            if (targetItem != null && currentDraggedIndex != targetItem.index) {
-                val diff = if (currentDraggedIndex < targetItem.index) (targetItem.size + spacing) else -(targetItem.size + spacing)
-                draggedDistance -= diff
-                dragAnchorOffset += diff
-                stateHolder.onMove(currentDraggedIndex, targetItem.index)
-                currentIndexOfDraggedItem = targetItem.index
-            }
-        } else if (gridState != null) {
-            val targetItem = gridState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
-                if (item.index == currentDraggedIndex) return@firstOrNull false
-                when {
-                    dragAmount.y > 0 && item.index > currentDraggedIndex -> absoluteFingerY > item.offset.y + item.size.height / 2
-                    dragAmount.y < 0 && item.index < currentDraggedIndex -> absoluteFingerY < item.offset.y + item.size.height / 2
-                    else -> false
+        val gridState = stateHolder.lazyGridState
+        if (gridState != null) {
+            findTargetGrid(absoluteFingerY, dragAmount, gridState.layoutInfo.visibleItemsInfo, fromIndex)?.also { targetItem ->
+                val toIndex = targetItem.index
+                if (fromIndex != toIndex) {
+                    val diff = if (fromIndex < toIndex) (targetItem.size.height + spacing) else -(targetItem.size.height + spacing)
+                    draggedDistance -= diff
+                    dragAnchorOffset += diff
+                    stateHolder.onMove(fromIndex, toIndex)
+                    currentIndexOfDraggedItem = toIndex
                 }
             }
-            if (targetItem != null && currentDraggedIndex != targetItem.index) {
-                val diff = if (currentDraggedIndex < targetItem.index) (targetItem.size.height + spacing) else -(targetItem.size.height + spacing)
-                draggedDistance -= diff
-                dragAnchorOffset += diff
-                stateHolder.onMove(currentDraggedIndex, targetItem.index)
-                currentIndexOfDraggedItem = targetItem.index
-            }
+        }
+    }
+
+    private fun findTarget(absFingerY: Float, dragAmount: Offset, items: List<LazyListItemInfo>, currentIdx: Int): LazyListItemInfo? {
+        return if (dragAmount.y > 0) { // dragging down
+            items.firstOrNull { it.index > currentIdx && absFingerY > it.offset + it.size / 2 }
+        } else { // dragging up
+            items.findLast { it.index < currentIdx && absFingerY < it.offset + it.size / 2 }
+        }
+    }
+
+    private fun findTargetGrid(absFingerY: Float, dragAmount: Offset, items: List<LazyGridItemInfo>, currentIdx: Int): LazyGridItemInfo? {
+        return if (dragAmount.y > 0) { // dragging down
+            items.firstOrNull { it.index > currentIdx && absFingerY > it.offset.y + it.size.height / 2 }
+        } else { // dragging up
+            items.findLast { it.index < currentIdx && absFingerY < it.offset.y + it.size.height / 2 }
         }
     }
 
@@ -122,46 +123,36 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
     fun checkForOverscroll(scope: CoroutineScope, dragAmount: Offset): Job? {
         val listState = stateHolder.lazyListState
         val gridState = stateHolder.lazyGridState
+        val key = draggedItemKey ?: return null
 
-        val viewportStartOffset: Int
-        val viewportEndOffset: Int
-        var itemOffsetY = 0
-        var itemHeight = 0
-
-        if (listState != null) {
-            val element = listState.layoutInfo.visibleItemsInfo.find { it.key == draggedItemKey } ?: return null
-            itemOffsetY = element.offset
-            itemHeight = element.size
-            viewportStartOffset = listState.layoutInfo.viewportStartOffset
-            viewportEndOffset = listState.layoutInfo.viewportEndOffset
+        val (itemOffset, itemSize, viewportStart, viewportEnd) = if (listState != null) {
+            listState.layoutInfo.visibleItemsInfo.find { it.key == key }?.let {
+                listOf(it.offset.toFloat(), it.size.toFloat(), listState.layoutInfo.viewportStartOffset.toFloat(), listState.layoutInfo.viewportEndOffset.toFloat())
+            } ?: return null
         } else if (gridState != null) {
-            val element = gridState.layoutInfo.visibleItemsInfo.find { it.key == draggedItemKey } ?: return null
-            itemOffsetY = element.offset.y
-            itemHeight = element.size.height
-            viewportStartOffset = gridState.layoutInfo.viewportStartOffset
-            viewportEndOffset = gridState.layoutInfo.viewportEndOffset
+            gridState.layoutInfo.visibleItemsInfo.find { it.key == key }?.let {
+                listOf(it.offset.y.toFloat(), it.size.height.toFloat(), gridState.layoutInfo.viewportStartOffset.toFloat(), gridState.layoutInfo.viewportEndOffset.toFloat())
+            } ?: return null
         } else {
             return null
         }
 
-        val startOffset = itemOffsetY + draggedDistance
-        val endOffset = startOffset + itemHeight
-
-        val overscrollAmount = when {
-            dragAmount.y > 0 && endOffset > viewportEndOffset - 100 -> dragAmount.y * 0.2f
-            dragAmount.y < 0 && startOffset < viewportStartOffset + 100 -> dragAmount.y * 0.2f
+        val absolutePos = itemOffset + draggedDistance
+        val overscroll = when {
+            dragAmount.y > 0 && absolutePos + itemSize > viewportEnd - 100 -> dragAmount.y * 0.2f
+            dragAmount.y < 0 && absolutePos < viewportStart + 100 -> dragAmount.y * 0.2f
             else -> 0f
         }
 
-        return if (overscrollAmount != 0f) {
+        return if (overscroll != 0f) {
             scope.launch {
-                listState?.scrollBy(overscrollAmount)
-                gridState?.scrollBy(overscrollAmount)
+                listState?.scrollBy(overscroll)
+                gridState?.scrollBy(overscroll)
             }
         } else null
     }
 
-    fun reset() {
+    private fun reset() {
         draggedDistance = 0f
         draggedItemKey = null
         currentIndexOfDraggedItem = null

@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,18 +52,12 @@ fun <T : Any> DraggableLazyColumn(
 
     val dragDropState = remember(stateHolder) { DragDropState(stateHolder, spacingPx) }
 
-    LaunchedEffect(items) {
-        if (dragDropState.isDragging) {
-            dragDropState.reset()
-        }
-    }
-
     LazyColumn(
         modifier = modifier.pointerInput(Unit) {
             detectDragGesturesAfterLongPress(
                 onDrag = { change, dragAmount ->
                     change.consume()
-                    dragDropState.onDrag(dragAmount)
+                    dragDropState.onDrag(change, dragAmount)
 
                     if (overscrollJob?.isActive != true) {
                         overscrollJob = dragDropState.checkForOverscroll(scope, dragAmount)
