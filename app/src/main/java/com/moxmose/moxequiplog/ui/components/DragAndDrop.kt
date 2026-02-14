@@ -16,6 +16,7 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 interface DragDropStateHolder {
     val lazyListState: LazyListState?
@@ -33,13 +34,36 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
     val isDragging: Boolean get() = draggedItemKey != null
 
     private var currentIndexOfDraggedItem by mutableStateOf<Int?>(null)
-    private var dragAnchorOffset by mutableFloatStateOf(0f)
     private var initialDragOffsetInElement by mutableFloatStateOf(0f)
+    private var dragStartPointerY by mutableFloatStateOf(0f)
+    
+    // Proportional Swap Guard
+    private var lastActionedPointerY by mutableFloatStateOf(0f)
+    private var lastActionedItemSize by mutableFloatStateOf(0f)
 
     fun isDragging(itemKey: Any): Boolean = itemKey == draggedItemKey
 
     fun offsetOf(itemKey: Any): State<Float> = derivedStateOf {
-        if (itemKey != draggedItemKey) 0f else draggedDistance
+        if (itemKey != draggedItemKey) return@derivedStateOf 0f
+        
+        val currentPointerY = dragStartPointerY + draggedDistance
+        val listState = stateHolder.lazyListState
+        if (listState != null) {
+            val item = listState.layoutInfo.visibleItemsInfo.find { it.key == itemKey }
+            if (item != null) {
+                return@derivedStateOf currentPointerY - initialDragOffsetInElement - item.offset
+            }
+        }
+
+        val gridState = stateHolder.lazyGridState
+        if (gridState != null) {
+            val item = gridState.layoutInfo.visibleItemsInfo.find { it.key == itemKey }
+            if (item != null) {
+                return@derivedStateOf currentPointerY - initialDragOffsetInElement - item.offset.y
+            }
+        }
+        
+        draggedDistance
     }
 
     fun onDragStart(offset: Offset) {
@@ -49,7 +73,9 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
                 currentIndexOfDraggedItem = item.index
                 draggedItemKey = item.key
                 initialDragOffsetInElement = offset.y - item.offset
-                dragAnchorOffset = item.offset.toFloat()
+                dragStartPointerY = offset.y
+                lastActionedPointerY = offset.y
+                lastActionedItemSize = item.size.toFloat()
                 draggedDistance = 0f
             }
 
@@ -59,26 +85,34 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
                 currentIndexOfDraggedItem = item.index
                 draggedItemKey = item.key
                 initialDragOffsetInElement = offset.y - item.offset.y
-                dragAnchorOffset = item.offset.y.toFloat()
+                dragStartPointerY = offset.y
+                lastActionedPointerY = offset.y
+                lastActionedItemSize = item.size.height.toFloat()
                 draggedDistance = 0f
             }
     }
 
     fun onDrag(change: PointerInputChange, dragAmount: Offset) {
-        draggedDistance += dragAmount.y
+        val currentPointerY = change.position.y
+        draggedDistance = currentPointerY - dragStartPointerY
+        
         val fromIndex = currentIndexOfDraggedItem ?: return
-        val absoluteFingerY = dragAnchorOffset + draggedDistance + initialDragOffsetInElement
+
+        // Swap Guard: richiede un movimento fisico del dito pari ad almeno il 40% della dimensione dell'elemento
+        // Questo impedisce swap a catena causati dallo scroll automatico mentre il dito è quasi fermo.
+        val movementSinceLastSwap = abs(currentPointerY - lastActionedPointerY)
+        val threshold = if (lastActionedItemSize > 0) (lastActionedItemSize + spacing) * 0.4f else 5f
+        
+        if (movementSinceLastSwap < threshold) return
 
         val listState = stateHolder.lazyListState
         if (listState != null) {
-            findTarget(absoluteFingerY, dragAmount, listState.layoutInfo.visibleItemsInfo, fromIndex)?.also { targetItem ->
-                val toIndex = targetItem.index
-                if (fromIndex != toIndex) {
-                    val diff = if (fromIndex < toIndex) (targetItem.size + spacing) else -(targetItem.size + spacing)
-                    draggedDistance -= diff
-                    dragAnchorOffset += diff
-                    stateHolder.onMove(fromIndex, toIndex)
-                    currentIndexOfDraggedItem = toIndex
+            findTarget(currentPointerY, dragAmount, listState.layoutInfo.visibleItemsInfo, fromIndex)?.also { targetItem ->
+                if (fromIndex != targetItem.index) {
+                    stateHolder.onMove(fromIndex, targetItem.index)
+                    currentIndexOfDraggedItem = targetItem.index
+                    lastActionedPointerY = currentPointerY
+                    lastActionedItemSize = targetItem.size.toFloat()
                 }
             }
             return
@@ -86,32 +120,31 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
 
         val gridState = stateHolder.lazyGridState
         if (gridState != null) {
-            findTargetGrid(absoluteFingerY, dragAmount, gridState.layoutInfo.visibleItemsInfo, fromIndex)?.also { targetItem ->
-                val toIndex = targetItem.index
-                if (fromIndex != toIndex) {
-                    val diff = if (fromIndex < toIndex) (targetItem.size.height + spacing) else -(targetItem.size.height + spacing)
-                    draggedDistance -= diff
-                    dragAnchorOffset += diff
-                    stateHolder.onMove(fromIndex, toIndex)
-                    currentIndexOfDraggedItem = toIndex
+            findTargetGrid(currentPointerY, dragAmount, gridState.layoutInfo.visibleItemsInfo, fromIndex)?.also { targetItem ->
+                if (fromIndex != targetItem.index) {
+                    stateHolder.onMove(fromIndex, targetItem.index)
+                    currentIndexOfDraggedItem = targetItem.index
+                    lastActionedPointerY = currentPointerY
+                    lastActionedItemSize = targetItem.size.height.toFloat()
                 }
             }
         }
     }
 
-    private fun findTarget(absFingerY: Float, dragAmount: Offset, items: List<LazyListItemInfo>, currentIdx: Int): LazyListItemInfo? {
+    private fun findTarget(fingerY: Float, dragAmount: Offset, items: List<LazyListItemInfo>, currentIdx: Int): LazyListItemInfo? {
         return if (dragAmount.y > 0) { // dragging down
-            items.firstOrNull { it.index > currentIdx && absFingerY > it.offset + it.size / 2 }
+            items.firstOrNull { it.index == currentIdx + 1 && fingerY > it.offset + it.size / 2 }
         } else { // dragging up
-            items.findLast { it.index < currentIdx && absFingerY < it.offset + it.size / 2 }
+            items.firstOrNull { it.index == currentIdx - 1 && fingerY < it.offset + it.size / 2 }
         }
     }
 
-    private fun findTargetGrid(absFingerY: Float, dragAmount: Offset, items: List<LazyGridItemInfo>, currentIdx: Int): LazyGridItemInfo? {
+    private fun findTargetGrid(fingerY: Float, dragAmount: Offset, items: List<LazyGridItemInfo>, currentIdx: Int): LazyGridItemInfo? {
+        // Nella griglia permettiamo scambi con i vicini immediati (stessa riga o righe adiacenti)
         return if (dragAmount.y > 0) { // dragging down
-            items.firstOrNull { it.index > currentIdx && absFingerY > it.offset.y + it.size.height / 2 }
+            items.firstOrNull { it.index > currentIdx && it.index <= currentIdx + 3 && fingerY > it.offset.y + it.size.height / 2 }
         } else { // dragging up
-            items.findLast { it.index < currentIdx && absFingerY < it.offset.y + it.size.height / 2 }
+            items.findLast { it.index < currentIdx && it.index >= currentIdx - 3 && fingerY < it.offset.y + it.size.height / 2 }
         }
     }
 
@@ -125,19 +158,21 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
         val gridState = stateHolder.lazyGridState
         val key = draggedItemKey ?: return null
 
-        val (itemOffset, itemSize, viewportStart, viewportEnd) = if (listState != null) {
+        val (itemSize, viewportStart, viewportEnd) = if (listState != null) {
             listState.layoutInfo.visibleItemsInfo.find { it.key == key }?.let {
-                listOf(it.offset.toFloat(), it.size.toFloat(), listState.layoutInfo.viewportStartOffset.toFloat(), listState.layoutInfo.viewportEndOffset.toFloat())
+                listOf(it.size.toFloat(), listState.layoutInfo.viewportStartOffset.toFloat(), listState.layoutInfo.viewportEndOffset.toFloat())
             } ?: return null
         } else if (gridState != null) {
             gridState.layoutInfo.visibleItemsInfo.find { it.key == key }?.let {
-                listOf(it.offset.y.toFloat(), it.size.height.toFloat(), gridState.layoutInfo.viewportStartOffset.toFloat(), gridState.layoutInfo.viewportEndOffset.toFloat())
+                listOf(it.size.height.toFloat(), gridState.layoutInfo.viewportStartOffset.toFloat(), gridState.layoutInfo.viewportEndOffset.toFloat())
             } ?: return null
         } else {
             return null
         }
 
-        val absolutePos = itemOffset + draggedDistance
+        val currentPointerY = dragStartPointerY + draggedDistance
+        val absolutePos = currentPointerY - initialDragOffsetInElement
+        
         val overscroll = when {
             dragAmount.y > 0 && absolutePos + itemSize > viewportEnd - 100 -> dragAmount.y * 0.2f
             dragAmount.y < 0 && absolutePos < viewportStart + 100 -> dragAmount.y * 0.2f
@@ -157,6 +192,8 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
         draggedItemKey = null
         currentIndexOfDraggedItem = null
         initialDragOffsetInElement = 0f
-        dragAnchorOffset = 0f
+        dragStartPointerY = 0f
+        lastActionedPointerY = 0f
+        lastActionedItemSize = 0f
     }
 }
