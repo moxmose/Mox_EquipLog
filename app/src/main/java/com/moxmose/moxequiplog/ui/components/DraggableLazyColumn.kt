@@ -42,8 +42,6 @@ fun <T : Any> DraggableLazyColumn(
     val spacing = 16.dp
     val spacingPx = with(LocalDensity.current) { spacing.toPx() }
 
-    // Utilizziamo rememberUpdatedState per evitare che il cambiamento delle lambda
-    // provochi la ricreazione del DragDropState durante il drag.
     val currentOnMove by rememberUpdatedState(onMove)
     val currentOnDrop by rememberUpdatedState(onDrop)
 
@@ -59,11 +57,11 @@ fun <T : Any> DraggableLazyColumn(
     val dragDropState = remember(stateHolder, spacingPx) { DragDropState(stateHolder, spacingPx) }
 
     LazyColumn(
-        modifier = modifier.pointerInput(lazyListState) {
+        modifier = modifier.pointerInput(Unit) {
             detectDragGesturesAfterLongPress(
                 onDrag = { change, dragAmount ->
                     change.consume()
-                    dragDropState.onDrag(change, dragAmount)
+                    dragDropState.onDrag(change, dragAmount, scope)
 
                     if (overscrollJob?.isActive != true) {
                         overscrollJob = dragDropState.checkForOverscroll(scope, dragAmount)

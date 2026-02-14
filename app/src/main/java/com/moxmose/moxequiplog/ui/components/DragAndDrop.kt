@@ -92,14 +92,12 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
             }
     }
 
-    fun onDrag(change: PointerInputChange, dragAmount: Offset) {
+    fun onDrag(change: PointerInputChange, dragAmount: Offset, scope: CoroutineScope) {
         val currentPointerY = change.position.y
         draggedDistance = currentPointerY - dragStartPointerY
         
         val fromIndex = currentIndexOfDraggedItem ?: return
 
-        // Swap Guard: richiede un movimento fisico del dito pari ad almeno il 40% della dimensione dell'elemento
-        // Questo impedisce swap a catena causati dallo scroll automatico mentre il dito è quasi fermo.
         val movementSinceLastSwap = abs(currentPointerY - lastActionedPointerY)
         val threshold = if (lastActionedItemSize > 0) (lastActionedItemSize + spacing) * 0.4f else 5f
         
@@ -107,12 +105,23 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
 
         val listState = stateHolder.lazyListState
         if (listState != null) {
+            // Verifichiamo se siamo al top della lista prima dello swap
+            val wasAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+
             findTarget(currentPointerY, dragAmount, listState.layoutInfo.visibleItemsInfo, fromIndex)?.also { targetItem ->
                 if (fromIndex != targetItem.index) {
                     stateHolder.onMove(fromIndex, targetItem.index)
                     currentIndexOfDraggedItem = targetItem.index
                     lastActionedPointerY = currentPointerY
                     lastActionedItemSize = targetItem.size.toFloat()
+
+                    // Se eravamo al top e abbiamo spostato il primo elemento, forziamo il reset dello scroll
+                    // per contrastare lo scroll anchoring automatico di Compose che "segue" l'elemento trascinato.
+                    if (wasAtTop && (fromIndex == 0 || targetItem.index == 0)) {
+                        scope.launch {
+                            listState.scrollToItem(0, 0)
+                        }
+                    }
                 }
             }
             return
@@ -120,12 +129,20 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
 
         val gridState = stateHolder.lazyGridState
         if (gridState != null) {
+            val wasAtTop = gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0
+
             findTargetGrid(currentPointerY, dragAmount, gridState.layoutInfo.visibleItemsInfo, fromIndex)?.also { targetItem ->
                 if (fromIndex != targetItem.index) {
                     stateHolder.onMove(fromIndex, targetItem.index)
                     currentIndexOfDraggedItem = targetItem.index
                     lastActionedPointerY = currentPointerY
                     lastActionedItemSize = targetItem.size.height.toFloat()
+
+                    if (wasAtTop && (fromIndex == 0 || targetItem.index == 0)) {
+                        scope.launch {
+                            gridState.scrollToItem(0, 0)
+                        }
+                    }
                 }
             }
         }
@@ -140,7 +157,6 @@ class DragDropState(private val stateHolder: DragDropStateHolder, private val sp
     }
 
     private fun findTargetGrid(fingerY: Float, dragAmount: Offset, items: List<LazyGridItemInfo>, currentIdx: Int): LazyGridItemInfo? {
-        // Nella griglia permettiamo scambi con i vicini immediati (stessa riga o righe adiacenti)
         return if (dragAmount.y > 0) { // dragging down
             items.firstOrNull { it.index > currentIdx && it.index <= currentIdx + 3 && fingerY > it.offset.y + it.size.height / 2 }
         } else { // dragging up
