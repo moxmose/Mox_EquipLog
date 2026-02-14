@@ -12,17 +12,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.Job
 
 @Composable
-fun <T> DraggableLazyGrid(
+fun <T : Any> DraggableLazyGrid(
     items: List<T>,
     onMove: (fromIndex: Int, toIndex: Int) -> Unit,
     onDrop: () -> Unit = {},
@@ -32,59 +34,40 @@ fun <T> DraggableLazyGrid(
     gridState: LazyGridState = rememberLazyGridState(),
     itemContent: @Composable (T) -> Unit,
 ) {
-    var draggingItemIndex by remember { mutableStateOf<Int?>(null) }
-    var draggingOffset by remember { mutableStateOf(Offset.Zero) }
+    val scope = rememberCoroutineScope()
+    var overscrollJob by remember { mutableStateOf<Job?>(null) }
     
+    val spacing = 12.dp
+    val spacingPx = with(LocalDensity.current) { spacing.toPx() }
+
     val currentOnMove by rememberUpdatedState(onMove)
     val currentOnDrop by rememberUpdatedState(onDrop)
 
+    val stateHolder = remember(gridState) {
+        object : DragDropStateHolder {
+            override val lazyListState = null
+            override val lazyGridState: LazyGridState = gridState
+            override fun onMove(from: Int, to: Int) = currentOnMove(from, to)
+            override fun onDrop() = currentOnDrop()
+        }
+    }
+
+    val dragDropState = remember(stateHolder, spacingPx) { DragDropState(stateHolder, spacingPx) }
+
     val pointerInputModifier = if (canDrag) {
-        Modifier.pointerInput(gridState) {
+        Modifier.pointerInput(Unit) {
             detectDragGesturesAfterLongPress(
-                onDragStart = { offset ->
-                    gridState.layoutInfo.visibleItemsInfo
-                        .firstOrNull {
-                            offset.y.toInt() in it.offset.y..(it.offset.y + it.size.height) &&
-                                    offset.x.toInt() in it.offset.x..(it.offset.x + it.size.width)
-                        }
-                        ?.let { 
-                            draggingItemIndex = it.index 
-                            draggingOffset = Offset.Zero
-                        }
-                },
+                onDragStart = { offset -> dragDropState.onDragStart(offset) },
                 onDrag = { change, dragAmount ->
                     change.consume()
-                    draggingOffset += dragAmount
-                    val currentIndex = draggingItemIndex ?: return@detectDragGesturesAfterLongPress
+                    dragDropState.onDrag(change, dragAmount, scope)
 
-                    gridState.layoutInfo.visibleItemsInfo
-                        .firstOrNull { item ->
-                            val center = Offset(item.offset.x + item.size.width / 2f, item.offset.y + item.size.height / 2f)
-                            (change.position - center).getDistance() < item.size.width / 2f
-                        }?.let { target ->
-                            if (currentIndex != target.index) {
-                                // Compensiamo lo spostamento della posizione base dell'item nella griglia
-                                val currentItem = gridState.layoutInfo.visibleItemsInfo.find { it.index == currentIndex }
-                                if (currentItem != null) {
-                                    val diffX = currentItem.offset.x - target.offset.x
-                                    val diffY = currentItem.offset.y - target.offset.y
-                                    draggingOffset += Offset(diffX.toFloat(), diffY.toFloat())
-                                }
-
-                                currentOnMove(currentIndex, target.index)
-                                draggingItemIndex = target.index
-                            }
-                        }
+                    if (overscrollJob?.isActive != true) {
+                        overscrollJob = dragDropState.checkForOverscroll(scope, dragAmount)
+                    }
                 },
-                onDragEnd = { 
-                    currentOnDrop()
-                    draggingItemIndex = null
-                    draggingOffset = Offset.Zero 
-                },
-                onDragCancel = { 
-                    draggingItemIndex = null
-                    draggingOffset = Offset.Zero 
-                }
+                onDragEnd = { dragDropState.onDragEnd() },
+                onDragCancel = { dragDropState.onDragEnd() }
             )
         }
     } else Modifier
@@ -92,20 +75,21 @@ fun <T> DraggableLazyGrid(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 80.dp),
         state = gridState,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(spacing),
+        verticalArrangement = Arrangement.spacedBy(spacing),
         modifier = modifier.then(pointerInputModifier)
     ) {
         itemsIndexed(items, key = key) { index, item ->
-            val isDragging = draggingItemIndex == index
+            val itemKey = key?.invoke(index, item) ?: index
+            val isDragging = dragDropState.isDragging(itemKey)
+            val offsetState by dragDropState.offsetOf(itemKey)
+
             Box(
                 modifier = Modifier
                     .zIndex(if (isDragging) 1f else 0f)
                     .graphicsLayer {
-                        if (isDragging) {
-                            translationX = draggingOffset.x
-                            translationY = draggingOffset.y
-                        }
+                        translationX = offsetState.x
+                        translationY = offsetState.y
                     }
             ) {
                 itemContent(item)

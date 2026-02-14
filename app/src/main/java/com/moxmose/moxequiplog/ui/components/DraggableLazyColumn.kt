@@ -79,11 +79,13 @@ fun <T : Any> DraggableLazyColumn(
         itemsIndexed(items, key = key) { index, item ->
             val currentKey = key(index, item)
             val isDragging = dragDropState.isDragging(currentKey)
-            val offset by dragDropState.offsetOf(currentKey)
+            val offsetState by dragDropState.offsetOf(currentKey)
 
             Box(
                 modifier = Modifier
-                    .graphicsLayer { translationY = offset }
+                    .graphicsLayer { 
+                        translationY = offsetState.y 
+                    }
                     .zIndex(if (isDragging) 1f else 0f)
             ) {
                 itemContent(index, item)
