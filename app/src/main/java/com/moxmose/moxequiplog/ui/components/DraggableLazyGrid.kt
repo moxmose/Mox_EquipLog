@@ -12,9 +12,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -22,7 +24,8 @@ import androidx.compose.ui.zIndex
 @Composable
 fun <T> DraggableLazyGrid(
     items: List<T>,
-    onMove: (Pair<Int, Int>) -> Unit,
+    onMove: (fromIndex: Int, toIndex: Int) -> Unit,
+    onDrop: () -> Unit = {},
     modifier: Modifier = Modifier,
     canDrag: Boolean = true,
     key: ((index: Int, item: T) -> Any)? = null,
@@ -31,9 +34,12 @@ fun <T> DraggableLazyGrid(
 ) {
     var draggingItemIndex by remember { mutableStateOf<Int?>(null) }
     var draggingOffset by remember { mutableStateOf(Offset.Zero) }
+    
+    val currentOnMove by rememberUpdatedState(onMove)
+    val currentOnDrop by rememberUpdatedState(onDrop)
 
     val pointerInputModifier = if (canDrag) {
-        Modifier.pointerInput(items) {
+        Modifier.pointerInput(gridState) {
             detectDragGesturesAfterLongPress(
                 onDragStart = { offset ->
                     gridState.layoutInfo.visibleItemsInfo
@@ -41,7 +47,10 @@ fun <T> DraggableLazyGrid(
                             offset.y.toInt() in it.offset.y..(it.offset.y + it.size.height) &&
                                     offset.x.toInt() in it.offset.x..(it.offset.x + it.size.width)
                         }
-                        ?.let { draggingItemIndex = it.index }
+                        ?.let { 
+                            draggingItemIndex = it.index 
+                            draggingOffset = Offset.Zero
+                        }
                 },
                 onDrag = { change, dragAmount ->
                     change.consume()
@@ -54,13 +63,28 @@ fun <T> DraggableLazyGrid(
                             (change.position - center).getDistance() < item.size.width / 2f
                         }?.let { target ->
                             if (currentIndex != target.index) {
-                                onMove(Pair(currentIndex, target.index))
+                                // Compensiamo lo spostamento della posizione base dell'item nella griglia
+                                val currentItem = gridState.layoutInfo.visibleItemsInfo.find { it.index == currentIndex }
+                                if (currentItem != null) {
+                                    val diffX = currentItem.offset.x - target.offset.x
+                                    val diffY = currentItem.offset.y - target.offset.y
+                                    draggingOffset += Offset(diffX.toFloat(), diffY.toFloat())
+                                }
+
+                                currentOnMove(currentIndex, target.index)
                                 draggingItemIndex = target.index
                             }
                         }
                 },
-                onDragEnd = { draggingItemIndex = null; draggingOffset = Offset.Zero },
-                onDragCancel = { draggingItemIndex = null; draggingOffset = Offset.Zero }
+                onDragEnd = { 
+                    currentOnDrop()
+                    draggingItemIndex = null
+                    draggingOffset = Offset.Zero 
+                },
+                onDragCancel = { 
+                    draggingItemIndex = null
+                    draggingOffset = Offset.Zero 
+                }
             )
         }
     } else Modifier
@@ -73,7 +97,17 @@ fun <T> DraggableLazyGrid(
         modifier = modifier.then(pointerInputModifier)
     ) {
         itemsIndexed(items, key = key) { index, item ->
-            Box(modifier = Modifier.zIndex(if (draggingItemIndex == index) 1f else 0f)) {
+            val isDragging = draggingItemIndex == index
+            Box(
+                modifier = Modifier
+                    .zIndex(if (isDragging) 1f else 0f)
+                    .graphicsLayer {
+                        if (isDragging) {
+                            translationX = draggingOffset.x
+                            translationY = draggingOffset.y
+                        }
+                    }
+            ) {
                 itemContent(item)
             }
         }

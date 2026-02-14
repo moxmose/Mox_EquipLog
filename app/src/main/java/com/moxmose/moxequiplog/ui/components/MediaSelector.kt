@@ -358,9 +358,9 @@ fun MediaPickerDialog(
 
                 DraggableLazyGrid(
                     items = filteredAndSortedMedia,
-                    onMove = {
+                    onMove = { from, to ->
                         if (canDrag) {
-                            val newList = filteredAndSortedMedia.toMutableList().apply { add(it.second, removeAt(it.first)) }
+                            val newList = filteredAndSortedMedia.toMutableList().apply { add(to, removeAt(from)) }
                             onUpdateMediaOrder?.invoke(newList.mapIndexed { index, m -> m.copy(displayOrder = index) })
                         }
                     },

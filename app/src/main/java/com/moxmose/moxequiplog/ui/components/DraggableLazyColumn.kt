@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -41,19 +42,24 @@ fun <T : Any> DraggableLazyColumn(
     val spacing = 16.dp
     val spacingPx = with(LocalDensity.current) { spacing.toPx() }
 
-    val stateHolder = remember(lazyListState, onMove, onDrop) {
+    // Utilizziamo rememberUpdatedState per evitare che il cambiamento delle lambda
+    // provochi la ricreazione del DragDropState durante il drag.
+    val currentOnMove by rememberUpdatedState(onMove)
+    val currentOnDrop by rememberUpdatedState(onDrop)
+
+    val stateHolder = remember(lazyListState) {
         object : DragDropStateHolder {
             override val lazyListState: LazyListState = lazyListState
             override val lazyGridState = null
-            override fun onMove(from: Int, to: Int) = onMove(from, to)
-            override fun onDrop() = onDrop()
+            override fun onMove(from: Int, to: Int) = currentOnMove(from, to)
+            override fun onDrop() = currentOnDrop()
         }
     }
 
-    val dragDropState = remember(stateHolder) { DragDropState(stateHolder, spacingPx) }
+    val dragDropState = remember(stateHolder, spacingPx) { DragDropState(stateHolder, spacingPx) }
 
     LazyColumn(
-        modifier = modifier.pointerInput(Unit) {
+        modifier = modifier.pointerInput(lazyListState) {
             detectDragGesturesAfterLongPress(
                 onDrag = { change, dragAmount ->
                     change.consume()
