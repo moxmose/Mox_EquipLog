@@ -60,10 +60,10 @@ import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.Media
-import com.moxmose.moxequiplog.data.local.MediaIdentifier
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
-import com.moxmose.moxequiplog.ui.components.MediaPickerDialog
+import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -72,7 +72,7 @@ import org.koin.androidx.compose.koinViewModel
 fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
     val activeEquipments by viewModel.activeEquipments.collectAsState()
     val allEquipments by viewModel.allEquipments.collectAsState()
-    val equipmentMedia by viewModel.equipmentMedia.collectAsState()
+    val equipmentImages by viewModel.equipmentImages.collectAsState()
     val allCategories by optionsViewModel.allCategories.collectAsState()
 
     var showDismissed by rememberSaveable { mutableStateOf(false) }
@@ -83,7 +83,7 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
 
     EquipmentsScreenContent(
         equipments = equipmentsToShow,
-        equipmentMedia = equipmentMedia,
+        equipmentImages = equipmentImages,
         allCategories = allCategories,
         defaultIcon = equipmentCategory?.defaultIconIdentifier,
         defaultPhotoUri = equipmentCategory?.defaultPhotoUri,
@@ -97,8 +97,8 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
         onToggleShowDismissed = { showDismissed = !showDismissed },
         showAddDialog = showAddDialog,
         onShowAddDialogChange = { showAddDialog = it },
-        onAddMedia = viewModel::addMedia,
-        onToggleMediaVisibility = viewModel::toggleMediaVisibility
+        onAddImage = viewModel::addImage,
+        onToggleImageVisibility = viewModel::toggleImageVisibility
     )
 }
 
@@ -106,7 +106,7 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
 @Composable
 fun EquipmentsScreenContent(
     equipments: List<Equipment>,
-    equipmentMedia: List<Media>,
+    equipmentImages: List<Image>,
     allCategories: List<Category>,
     defaultIcon: String?,
     defaultPhotoUri: String?,
@@ -115,13 +115,13 @@ fun EquipmentsScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, MediaIdentifier?) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
-    onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (Media) -> Unit,
+    onAddImage: (ImageIdentifier, String) -> Unit,
+    onToggleImageVisibility: (Image) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
@@ -150,7 +150,7 @@ fun EquipmentsScreenContent(
             AddEquipmentDialog(
                 defaultIcon = defaultIcon,
                 defaultPhotoUri = defaultPhotoUri,
-                mediaLibrary = equipmentMedia,
+                imageLibrary = equipmentImages,
                 categories = allCategories,
                 equipmentCategoryColor = equipmentCategoryColor,
                 onDismissRequest = { onShowAddDialogChange(false) },
@@ -158,8 +158,8 @@ fun EquipmentsScreenContent(
                     onAddEquipment(desc, identifier)
                     onShowAddDialogChange(false)
                 },
-                onAddMedia = onAddMedia,
-                onToggleMediaVisibility = onToggleMediaVisibility
+                onAddImage = onAddImage,
+                onToggleImageVisibility = onToggleImageVisibility
             )
         }
 
@@ -188,13 +188,13 @@ fun EquipmentsScreenContent(
                 itemContent = { _, equipment ->
                     EquipmentCard(
                         equipment = equipment,
-                        equipmentMedia = equipmentMedia,
+                        equipmentImages = equipmentImages,
                         allCategories = allCategories,
                         onUpdateEquipment = onUpdateEquipment,
                         onDismissEquipment = onDismissEquipment,
                         onRestoreEquipment = onRestoreEquipment,
-                        onAddMedia = onAddMedia,
-                        onToggleMediaVisibility = onToggleMediaVisibility,
+                        onAddImage = onAddImage,
+                        onToggleImageVisibility = onToggleImageVisibility,
                         equipmentCategoryColor = equipmentCategoryColor
                     )
                 }
@@ -206,20 +206,20 @@ fun EquipmentsScreenContent(
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, MediaIdentifier?) -> Unit,
+    onConfirm: (String, ImageIdentifier?) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
-    mediaLibrary: List<Media>,
+    imageLibrary: List<Image>,
     categories: List<Category>,
     equipmentCategoryColor: String?,
-    onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (Media) -> Unit
+    onAddImage: (ImageIdentifier, String) -> Unit,
+    onToggleImageVisibility: (Image) -> Unit
 ) {
     var description by rememberSaveable { mutableStateOf("") }
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
     var iconId by rememberSaveable { mutableStateOf<String?>(null) }
     var isPristine by rememberSaveable { mutableStateOf(true) }
-    var showMediaSelectorDialog by remember { mutableStateOf(false) }
+    var showImageSelectorDialog by remember { mutableStateOf(false) }
 
     if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
         LaunchedEffect(defaultIcon, defaultPhotoUri) {
@@ -228,23 +228,23 @@ fun AddEquipmentDialog(
         }
     }
 
-    if (showMediaSelectorDialog) {
-        MediaPickerDialog(
-            onDismissRequest = { showMediaSelectorDialog = false },
+    if (showImageSelectorDialog) {
+        ImagePickerDialog(
+            onDismissRequest = { showImageSelectorDialog = false },
             photoUri = photoUri,
             iconIdentifier = iconId,
-            onMediaSelected = { (newIconId, newPhotoUri) ->
+            onImageSelected = { (newIconId, newPhotoUri) ->
                 isPristine = false
                 iconId = newIconId
                 photoUri = newPhotoUri
-                showMediaSelectorDialog = false
+                showImageSelectorDialog = false
             },
-            mediaLibrary = mediaLibrary,
+            imageLibrary = imageLibrary,
             categories = categories,
-            onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
-            onRemoveMedia = null,
-            onUpdateMediaOrder = null,
-            onToggleMediaVisibility = { uri, category -> mediaLibrary.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
@@ -281,7 +281,7 @@ fun AddEquipmentDialog(
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.secondaryContainer)
                         .border(2.dp, borderColor, CircleShape)
-                        .clickable { showMediaSelectorDialog = true },
+                        .clickable { showImageSelectorDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
                     if (photoUri != null) {
@@ -314,8 +314,8 @@ fun AddEquipmentDialog(
             TextButton(
                 onClick = { 
                     val identifier = when {
-                        photoUri != null -> MediaIdentifier.Photo(photoUri!!)
-                        iconId != null -> MediaIdentifier.Icon(iconId!!)
+                        photoUri != null -> ImageIdentifier.Photo(photoUri!!)
+                        iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
                     onConfirm(description, identifier) 
@@ -356,13 +356,13 @@ fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
 @Composable
 fun EquipmentCard(
     equipment: Equipment,
-    equipmentMedia: List<Media>,
+    equipmentImages: List<Image>,
     allCategories: List<Category>,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
-    onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (Media) -> Unit,
+    onAddImage: (ImageIdentifier, String) -> Unit,
+    onToggleImageVisibility: (Image) -> Unit,
     equipmentCategoryColor: String?,
     modifier: Modifier = Modifier
 ) {
@@ -371,7 +371,7 @@ fun EquipmentCard(
     val context = LocalContext.current
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
-    var showMediaSelectorDialog by remember { mutableStateOf(false) }
+    var showImageSelectorDialog by remember { mutableStateOf(false) }
 
     val cardAlpha = if (equipment.dismissed) 0.5f else 1f
 
@@ -388,21 +388,21 @@ fun EquipmentCard(
         )
     }
 
-    if (showMediaSelectorDialog) {
-        MediaPickerDialog(
-            onDismissRequest = { showMediaSelectorDialog = false },
+    if (showImageSelectorDialog) {
+        ImagePickerDialog(
+            onDismissRequest = { showImageSelectorDialog = false },
             photoUri = equipment.photoUri,
             iconIdentifier = equipment.iconIdentifier,
-            onMediaSelected = { (iconId, photoUri) ->
+            onImageSelected = { (iconId, photoUri) ->
                 onUpdateEquipment(equipment.copy(iconIdentifier = iconId, photoUri = photoUri))
-                showMediaSelectorDialog = false
+                showImageSelectorDialog = false
             },
-            mediaLibrary = equipmentMedia,
+            imageLibrary = equipmentImages,
             categories = allCategories,
-            onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
-            onRemoveMedia = null,
-            onUpdateMediaOrder = null,
-            onToggleMediaVisibility = { uri, category -> equipmentMedia.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
@@ -447,7 +447,7 @@ fun EquipmentCard(
                     .border(2.dp, equipmentBorderColor, CircleShape)
                     .clickable {
                         if (isEditing) {
-                            showMediaSelectorDialog = true
+                            showImageSelectorDialog = true
                         } else {
                             if (equipment.photoUri != null) {
                                 showFullImageDialog = equipment.photoUri

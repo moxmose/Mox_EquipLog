@@ -58,11 +58,11 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Media
-import com.moxmose.moxequiplog.data.local.MediaIdentifier
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
-import com.moxmose.moxequiplog.ui.components.MediaPickerDialog
+import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import org.koin.androidx.compose.koinViewModel
 
@@ -70,7 +70,7 @@ import org.koin.androidx.compose.koinViewModel
 fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
     val activeOperationTypes by viewModel.activeOperationTypes.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
-    val operationTypeMedia by viewModel.operationTypeMedia.collectAsState()
+    val operationTypeImages by viewModel.operationTypeImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
 
     var showDismissed by rememberSaveable { mutableStateOf(false) }
@@ -81,7 +81,7 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
 
     OperationTypeScreenContent(
         operationTypes = typesToShow,
-        operationTypeMedia = operationTypeMedia,
+        operationTypeImages = operationTypeImages,
         allCategories = allCategories,
         defaultIcon = operationCategory?.defaultIconIdentifier,
         defaultPhotoUri = operationCategory?.defaultPhotoUri,
@@ -94,8 +94,8 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
         onToggleShowDismissed = { showDismissed = !showDismissed },
         showAddDialog = showAddDialog,
         onShowAddDialogChange = { showAddDialog = it },
-        onAddMedia = viewModel::addMedia,
-        onToggleMediaVisibility = viewModel::toggleMediaVisibility,
+        onAddImage = viewModel::addImage,
+        onToggleImageVisibility = viewModel::toggleImageVisibility,
         operationCategoryColor = operationCategory?.color
     )
 }
@@ -103,7 +103,7 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
 @Composable
 fun OperationTypeScreenContent(
     operationTypes: List<OperationType>,
-    operationTypeMedia: List<Media>,
+    operationTypeImages: List<Image>,
     allCategories: List<Category>,
     defaultIcon: String?,
     defaultPhotoUri: String?,
@@ -111,13 +111,13 @@ fun OperationTypeScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddOperationType: (String, MediaIdentifier?) -> Unit,
+    onAddOperationType: (String, ImageIdentifier?) -> Unit,
     onUpdateOperationTypes: (List<OperationType>) -> Unit,
     onUpdateOperationType: (OperationType) -> Unit,
     onDismissOperationType: (OperationType) -> Unit,
     onRestoreOperationType: (OperationType) -> Unit,
-    onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (Media) -> Unit,
+    onAddImage: (ImageIdentifier, String) -> Unit,
+    onToggleImageVisibility: (Image) -> Unit,
     operationCategoryColor: String?,
     modifier: Modifier = Modifier
 ) {
@@ -145,7 +145,7 @@ fun OperationTypeScreenContent(
     ) { paddingValues ->
         if (showAddDialog) {
             AddOperationTypeDialog(
-                mediaLibrary = operationTypeMedia,
+                imageLibrary = operationTypeImages,
                 categories = allCategories,
                 defaultIcon = defaultIcon,
                 defaultPhotoUri = defaultPhotoUri,
@@ -154,8 +154,8 @@ fun OperationTypeScreenContent(
                     onAddOperationType(description, identifier)
                     onShowAddDialogChange(false)
                 },
-                onAddMedia = onAddMedia,
-                onToggleMediaVisibility = onToggleMediaVisibility,
+                onAddImage = onAddImage,
+                onToggleImageVisibility = onToggleImageVisibility,
                 operationCategoryColor = operationCategoryColor
             )
         }
@@ -192,10 +192,10 @@ fun OperationTypeScreenContent(
                         onUpdateOperationType = onUpdateOperationType,
                         onDismissOperationType = onDismissOperationType,
                         onRestoreOperationType = onRestoreOperationType,
-                        operationTypeMedia = operationTypeMedia,
+                        operationTypeImages = operationTypeImages,
                         allCategories = allCategories,
-                        onAddMedia = onAddMedia,
-                        onToggleMediaVisibility = onToggleMediaVisibility,
+                        onAddImage = onAddImage,
+                        onToggleImageVisibility = onToggleImageVisibility,
                         operationCategoryColor = operationCategoryColor
                     )
                 }
@@ -207,20 +207,20 @@ fun OperationTypeScreenContent(
 @Composable
 fun AddOperationTypeDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, MediaIdentifier?) -> Unit,
-    mediaLibrary: List<Media>,
+    onConfirm: (String, ImageIdentifier?) -> Unit,
+    imageLibrary: List<Image>,
     categories: List<Category>,
     defaultIcon: String?,
     defaultPhotoUri: String?,
-    onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (Media) -> Unit,
+    onAddImage: (ImageIdentifier, String) -> Unit,
+    onToggleImageVisibility: (Image) -> Unit,
     operationCategoryColor: String?
 ) {
     var description by rememberSaveable { mutableStateOf("") }
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
     var iconId by rememberSaveable { mutableStateOf<String?>(null) }
     var isPristine by rememberSaveable { mutableStateOf(true) }
-    var showMediaSelectorDialog by remember { mutableStateOf(false) }
+    var showImageSelectorDialog by remember { mutableStateOf(false) }
 
 
     if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
@@ -230,23 +230,23 @@ fun AddOperationTypeDialog(
         }
     }
 
-    if (showMediaSelectorDialog) {
-        MediaPickerDialog(
-            onDismissRequest = { showMediaSelectorDialog = false },
+    if (showImageSelectorDialog) {
+        ImagePickerDialog(
+            onDismissRequest = { showImageSelectorDialog = false },
             photoUri = photoUri,
             iconIdentifier = iconId,
-            onMediaSelected = { (newIconId, newPhotoUri) ->
+            onImageSelected = { (newIconId, newPhotoUri) ->
                 isPristine = false
                 iconId = newIconId
                 photoUri = newPhotoUri
-                showMediaSelectorDialog = false
+                showImageSelectorDialog = false
             },
-            mediaLibrary = mediaLibrary,
+            imageLibrary = imageLibrary,
             categories = categories,
-            onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
-            onRemoveMedia = null,
-            onUpdateMediaOrder = null,
-            onToggleMediaVisibility = { uri, category -> mediaLibrary.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
@@ -282,7 +282,7 @@ fun AddOperationTypeDialog(
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.secondaryContainer)
                         .border(2.dp, borderColor, CircleShape)
-                        .clickable { showMediaSelectorDialog = true },
+                        .clickable { showImageSelectorDialog = true },
                     contentAlignment = Alignment.Center
                 ) {
                     if (photoUri != null) {
@@ -315,8 +315,8 @@ fun AddOperationTypeDialog(
             TextButton(
                 onClick = {
                     val identifier = when {
-                        photoUri != null -> MediaIdentifier.Photo(photoUri!!)
-                        iconId != null -> MediaIdentifier.Icon(iconId!!)
+                        photoUri != null -> ImageIdentifier.Photo(photoUri!!)
+                        iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
                     onConfirm(description, identifier)
@@ -360,10 +360,10 @@ fun OperationTypeCard(
     onUpdateOperationType: (OperationType) -> Unit,
     onDismissOperationType: (OperationType) -> Unit,
     onRestoreOperationType: (OperationType) -> Unit,
-    operationTypeMedia: List<Media>,
+    operationTypeImages: List<Image>,
     allCategories: List<Category>,
-    onAddMedia: (MediaIdentifier, String) -> Unit,
-    onToggleMediaVisibility: (Media) -> Unit,
+    onAddImage: (ImageIdentifier, String) -> Unit,
+    onToggleImageVisibility: (Image) -> Unit,
     operationCategoryColor: String?,
     modifier: Modifier = Modifier
 ) {
@@ -372,7 +372,7 @@ fun OperationTypeCard(
     val context = LocalContext.current
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
-    var showMediaSelectorDialog by remember { mutableStateOf(false) }
+    var showImageSelectorDialog by remember { mutableStateOf(false) }
 
     val cardAlpha = if (operationType.dismissed) 0.5f else 1f
 
@@ -389,21 +389,21 @@ fun OperationTypeCard(
         )
     }
 
-    if (showMediaSelectorDialog) {
-        MediaPickerDialog(
-            onDismissRequest = { showMediaSelectorDialog = false },
+    if (showImageSelectorDialog) {
+        ImagePickerDialog(
+            onDismissRequest = { showImageSelectorDialog = false },
             photoUri = operationType.photoUri,
             iconIdentifier = operationType.iconIdentifier,
-            onMediaSelected = { (iconId, photoUri) ->
+            onImageSelected = { (iconId, photoUri) ->
                 onUpdateOperationType(operationType.copy(iconIdentifier = iconId, photoUri = photoUri))
-                showMediaSelectorDialog = false
+                showImageSelectorDialog = false
             },
-            mediaLibrary = operationTypeMedia,
+            imageLibrary = operationTypeImages,
             categories = allCategories,
-            onAddMedia = { uri, category -> onAddMedia(MediaIdentifier.Photo(uri), category) },
-            onRemoveMedia = null,
-            onUpdateMediaOrder = null,
-            onToggleMediaVisibility = { uri, category -> operationTypeMedia.find { it.uri == uri && it.category == category }?.let { onToggleMediaVisibility(it) } },
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> operationTypeImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
@@ -448,7 +448,7 @@ fun OperationTypeCard(
                     .border(2.dp, operationBorderColor, CircleShape)
                     .clickable {
                         if (isEditing) {
-                            showMediaSelectorDialog = true
+                            showImageSelectorDialog = true
                         } else {
                             if (operationType.photoUri != null) {
                                 showFullImageDialog = operationType.photoUri

@@ -102,6 +102,9 @@ dependencies {
     implementation("androidx.room:room-ktx:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
 
+    // Color Picker
+    implementation("com.github.skydoves:colorpicker-compose:1.0.0")
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(kotlin("test"))

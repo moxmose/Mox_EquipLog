@@ -3,12 +3,12 @@ package com.moxmose.moxequiplog.ui.options
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
-import com.moxmose.moxequiplog.data.MediaRepository
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Media
-import com.moxmose.moxequiplog.data.local.MediaIdentifier
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
-    private val mediaRepository: MediaRepository
+    private val imageRepository: ImageRepository
 ) : ViewModel() {
 
     sealed class OptionsUiEvent {
@@ -31,8 +31,8 @@ class OptionsViewModel(
         data object UsernameInvalid : OptionsUiEvent()
         data object UpdateUsernameFailed : OptionsUiEvent()
 
-        // Errori Funzione `removeMedia`
-        data object RemoveMediaFailed : OptionsUiEvent()
+        // Errori Funzione `removeImage`
+        data object RemoveImageFailed : OptionsUiEvent()
 
         // Errori Funzione `updateColor`
         data object UpdateColorFailed : OptionsUiEvent()
@@ -44,16 +44,16 @@ class OptionsViewModel(
         // Errori Funzione `setCategoryDefault`
         data object SetCategoryDefaultFailed : OptionsUiEvent()
         data object CategoryIdInvalid : OptionsUiEvent()
-        data object NoMediaSelectedForDefault : OptionsUiEvent()
+        data object NoImageSelectedForDefault : OptionsUiEvent()
 
-        // Errori Funzione `toggleMediaVisibility`
-        data object ToggleMediaVisibilityFailed : OptionsUiEvent()
+        // Errori Funzione `toggleImageVisibility`
+        data object ToggleImageVisibilityFailed : OptionsUiEvent()
 
-        // Errori Funzione `addMedia`
-        data object AddMediaFailed : OptionsUiEvent()
+        // Errori Funzione `addImage`
+        data object AddImageFailed : OptionsUiEvent()
 
-        // Errori Funzione `updateMediaOrder`
-        data object UpdateMediaOrderFailed : OptionsUiEvent()
+        // Errori Funzione `updateImageOrder`
+        data object UpdateImageOrderFailed : OptionsUiEvent()
 
         // Errori Funzione `updateCategoryColor`
         data object UpdateCategoryColorFailed : OptionsUiEvent()
@@ -79,7 +79,7 @@ class OptionsViewModel(
 
     init {
         viewModelScope.launch {
-            mediaRepository.initializeAppData()
+            imageRepository.initializeAppData()
         }
     }
 
@@ -90,21 +90,21 @@ class OptionsViewModel(
             initialValue = ""
         )
 
-    val allMedia: StateFlow<List<Media>> = mediaRepository.allMedia
+    val allImages: StateFlow<List<Image>> = imageRepository.allImages
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    val allCategories: StateFlow<List<Category>> = mediaRepository.allCategories
+    val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    val allColors: StateFlow<List<AppColor>> = mediaRepository.allColors
+    val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
@@ -125,63 +125,63 @@ class OptionsViewModel(
         }
     }
 
-    fun setCategoryDefault(categoryId: String, mediaIdentifier: MediaIdentifier?) {
+    fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
         if (categoryId.isBlank()) {
             viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.setCategoryDefault(categoryId, mediaIdentifier)
+                imageRepository.setCategoryDefault(categoryId, imageIdentifier)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.SetCategoryDefaultFailed)
             }
         }
     }
 
-    fun toggleMediaVisibility(media: Media) {
+    fun toggleImageVisibility(image: Image) {
         viewModelScope.launch {
             try {
-                mediaRepository.toggleMediaVisibility(media)
+                imageRepository.toggleImageVisibility(image)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.ToggleMediaVisibilityFailed)
+                _uiEvents.send(OptionsUiEvent.ToggleImageVisibilityFailed)
             }
         }
     }
 
-    fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
+    fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         if (category.isBlank()) {
             viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.addMedia(mediaIdentifier, category)
+                imageRepository.addImage(imageIdentifier, category)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.AddMediaFailed)
+                _uiEvents.send(OptionsUiEvent.AddImageFailed)
             }
         }
     }
 
-    fun removeMedia(media: Media) {
+    fun removeImage(image: Image) {
         viewModelScope.launch {
             try {
-                mediaRepository.removeMedia(media)
+                imageRepository.removeImage(image)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.RemoveMediaFailed)
+                _uiEvents.send(OptionsUiEvent.RemoveImageFailed)
             }
         }
     }
 
-    fun updateMediaOrder(mediaList: List<Media>) {
-        if (mediaList.isEmpty()) {
+    fun updateImageOrder(imageList: List<Image>) {
+        if (imageList.isEmpty()) {
             return // Esegui una no-op efficiente, non è un errore
         }
         viewModelScope.launch {
             try {
-                mediaRepository.updateMediaOrder(mediaList)
+                imageRepository.updateImageOrder(imageList)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.UpdateMediaOrderFailed)
+                _uiEvents.send(OptionsUiEvent.UpdateImageOrderFailed)
             }
         }
     }
@@ -197,7 +197,7 @@ class OptionsViewModel(
         }
         viewModelScope.launch {
             try {
-                mediaRepository.updateCategoryColor(categoryId, colorHex)
+                imageRepository.updateCategoryColor(categoryId, colorHex)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateCategoryColorFailed)
             }
@@ -215,7 +215,7 @@ class OptionsViewModel(
         }
         viewModelScope.launch {
             try {
-                mediaRepository.addColor(hex, name)
+                imageRepository.addColor(hex, name)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.AddColorFailed)
             }
@@ -229,7 +229,7 @@ class OptionsViewModel(
         }
         viewModelScope.launch {
             try {
-                mediaRepository.updateColor(color)
+                imageRepository.updateColor(color)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateColorFailed)
             }
@@ -243,7 +243,7 @@ class OptionsViewModel(
         }
         viewModelScope.launch {
             try {
-                mediaRepository.updateColorsOrder(colors)
+                imageRepository.updateColorsOrder(colors)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateColorsOrderFailed)
             }
@@ -257,7 +257,7 @@ class OptionsViewModel(
         }
         viewModelScope.launch {
             try {
-                mediaRepository.toggleColorVisibility(id)
+                imageRepository.toggleColorVisibility(id)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.ToggleColorVisibilityFailed)
             }
@@ -271,7 +271,7 @@ class OptionsViewModel(
         }
         viewModelScope.launch {
             try {
-                mediaRepository.deleteColor(color)
+                imageRepository.deleteColor(color)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.DeleteColorFailed)
             }

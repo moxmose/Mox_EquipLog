@@ -74,5 +74,7 @@
     <string name="error_username_invalid">Username cannot be empty.</string>
     <string name="error_update_username_failed">Failed to save username.</string>
     <string name="error_unknown">An unknown error occurred.</string>
+    <string name="add_color_failed">Failed to add color %1$s.</string>
+    <string name="remove_image_failed">Failed to remove image.</string>
 
 </resources>

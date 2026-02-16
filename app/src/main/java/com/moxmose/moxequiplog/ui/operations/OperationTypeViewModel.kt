@@ -2,10 +2,10 @@ package com.moxmose.moxequiplog.ui.operations
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moxmose.moxequiplog.data.MediaRepository
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Media
-import com.moxmose.moxequiplog.data.local.MediaIdentifier
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 
 class OperationTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
-    private val mediaRepository: MediaRepository
+    private val imageRepository: ImageRepository
 ) : ViewModel() {
 
     val activeOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getActiveOperationTypes()
@@ -33,21 +33,21 @@ class OperationTypeViewModel(
             initialValue = emptyList()
         )
 
-    val operationTypeMedia: StateFlow<List<Media>> = mediaRepository.getMediaByCategory("OPERATION")
+    val operationTypeImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory("OPERATION")
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    val allCategories: StateFlow<List<Category>> = mediaRepository.allCategories
+    val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    fun addOperationType(description: String, mediaIdentifier: MediaIdentifier?) {
+    fun addOperationType(description: String, imageIdentifier: ImageIdentifier?) {
         viewModelScope.launch {
             val maxDisplayOrder = allOperationTypes.first().maxOfOrNull { it.displayOrder } ?: -1
             val operationCategory = allCategories.first().find { it.id == "OPERATION" }
@@ -55,9 +55,9 @@ class OperationTypeViewModel(
             var operationPhotoUri: String? = null
             var operationIconIdentifier: String? = null
 
-            when (mediaIdentifier) {
-                is MediaIdentifier.Icon -> operationIconIdentifier = mediaIdentifier.name
-                is MediaIdentifier.Photo -> operationPhotoUri = mediaIdentifier.uri
+            when (imageIdentifier) {
+                is ImageIdentifier.Icon -> operationIconIdentifier = imageIdentifier.name
+                is ImageIdentifier.Photo -> operationPhotoUri = imageIdentifier.uri
                 null -> { // Usa i default di categoria
                     operationPhotoUri = operationCategory?.defaultPhotoUri
                     operationIconIdentifier = operationCategory?.defaultIconIdentifier
@@ -99,15 +99,15 @@ class OperationTypeViewModel(
         }
     }
 
-    fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
+    fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         viewModelScope.launch {
-            mediaRepository.addMedia(mediaIdentifier, category)
+            imageRepository.addImage(imageIdentifier, category)
         }
     }
 
-    fun toggleMediaVisibility(media: Media) {
+    fun toggleImageVisibility(image: Image) {
         viewModelScope.launch {
-            mediaRepository.toggleMediaVisibility(media)
+            imageRepository.toggleImageVisibility(image)
         }
     }
 }

@@ -7,7 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
-import com.moxmose.moxequiplog.data.MediaRepository
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.AppDatabase
 import com.moxmose.moxequiplog.ui.equipments.EquipmentsViewModel
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
@@ -44,12 +44,12 @@ val appModule = module {
     single { get<AppDatabase>().equipmentDao() }
     single { get<AppDatabase>().operationTypeDao() }
     single { get<AppDatabase>().maintenanceLogDao() }
-    single { get<AppDatabase>().mediaDao() }
+    single { get<AppDatabase>().imageDao() }
     single { get<AppDatabase>().categoryDao() }
     single { get<AppDatabase>().appColorDao() }
 
     // Repositories
-    single { MediaRepository(get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
+    single { ImageRepository(get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
     single { AppSettingsManager(get(), get(named("defaultUsername"))) }
 
     // ViewModels

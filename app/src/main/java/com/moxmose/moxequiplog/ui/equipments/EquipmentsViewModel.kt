@@ -2,12 +2,12 @@ package com.moxmose.moxequiplog.ui.equipments
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moxmose.moxequiplog.data.MediaRepository
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Media
-import com.moxmose.moxequiplog.data.local.MediaIdentifier
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 
 class EquipmentsViewModel(
     private val equipmentDao: EquipmentDao,
-    private val mediaRepository: MediaRepository
+    private val imageRepository: ImageRepository
 ) : ViewModel() {
 
     val activeEquipments: StateFlow<List<Equipment>> = equipmentDao.getActiveEquipments()
@@ -33,21 +33,21 @@ class EquipmentsViewModel(
             initialValue = emptyList()
         )
 
-    val equipmentMedia: StateFlow<List<Media>> = mediaRepository.getMediaByCategory("EQUIPMENT")
+    val equipmentImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory("EQUIPMENT")
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    val allCategories: StateFlow<List<Category>> = mediaRepository.allCategories
+    val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    fun addEquipment(description: String, mediaIdentifier: MediaIdentifier?) {
+    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?) {
         viewModelScope.launch {
             val currentList = allEquipments.value
             val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
@@ -56,9 +56,9 @@ class EquipmentsViewModel(
             var equipmentPhotoUri: String? = null
             var equipmentIconIdentifier: String? = null
 
-            when (mediaIdentifier) {
-                is MediaIdentifier.Icon -> equipmentIconIdentifier = mediaIdentifier.name
-                is MediaIdentifier.Photo -> equipmentPhotoUri = mediaIdentifier.uri
+            when (imageIdentifier) {
+                is ImageIdentifier.Icon -> equipmentIconIdentifier = imageIdentifier.name
+                is ImageIdentifier.Photo -> equipmentPhotoUri = imageIdentifier.uri
                 null -> { // Usa i default di categoria
                     equipmentPhotoUri = equipmentCategory?.defaultPhotoUri
                     equipmentIconIdentifier = equipmentCategory?.defaultIconIdentifier
@@ -100,27 +100,27 @@ class EquipmentsViewModel(
         }
     }
 
-    fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
+    fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         viewModelScope.launch {
-            mediaRepository.addMedia(mediaIdentifier, category)
+            imageRepository.addImage(imageIdentifier, category)
         }
     }
 
-    fun removeMedia(media: Media) {
+    fun removeImage(image: Image) {
         viewModelScope.launch {
-            mediaRepository.removeMedia(media)
+            imageRepository.removeImage(image)
         }
     }
 
-    fun updateMediaOrder(mediaList: List<Media>) {
+    fun updateImageOrder(imageList: List<Image>) {
         viewModelScope.launch {
-            mediaRepository.updateMediaOrder(mediaList)
+            imageRepository.updateImageOrder(imageList)
         }
     }
 
-    fun toggleMediaVisibility(media: Media) {
+    fun toggleImageVisibility(image: Image) {
         viewModelScope.launch {
-            mediaRepository.toggleMediaVisibility(media)
+            imageRepository.toggleImageVisibility(image)
         }
     }
 
