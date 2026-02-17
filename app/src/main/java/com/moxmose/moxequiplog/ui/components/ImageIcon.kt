@@ -21,7 +21,7 @@ import coil.compose.AsyncImage
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 
 @Composable
-fun MediaIcon(
+fun ImageIcon(
     photoUri: String?,
     iconIdentifier: String?,
     modifier: Modifier = Modifier,

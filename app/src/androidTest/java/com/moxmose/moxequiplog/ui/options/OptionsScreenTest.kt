@@ -7,7 +7,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Media
+import com.moxmose.moxequiplog.data.local.Image
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
@@ -28,23 +28,23 @@ class OptionsScreenTest {
         composeTestRule.setContent {
             OptionsScreenContent(
                 username = testUsername,
-                allMedia = emptyList(),
+                allImages = emptyList(),
                 allCategories = emptyList(),
                 allColors = emptyList(),
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
-                onAddMedia = { _, _ -> },
-                onRemoveMedia = { _, _ -> },
-                onUpdateMediaOrder = {},
-                onToggleMediaVisibility = { _, _ -> },
+                onAddImage = { _, _ -> },
+                onRemoveImage = {},
+                onUpdateImageOrder = {},
+                onToggleImageVisibility = {},
                 onUpdateCategoryColor = { _, _ -> },
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = {},
                 showColorPicker = null,
                 onShowColorPickerChange = {},
-                showMediaDialog = false,
-                onShowMediaDialogChange = {},
+                showImageDialog = false,
+                onShowImageDialogChange = {},
                 onAddColor = { _, _ -> },
                 onUpdateColor = {},
                 onUpdateColorsOrder = {},
@@ -63,23 +63,23 @@ class OptionsScreenTest {
         composeTestRule.setContent {
             OptionsScreenContent(
                 username = "",
-                allMedia = emptyList(),
+                allImages = emptyList(),
                 allCategories = emptyList(),
                 allColors = emptyList(),
                 onUsernameChange = { changedUsername.set(it) },
                 onSetCategoryDefault = { _, _ -> },
-                onAddMedia = { _, _ -> },
-                onRemoveMedia = { _, _ -> },
-                onUpdateMediaOrder = {},
-                onToggleMediaVisibility = { _, _ -> },
+                onAddImage = { _, _ -> },
+                onRemoveImage = {},
+                onUpdateImageOrder = {},
+                onToggleImageVisibility = {},
                 onUpdateCategoryColor = { _, _ -> },
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = {},
                 showColorPicker = null,
                 onShowColorPickerChange = {},
-                showMediaDialog = false,
-                onShowMediaDialogChange = {},
+                showImageDialog = false,
+                onShowImageDialogChange = {},
                 onAddColor = { _, _ -> },
                 onUpdateColor = {},
                 onUpdateColorsOrder = {},
@@ -87,7 +87,8 @@ class OptionsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Username").performTextInput(newUsername)
+        composeTestRule.onNodeWithText("Nome Utente").performTextInput(newUsername)
+        composeTestRule.onNodeWithText("Save Username").performClick()
 
         assertEquals(newUsername, changedUsername.get())
     }
@@ -99,23 +100,23 @@ class OptionsScreenTest {
         composeTestRule.setContent {
             OptionsScreenContent(
                 username = "",
-                allMedia = emptyList(),
+                allImages = emptyList(),
                 allCategories = emptyList(),
                 allColors = emptyList(),
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
-                onAddMedia = { _, _ -> },
-                onRemoveMedia = { _, _ -> },
-                onUpdateMediaOrder = {},
-                onToggleMediaVisibility = { _, _ -> },
+                onAddImage = { _, _ -> },
+                onRemoveImage = {},
+                onUpdateImageOrder = {},
+                onToggleImageVisibility = {},
                 onUpdateCategoryColor = { _, _ -> },
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = { onShowAboutDialogChangeCalled.set(it) },
                 showColorPicker = null,
                 onShowColorPickerChange = {},
-                showMediaDialog = false,
-                onShowMediaDialogChange = {},
+                showImageDialog = false,
+                onShowImageDialogChange = {},
                 onAddColor = { _, _ -> },
                 onUpdateColor = {},
                 onUpdateColorsOrder = {},
@@ -123,7 +124,7 @@ class OptionsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("About").performClick()
+        composeTestRule.onNodeWithText("Informazioni").performClick()
 
         assertTrue(onShowAboutDialogChangeCalled.get())
     }
@@ -135,23 +136,23 @@ class OptionsScreenTest {
         composeTestRule.setContent {
             OptionsScreenContent(
                 username = "",
-                allMedia = emptyList(),
+                allImages = emptyList(),
                 allCategories = emptyList(),
                 allColors = emptyList(),
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
-                onAddMedia = { _, _ -> },
-                onRemoveMedia = { _, _ -> },
-                onUpdateMediaOrder = {},
-                onToggleMediaVisibility = { _, _ -> },
+                onAddImage = { _, _ -> },
+                onRemoveImage = {},
+                onUpdateImageOrder = {},
+                onToggleImageVisibility = {},
                 onUpdateCategoryColor = { _, _ -> },
                 isPhotoUsed = { false },
                 showAboutDialog = true, // Dialog is initially shown
                 onShowAboutDialogChange = { callbackValue.set(it) },
                 showColorPicker = null,
                 onShowColorPickerChange = {},
-                showMediaDialog = false,
-                onShowMediaDialogChange = {},
+                showImageDialog = false,
+                onShowImageDialogChange = {},
                 onAddColor = { _, _ -> },
                 onUpdateColor = {},
                 onUpdateColorsOrder = {},

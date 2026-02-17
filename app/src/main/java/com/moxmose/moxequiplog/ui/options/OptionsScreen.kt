@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -68,7 +69,7 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun OptionsScreen(viewModel: OptionsViewModel = koinViewModel()) {
+fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = koinViewModel()) {
     val username by viewModel.username.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
@@ -88,11 +89,12 @@ fun OptionsScreen(viewModel: OptionsViewModel = koinViewModel()) {
     }
 
     OptionsScreenContent(
+        modifier = modifier,
         username = username,
         allImages = allImages,
         allCategories = allCategories,
         allColors = allColors,
-        onUsernameChange = viewModel::updateUsername,
+        onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
         onAddImage = viewModel::addImage,
         onRemoveImage = viewModel::removeImage,
@@ -320,7 +322,8 @@ fun ColorManagementDialog(
     onAddColor: (String, String) -> Unit,
     onUpdateColor: (AppColor) -> Unit,
     onUpdateColorsOrder: (List<AppColor>) -> Unit,
-    onToggleColorVisibility: (Long) -> Unit
+    onToggleColorVisibility: (Long) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var showAddColorDialog by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }

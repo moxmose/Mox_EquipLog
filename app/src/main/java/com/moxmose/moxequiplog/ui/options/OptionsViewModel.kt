@@ -60,7 +60,7 @@ class OptionsViewModel(
         data object ColorHexInvalid : OptionsUiEvent()
 
         // Errori Funzione `addColor`
-        data object AddColorFailed : OptionsUiEvent()
+        data class AddColorFailed(val name: String) : OptionsUiEvent()
 
         // Errori Funzione `updateColorsOrder`
         data object UpdateColorsOrderFailed : OptionsUiEvent()
@@ -217,7 +217,7 @@ class OptionsViewModel(
             try {
                 imageRepository.addColor(hex, name)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.AddColorFailed)
+                _uiEvents.send(OptionsUiEvent.AddColorFailed(name))
             }
         }
     }

@@ -7,12 +7,14 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import junit.framework.TestCase.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 
 class EquipmentsScreenTest {
@@ -30,7 +32,7 @@ class EquipmentsScreenTest {
         composeTestRule.setContent {
             EquipmentsScreenContent(
                 equipments = equipments,
-                equipmentMedia = emptyList(),
+                equipmentImages = emptyList(),
                 allCategories = emptyList(),
                 defaultIcon = null,
                 defaultPhotoUri = null,
@@ -39,13 +41,13 @@ class EquipmentsScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddEquipment = { _, _, _ -> },
+                onAddEquipment = { _, _ -> },
                 onUpdateEquipments = {},
                 onUpdateEquipment = {},
                 onDismissEquipment = {},
                 onRestoreEquipment = {},
-                onAddMedia = { _, _ -> },
-                onToggleMediaVisibility = { _, _ -> }
+                onAddImage = { _, _ -> },
+                onToggleImageVisibility = {}
             )
         }
 
@@ -60,7 +62,7 @@ class EquipmentsScreenTest {
         composeTestRule.setContent {
             EquipmentsScreenContent(
                 equipments = emptyList(),
-                equipmentMedia = emptyList(),
+                equipmentImages = emptyList(),
                 allCategories = emptyList(),
                 defaultIcon = null,
                 defaultPhotoUri = null,
@@ -69,13 +71,13 @@ class EquipmentsScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddEquipment = { _, _, _ -> },
+                onAddEquipment = { _, _ -> },
                 onUpdateEquipments = {},
                 onUpdateEquipment = {},
                 onDismissEquipment = {},
                 onRestoreEquipment = {},
-                onAddMedia = { _, _ -> },
-                onToggleMediaVisibility = { _, _ -> }
+                onAddImage = { _, _ -> },
+                onToggleImageVisibility = {}
             )
         }
 
@@ -87,19 +89,19 @@ class EquipmentsScreenTest {
     @Test
     fun addEquipmentDialog_onConfirm_callsOnAddEquipment() {
         val newEquipmentDescription = "New Gravel Equipment"
-        val addedEquipmentInfo = AtomicReference<Triple<String, String?, String?>>()
+        val addedEquipmentInfo = AtomicReference<Pair<String, ImageIdentifier?>>()
 
         composeTestRule.setContent {
             AddEquipmentDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, uri, icon -> addedEquipmentInfo.set(Triple(desc, uri, icon)) },
+                onConfirm = { desc, identifier -> addedEquipmentInfo.set(Pair(desc, identifier)) },
                 defaultIcon = null,
                 defaultPhotoUri = null,
-                mediaLibrary = emptyList(),
+                imageLibrary = emptyList(),
                 categories = emptyList(),
                 equipmentCategoryColor = null,
-                onAddMedia = { _, _ -> },
-                onToggleMediaVisibility = { _, _ -> }
+                onAddImage = { _, _ -> },
+                onToggleImageVisibility = {}
             )
         }
 
@@ -111,5 +113,6 @@ class EquipmentsScreenTest {
 
         // 3. Verify the callback was invoked with the correct data
         assertEquals(newEquipmentDescription, addedEquipmentInfo.get().first)
+        assertNull(addedEquipmentInfo.get().second)
     }
 }

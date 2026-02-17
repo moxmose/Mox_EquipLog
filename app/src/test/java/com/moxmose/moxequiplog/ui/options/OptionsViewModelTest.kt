@@ -8,12 +8,12 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
-import com.moxmose.moxequiplog.data.MediaRepository
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Media
-import com.moxmose.moxequiplog.data.local.MediaIdentifier
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -45,7 +45,7 @@ class OptionsViewModelTest {
     private lateinit var testDataStore: DataStore<Preferences>
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var equipmentDao: EquipmentDao
-    private lateinit var mediaRepository: MediaRepository
+    private lateinit var imageRepository: ImageRepository
     private lateinit var viewModel: OptionsViewModel
 
     @Before
@@ -55,10 +55,10 @@ class OptionsViewModelTest {
         testDataStore = PreferenceDataStoreFactory.create(
             produceFile = { testContext.preferencesDataStoreFile("test_settings") }
         )
-        appSettingsManager = AppSettingsManager(testContext)
+        appSettingsManager = AppSettingsManager(testDataStore, "default_user")
         equipmentDao = mockk(relaxed = true)
-        mediaRepository = mockk(relaxed = true)
-        viewModel = OptionsViewModel(appSettingsManager, equipmentDao, mediaRepository)
+        imageRepository = mockk(relaxed = true)
+        viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository)
     }
 
     @After
@@ -68,9 +68,9 @@ class OptionsViewModelTest {
     }
 
     @Test
-    fun username_onInit_isEmpty() = runTest {
+    fun username_onInit_isDefault() = runTest {
         viewModel.username.test {
-            assertEquals("", awaitItem())
+            assertEquals("default_user", awaitItem())
         }
     }
 
@@ -78,6 +78,13 @@ class OptionsViewModelTest {
     fun allCategories_onInit_isEmpty() = runTest {
         viewModel.allCategories.test {
             assertEquals(emptyList<Category>(), awaitItem())
+        }
+    }
+
+    @Test
+    fun allImages_onInit_isEmpty() = runTest {
+        viewModel.allImages.test {
+            assertEquals(emptyList<Image>(), awaitItem())
         }
     }
 
@@ -91,9 +98,12 @@ class OptionsViewModelTest {
     @Test
     fun setUsername_withValidUsername_updatesUsernameFlow() = runTest {
         val newUsername = "testuser"
-        viewModel.username.test {
-            assertEquals("", awaitItem()) // Initial value
-            viewModel.setUsername(newUsername)
+        val localAppSettingsManager = AppSettingsManager(testDataStore, "initial")
+        val localViewModel = OptionsViewModel(localAppSettingsManager, equipmentDao, imageRepository)
+
+        localViewModel.username.test {
+            assertEquals("initial", awaitItem()) // Initial value
+            localViewModel.setUsername(newUsername)
             assertEquals(newUsername, awaitItem())
         }
     }
@@ -101,137 +111,93 @@ class OptionsViewModelTest {
     @Test
     fun setCategoryDefault_withValidData_callsRepository() = runTest {
         val categoryId = "test_category"
-        val identifier = MediaIdentifier.Icon("test_icon")
+        val identifier = ImageIdentifier.Icon("test_icon")
 
-        // Esegui la funzione sul ViewModel
         viewModel.setCategoryDefault(categoryId, identifier)
-
-        // Esegui le coroutine in sospeso
         testDispatcher.scheduler.advanceUntilIdle()
-
-        // Verifica che il metodo corrispondente sul repository sia stato chiamato con i parametri corretti
-        coVerify { mediaRepository.setCategoryDefault(categoryId, identifier) }
+        coVerify { imageRepository.setCategoryDefault(categoryId, identifier) }
     }
 
     @Test
-    fun addMedia_withValidData_callsRepository() = runTest {
-        val identifier = MediaIdentifier.Photo("test_uri")
+    fun addImage_withValidData_callsRepository() = runTest {
+        val identifier = ImageIdentifier.Photo("test_uri")
         val category = "test_category"
 
-        // Chiama la funzione sul ViewModel
-        viewModel.addMedia(identifier, category)
-
-        // Fai avanzare lo scheduler per eseguire la coroutine in sospeso
+        viewModel.addImage(identifier, category)
         testDispatcher.scheduler.advanceUntilIdle()
-
-        // Verifica che il metodo del repository sia stato chiamato con i parametri corretti
-        coVerify { mediaRepository.addMedia(identifier, category) }
+        coVerify { imageRepository.addImage(identifier, category) }
     }
 
     @Test
-    fun toggleMediaVisibility_withValidData_callsRepository() = runTest {
-        val uri = "test_uri"
-        val category = "test_category"
-
-        // Chiama la funzione sul ViewModel
-        viewModel.toggleMediaVisibility(uri, category)
-
-        // Fai avanzare lo scheduler per eseguire la coroutine
+    fun toggleImageVisibility_withValidData_callsRepository() = runTest {
+        val image: Image = mockk()
+        viewModel.toggleImageVisibility(image)
         testDispatcher.scheduler.advanceUntilIdle()
-
-        // Verifica che il ViewModel abbia delegato la chiamata al repository
-        coVerify { mediaRepository.toggleMediaVisibility(uri, category) }
+        coVerify { imageRepository.toggleImageVisibility(image) }
     }
 
     @Test
-    fun removeMedia_withValidData_callsRepository() = runTest {
-        val uri = "test_uri"
-        val category = "test_category"
-
-        // Chiama la funzione sul ViewModel
-        viewModel.removeMedia(uri, category)
-
+    fun removeImage_withValidData_callsRepository() = runTest {
+        val image: Image = mockk()
+        viewModel.removeImage(image)
         testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { mediaRepository.removeMedia(uri, category) }
+        coVerify { imageRepository.removeImage(image) }
     }
 
     @Test
-    fun removeMedia_whenRepositoryThrowsError_sendsUiEvent() = runTest {
-        val uri = "test_uri"
-        val category = "test_category"
+    fun removeImage_whenRepositoryThrowsError_sendsUiEvent() = runTest {
+        val image: Image = mockk()
         val error = RuntimeException("Simulated database error")
+        coEvery { imageRepository.removeImage(image) } throws error
 
-        // Istruisci il mock a lanciare un'''eccezione quando viene chiamato
-        coEvery { mediaRepository.removeMedia(uri, category) } throws error
-
-        // Avvia una coroutine per ascoltare gli eventi in modo non bloccante
         val job = launch {
             viewModel.uiEvents.test {
-                assertEquals(OptionsViewModel.OptionsUiEvent.RemoveMediaFailed, awaitItem())
+                assertEquals(OptionsViewModel.OptionsUiEvent.RemoveImageFailed, awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
         }
 
-        // Chiama la funzione che causa l'''errore
-        viewModel.removeMedia(uri, category)
-
-        // Attendi che il test nel launch finisca
+        viewModel.removeImage(image)
         job.join()
     }
 
     @Test
-    fun updateMediaOrder_withEmptyList_doesNothing() = runTest {
-        viewModel.updateMediaOrder(emptyList())
-
+    fun updateImageOrder_withEmptyList_doesNothing() = runTest {
+        viewModel.updateImageOrder(emptyList())
         testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 0) { mediaRepository.updateMediaOrder(any()) }
+        coVerify(exactly = 0) { imageRepository.updateImageOrder(any()) }
     }
 
     @Test
-    fun updateMediaOrder_withValidData_callsRepository() = runTest {
-        val mediaList: List<Media> = listOf(mockk(), mockk())
-
-        // Chiama la funzione sul ViewModel
-        viewModel.updateMediaOrder(mediaList)
-
+    fun updateImageOrder_withValidData_callsRepository() = runTest {
+        val imageList: List<Image> = listOf(mockk(), mockk())
+        viewModel.updateImageOrder(imageList)
         testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { mediaRepository.updateMediaOrder(mediaList)}
+        coVerify { imageRepository.updateImageOrder(imageList) }
     }
 
     @Test
     fun updateCategoryColor_withValidData_callsRepository() = runTest {
         val categoryId = "any_valid_category_id"
         val colorHex = "#00FFBB"
-
-        // Chiama la funzione sul ViewModel
         viewModel.updateCategoryColor(categoryId, colorHex)
-
         testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { mediaRepository.updateCategoryColor(categoryId, colorHex) }
+        coVerify { imageRepository.updateCategoryColor(categoryId, colorHex) }
     }
 
     @Test
     fun addColor_withValidData_callsRepository() = runTest {
         val hex = "#00FFBB"
         val name = "ColorName"
-
-        // Chiama la funzione sul ViewModel
         viewModel.addColor(hex, name)
-
         testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { mediaRepository.addColor(hex, name) }
+        coVerify { imageRepository.addColor(hex, name) }
     }
 
     @Test
     fun updateColor_whenNameIsBlank_sendsInvalidNameEvent() = runTest {
         val invalidColor: AppColor = mockk()
         every { invalidColor.name } returns " "
-
         viewModel.uiEvents.test {
             viewModel.updateColor(invalidColor)
             assertEquals(OptionsViewModel.OptionsUiEvent.ColorNameInvalid, awaitItem())
@@ -242,8 +208,7 @@ class OptionsViewModelTest {
     fun updateColor_whenRepositoryThrowsError_sendsUpdateFailedEvent() = runTest {
         val validColor: AppColor = mockk()
         every { validColor.name } returns "Valid Name"
-        coEvery { mediaRepository.updateColor(validColor) } throws RuntimeException()
-
+        coEvery { imageRepository.updateColor(validColor) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.updateColor(validColor)
             assertEquals(OptionsViewModel.OptionsUiEvent.UpdateColorFailed, awaitItem())
@@ -254,11 +219,9 @@ class OptionsViewModelTest {
     fun updateColor_withValidData_callsRepository() = runTest {
         val validColor: AppColor = mockk()
         every { validColor.name } returns "Valid Name"
-
         viewModel.updateColor(validColor)
         testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { mediaRepository.updateColor(validColor) }
+        coVerify { imageRepository.updateColor(validColor) }
     }
 
     @Test
@@ -274,7 +237,6 @@ class OptionsViewModelTest {
     fun isPhotoUsed_whenDaoThrowsError_sendsCheckFailedEventAndReturnsTrue() = runTest {
         val uri = "test_uri"
         coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } throws RuntimeException()
-
         viewModel.uiEvents.test {
             val result = viewModel.isPhotoUsed(uri)
             assertTrue(result)
@@ -286,9 +248,7 @@ class OptionsViewModelTest {
     fun isPhotoUsed_whenPhotoIsInUse_returnsTrue() = runTest {
         val uri = "test_uri"
         coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 1
-
         val result = viewModel.isPhotoUsed(uri)
-
         assertTrue(result)
     }
 
@@ -296,9 +256,7 @@ class OptionsViewModelTest {
     fun isPhotoUsed_whenPhotoIsNotInUse_returnsFalse() = runTest {
         val uri = "test_uri"
         coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 0
-
         val result = viewModel.isPhotoUsed(uri)
-
         assertFalse(result)
     }
 }

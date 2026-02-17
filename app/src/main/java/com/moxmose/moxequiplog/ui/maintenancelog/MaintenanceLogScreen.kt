@@ -48,7 +48,7 @@ import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.ui.components.MediaIcon
+import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
@@ -298,7 +298,7 @@ fun MaintenanceLogDialog(
                         readOnly = true,
                         label = { Text(stringResource(R.string.navigation_equipments)) },
                         leadingIcon = {
-                            MediaIcon(
+                            ImageIcon(
                                 photoUri = selectedEquipment?.photoUri,
                                 iconIdentifier = selectedEquipment?.iconIdentifier,
                                 modifier = Modifier.size(24.dp),
@@ -318,7 +318,7 @@ fun MaintenanceLogDialog(
                             DropdownMenuItem(
                                 text = { Text(equipment.description.takeIf { it.isNotBlank() } ?: "id:${equipment.id} - no description") },
                                 leadingIcon = {
-                                    MediaIcon(
+                                    ImageIcon(
                                         photoUri = equipment.photoUri,
                                         iconIdentifier = equipment.iconIdentifier,
                                         modifier = Modifier.size(24.dp),
@@ -343,7 +343,7 @@ fun MaintenanceLogDialog(
                         readOnly = true,
                         label = { Text(stringResource(R.string.navigation_operations)) },
                         leadingIcon = {
-                            MediaIcon(
+                            ImageIcon(
                                 photoUri = selectedOperationType?.photoUri,
                                 iconIdentifier = selectedOperationType?.iconIdentifier,
                                 modifier = Modifier.size(24.dp),
@@ -363,7 +363,7 @@ fun MaintenanceLogDialog(
                             DropdownMenuItem(
                                 text = { Text(operation.description.takeIf { it.isNotBlank() } ?: "id:${operation.id} - no description") },
                                 leadingIcon = {
-                                    MediaIcon(
+                                    ImageIcon(
                                         photoUri = operation.photoUri,
                                         iconIdentifier = operation.iconIdentifier,
                                         modifier = Modifier.size(24.dp),
@@ -517,7 +517,7 @@ fun MaintenanceLogCard(
                             readOnly = true,
                             label = { Text(stringResource(R.string.navigation_equipments)) },
                             leadingIcon = {
-                                MediaIcon(
+                                ImageIcon(
                                     photoUri = selectedEquipment?.photoUri,
                                     iconIdentifier = selectedEquipment?.iconIdentifier,
                                     modifier = Modifier.size(24.dp),
@@ -537,7 +537,7 @@ fun MaintenanceLogCard(
                                 DropdownMenuItem(
                                     text = { Text(equipment.description.takeIf { it.isNotBlank() } ?: "id:${equipment.id} - no description") },
                                     leadingIcon = {
-                                        MediaIcon(
+                                        ImageIcon(
                                             photoUri = equipment.photoUri,
                                             iconIdentifier = equipment.iconIdentifier,
                                             modifier = Modifier.size(24.dp),
@@ -562,7 +562,7 @@ fun MaintenanceLogCard(
                             readOnly = true,
                             label = { Text(stringResource(R.string.navigation_operations)) },
                             leadingIcon = {
-                                MediaIcon(
+                                ImageIcon(
                                     photoUri = selectedOperationType?.photoUri,
                                     iconIdentifier = selectedOperationType?.iconIdentifier,
                                     modifier = Modifier.size(24.dp),
@@ -582,7 +582,7 @@ fun MaintenanceLogCard(
                                 DropdownMenuItem(
                                     text = { Text(operation.description.takeIf { it.isNotBlank() } ?: "id:${operation.id} - no description") },
                                     leadingIcon = {
-                                        MediaIcon(
+                                        ImageIcon(
                                             photoUri = operation.photoUri,
                                             iconIdentifier = operation.iconIdentifier,
                                             modifier = Modifier.size(24.dp),
@@ -624,7 +624,7 @@ fun MaintenanceLogCard(
                                 .border(1.dp, equipmentBorderColor, CircleShape)
                                 .graphicsLayer(alpha = equipmentTextAlpha)
                         ) {
-                            MediaIcon(
+                            ImageIcon(
                                 photoUri = logDetail.equipmentPhotoUri,
                                 iconIdentifier = logDetail.equipmentIconIdentifier,
                                 modifier = Modifier.size(24.dp),
@@ -649,7 +649,7 @@ fun MaintenanceLogCard(
                                 .border(1.dp, operationBorderColor, CircleShape)
                                 .graphicsLayer(alpha = operationTypeAlpha)
                         ) {
-                            MediaIcon(
+                            ImageIcon(
                                 photoUri = logDetail.operationTypePhotoUri,
                                 iconIdentifier = logDetail.operationTypeIconIdentifier,
                                 modifier = Modifier.size(24.dp),

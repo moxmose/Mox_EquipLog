@@ -8,7 +8,7 @@
     <string name="navigation_options">Opzioni</string>
     <string name="options_version_label">Versione %1$s</string>
     <string name="options_username_label">Nome utente</string>
-    <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l'ordine</string>
+    <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
     <string name="add_bike">Aggiungi Mezzo</string>
     <string name="add_operation_type">Aggiungi Tipo di Operazione</string>
     <string name="hide_dismissed">Nascondi Dismessi</string>
@@ -66,6 +66,6 @@
     <string name="error_update_username_failed">Impossibile salvare il nome utente.</string>
     <string name="error_unknown">Si è verificato un errore sconosciuto.</string>
     <string name="add_color_failed">Impossibile aggiungere il colore %1$s.</string>
-    <string name="remove_image_failed">Impossibile rimuovere l'immagine.</string>
+    <string name="remove_image_failed">Impossibile rimuovere l\'immagine.</string>
 
 </resources>
