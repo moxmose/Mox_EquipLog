@@ -20,6 +20,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -42,7 +43,6 @@ import kotlin.test.assertTrue
 class OptionsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
-    private lateinit var testDataStore: DataStore<Preferences>
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
@@ -51,11 +51,9 @@ class OptionsViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        val testContext: Context = ApplicationProvider.getApplicationContext()
-        testDataStore = PreferenceDataStoreFactory.create(
-            produceFile = { testContext.preferencesDataStoreFile("test_settings") }
-        )
-        appSettingsManager = AppSettingsManager(testDataStore, "default_user")
+        appSettingsManager = mockk(relaxed = true) {
+            every { username } returns MutableStateFlow("default_user")
+        }
         equipmentDao = mockk(relaxed = true)
         imageRepository = mockk(relaxed = true)
         viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository)
@@ -70,7 +68,8 @@ class OptionsViewModelTest {
     @Test
     fun username_onInit_isDefault() = runTest {
         viewModel.username.test {
-            assertEquals("default_user", awaitItem())
+            testDispatcher.scheduler.advanceUntilIdle() // Ensure all coroutines have run
+            assertEquals("default_user", expectMostRecentItem()) // Assert the most recent, stable state
         }
     }
 
@@ -98,14 +97,27 @@ class OptionsViewModelTest {
     @Test
     fun setUsername_withValidUsername_updatesUsernameFlow() = runTest {
         val newUsername = "testuser"
-        val localAppSettingsManager = AppSettingsManager(testDataStore, "initial")
-        val localViewModel = OptionsViewModel(localAppSettingsManager, equipmentDao, imageRepository)
+        coEvery { appSettingsManager.setUsername(newUsername) } returns Unit
 
-        localViewModel.username.test {
-            assertEquals("initial", awaitItem()) // Initial value
-            localViewModel.setUsername(newUsername)
-            assertEquals(newUsername, awaitItem())
+        viewModel.setUsername(newUsername)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { appSettingsManager.setUsername(newUsername) }
+    }
+
+    @Test
+    fun setUsername_withBlankUsername_sendsUsernameInvalidEvent() = runTest {
+        viewModel.uiEvents.test {
+            viewModel.setUsername(" ")
+            assertEquals(OptionsViewModel.OptionsUiEvent.UsernameInvalid, awaitItem())
         }
+    }
+
+    @Test
+    fun setUsername_withBlankUsername_doesNotUpdateUsername() = runTest {
+        viewModel.setUsername(" ")
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify(exactly = 0) { appSettingsManager.setUsername(any()) }
     }
 
     @Test
