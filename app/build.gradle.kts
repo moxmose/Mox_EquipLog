@@ -114,6 +114,7 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("androidx.room:room-testing:2.8.4")
     testImplementation("io.mockk:mockk:1.13.11")
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(libs.junit)
     androidTestImplementation(kotlin("test")) // <-- THIS LINE IS KEY
