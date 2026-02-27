@@ -31,6 +31,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -64,6 +66,7 @@ import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
+import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -72,6 +75,28 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val operationTypeImages by viewModel.operationTypeImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvents.collectLatest { event ->
+            val message = when(event) {
+                is OperationTypeViewModel.UiEvent.DescriptionInvalid -> context.getString(R.string.description_invalid)
+                is OperationTypeViewModel.UiEvent.AddOperationTypeFailed -> context.getString(R.string.add_operation_type_failed)
+                is OperationTypeViewModel.UiEvent.UpdateOperationTypeFailed -> context.getString(R.string.update_operation_type_failed)
+                is OperationTypeViewModel.UiEvent.UpdateOperationTypesFailed -> context.getString(R.string.update_operation_types_failed)
+                is OperationTypeViewModel.UiEvent.DismissOperationTypeFailed -> context.getString(R.string.dismiss_operation_type_failed)
+                is OperationTypeViewModel.UiEvent.RestoreOperationTypeFailed -> context.getString(R.string.restore_operation_type_failed)
+                is OperationTypeViewModel.UiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
+                is OperationTypeViewModel.UiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
+                is OperationTypeViewModel.UiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
+                is OperationTypeViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
+                is OperationTypeViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
+                is OperationTypeViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     var showDismissed by rememberSaveable { mutableStateOf(false) }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
@@ -96,7 +121,8 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
         onShowAddDialogChange = { showAddDialog = it },
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
-        operationCategoryColor = operationCategory?.color
+        operationCategoryColor = operationCategory?.color,
+        snackbarHostState = snackbarHostState
     )
 }
 
@@ -119,12 +145,14 @@ fun OperationTypeScreenContent(
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
     operationCategoryColor: String?,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     val operationTypesState = remember(operationTypes) { operationTypes.toMutableStateList() }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
                 FloatingActionButton(onClick = { onShowAddDialogChange(true) }) {

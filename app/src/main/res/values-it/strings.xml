@@ -9,13 +9,10 @@
     <string name="options_version_label">Versione %1$s</string>
     <string name="options_username_label">Nome utente</string>
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
-    <string name="add_bike">Aggiungi Mezzo</string>
     <string name="add_operation_type">Aggiungi Tipo di Operazione</string>
     <string name="hide_dismissed">Nascondi Dismessi</string>
     <string name="show_dismissed">Mostra Dismessi</string>
-    <string name="add_a_new_bike">Aggiungi un nuovo Mezzo</string>
     <string name="add_a_new_operation_type">Aggiungi un nuovo Tipo di Operazione</string>
-    <string name="bike_description">Descrizione Mezzo</string>
     <string name="operation_type_description">Descrizione Tipo di Operazione</string>
     <string name="add_image">Aggiungi immagine</string>
     <string name="selected_image">Seleziona immagine</string>
@@ -23,14 +20,8 @@
     <string name="button_cancel">Cancella</string>
     <string name="no_image_title">Nessuna Immagine</string>
     <string name="no_image_message">Nessuna foto caricata, aggiungine una.</string>
-    <string name="full_size_bike_photo">Foto Mezzo dimensioni grande</string>
     <string name="full_size_operation_photo">Foto Operazioni dimensioni grande</string>
-    <string name="bike_photo">Foto Mezzo</string>
     <string name="operation_type_photo">Foto Tipo di Operazione</string>
-    <string name="edit_bike">Modifica Mezzo</string>
-    <string name="save_bike">Salva</string>
-    <string name="dismiss_bike">Dismetti Mezzo</string>
-    <string name="restore_bike">Ripristina Mezzo</string>
     <string name="edit_operation_type">Modifica Tipo Operazione</string>
     <string name="save_operation_type">Salva</string>
     <string name="dismiss_operation_type">Dismetti Tipo di Operazione</string>
@@ -43,7 +34,6 @@
     <string name="button_about">Informazioni</string>
     <string name="about_dialog_title">Informazioni su Mox My Bike</string>
     <string name="add_new_maintenance_log">Aggiungi nuova registrazione di manutenzione</string>
-    <string name="select_a_bike">Seleziona un mezzo</string>
     <string name="select_an_operation">Selezione un operazione</string>
     <string name="kilometers_optional">Chilometri (opzionale)</string>
     <string name="notes_optional">Note (opzionale)</string>
@@ -54,8 +44,7 @@
     <string name="save_log">Salva registrazione</string>
     <string name="dismiss_log">Dismetti registrazione</string>
     <string name="restore_log">Riprstina registrazione</string>
-    <string name="bike_icon">Icona mezzo</string>
-    <string name="operation_icon">Icona operazione</string>
+     <string name="operation_icon">Icona operazione</string>
 
     <!-- Gestione Errori -->
     <string name="error_dialog_title">Errore</string>
@@ -67,5 +56,33 @@
     <string name="error_unknown">Si è verificato un errore sconosciuto.</string>
     <string name="add_color_failed">Impossibile aggiungere il colore %1$s.</string>
     <string name="remove_image_failed">Impossibile rimuovere l\'immagine.</string>
-
+    <string name="database_check_failed">Controllo del database fallito.</string>
+    <string name="username_invalid">Il nome utente non può essere vuoto.</string>
+    <string name="update_username_failed">Aggiornamento del nome utente fallito.</string>
+    <string name="update_color_failed">Aggiornamento del colore fallito.</string>
+    <string name="color_name_invalid">Il nome del colore non è valido.</string>
+    <string name="photo_uri_invalid">L\'URI della foto non è valido.</string>
+    <string name="set_category_default_failed">Impostazione predefinita della categoria fallita.</string>
+    <string name="category_id_invalid">L\'ID della categoria non è valido.</string>
+    <string name="no_image_selected">Nessuna immagine selezionata da impostare come predefinita.</string>
+    <string name="toggle_image_visibility_failed">Attivazione/disattivazione della visibilità dell\'immagine fallita.</string>
+    <string name="add_image_failed">Aggiunta dell\'immagine fallita.</string>
+    <string name="update_image_order_failed">Aggiornamento dell\'ordine delle immagini fallito.</string>
+    <string name="update_category_color_failed">Aggiornamento del colore della categoria fallito.</string>
+    <string name="color_hex_invalid">Il codice esadecimale del colore non è valido.</string>
+    <string name="update_colors_order_failed">Aggiornamento dell\'ordine dei colori fallito.</string>
+    <string name="toggle_color_visibility_failed">Attivazione/disattivazione della visibilità del colore fallita.</string>
+    <string name="color_id_invalid">L\'ID del colore non è valido.</string>
+    <string name="delete_color_failed">Eliminazione del colore fallita.</string>
+    <string name="description_invalid">La descrizione non può essere vuota.</string>
+    <string name="add_equipment_failed">Aggiunta del mezzo fallita.</string>
+    <string name="update_equipment_failed">Aggiornamento del mezzo fallito.</string>
+    <string name="update_equipments_failed">Aggiornamento dell\'ordine dei mezzi fallito.</string>
+    <string name="dismiss_equipment_failed">Dismissione del mezzo fallita.</string>
+    <string name="restore_equipment_failed">Ripristino del mezzo fallito.</string>
+    <string name="add_operation_type_failed">Aggiunta del tipo di operazione fallita.</string>
+    <string name="update_operation_type_failed">Aggiornamento del tipo di operazione fallito.</string>
+    <string name="update_operation_types_failed">Aggiornamento dell\'ordine dei tipi di operazione fallito.</string>
+    <string name="dismiss_operation_type_failed">Dismissione del tipo di operazione fallita.</string>
+    <string name="restore_operation_type_failed">Ripristino del tipo di operazione fallito.</string>
 </resources>

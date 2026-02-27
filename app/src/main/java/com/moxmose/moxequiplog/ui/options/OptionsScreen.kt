@@ -35,9 +35,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +69,7 @@ import com.moxmose.moxequiplog.ui.components.ColorItemCard
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImageSelector
 import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
@@ -74,19 +79,40 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val allImages by viewModel.allImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
-    val uiEvent by viewModel.uiEvents.collectAsState(initial = null)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvents.collectLatest { event ->
+            val message = when (event) {
+                is OptionsViewModel.OptionsUiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
+                is OptionsViewModel.OptionsUiEvent.UsernameInvalid -> context.getString(R.string.username_invalid)
+                is OptionsViewModel.OptionsUiEvent.UpdateUsernameFailed -> context.getString(R.string.update_username_failed)
+                is OptionsViewModel.OptionsUiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateColorFailed -> context.getString(R.string.update_color_failed)
+                is OptionsViewModel.OptionsUiEvent.ColorNameInvalid -> context.getString(R.string.color_name_invalid)
+                is OptionsViewModel.OptionsUiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
+                is OptionsViewModel.OptionsUiEvent.SetCategoryDefaultFailed -> context.getString(R.string.set_category_default_failed)
+                is OptionsViewModel.OptionsUiEvent.CategoryIdInvalid -> context.getString(R.string.category_id_invalid)
+                is OptionsViewModel.OptionsUiEvent.NoImageSelectedForDefault -> context.getString(R.string.no_image_selected)
+                is OptionsViewModel.OptionsUiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
+                is OptionsViewModel.OptionsUiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateCategoryColorFailed -> context.getString(R.string.update_category_color_failed)
+                is OptionsViewModel.OptionsUiEvent.ColorHexInvalid -> context.getString(R.string.color_hex_invalid)
+                is OptionsViewModel.OptionsUiEvent.AddColorFailed -> context.getString(R.string.add_color_failed, event.name)
+                is OptionsViewModel.OptionsUiEvent.UpdateColorsOrderFailed -> context.getString(R.string.update_colors_order_failed)
+                is OptionsViewModel.OptionsUiEvent.ToggleColorVisibilityFailed -> context.getString(R.string.toggle_color_visibility_failed)
+                is OptionsViewModel.OptionsUiEvent.ColorIdInvalid -> context.getString(R.string.color_id_invalid)
+                is OptionsViewModel.OptionsUiEvent.DeleteColorFailed -> context.getString(R.string.delete_color_failed)
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     var showAboutDialog by rememberSaveable { mutableStateOf(false) }
     var showColorPicker by rememberSaveable { mutableStateOf<String?>(null) }
     var showImageDialog by rememberSaveable { mutableStateOf(false) }
-
-    uiEvent?.let {
-        when (it) {
-            is OptionsViewModel.OptionsUiEvent.AddColorFailed -> Text(stringResource(R.string.add_color_failed, it.name))
-            is OptionsViewModel.OptionsUiEvent.RemoveImageFailed -> Text(stringResource(R.string.remove_image_failed))
-            else -> {}
-        }
-    }
 
     OptionsScreenContent(
         modifier = modifier,
@@ -111,7 +137,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onAddColor = viewModel::addColor,
         onUpdateColor = viewModel::updateColor,
         onUpdateColorsOrder = viewModel::updateColorsOrder,
-        onToggleColorVisibility = viewModel::toggleColorVisibility
+        onToggleColorVisibility = viewModel::toggleColorVisibility,
+        snackbarHostState = snackbarHostState
     )
 }
 
@@ -140,7 +167,8 @@ fun OptionsScreenContent(
     onAddColor: (String, String) -> Unit,
     onUpdateColor: (AppColor) -> Unit,
     onUpdateColorsOrder: (List<AppColor>) -> Unit,
-    onToggleColorVisibility: (Long) -> Unit
+    onToggleColorVisibility: (Long) -> Unit,
+    snackbarHostState: SnackbarHostState
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
 
@@ -196,118 +224,127 @@ fun OptionsScreenContent(
         )
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) {
-        Text(
-            text = stringResource(R.string.options_version_label, BuildConfig.VERSION_NAME),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center
-        )
-
-        OptionsSectionCard(title = "Profilo") {
-            OutlinedTextField(
-                value = editedUsername,
-                onValueChange = { editedUsername = it },
-                label = { Text("Nome Utente") },
-                singleLine = true,
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(it)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.options_version_label, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    if (editedUsername != username && editedUsername.isNotBlank()) {
-                        IconButton(onClick = { onUsernameChange(editedUsername) }) {
-                            Icon(Icons.Default.Done, contentDescription = "Save Username")
-                        }
-                    }
-                }
+                textAlign = TextAlign.Center
             )
-        }
 
-        OptionsSectionCard(
-            title = "Sezioni e Colori",
-            description = "Personalizza i colori identificativi per ogni sezione dell'app."
-        ) {
-            allCategories.sortedBy { it.name }.forEach { category ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    Spacer(Modifier.width(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(android.graphics.Color.parseColor(category.color)))
-                            .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                            .clickable { onShowColorPickerChange(category.id) }
-                    )
-                }
-                if (category != allCategories.last()) Divider(Modifier.padding(vertical = 12.dp))
-            }
-        }
-
-        OptionsSectionCard(
-            title = "Gestione Immagini e Default",
-            description = "Punto unico per gestire le immagini. Seleziona una categoria specifica per impostare l'elemento di default per quella sezione."
-        ) {
-            OutlinedButton(
-                onClick = { onShowImageDialogChange(true) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
+            OptionsSectionCard(title = "Profilo") {
+                OutlinedTextField(
+                    value = editedUsername,
+                    onValueChange = { editedUsername = it },
+                    label = { Text("Nome Utente") },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (allImages.isEmpty()) {
-                            Text("Libreria vuota")
-                        } else {
-                            allImages.filter { !it.hidden }.distinctBy { it.uri }.take(4).forEach { image ->
-                                ImageSelector(
-                                    photoUri = if (image.imageType == "IMAGE") image.uri else null,
-                                    iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
-                                    onImageSelected = {_,_ ->},
-                                    modifier = Modifier.size(40.dp)
-                                )
+                    trailingIcon = {
+                        if (editedUsername != username && editedUsername.isNotBlank()) {
+                            IconButton(onClick = { onUsernameChange(editedUsername) }) {
+                                Icon(Icons.Default.Done, contentDescription = "Save Username")
                             }
                         }
                     }
+                )
+            }
 
+            OptionsSectionCard(
+                title = "Sezioni e Colori",
+                description = "Personalizza i colori identificativi per ogni sezione dell'app."
+            ) {
+                allCategories.sortedBy { it.name }.forEach { category ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Spacer(Modifier.width(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(android.graphics.Color.parseColor(category.color)))
+                                .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                .clickable { onShowColorPickerChange(category.id) }
+                        )
+                    }
+                    if (category != allCategories.last()) Divider(Modifier.padding(vertical = 12.dp))
+                }
+            }
+
+            OptionsSectionCard(
+                title = "Gestione Immagini e Default",
+                description = "Punto unico per gestire le immagini. Seleziona una categoria specifica per impostare l'elemento di default per quella sezione."
+            ) {
+                OutlinedButton(
+                    onClick = { onShowImageDialogChange(true) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            "Gestisci",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Gestisci Immagini",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (allImages.isEmpty()) {
+                                Text("Libreria vuota")
+                            } else {
+                                allImages.filter { !it.hidden }.distinctBy { it.uri }.take(4).forEach { image ->
+                                    ImageSelector(
+                                        photoUri = if (image.imageType == "IMAGE") image.uri else null,
+                                        iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
+                                        onImageSelected = {_,_ ->},
+                                        modifier = Modifier.size(40.dp),
+                                        category = image.category,
+                                        categories = allCategories,
+                                        imageLibrary = allImages
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Gestisci",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Gestisci Immagini",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = { onShowAboutDialogChange(true) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.button_about))
+            Button(
+                onClick = { onShowAboutDialogChange(true) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.button_about))
+            }
         }
     }
 }

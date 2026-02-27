@@ -33,6 +33,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,6 +68,7 @@ import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -74,6 +77,28 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
     val allEquipments by viewModel.allEquipments.collectAsState()
     val equipmentImages by viewModel.equipmentImages.collectAsState()
     val allCategories by optionsViewModel.allCategories.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvents.collectLatest { event ->
+            val message = when(event) {
+                is EquipmentsViewModel.UiEvent.DescriptionInvalid -> context.getString(R.string.description_invalid)
+                is EquipmentsViewModel.UiEvent.AddEquipmentFailed -> context.getString(R.string.add_equipment_failed)
+                is EquipmentsViewModel.UiEvent.UpdateEquipmentFailed -> context.getString(R.string.update_equipment_failed)
+                is EquipmentsViewModel.UiEvent.UpdateEquipmentsFailed -> context.getString(R.string.update_equipments_failed)
+                is EquipmentsViewModel.UiEvent.DismissEquipmentFailed -> context.getString(R.string.dismiss_equipment_failed)
+                is EquipmentsViewModel.UiEvent.RestoreEquipmentFailed -> context.getString(R.string.restore_equipment_failed)
+                is EquipmentsViewModel.UiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
+                is EquipmentsViewModel.UiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
+                is EquipmentsViewModel.UiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
+                is EquipmentsViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
+                is EquipmentsViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
+                is EquipmentsViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     var showDismissed by rememberSaveable { mutableStateOf(false) }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
@@ -98,7 +123,8 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
         showAddDialog = showAddDialog,
         onShowAddDialogChange = { showAddDialog = it },
         onAddImage = viewModel::addImage,
-        onToggleImageVisibility = viewModel::toggleImageVisibility
+        onToggleImageVisibility = viewModel::toggleImageVisibility,
+        snackbarHostState = snackbarHostState
     )
 }
 
@@ -122,12 +148,14 @@ fun EquipmentsScreenContent(
     onRestoreEquipment: (Equipment) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
                 FloatingActionButton(onClick = { onShowAddDialogChange(true) }) {

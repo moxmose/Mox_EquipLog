@@ -8,9 +8,12 @@ import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -18,6 +21,24 @@ class OperationTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
     private val imageRepository: ImageRepository
 ) : ViewModel() {
+
+    sealed class UiEvent {
+        data object DescriptionInvalid : UiEvent()
+        data object AddOperationTypeFailed : UiEvent()
+        data object UpdateOperationTypeFailed : UiEvent()
+        data object UpdateOperationTypesFailed : UiEvent()
+        data object DismissOperationTypeFailed : UiEvent()
+        data object RestoreOperationTypeFailed : UiEvent()
+        data object AddImageFailed : UiEvent()
+        data object RemoveImageFailed : UiEvent()
+        data object UpdateImageOrderFailed : UiEvent()
+        data object ToggleImageVisibilityFailed : UiEvent()
+        data object DatabaseCheckFailed : UiEvent()
+        data object PhotoUriInvalid : UiEvent()
+    }
+
+    private val _uiEvents = Channel<UiEvent>()
+    val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     val activeOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getActiveOperationTypes()
         .stateIn(
@@ -48,66 +69,133 @@ class OperationTypeViewModel(
         )
 
     fun addOperationType(description: String, imageIdentifier: ImageIdentifier?) {
+        if (description.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
+            return
+        }
         viewModelScope.launch {
-            val maxDisplayOrder = allOperationTypes.first().maxOfOrNull { it.displayOrder } ?: -1
-            val operationCategory = allCategories.first().find { it.id == "OPERATION" }
+            try {
+                val maxDisplayOrder = allOperationTypes.first().maxOfOrNull { it.displayOrder } ?: -1
+                val operationCategory = allCategories.first().find { it.id == "OPERATION" }
 
-            var operationPhotoUri: String? = null
-            var operationIconIdentifier: String? = null
+                var operationPhotoUri: String? = null
+                var operationIconIdentifier: String? = null
 
-            when (imageIdentifier) {
-                is ImageIdentifier.Icon -> operationIconIdentifier = imageIdentifier.name
-                is ImageIdentifier.Photo -> operationPhotoUri = imageIdentifier.uri
-                null -> { // Usa i default di categoria
-                    operationPhotoUri = operationCategory?.defaultPhotoUri
-                    operationIconIdentifier = operationCategory?.defaultIconIdentifier
+                when (imageIdentifier) {
+                    is ImageIdentifier.Icon -> operationIconIdentifier = imageIdentifier.name
+                    is ImageIdentifier.Photo -> operationPhotoUri = imageIdentifier.uri
+                    null -> { // Usa i default di categoria
+                        operationPhotoUri = operationCategory?.defaultPhotoUri
+                        operationIconIdentifier = operationCategory?.defaultIconIdentifier
+                    }
                 }
-            }
 
-            operationTypeDao.insertOperationType(
-                OperationType(
-                    description = description,
-                    iconIdentifier = operationIconIdentifier,
-                    photoUri = operationPhotoUri,
-                    displayOrder = maxDisplayOrder + 1
+                operationTypeDao.insertOperationType(
+                    OperationType(
+                        description = description,
+                        iconIdentifier = operationIconIdentifier,
+                        photoUri = operationPhotoUri,
+                        displayOrder = maxDisplayOrder + 1
+                    )
                 )
-            )
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.AddOperationTypeFailed)
+            }
         }
     }
 
     fun updateOperationType(operationType: OperationType) {
         viewModelScope.launch {
-            operationTypeDao.updateOperationType(operationType)
+            try {
+                operationTypeDao.updateOperationType(operationType)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateOperationTypeFailed)
+            }
         }
     }
 
     fun updateOperationTypes(operationTypes: List<OperationType>) {
+        if (operationTypes.isEmpty()) return
         viewModelScope.launch {
-            operationTypeDao.updateOperationTypes(operationTypes)
+            try {
+                operationTypeDao.updateOperationTypes(operationTypes)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateOperationTypesFailed)
+            }
         }
     }
 
     fun dismissOperationType(operationType: OperationType) {
         viewModelScope.launch {
-            updateOperationType(operationType.copy(dismissed = true))
+            try {
+                updateOperationType(operationType.copy(dismissed = true))
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.DismissOperationTypeFailed)
+            }
         }
     }
 
     fun restoreOperationType(operationType: OperationType) {
         viewModelScope.launch {
-            updateOperationType(operationType.copy(dismissed = false))
+            try {
+                updateOperationType(operationType.copy(dismissed = false))
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.RestoreOperationTypeFailed)
+            }
         }
     }
 
     fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         viewModelScope.launch {
-            imageRepository.addImage(imageIdentifier, category)
+            try {
+                imageRepository.addImage(imageIdentifier, category)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.AddImageFailed)
+            }
+        }
+    }
+
+    fun removeImage(image: Image) {
+        viewModelScope.launch {
+            try {
+                imageRepository.removeImage(image)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.RemoveImageFailed)
+            }
+        }
+    }
+
+    fun updateImageOrder(imageList: List<Image>) {
+        if (imageList.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                imageRepository.updateImageOrder(imageList)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateImageOrderFailed)
+            }
         }
     }
 
     fun toggleImageVisibility(image: Image) {
         viewModelScope.launch {
-            imageRepository.toggleImageVisibility(image)
+            try {
+                imageRepository.toggleImageVisibility(image)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.ToggleImageVisibilityFailed)
+            }
+        }
+    }
+
+    suspend fun isPhotoUsed(uri: String): Boolean {
+        if (uri.isBlank()) {
+            _uiEvents.send(UiEvent.PhotoUriInvalid)
+            return true
+        }
+        return try {
+            operationTypeDao.countOperationTypesUsingPhoto(uri) > 0
+        } catch (e: Exception) {
+            _uiEvents.send(UiEvent.DatabaseCheckFailed)
+            true
         }
     }
 }
