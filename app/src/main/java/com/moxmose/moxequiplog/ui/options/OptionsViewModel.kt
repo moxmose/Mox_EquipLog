@@ -64,7 +64,6 @@ class OptionsViewModel(
 
         // Errori Funzione `updateColorsOrder`
         data object UpdateColorsOrderFailed : OptionsUiEvent()
-        data object ColorListInvalid : OptionsUiEvent()
 
         // Errori Funzione `toggleColorVisibility`
         data object ToggleColorVisibilityFailed : OptionsUiEvent()
@@ -128,6 +127,10 @@ class OptionsViewModel(
     fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
         if (categoryId.isBlank()) {
             viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            return
+        }
+        if (imageIdentifier == null) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.NoImageSelectedForDefault) }
             return
         }
         viewModelScope.launch {
@@ -238,8 +241,7 @@ class OptionsViewModel(
 
     fun updateColorsOrder(colors: List<AppColor>) {
         if (colors.isEmpty()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorListInvalid) }
-            return
+            return // Esegui una no-op efficiente, non è un errore
         }
         viewModelScope.launch {
             try {

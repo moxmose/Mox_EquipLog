@@ -65,6 +65,11 @@ class OptionsViewModelTest {
     }
 
     @Test
+    fun onInit_initializesAppData() = runTest {
+        coVerify { imageRepository.initializeAppData() }
+    }
+
+    @Test
     fun username_onInit_isDefault() = runTest {
         viewModel.username.test {
             testDispatcher.scheduler.advanceUntilIdle() // Ensure all coroutines have run
@@ -145,6 +150,14 @@ class OptionsViewModelTest {
         viewModel.uiEvents.test {
             viewModel.setCategoryDefault(" ", identifier)
             assertEquals(OptionsViewModel.OptionsUiEvent.CategoryIdInvalid, awaitItem())
+        }
+    }
+
+    @Test
+    fun setCategoryDefault_withNullImageIdentifier_sendsNoImageSelectedEvent() = runTest {
+        viewModel.uiEvents.test {
+            viewModel.setCategoryDefault("test_category", null)
+            assertEquals(OptionsViewModel.OptionsUiEvent.NoImageSelectedForDefault, awaitItem())
         }
     }
 
@@ -371,11 +384,10 @@ class OptionsViewModelTest {
     }
 
     @Test
-    fun updateColorsOrder_withEmptyList_sendsColorListInvalidEvent() = runTest {
-        viewModel.uiEvents.test {
-            viewModel.updateColorsOrder(emptyList())
-            assertEquals(OptionsViewModel.OptionsUiEvent.ColorListInvalid, awaitItem())
-        }
+    fun updateColorsOrder_withEmptyList_doesNothing() = runTest {
+        viewModel.updateColorsOrder(emptyList())
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify(exactly = 0) { imageRepository.updateColorsOrder(any()) }
     }
 
     @Test
@@ -480,4 +492,5 @@ class OptionsViewModelTest {
         val result = viewModel.isPhotoUsed(uri)
         assertFalse(result)
     }
+
 }
