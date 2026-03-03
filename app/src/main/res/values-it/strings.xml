@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Mox My Bike</string>
+    <string name="app_name">Mox EquipLog</string>
     <string name="navigation_logs">Registro</string>
     <string name="navigation_equipments">Mezzi</string>
     <string name="navigation_operations">Attività</string>
@@ -9,10 +9,14 @@
     <string name="options_version_label">Versione %1$s</string>
     <string name="options_username_label">Nome utente</string>
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
+    <string name="set_as_default_instruction">Tocca l\'icona per impostare il predefinito</string>
+    <string name="add_equipment">Aggiungi Mezzo</string>
     <string name="add_operation_type">Aggiungi Tipo di Operazione</string>
     <string name="hide_dismissed">Nascondi Dismessi</string>
     <string name="show_dismissed">Mostra Dismessi</string>
+    <string name="add_a_new_equipment">Aggiungi un nuovo Mezzo</string>
     <string name="add_a_new_operation_type">Aggiungi un nuovo Tipo di Operazione</string>
+    <string name="equipment_description">Descrizione Mezzo</string>
     <string name="operation_type_description">Descrizione Tipo di Operazione</string>
     <string name="add_image">Aggiungi immagine</string>
     <string name="selected_image">Seleziona immagine</string>
@@ -20,8 +24,14 @@
     <string name="button_cancel">Cancella</string>
     <string name="no_image_title">Nessuna Immagine</string>
     <string name="no_image_message">Nessuna foto caricata, aggiungine una.</string>
+    <string name="full_size_equipment_photo">Foto Mezzo dimensioni grande</string>
     <string name="full_size_operation_photo">Foto Operazioni dimensioni grande</string>
+    <string name="equipment_photo">Foto Mezzo</string>
     <string name="operation_type_photo">Foto Tipo di Operazione</string>
+    <string name="edit_equipment">Modifica Mezzo</string>
+    <string name="save_equipment">Salva</string>
+    <string name="dismiss_equipment">Dismetti Mezzo</string>
+    <string name="restore_equipment">Ripristina Mezzo</string>
     <string name="edit_operation_type">Modifica Tipo Operazione</string>
     <string name="save_operation_type">Salva</string>
     <string name="dismiss_operation_type">Dismetti Tipo di Operazione</string>
@@ -32,8 +42,9 @@
     <string name="sort_by">Ordina per</string>
     <string name="sort_direction">Direzione ordinamento</string>
     <string name="button_about">Informazioni</string>
-    <string name="about_dialog_title">Informazioni su Mox My Bike</string>
+    <string name="about_dialog_title">Informazioni su Mox EquipLog</string>
     <string name="add_new_maintenance_log">Aggiungi nuova registrazione di manutenzione</string>
+    <string name="select_an_equipment">Seleziona un mezzo</string>
     <string name="select_an_operation">Selezione un operazione</string>
     <string name="kilometers_optional">Chilometri (opzionale)</string>
     <string name="notes_optional">Note (opzionale)</string>
@@ -43,8 +54,9 @@
     <string name="edit_log">Modifica registrazione</string>
     <string name="save_log">Salva registrazione</string>
     <string name="dismiss_log">Dismetti registrazione</string>
-    <string name="restore_log">Riprstina registrazione</string>
-     <string name="operation_icon">Icona operazione</string>
+    <string name="restore_log">Ripristina registrazione</string>
+    <string name="equipment_icon">Icona mezzo</string>
+    <string name="operation_icon">Icona operazione</string>
 
     <!-- Gestione Errori -->
     <string name="error_dialog_title">Errore</string>
@@ -85,4 +97,8 @@
     <string name="update_operation_types_failed">Aggiornamento dell\'ordine dei tipi di operazione fallito.</string>
     <string name="dismiss_operation_type_failed">Dismissione del tipo di operazione fallita.</string>
     <string name="restore_operation_type_failed">Ripristino del tipo di operazione fallito.</string>
+    <string name="add_log_failed">Aggiunta della registrazione fallita.</string>
+    <string name="update_log_failed">Aggiornamento della registrazione fallito.</string>
+    <string name="dismiss_log_failed">Dismissione della registrazione fallita.</string>
+    <string name="restore_log_failed">Ripristino della registrazione fallito.</string>
 </resources>

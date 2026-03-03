@@ -2,6 +2,7 @@ package com.moxmose.moxequiplog.ui.equipments
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
@@ -19,7 +20,8 @@ import kotlinx.coroutines.launch
 
 class EquipmentsViewModel(
     private val equipmentDao: EquipmentDao,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val appSettingsManager: AppSettingsManager
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -35,6 +37,7 @@ class EquipmentsViewModel(
         data object ToggleImageVisibilityFailed : UiEvent()
         data object DatabaseCheckFailed : UiEvent()
         data object PhotoUriInvalid : UiEvent()
+        data object SetDefaultFailed : UiEvent()
     }
 
     private val _uiEvents = Channel<UiEvent>()
@@ -67,6 +70,33 @@ class EquipmentsViewModel(
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
+
+    val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
+
+    fun setDefaultEquipment(id: Int?) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setDefaultEquipmentId(id)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.SetDefaultFailed)
+            }
+        }
+    }
+
+    fun toggleDefaultEquipment(id: Int) {
+        viewModelScope.launch {
+            try {
+                val currentDefault = defaultEquipmentId.value
+                if (currentDefault == id) {
+                    appSettingsManager.setDefaultEquipmentId(null)
+                } else {
+                    appSettingsManager.setDefaultEquipmentId(id)
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.SetDefaultFailed)
+            }
+        }
+    }
 
     fun addEquipment(description: String, imageIdentifier: ImageIdentifier?) {
         if (description.isBlank()) {

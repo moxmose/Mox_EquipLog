@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +54,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,6 +78,7 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val operationTypeImages by viewModel.operationTypeImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
+    val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -93,6 +97,7 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
                 is OperationTypeViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
                 is OperationTypeViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
                 is OperationTypeViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
+                is OperationTypeViewModel.UiEvent.SetDefaultFailed -> context.getString(R.string.error_unknown)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -122,7 +127,9 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         operationCategoryColor = operationCategory?.color,
-        snackbarHostState = snackbarHostState
+        snackbarHostState = snackbarHostState,
+        defaultOperationTypeId = defaultOperationTypeId,
+        onToggleDefault = viewModel::toggleDefaultOperationType
     )
 }
 
@@ -146,6 +153,8 @@ fun OperationTypeScreenContent(
     onToggleImageVisibility: (Image) -> Unit,
     operationCategoryColor: String?,
     snackbarHostState: SnackbarHostState,
+    defaultOperationTypeId: Int?,
+    onToggleDefault: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val operationTypesState = remember(operationTypes) { operationTypes.toMutableStateList() }
@@ -193,14 +202,23 @@ fun OperationTypeScreenContent(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            Text(
-                text = stringResource(R.string.hold_and_drag_to_reorder),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodySmall
-            )
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.set_as_default_instruction),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = stringResource(R.string.hold_and_drag_to_reorder),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             DraggableLazyColumn(
                 items = operationTypesState,
                 key = { _, operationType -> operationType.id },
@@ -224,7 +242,9 @@ fun OperationTypeScreenContent(
                         allCategories = allCategories,
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
-                        operationCategoryColor = operationCategoryColor
+                        operationCategoryColor = operationCategoryColor,
+                        isDefault = operationType.id == defaultOperationTypeId,
+                        onToggleDefault = { onToggleDefault(operationType.id) }
                     )
                 }
             )
@@ -272,7 +292,7 @@ fun AddOperationTypeDialog(
             imageLibrary = imageLibrary,
             categories = categories,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
+            onRemoveImage = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onUpdateImageOrder = null,
             onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
@@ -393,6 +413,8 @@ fun OperationTypeCard(
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
     operationCategoryColor: String?,
+    isDefault: Boolean,
+    onToggleDefault: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isEditing by remember { mutableStateOf(false) }
@@ -429,7 +451,7 @@ fun OperationTypeCard(
             imageLibrary = operationTypeImages,
             categories = allCategories,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
+            onRemoveImage = { uri, category -> operationTypeImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onUpdateImageOrder = null,
             onToggleImageVisibility = { uri, category -> operationTypeImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
@@ -448,122 +470,150 @@ fun OperationTypeCard(
         .crossfade(true)
         .build()
 
-    val operationBorderColor = if (isEditing) {
-        operationCategoryColor?.let {
-            try {
-                Color(it.toColorInt())
-            } catch (_: Exception) {
-                MaterialTheme.colorScheme.primary
-            }
-        } ?: MaterialTheme.colorScheme.primary
-    } else Color.Transparent
+    val operationColor = operationCategoryColor?.let {
+        try {
+            Color(it.toColorInt())
+        } catch (_: Exception) {
+            MaterialTheme.colorScheme.primary
+        }
+    } ?: MaterialTheme.colorScheme.primary
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize()
-            .graphicsLayer(alpha = cardAlpha),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+    Box(contentAlignment = Alignment.BottomEnd) {
+        Card(
+            modifier = modifier
+                .fillMaxWidth()
+                .animateContentSize()
+                .graphicsLayer(alpha = cardAlpha)
+                .then(
+                    if (isDefault) Modifier.border(3.dp, operationColor, MaterialTheme.shapes.medium)
+                    else Modifier
+                )
+                .clickable {
+                    if (!isEditing) onToggleDefault()
+                },
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDefault) operationColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
+            )
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .border(2.dp, operationBorderColor, CircleShape)
-                    .clickable {
-                        if (isEditing) {
-                            showImageSelectorDialog = true
-                        } else {
-                            if (operationType.photoUri != null) {
-                                showFullImageDialog = operationType.photoUri
-                            } else if (operationType.iconIdentifier == null) {
-                                showNoPictureDialog = true
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                if (operationType.photoUri != null) {
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = stringResource(R.string.operation_type_photo),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier, "OPERATION")
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = stringResource(R.string.operation_type_photo),
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                if (isEditing) {
-                    OutlinedTextField(
-                        value = editedDescription,
-                        onValueChange = { if (it.length <= 50) editedDescription = it },
-                        label = { Text(stringResource(R.string.operation_type_description)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                } else {
-                    Text(
-                        text = editedDescription.ifBlank { "id:${operationType.id} - no description" },
-                        color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
             Row(
-                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isEditing) {
-                    IconButton(
-                        onClick = {
-                            if (operationType.dismissed) {
-                                onRestoreOperationType(operationType)
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .border(2.dp, operationColor, CircleShape)
+                        .clickable {
+                            if (isEditing) {
+                                showImageSelectorDialog = true
                             } else {
-                                onDismissOperationType(operationType)
+                                if (operationType.photoUri != null) {
+                                    showFullImageDialog = operationType.photoUri
+                                } else if (operationType.iconIdentifier == null) {
+                                    showNoPictureDialog = true
+                                }
                             }
-                        }
-                    ) {
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (operationType.photoUri != null) {
+                        AsyncImage(
+                            model = imageRequest,
+                            contentDescription = stringResource(R.string.operation_type_photo),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier, "OPERATION")
                         Icon(
-                            imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (operationType.dismissed) stringResource(R.string.restore_operation_type) else stringResource(R.string.dismiss_operation_type)
+                            imageVector = icon,
+                            contentDescription = stringResource(R.string.operation_type_photo),
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }
-                IconButton(
-                    onClick = {
-                        if (isEditing) {
-                            onUpdateOperationType(operationType.copy(description = editedDescription))
-                        }
-                        isEditing = !isEditing
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    if (isEditing) {
+                        OutlinedTextField(
+                            value = editedDescription,
+                            onValueChange = { if (it.length <= 50) editedDescription = it },
+                            label = { Text(stringResource(R.string.operation_type_description)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    } else {
+                        Text(
+                            text = editedDescription.ifBlank { "id:${operationType.id} - no description" },
+                            color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit,
-                        contentDescription = if (isEditing) stringResource(R.string.save_operation_type) else stringResource(R.string.edit_operation_type)
-                    )
+                    if (isEditing) {
+                        IconButton(
+                            onClick = {
+                                if (operationType.dismissed) {
+                                    onRestoreOperationType(operationType)
+                                } else {
+                                    onDismissOperationType(operationType)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (operationType.dismissed) stringResource(R.string.restore_operation_type) else stringResource(R.string.dismiss_operation_type)
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = {
+                            if (isEditing) {
+                                onUpdateOperationType(operationType.copy(description = editedDescription))
+                            }
+                            isEditing = !isEditing
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit,
+                            contentDescription = if (isEditing) stringResource(R.string.save_operation_type) else stringResource(R.string.edit_operation_type)
+                        )
+                    }
+                    IconButton(onClick = { /* Drag is handled by the parent */ }) {
+                        Icon(
+                            imageVector = Icons.Filled.DragHandle,
+                            contentDescription = stringResource(R.string.drag_to_reorder)
+                        )
+                    }
                 }
-                IconButton(onClick = { /* Drag is handled by the parent */ }) {
-                    Icon(
-                        imageVector = Icons.Filled.DragHandle,
-                        contentDescription = stringResource(R.string.drag_to_reorder)
-                    )
-                }
+            }
+        }
+        if (isDefault) {
+            Box(
+                modifier = Modifier
+                    .padding(end = 4.dp, bottom = 4.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(operationColor)
+                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = Color.White
+                )
             }
         }
     }

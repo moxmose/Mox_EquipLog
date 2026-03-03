@@ -2,6 +2,7 @@ package com.moxmose.moxequiplog.ui.operations
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
@@ -19,7 +20,8 @@ import kotlinx.coroutines.launch
 
 class OperationTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val appSettingsManager: AppSettingsManager
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -35,6 +37,7 @@ class OperationTypeViewModel(
         data object ToggleImageVisibilityFailed : UiEvent()
         data object DatabaseCheckFailed : UiEvent()
         data object PhotoUriInvalid : UiEvent()
+        data object SetDefaultFailed : UiEvent()
     }
 
     private val _uiEvents = Channel<UiEvent>()
@@ -67,6 +70,23 @@ class OperationTypeViewModel(
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
+
+    val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
+
+    fun toggleDefaultOperationType(id: Int) {
+        viewModelScope.launch {
+            try {
+                val currentDefault = defaultOperationTypeId.value
+                if (currentDefault == id) {
+                    appSettingsManager.setDefaultOperationTypeId(null)
+                } else {
+                    appSettingsManager.setDefaultOperationTypeId(id)
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.SetDefaultFailed)
+            }
+        }
+    }
 
     fun addOperationType(description: String, imageIdentifier: ImageIdentifier?) {
         if (description.isBlank()) {

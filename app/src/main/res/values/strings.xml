@@ -18,6 +18,7 @@
 
     <!-- Equipments & Operations -->
     <string name="hold_and_drag_to_reorder">Hold and drag items to change order</string>
+    <string name="set_as_default_instruction">Tap icon to set as default</string>
     <string name="add_equipment">Add Equipment</string>
     <string name="add_operation_type">Add Operation Type</string>
     <string name="hide_dismissed">Hide Dismissed</string>
@@ -105,4 +106,8 @@
     <string name="update_operation_types_failed">Failed to update operation types order.</string>
     <string name="dismiss_operation_type_failed">Failed to dismiss operation type.</string>
     <string name="restore_operation_type_failed">Failed to restore operation type.</string>
+    <string name="add_log_failed">Failed to add log.</string>
+    <string name="update_log_failed">Failed to update log.</string>
+    <string name="dismiss_log_failed">Failed to dismiss log.</string>
+    <string name="restore_log_failed">Failed to restore log.</string>
 </resources>

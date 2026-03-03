@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,18 +51,10 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-
-
-enum class SortProperty {
-    DATE, EQUIPMENT, OPERATION, KILOMETERS, NOTES
-}
-
-enum class SortDirection {
-    ASCENDING, DESCENDING
-}
 
 @Composable
 fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
@@ -73,6 +66,22 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
     val sortDirection by viewModel.sortDirection.collectAsState()
     val showDismissed by viewModel.showDismissed.collectAsState()
     val allCategories by optionsViewModel.allCategories.collectAsState()
+    val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
+    val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvents.collectLatest { event ->
+            val message = when (event) {
+                is MaintenanceLogViewModel.UiEvent.AddLogFailed -> context.getString(R.string.add_log_failed)
+                is MaintenanceLogViewModel.UiEvent.UpdateLogFailed -> context.getString(R.string.update_log_failed)
+                is MaintenanceLogViewModel.UiEvent.DismissLogFailed -> context.getString(R.string.dismiss_log_failed)
+                is MaintenanceLogViewModel.UiEvent.RestoreLogFailed -> context.getString(R.string.restore_log_failed)
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     val activeEquipments = remember(equipments) { equipments.filter { !it.dismissed }.sortedBy { it.displayOrder } }
     val activeOperationTypes = remember(operationTypes) { operationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
@@ -106,7 +115,10 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
         },
         onDismissLog = viewModel::dismissLog,
         onRestoreLog = viewModel::restoreLog,
-        allCategories = allCategories
+        allCategories = allCategories,
+        snackbarHostState = snackbarHostState,
+        defaultEquipmentId = defaultEquipmentId,
+        defaultOperationTypeId = defaultOperationTypeId
     )
 }
 
@@ -134,11 +146,15 @@ fun MaintenanceLogScreenContent(
     onUpdateLog: (MaintenanceLog) -> Unit,
     onDismissLog: (MaintenanceLog) -> Unit,
     onRestoreLog: (MaintenanceLog) -> Unit,
-    allCategories: List<Category>
+    allCategories: List<Category>,
+    snackbarHostState: SnackbarHostState,
+    defaultEquipmentId: Int?,
+    defaultOperationTypeId: Int?
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
                 FloatingActionButton(onClick = { onShowAddDialogChange(true) }) {
@@ -166,7 +182,9 @@ fun MaintenanceLogScreenContent(
                     onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.kilometers, log.date, log.color)
                     onShowAddDialogChange(false)
                 },
-                allCategories = allCategories
+                allCategories = allCategories,
+                defaultEquipmentId = defaultEquipmentId,
+                defaultOperationTypeId = defaultOperationTypeId
             )
         }
 
@@ -194,7 +212,7 @@ fun MaintenanceLogScreenContent(
                         expanded = showSortMenu,
                         onDismissRequest = { showSortMenu = false }
                     ) {
-                        SortProperty.values().forEach { prop ->
+                        SortProperty.entries.forEach { prop ->
                             DropdownMenuItem(
                                 text = { Text(prop.name.lowercase().replaceFirstChar { it.titlecase() }) },
                                 onClick = {
@@ -246,14 +264,16 @@ fun MaintenanceLogDialog(
     operationTypes: List<OperationType>,
     onDismissRequest: () -> Unit,
     onConfirm: (MaintenanceLog) -> Unit,
-    allCategories: List<Category>
+    allCategories: List<Category>,
+    defaultEquipmentId: Int?,
+    defaultOperationTypeId: Int?
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
     var notes by remember { mutableStateOf("") }
     var kilometers by remember { mutableStateOf("") }
-    var selectedEquipment by remember { mutableStateOf<Equipment?>(null) }
-    var selectedOperationType by remember { mutableStateOf<OperationType?>(null) }
+    var selectedEquipment by remember { mutableStateOf(equipments.find { it.id == defaultEquipmentId }) }
+    var selectedOperationType by remember { mutableStateOf(operationTypes.find { it.id == defaultOperationTypeId }) }
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableLongStateOf(System.currentTimeMillis()) }

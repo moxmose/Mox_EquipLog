@@ -3,6 +3,7 @@ package com.moxmose.moxequiplog.ui.maintenancelog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.sqlite.db.SimpleSQLiteQuery
+import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.local.CategoryDao
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
@@ -10,22 +11,44 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+enum class SortProperty {
+    DATE, EQUIPMENT, OPERATION, KILOMETERS, NOTES
+}
+
+enum class SortDirection {
+    ASCENDING, DESCENDING
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MaintenanceLogViewModel(
     private val maintenanceLogDao: MaintenanceLogDao,
-    equipmentDao: EquipmentDao,
-    operationTypeDao: OperationTypeDao,
-    categoryDao: CategoryDao
+    private val equipmentDao: EquipmentDao,
+    private val operationTypeDao: OperationTypeDao,
+    private val categoryDao: CategoryDao,
+    private val appSettingsManager: AppSettingsManager
 ) : ViewModel() {
+
+    sealed class UiEvent {
+        data object AddLogFailed : UiEvent()
+        data object UpdateLogFailed : UiEvent()
+        data object DismissLogFailed : UiEvent()
+        data object RestoreLogFailed : UiEvent()
+    }
+
+    private val _uiEvents = Channel<UiEvent>()
+    val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     private val _searchQuery = MutableStateFlow("")
     private val _sortProperty = MutableStateFlow(SortProperty.DATE)
@@ -58,6 +81,9 @@ class MaintenanceLogViewModel(
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
+
+    val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
+    val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
 
     private fun buildQuery(
         searchQuery: String,
@@ -156,33 +182,49 @@ class MaintenanceLogViewModel(
 
     fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, kilometers: Int?, date: Long, color: String?) {
         viewModelScope.launch {
-            val newLog = MaintenanceLog(
-                equipmentId = equipmentId,
-                operationTypeId = operationTypeId,
-                notes = notes,
-                kilometers = kilometers,
-                date = date,
-                color = color
-            )
-            maintenanceLogDao.insertLog(newLog)
+            try {
+                val newLog = MaintenanceLog(
+                    equipmentId = equipmentId,
+                    operationTypeId = operationTypeId,
+                    notes = notes,
+                    kilometers = kilometers,
+                    date = date,
+                    color = color
+                )
+                maintenanceLogDao.insertLog(newLog)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.AddLogFailed)
+            }
         }
     }
 
     fun updateLog(log: MaintenanceLog) {
         viewModelScope.launch {
-            maintenanceLogDao.updateLog(log)
+            try {
+                maintenanceLogDao.updateLog(log)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateLogFailed)
+            }
         }
     }
 
     fun dismissLog(log: MaintenanceLog) {
         viewModelScope.launch {
-            updateLog(log.copy(dismissed = true))
+            try {
+                maintenanceLogDao.updateLog(log.copy(dismissed = true))
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.DismissLogFailed)
+            }
         }
     }
 
     fun restoreLog(log: MaintenanceLog) {
         viewModelScope.launch {
-            updateLog(log.copy(dismissed = false))
+            try {
+                maintenanceLogDao.updateLog(log.copy(dismissed = false))
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.RestoreLogFailed)
+            }
         }
     }
 }

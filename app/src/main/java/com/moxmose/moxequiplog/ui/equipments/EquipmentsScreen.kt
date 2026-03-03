@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -54,6 +58,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,6 +82,7 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
     val allEquipments by viewModel.allEquipments.collectAsState()
     val equipmentImages by viewModel.equipmentImages.collectAsState()
     val allCategories by optionsViewModel.allCategories.collectAsState()
+    val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -95,6 +101,7 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
                 is EquipmentsViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
                 is EquipmentsViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
                 is EquipmentsViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
+                is EquipmentsViewModel.UiEvent.SetDefaultFailed -> context.getString(R.string.error_unknown)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -124,7 +131,9 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
         onShowAddDialogChange = { showAddDialog = it },
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
-        snackbarHostState = snackbarHostState
+        snackbarHostState = snackbarHostState,
+        defaultEquipmentId = defaultEquipmentId,
+        onToggleDefault = viewModel::toggleDefaultEquipment
     )
 }
 
@@ -149,6 +158,8 @@ fun EquipmentsScreenContent(
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
     snackbarHostState: SnackbarHostState,
+    defaultEquipmentId: Int?,
+    onToggleDefault: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
@@ -192,14 +203,23 @@ fun EquipmentsScreenContent(
         }
 
         Column(Modifier.padding(paddingValues)) {
-            Text(
-                text = stringResource(R.string.hold_and_drag_to_reorder),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodySmall
-            )
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.set_as_default_instruction),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = stringResource(R.string.hold_and_drag_to_reorder),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             DraggableLazyColumn(
                 items = equipmentsState,
                 key = { _, equipment -> equipment.id },
@@ -223,7 +243,9 @@ fun EquipmentsScreenContent(
                         onRestoreEquipment = onRestoreEquipment,
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
-                        equipmentCategoryColor = equipmentCategoryColor
+                        equipmentCategoryColor = equipmentCategoryColor,
+                        isDefault = equipment.id == defaultEquipmentId,
+                        onToggleDefault = { onToggleDefault(equipment.id) }
                     )
                 }
             )
@@ -392,6 +414,8 @@ fun EquipmentCard(
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
     equipmentCategoryColor: String?,
+    isDefault: Boolean,
+    onToggleDefault: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isEditing by remember { mutableStateOf(false) }
@@ -428,7 +452,7 @@ fun EquipmentCard(
             imageLibrary = equipmentImages,
             categories = allCategories,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
+            onRemoveImage = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } /* placeholder if needed */ },
             onUpdateImageOrder = null,
             onToggleImageVisibility = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
@@ -447,122 +471,151 @@ fun EquipmentCard(
         .crossfade(true)
         .build()
 
-    val equipmentBorderColor = if (isEditing) {
-        equipmentCategoryColor?.let {
-            try {
-                Color(android.graphics.Color.parseColor(it))
-            } catch (e: Exception) {
-                MaterialTheme.colorScheme.primary
-            }
-        } ?: MaterialTheme.colorScheme.primary
-    } else Color.Transparent
+    val equipmentColor = equipmentCategoryColor?.let {
+        try {
+            Color(android.graphics.Color.parseColor(it))
+        } catch (e: Exception) {
+            MaterialTheme.colorScheme.primary
+        }
+    } ?: MaterialTheme.colorScheme.primary
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize()
-            .graphicsLayer(alpha = cardAlpha),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+    Box(contentAlignment = Alignment.BottomEnd) {
+        Card(
+            modifier = modifier
+                .fillMaxWidth()
+                .animateContentSize()
+                .graphicsLayer(alpha = cardAlpha)
+                .then(
+                    if (isDefault) Modifier.border(3.dp, equipmentColor, MaterialTheme.shapes.medium)
+                    else Modifier
+                )
+                .clickable {
+                    if (!isEditing) onToggleDefault()
+                },
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDefault) equipmentColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
+            )
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .border(2.dp, equipmentBorderColor, CircleShape)
-                    .clickable {
-                        if (isEditing) {
-                            showImageSelectorDialog = true
-                        } else {
-                            if (equipment.photoUri != null) {
-                                showFullImageDialog = equipment.photoUri
-                            } else if (equipment.iconIdentifier == null) {
-                                showNoPictureDialog = true
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                if (equipment.photoUri != null) {
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = stringResource(R.string.equipment_photo),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    val icon = EquipmentIconProvider.getIcon(equipment.iconIdentifier)
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = stringResource(R.string.equipment_photo),
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                if (isEditing) {
-                    OutlinedTextField(
-                        value = editedDescription,
-                        onValueChange = { if (it.length <= 50) editedDescription = it },
-                        label = { Text(stringResource(R.string.equipment_description)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                } else {
-                    Text(
-                        text = if (editedDescription.isNotBlank()) editedDescription else "id:${equipment.id} - no description",
-                        color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
             Row(
-                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isEditing) {
-                    IconButton(
-                        onClick = { 
-                            if (equipment.dismissed) {
-                                onRestoreEquipment(equipment)
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .border(2.dp, equipmentColor, CircleShape)
+                        .clickable {
+                            if (isEditing) {
+                                showImageSelectorDialog = true
                             } else {
-                                onDismissEquipment(equipment)
+                                if (equipment.photoUri != null) {
+                                    showFullImageDialog = equipment.photoUri
+                                } else if (equipment.iconIdentifier == null) {
+                                    showNoPictureDialog = true
+                                }
                             }
-                         }
-                    ) {
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (equipment.photoUri != null) {
+                        AsyncImage(
+                            model = imageRequest,
+                            contentDescription = stringResource(R.string.equipment_photo),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        val icon = EquipmentIconProvider.getIcon(equipment.iconIdentifier)
                         Icon(
-                            imageVector = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (equipment.dismissed) stringResource(R.string.restore_equipment) else stringResource(R.string.dismiss_equipment)
+                            imageVector = icon,
+                            contentDescription = stringResource(R.string.equipment_photo),
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }
-                IconButton(
-                    onClick = {
-                        if (isEditing) {
-                            onUpdateEquipment(equipment.copy(description = editedDescription))
-                        }
-                        isEditing = !isEditing
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    if (isEditing) {
+                        OutlinedTextField(
+                            value = editedDescription,
+                            onValueChange = { if (it.length <= 50) editedDescription = it },
+                            label = { Text(stringResource(R.string.equipment_description)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    } else {
+                        Text(
+                            text = if (editedDescription.isNotBlank()) editedDescription else "id:${equipment.id} - no description",
+                            color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit,
-                        contentDescription = if (isEditing) stringResource(R.string.save_equipment) else stringResource(R.string.edit_equipment)
-                    )
+                    if (isEditing) {
+                        IconButton(
+                            onClick = { 
+                                if (equipment.dismissed) {
+                                    onRestoreEquipment(equipment)
+                                } else {
+                                    onDismissEquipment(equipment)
+                                }
+                             }
+                        ) {
+                            Icon(
+                                imageVector = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (equipment.dismissed) stringResource(R.string.restore_equipment) else stringResource(R.string.dismiss_equipment)
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = {
+                            if (isEditing) {
+                                onUpdateEquipment(equipment.copy(description = editedDescription))
+                            }
+                            isEditing = !isEditing
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit,
+                            contentDescription = if (isEditing) stringResource(R.string.save_equipment) else stringResource(R.string.edit_equipment)
+                        )
+                    }
+                    IconButton(onClick = { /* Drag is handled by the parent */ }) {
+                        Icon(
+                            imageVector = Icons.Filled.DragHandle,
+                            contentDescription = stringResource(R.string.drag_to_reorder)
+                        )
+                    }
                 }
-                IconButton(onClick = { /* Drag is handled by the parent */ }) {
-                    Icon(
-                        imageVector = Icons.Filled.DragHandle,
-                        contentDescription = stringResource(R.string.drag_to_reorder)
-                    )
-                }
+            }
+        }
+        if (isDefault) {
+            Box(
+                modifier = Modifier
+                    .padding(end = 4.dp, bottom = 4.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(equipmentColor)
+                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = Color.White
+                )
             }
         }
     }

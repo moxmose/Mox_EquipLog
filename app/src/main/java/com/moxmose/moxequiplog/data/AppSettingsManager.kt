@@ -3,6 +3,7 @@ package com.moxmose.moxequiplog.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,8 @@ class AppSettingsManager(
     private val usernameKey = stringPreferencesKey("username")
     private val favoriteIconKey = stringPreferencesKey("favorite_icon")
     private val favoritePhotoUriKey = stringPreferencesKey("favorite_photo_uri")
+    private val defaultEquipmentIdKey = intPreferencesKey("default_equipment_id")
+    private val defaultOperationTypeIdKey = intPreferencesKey("default_operation_type_id")
 
     val username: StateFlow<String> = dataStore.data
         .map { preferences ->
@@ -35,6 +38,14 @@ class AppSettingsManager(
 
     val favoritePhotoUri: StateFlow<String?> = dataStore.data
         .map { it[favoritePhotoUriKey] }
+        .stateIn(coroutineScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val defaultEquipmentId: StateFlow<Int?> = dataStore.data
+        .map { it[defaultEquipmentIdKey] }
+        .stateIn(coroutineScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val defaultOperationTypeId: StateFlow<Int?> = dataStore.data
+        .map { it[defaultOperationTypeIdKey] }
         .stateIn(coroutineScope, SharingStarted.WhileSubscribed(5000), null)
 
     suspend fun setUsername(username: String) {
@@ -53,6 +64,20 @@ class AppSettingsManager(
                 it.remove(favoriteIconKey)
                 it.remove(favoritePhotoUriKey)
             }
+        }
+    }
+
+    suspend fun setDefaultEquipmentId(id: Int?) {
+        dataStore.edit {
+            if (id == null) it.remove(defaultEquipmentIdKey)
+            else it[defaultEquipmentIdKey] = id
+        }
+    }
+
+    suspend fun setDefaultOperationTypeId(id: Int?) {
+        dataStore.edit {
+            if (id == null) it.remove(defaultOperationTypeIdKey)
+            else it[defaultOperationTypeIdKey] = id
         }
     }
 }
