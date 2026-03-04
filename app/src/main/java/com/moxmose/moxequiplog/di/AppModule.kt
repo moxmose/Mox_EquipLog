@@ -1,9 +1,6 @@
 package com.moxmose.moxequiplog.di
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
@@ -18,17 +15,12 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-
 val appModule = module {
 
     // Default Data from Resources
     single(named("defaultUsername")) { androidContext().resources.getString(R.string.default_username) }
     single(named("defaultColors")) { androidContext().resources.getStringArray(R.array.default_colors) }
     single(named("defaultCategories")) { androidContext().resources.getStringArray(R.array.default_categories) }
-
-    // DataStore
-    single { androidContext().dataStore }
 
     // Database & DAOs
     single {
@@ -47,9 +39,10 @@ val appModule = module {
     single { get<AppDatabase>().imageDao() }
     single { get<AppDatabase>().categoryDao() }
     single { get<AppDatabase>().appColorDao() }
+    single { get<AppDatabase>().appPreferenceDao() }
 
     // Repositories
-    single { ImageRepository(get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
+    single { ImageRepository(get(), get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
     single { AppSettingsManager(get(), get(named("defaultUsername"))) }
 
     // ViewModels

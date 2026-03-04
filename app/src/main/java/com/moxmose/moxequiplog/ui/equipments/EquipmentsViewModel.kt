@@ -10,12 +10,7 @@ import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class EquipmentsViewModel(
@@ -71,6 +66,16 @@ class EquipmentsViewModel(
             initialValue = emptyList()
         )
 
+    val categoryColor: StateFlow<String> = imageRepository.getCategoryColor("EQUIPMENT")
+        .map { it ?: "#808080" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "#808080")
+
+    val categoryDefaultIcon: StateFlow<String?> = imageRepository.getCategoryDefaultIcon("EQUIPMENT")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+
+    val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto("EQUIPMENT")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
 
     fun setDefaultEquipment(id: Int?) {
@@ -107,17 +112,16 @@ class EquipmentsViewModel(
             try {
                 val currentList = allEquipments.value
                 val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
-                val equipmentCategory = allCategories.first().find { it.id == "EQUIPMENT" }
-
+                
                 var equipmentPhotoUri: String? = null
                 var equipmentIconIdentifier: String? = null
 
                 when (imageIdentifier) {
                     is ImageIdentifier.Icon -> equipmentIconIdentifier = imageIdentifier.name
                     is ImageIdentifier.Photo -> equipmentPhotoUri = imageIdentifier.uri
-                    null -> { // Usa i default di categoria
-                        equipmentPhotoUri = equipmentCategory?.defaultPhotoUri
-                        equipmentIconIdentifier = equipmentCategory?.defaultIconIdentifier
+                    null -> {
+                        equipmentPhotoUri = categoryDefaultPhoto.value
+                        equipmentIconIdentifier = categoryDefaultIcon.value
                     }
                 }
 

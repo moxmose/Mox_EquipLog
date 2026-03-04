@@ -9,6 +9,7 @@ class ImageRepository(
     private val imageDao: ImageDao,
     private val categoryDao: CategoryDao,
     private val appColorDao: AppColorDao,
+    private val appPreferenceDao: AppPreferenceDao,
     private val defaultColors: Array<String>,
     private val defaultCategories: Array<String>
 ) {
@@ -19,8 +20,17 @@ class ImageRepository(
 
     fun getImagesByCategory(category: String): Flow<List<Image>> = imageDao.getImagesByCategory(category)
 
+    fun getCategoryColor(categoryId: String): Flow<String?> = 
+        appPreferenceDao.getPreferenceFlow("default_color_$categoryId")
+
+    fun getCategoryDefaultIcon(categoryId: String): Flow<String?> = 
+        appPreferenceDao.getPreferenceFlow("default_icon_$categoryId")
+
+    fun getCategoryDefaultPhoto(categoryId: String): Flow<String?> = 
+        appPreferenceDao.getPreferenceFlow("default_photo_$categoryId")
+
     suspend fun initializeAppData() {
-        // 1. Inizializza Colori da Array di Risorse se il DB è vuoto
+        // 1. Inizializza Colori
         if (appColorDao.getAllColors().first().isEmpty()) {
             val colorsToInsert = defaultColors.mapIndexed { index, colorString ->
                 val (hex, name) = colorString.split(";")
@@ -29,16 +39,18 @@ class ImageRepository(
             appColorDao.insertAllColors(colorsToInsert)
         }
 
-        // 2. Inizializza Categorie da Array di Risorse se il DB è vuoto
+        // 2. Inizializza Categorie e relative preferenze
         if (categoryDao.getAllCategories().first().isEmpty()) {
             val categoriesToInsert = defaultCategories.map { categoryString ->
                 val (id, name, color) = categoryString.split(";")
-                Category(id = id, name = name, color = color)
+                // Salva il colore iniziale come preferenza di default
+                appPreferenceDao.insertPreference(AppPreference("default_color_$id", color))
+                Category(id = id, name = name)
             }
             categoryDao.insertAllCategories(categoriesToInsert)
         }
 
-        // 3. Inizializza Icone (logica esistente)
+        // 3. Inizializza Icone
         categoryDao.getAllCategories().first().forEach { category ->
             initializeIconsForCategory(category.id)
         }
@@ -50,15 +62,12 @@ class ImageRepository(
         var maxOrder = imageDao.getMaxOrder(categoryId) ?: -1
 
         val iconsToInsert = mutableListOf<Image>()
-
-        // Assicura che "none" sia presente e sia il primo
         val noneUri = "icon:none"
         if (!existingUris.contains(noneUri)) {
             iconsToInsert.add(Image(uri = noneUri, category = categoryId, imageType = "ICON", displayOrder = 0, hidden = false))
             maxOrder++
         }
 
-        // Aggiungi le icone mancanti
         val icons = EquipmentIconProvider.getIconsForCategory(categoryId)
         icons.keys.forEach { iconId ->
             val uri = "icon:$iconId"
@@ -83,7 +92,6 @@ class ImageRepository(
     }
 
     suspend fun removeImage(image: Image) {
-        // Solo i media di tipo IMMAGINE possono essere eliminati per prevenire la rimozione delle icone di default.
         if (image.imageType == "IMAGE") {
             imageDao.deleteImage(image)
         }
@@ -94,22 +102,24 @@ class ImageRepository(
     }
 
     suspend fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
-        val category = categoryDao.getCategoryById(categoryId)
-        if (category != null) {
-            val updatedCategory = when (imageIdentifier) {
-                is ImageIdentifier.Icon -> category.copy(defaultIconIdentifier = imageIdentifier.name, defaultPhotoUri = null)
-                is ImageIdentifier.Photo -> category.copy(defaultIconIdentifier = null, defaultPhotoUri = imageIdentifier.uri)
-                null -> category.copy(defaultIconIdentifier = null, defaultPhotoUri = null) // Reset
+        when (imageIdentifier) {
+            is ImageIdentifier.Icon -> {
+                appPreferenceDao.insertPreference(AppPreference("default_icon_$categoryId", imageIdentifier.name))
+                appPreferenceDao.deletePreference("default_photo_$categoryId")
             }
-            categoryDao.insertCategory(updatedCategory)
+            is ImageIdentifier.Photo -> {
+                appPreferenceDao.deletePreference("default_icon_$categoryId")
+                appPreferenceDao.insertPreference(AppPreference("default_photo_$categoryId", imageIdentifier.uri))
+            }
+            null -> {
+                appPreferenceDao.deletePreference("default_icon_$categoryId")
+                appPreferenceDao.deletePreference("default_photo_$categoryId")
+            }
         }
     }
 
     suspend fun updateCategoryColor(categoryId: String, colorHex: String) {
-        val category = categoryDao.getCategoryById(categoryId)
-        if (category != null) {
-            categoryDao.insertCategory(category.copy(color = colorHex))
-        }
+        appPreferenceDao.insertPreference(AppPreference("default_color_$categoryId", colorHex))
     }
 
     suspend fun addColor(hex: String, name: String) {

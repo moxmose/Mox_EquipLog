@@ -77,7 +77,7 @@ import org.koin.androidx.compose.koinViewModel
 fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = koinViewModel()) {
     val username by viewModel.username.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
-    val allCategories by viewModel.allCategories.collectAsState()
+    val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -118,7 +118,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         modifier = modifier,
         username = username,
         allImages = allImages,
-        allCategories = allCategories,
+        categoriesUiState = categoriesUiState,
         allColors = allColors,
         onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
@@ -148,7 +148,7 @@ fun OptionsScreenContent(
     modifier: Modifier = Modifier,
     username: String,
     allImages: List<Image>,
-    allCategories: List<Category>,
+    categoriesUiState: List<CategoryUiState>,
     allColors: List<AppColor>,
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, ImageIdentifier?) -> Unit,
@@ -171,6 +171,10 @@ fun OptionsScreenContent(
     snackbarHostState: SnackbarHostState
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
+    
+    val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
+    val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
+    val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
 
     if (showAboutDialog) {
         AlertDialog(
@@ -186,11 +190,15 @@ fun OptionsScreenContent(
     }
 
     if (showImageDialog) {
+        val allCategories = categoriesUiState.map { it.category }
         ImageSelector(
             photoUri = null,
             iconIdentifier = null,
             imageLibrary = allImages,
             categories = allCategories,
+            categoryColors = categoryColorsMap,
+            categoryDefaultIcons = categoryDefaultIconsMap,
+            categoryDefaultPhotos = categoryDefaultPhotosMap,
             onImageSelected = { _, _ -> },
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
             onRemoveImage = { uri, category -> allImages.find { it.uri == uri && it.category == category }?.let { onRemoveImage(it) } },
@@ -211,12 +219,12 @@ fun OptionsScreenContent(
     }
 
     showColorPicker?.let { categoryId ->
-        val category = allCategories.find { it.id == categoryId }!!
+        val categoryUiState = categoriesUiState.find { it.category.id == categoryId }!!
         ColorManagementDialog(
             allColors = allColors,
-            category = category,
+            categoryUiState = categoryUiState,
             onDismiss = { onShowColorPickerChange(null) },
-            onColorSelected = { onUpdateCategoryColor(category.id, it) },
+            onColorSelected = { onUpdateCategoryColor(categoryId, it) },
             onAddColor = onAddColor,
             onUpdateColor = onUpdateColor,
             onUpdateColorsOrder = onUpdateColorsOrder,
@@ -266,20 +274,20 @@ fun OptionsScreenContent(
                 title = "Sezioni e Colori",
                 description = "Personalizza i colori identificativi per ogni sezione dell'app."
             ) {
-                allCategories.sortedBy { it.name }.forEach { category ->
+                categoriesUiState.sortedBy { it.category.name }.forEach { uiState ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         Spacer(Modifier.width(12.dp))
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(Color(android.graphics.Color.parseColor(category.color)))
+                                .background(Color(android.graphics.Color.parseColor(uiState.color)))
                                 .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                .clickable { onShowColorPickerChange(category.id) }
+                                .clickable { onShowColorPickerChange(uiState.category.id) }
                         )
                     }
-                    if (category != allCategories.last()) Divider(Modifier.padding(vertical = 12.dp))
+                    if (uiState != categoriesUiState.last()) Divider(Modifier.padding(vertical = 12.dp))
                 }
             }
 
@@ -304,6 +312,7 @@ fun OptionsScreenContent(
                                 Text("Libreria vuota")
                             } else {
                                 allImages.filter { !it.hidden }.distinctBy { it.uri }.take(4).forEach { image ->
+                                    val allCategories = categoriesUiState.map { it.category }
                                     ImageSelector(
                                         photoUri = if (image.imageType == "IMAGE") image.uri else null,
                                         iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
@@ -311,6 +320,9 @@ fun OptionsScreenContent(
                                         modifier = Modifier.size(40.dp),
                                         category = image.category,
                                         categories = allCategories,
+                                        categoryColors = categoryColorsMap,
+                                        categoryDefaultIcons = categoryDefaultIconsMap,
+                                        categoryDefaultPhotos = categoryDefaultPhotosMap,
                                         imageLibrary = allImages
                                     )
                                 }
@@ -353,7 +365,7 @@ fun OptionsScreenContent(
 @Composable
 fun ColorManagementDialog(
     allColors: List<AppColor>,
-    category: Category,
+    categoryUiState: CategoryUiState,
     onDismiss: () -> Unit,
     onColorSelected: (String) -> Unit,
     onAddColor: (String, String) -> Unit,
@@ -421,7 +433,7 @@ fun ColorManagementDialog(
                     itemContent = { _, color ->
                         ColorItemCard(
                             color = color,
-                            isSelected = category.color.equals(color.hexValue, ignoreCase = true),
+                            isSelected = categoryUiState.color.equals(color.hexValue, ignoreCase = true),
                             onColorSelected = {
                                 onColorSelected(color.hexValue)
                                 onDismiss()

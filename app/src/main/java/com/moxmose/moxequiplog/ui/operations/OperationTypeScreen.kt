@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
@@ -26,6 +29,8 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -69,16 +74,27 @@ import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
+import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
+fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
     val activeOperationTypes by viewModel.activeOperationTypes.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val operationTypeImages by viewModel.operationTypeImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
+    
+    val categoryColor by viewModel.getCategoryColor("OPERATION").collectAsState(initial = "#808080")
+    val categoryDefaultIcon by viewModel.getCategoryDefaultIcon("OPERATION").collectAsState(initial = null)
+    val categoryDefaultPhoto by viewModel.getCategoryDefaultPhoto("OPERATION").collectAsState(initial = null)
+
+    val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
+    val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
+    val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
+    val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -107,14 +123,13 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
     val typesToShow = if (showDismissed) allOperationTypes else activeOperationTypes
-    val operationCategory = allCategories.find { it.id == "OPERATION" }
 
     OperationTypeScreenContent(
         operationTypes = typesToShow,
         operationTypeImages = operationTypeImages,
         allCategories = allCategories,
-        defaultIcon = operationCategory?.defaultIconIdentifier,
-        defaultPhotoUri = operationCategory?.defaultPhotoUri,
+        defaultIcon = categoryDefaultIcon,
+        defaultPhotoUri = categoryDefaultPhoto,
         onAddOperationType = viewModel::addOperationType,
         onUpdateOperationTypes = viewModel::updateOperationTypes,
         onUpdateOperationType = viewModel::updateOperationType,
@@ -126,10 +141,13 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel()) {
         onShowAddDialogChange = { showAddDialog = it },
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
-        operationCategoryColor = operationCategory?.color,
+        operationCategoryColor = categoryColor ?: "#808080",
         snackbarHostState = snackbarHostState,
         defaultOperationTypeId = defaultOperationTypeId,
-        onToggleDefault = viewModel::toggleDefaultOperationType
+        onToggleDefault = viewModel::toggleDefaultOperationType,
+        categoryColors = categoryColorsMap,
+        categoryDefaultIcons = categoryDefaultIconsMap,
+        categoryDefaultPhotos = categoryDefaultPhotosMap
     )
 }
 
@@ -151,10 +169,13 @@ fun OperationTypeScreenContent(
     onRestoreOperationType: (OperationType) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
-    operationCategoryColor: String?,
+    operationCategoryColor: String,
     snackbarHostState: SnackbarHostState,
     defaultOperationTypeId: Int?,
     onToggleDefault: (Int) -> Unit,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
     modifier: Modifier = Modifier
 ) {
     val operationTypesState = remember(operationTypes) { operationTypes.toMutableStateList() }
@@ -184,6 +205,9 @@ fun OperationTypeScreenContent(
             AddOperationTypeDialog(
                 imageLibrary = operationTypeImages,
                 categories = allCategories,
+                categoryColors = categoryColors,
+                categoryDefaultIcons = categoryDefaultIcons,
+                categoryDefaultPhotos = categoryDefaultPhotos,
                 defaultIcon = defaultIcon,
                 defaultPhotoUri = defaultPhotoUri,
                 onDismissRequest = { onShowAddDialogChange(false) },
@@ -240,6 +264,9 @@ fun OperationTypeScreenContent(
                         onRestoreOperationType = onRestoreOperationType,
                         operationTypeImages = operationTypeImages,
                         allCategories = allCategories,
+                        categoryColors = categoryColors,
+                        categoryDefaultIcons = categoryDefaultIcons,
+                        categoryDefaultPhotos = categoryDefaultPhotos,
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
                         operationCategoryColor = operationCategoryColor,
@@ -258,11 +285,14 @@ fun AddOperationTypeDialog(
     onConfirm: (String, ImageIdentifier?) -> Unit,
     imageLibrary: List<Image>,
     categories: List<Category>,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
-    operationCategoryColor: String?
+    operationCategoryColor: String
 ) {
     var description by rememberSaveable { mutableStateOf("") }
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
@@ -291,6 +321,9 @@ fun AddOperationTypeDialog(
             },
             imageLibrary = imageLibrary,
             categories = categories,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
             onRemoveImage = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onUpdateImageOrder = null,
@@ -317,13 +350,11 @@ fun AddOperationTypeDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val borderColor = operationCategoryColor?.let {
-                    try {
-                        Color(it.toColorInt())
-                    } catch (_: Exception) {
-                        MaterialTheme.colorScheme.primary
-                    }
-                } ?: MaterialTheme.colorScheme.primary
+                val borderColor = try {
+                    Color(operationCategoryColor.toColorInt())
+                } catch (_: Exception) {
+                    MaterialTheme.colorScheme.primary
+                }
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -410,9 +441,12 @@ fun OperationTypeCard(
     onRestoreOperationType: (OperationType) -> Unit,
     operationTypeImages: List<Image>,
     allCategories: List<Category>,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
-    operationCategoryColor: String?,
+    operationCategoryColor: String,
     isDefault: Boolean,
     onToggleDefault: () -> Unit,
     modifier: Modifier = Modifier
@@ -450,6 +484,9 @@ fun OperationTypeCard(
             },
             imageLibrary = operationTypeImages,
             categories = allCategories,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
             onRemoveImage = { uri, category -> operationTypeImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onUpdateImageOrder = null,
@@ -470,13 +507,11 @@ fun OperationTypeCard(
         .crossfade(true)
         .build()
 
-    val operationColor = operationCategoryColor?.let {
-        try {
-            Color(it.toColorInt())
-        } catch (_: Exception) {
-            MaterialTheme.colorScheme.primary
-        }
-    } ?: MaterialTheme.colorScheme.primary
+    val operationColor = try {
+        Color(operationCategoryColor.toColorInt())
+    } catch (_: Exception) {
+        MaterialTheme.colorScheme.primary
+    }
 
     Box(contentAlignment = Alignment.BottomEnd) {
         Card(
@@ -488,9 +523,13 @@ fun OperationTypeCard(
                     if (isDefault) Modifier.border(3.dp, operationColor, MaterialTheme.shapes.medium)
                     else Modifier
                 )
-                .clickable {
-                    if (!isEditing) onToggleDefault()
-                },
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {
+                        if (!isEditing) onToggleDefault()
+                    }
+                ),
             colors = CardDefaults.cardColors(
                 containerColor = if (isDefault) operationColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
             )

@@ -10,12 +10,7 @@ import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class OperationTypeViewModel(
@@ -73,6 +68,10 @@ class OperationTypeViewModel(
 
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
 
+    fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
+    fun getCategoryDefaultIcon(categoryId: String): Flow<String?> = imageRepository.getCategoryDefaultIcon(categoryId)
+    fun getCategoryDefaultPhoto(categoryId: String): Flow<String?> = imageRepository.getCategoryDefaultPhoto(categoryId)
+
     fun toggleDefaultOperationType(id: Int) {
         viewModelScope.launch {
             try {
@@ -96,17 +95,16 @@ class OperationTypeViewModel(
         viewModelScope.launch {
             try {
                 val maxDisplayOrder = allOperationTypes.first().maxOfOrNull { it.displayOrder } ?: -1
-                val operationCategory = allCategories.first().find { it.id == "OPERATION" }
-
+                
                 var operationPhotoUri: String? = null
                 var operationIconIdentifier: String? = null
 
                 when (imageIdentifier) {
                     is ImageIdentifier.Icon -> operationIconIdentifier = imageIdentifier.name
                     is ImageIdentifier.Photo -> operationPhotoUri = imageIdentifier.uri
-                    null -> { // Usa i default di categoria
-                        operationPhotoUri = operationCategory?.defaultPhotoUri
-                        operationIconIdentifier = operationCategory?.defaultIconIdentifier
+                    null -> {
+                        operationPhotoUri = imageRepository.getCategoryDefaultPhoto("OPERATION").first()
+                        operationIconIdentifier = imageRepository.getCategoryDefaultIcon("OPERATION").first()
                     }
                 }
 

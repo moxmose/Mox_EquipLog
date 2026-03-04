@@ -77,6 +77,9 @@ fun ImageSelector(
     category: String? = null,
     imageLibrary: List<Image> = emptyList(),
     categories: List<Category> = emptyList(),
+    categoryColors: Map<String, String> = emptyMap(),
+    categoryDefaultIcons: Map<String, String?> = emptyMap(),
+    categoryDefaultPhotos: Map<String, String?> = emptyMap(),
     onAddImage: ((String, String) -> Unit)? = null,
     onRemoveImage: ((String, String) -> Unit)? = null,
     onUpdateImageOrder: ((List<Image>) -> Unit)? = null,
@@ -98,6 +101,9 @@ fun ImageSelector(
             },
             imageLibrary = imageLibrary,
             categories = categories,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
             onAddImage = onAddImage,
             onRemoveImage = onRemoveImage,
             onUpdateImageOrder = onUpdateImageOrder,
@@ -120,6 +126,9 @@ fun ImageSelector(
                 },
                 imageLibrary = imageLibrary,
                 categories = categories,
+                categoryColors = categoryColors,
+                categoryDefaultIcons = categoryDefaultIcons,
+                categoryDefaultPhotos = categoryDefaultPhotos,
                 onAddImage = onAddImage,
                 onRemoveImage = onRemoveImage,
                 onUpdateImageOrder = onUpdateImageOrder,
@@ -167,6 +176,9 @@ fun ImagePickerDialog(
     onImageSelected: (Pair<String?, String?>) -> Unit,
     imageLibrary: List<Image>,
     categories: List<Category>,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
     onAddImage: ((String, String) -> Unit)?,
     onRemoveImage: ((String, String) -> Unit)?,
     onUpdateImageOrder: ((List<Image>) -> Unit)?,
@@ -368,16 +380,18 @@ fun ImagePickerDialog(
                     key = { _, m -> "${m.category}:${m.uri}" },
                     itemContent = { image ->
                         val uriKey = image.uri.removePrefix("icon:")
-                        val cat = categories.find { it.id == image.category }
-                        val catColorHex = cat?.color ?: "#808080"
+                        val catColorHex = categoryColors[image.category] ?: "#808080"
                         val catColor = Color(android.graphics.Color.parseColor(catColorHex))
+                        
+                        val defIcon = categoryDefaultIcons[image.category]
+                        val defPhoto = categoryDefaultPhotos[image.category]
 
                         val isSelected = if (isPrefsMode) {
                             if (uriKey == "none") {
-                                cat?.defaultIconIdentifier == null && cat?.defaultPhotoUri == null
+                                defIcon == null && defPhoto == null
                             } else {
-                                (image.imageType == "ICON" && uriKey == cat?.defaultIconIdentifier) ||
-                                (image.imageType == "IMAGE" && image.uri == cat?.defaultPhotoUri)
+                                (image.imageType == "ICON" && uriKey == defIcon) ||
+                                (image.imageType == "IMAGE" && image.uri == defPhoto)
                             }
                         } else {
                             if (uriKey == "none") {
@@ -392,10 +406,10 @@ fun ImagePickerDialog(
                             false // Gestito da isSelected
                         } else {
                             if (uriKey == "none") {
-                                cat?.defaultIconIdentifier == null && cat?.defaultPhotoUri == null
+                                defIcon == null && defPhoto == null
                             } else {
-                                (image.imageType == "ICON" && uriKey == cat?.defaultIconIdentifier) ||
-                                (image.imageType == "IMAGE" && image.uri == cat?.defaultPhotoUri)
+                                (image.imageType == "ICON" && uriKey == defIcon) ||
+                                (image.imageType == "IMAGE" && image.uri == defPhoto)
                             }
                         }
 

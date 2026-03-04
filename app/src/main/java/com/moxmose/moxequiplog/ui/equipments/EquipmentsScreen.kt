@@ -81,8 +81,18 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
     val activeEquipments by viewModel.activeEquipments.collectAsState()
     val allEquipments by viewModel.allEquipments.collectAsState()
     val equipmentImages by viewModel.equipmentImages.collectAsState()
-    val allCategories by optionsViewModel.allCategories.collectAsState()
+    val allCategories by viewModel.allCategories.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
+    
+    val categoryColor by viewModel.categoryColor.collectAsState()
+    val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
+    val categoryDefaultPhoto by viewModel.categoryDefaultPhoto.collectAsState()
+
+    val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
+    val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
+    val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
+    val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -111,15 +121,14 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
     val equipmentsToShow = if (showDismissed) allEquipments else activeEquipments
-    val equipmentCategory = allCategories.find { it.id == "EQUIPMENT" }
 
     EquipmentsScreenContent(
         equipments = equipmentsToShow,
         equipmentImages = equipmentImages,
         allCategories = allCategories,
-        defaultIcon = equipmentCategory?.defaultIconIdentifier,
-        defaultPhotoUri = equipmentCategory?.defaultPhotoUri,
-        equipmentCategoryColor = equipmentCategory?.color,
+        defaultIcon = categoryDefaultIcon,
+        defaultPhotoUri = categoryDefaultPhoto,
+        equipmentCategoryColor = categoryColor,
         onAddEquipment = viewModel::addEquipment,
         onUpdateEquipments = viewModel::updateEquipments,
         onUpdateEquipment = viewModel::updateEquipment,
@@ -133,7 +142,10 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         snackbarHostState = snackbarHostState,
         defaultEquipmentId = defaultEquipmentId,
-        onToggleDefault = viewModel::toggleDefaultEquipment
+        onToggleDefault = viewModel::toggleDefaultEquipment,
+        categoryColors = categoryColorsMap,
+        categoryDefaultIcons = categoryDefaultIconsMap,
+        categoryDefaultPhotos = categoryDefaultPhotosMap
     )
 }
 
@@ -160,6 +172,9 @@ fun EquipmentsScreenContent(
     snackbarHostState: SnackbarHostState,
     defaultEquipmentId: Int?,
     onToggleDefault: (Int) -> Unit,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
@@ -192,6 +207,9 @@ fun EquipmentsScreenContent(
                 imageLibrary = equipmentImages,
                 categories = allCategories,
                 equipmentCategoryColor = equipmentCategoryColor,
+                categoryColors = categoryColors,
+                categoryDefaultIcons = categoryDefaultIcons,
+                categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
                 onConfirm = { desc, identifier ->
                     onAddEquipment(desc, identifier)
@@ -245,7 +263,10 @@ fun EquipmentsScreenContent(
                         onToggleImageVisibility = onToggleImageVisibility,
                         equipmentCategoryColor = equipmentCategoryColor,
                         isDefault = equipment.id == defaultEquipmentId,
-                        onToggleDefault = { onToggleDefault(equipment.id) }
+                        onToggleDefault = { onToggleDefault(equipment.id) },
+                        categoryColors = categoryColors,
+                        categoryDefaultIcons = categoryDefaultIcons,
+                        categoryDefaultPhotos = categoryDefaultPhotos
                     )
                 }
             )
@@ -262,6 +283,9 @@ fun AddEquipmentDialog(
     imageLibrary: List<Image>,
     categories: List<Category>,
     equipmentCategoryColor: String?,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit
 ) {
@@ -291,6 +315,9 @@ fun AddEquipmentDialog(
             },
             imageLibrary = imageLibrary,
             categories = categories,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
             onRemoveImage = null,
             onUpdateImageOrder = null,
@@ -416,6 +443,9 @@ fun EquipmentCard(
     equipmentCategoryColor: String?,
     isDefault: Boolean,
     onToggleDefault: () -> Unit,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
     modifier: Modifier = Modifier
 ) {
     var isEditing by remember { mutableStateOf(false) }
@@ -451,8 +481,11 @@ fun EquipmentCard(
             },
             imageLibrary = equipmentImages,
             categories = allCategories,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } /* placeholder if needed */ },
+            onRemoveImage = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onUpdateImageOrder = null,
             onToggleImageVisibility = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
@@ -489,9 +522,13 @@ fun EquipmentCard(
                     if (isDefault) Modifier.border(3.dp, equipmentColor, MaterialTheme.shapes.medium)
                     else Modifier
                 )
-                .clickable {
-                    if (!isEditing) onToggleDefault()
-                },
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {
+                        if (!isEditing) onToggleDefault()
+                    }
+                ),
             colors = CardDefaults.cardColors(
                 containerColor = if (isDefault) equipmentColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
             )

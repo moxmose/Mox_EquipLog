@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.moxmose.moxequiplog.data.AppSettingsManager
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.CategoryDao
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
@@ -37,7 +38,8 @@ class MaintenanceLogViewModel(
     private val equipmentDao: EquipmentDao,
     private val operationTypeDao: OperationTypeDao,
     private val categoryDao: CategoryDao,
-    private val appSettingsManager: AppSettingsManager
+    private val appSettingsManager: AppSettingsManager,
+    private val imageRepository: ImageRepository
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -84,6 +86,8 @@ class MaintenanceLogViewModel(
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
+
+    fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 
     private fun buildQuery(
         searchQuery: String,

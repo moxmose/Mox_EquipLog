@@ -65,9 +65,13 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
     val sortProperty by viewModel.sortProperty.collectAsState()
     val sortDirection by viewModel.sortDirection.collectAsState()
     val showDismissed by viewModel.showDismissed.collectAsState()
-    val allCategories by optionsViewModel.allCategories.collectAsState()
+    val allCategories by viewModel.allCategories.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
+    
+    val equipmentColor by viewModel.getCategoryColor("EQUIPMENT").collectAsState(initial = "#808080")
+    val operationColor by viewModel.getCategoryColor("OPERATION").collectAsState(initial = "#808080")
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -118,7 +122,9 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
         allCategories = allCategories,
         snackbarHostState = snackbarHostState,
         defaultEquipmentId = defaultEquipmentId,
-        defaultOperationTypeId = defaultOperationTypeId
+        defaultOperationTypeId = defaultOperationTypeId,
+        equipmentCategoryColor = equipmentColor,
+        operationCategoryColor = operationColor
     )
 }
 
@@ -149,7 +155,9 @@ fun MaintenanceLogScreenContent(
     allCategories: List<Category>,
     snackbarHostState: SnackbarHostState,
     defaultEquipmentId: Int?,
-    defaultOperationTypeId: Int?
+    defaultOperationTypeId: Int?,
+    equipmentCategoryColor: String?,
+    operationCategoryColor: String?
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -182,9 +190,7 @@ fun MaintenanceLogScreenContent(
                     onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.kilometers, log.date, log.color)
                     onShowAddDialogChange(false)
                 },
-                allCategories = allCategories,
-                defaultEquipmentId = defaultEquipmentId,
-                defaultOperationTypeId = defaultOperationTypeId
+                allCategories = allCategories
             )
         }
 
@@ -249,7 +255,9 @@ fun MaintenanceLogScreenContent(
                         onSave = onUpdateLog,
                         onDismiss = { onDismissLog(logDetail.log) },
                         onRestore = { onRestoreLog(logDetail.log) },
-                        allCategories = allCategories
+                        allCategories = allCategories,
+                        equipmentCategoryColor = equipmentCategoryColor,
+                        operationCategoryColor = operationCategoryColor
                     )
                 }
             }
@@ -264,16 +272,14 @@ fun MaintenanceLogDialog(
     operationTypes: List<OperationType>,
     onDismissRequest: () -> Unit,
     onConfirm: (MaintenanceLog) -> Unit,
-    allCategories: List<Category>,
-    defaultEquipmentId: Int?,
-    defaultOperationTypeId: Int?
+    allCategories: List<Category>
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
     var notes by remember { mutableStateOf("") }
     var kilometers by remember { mutableStateOf("") }
-    var selectedEquipment by remember { mutableStateOf(equipments.find { it.id == defaultEquipmentId }) }
-    var selectedOperationType by remember { mutableStateOf(operationTypes.find { it.id == defaultOperationTypeId }) }
+    var selectedEquipment by remember { mutableStateOf<Equipment?>(null) }
+    var selectedOperationType by remember { mutableStateOf<OperationType?>(null) }
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -472,7 +478,9 @@ fun MaintenanceLogCard(
     onDismiss: () -> Unit,
     onRestore: () -> Unit,
     modifier: Modifier = Modifier,
-    allCategories: List<Category>
+    allCategories: List<Category>,
+    equipmentCategoryColor: String?,
+    operationCategoryColor: String?
 ) {
     var editedNotes by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.notes ?: "") }
     var editedKilometers by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.kilometers?.toString() ?: "") }
@@ -486,11 +494,8 @@ fun MaintenanceLogCard(
     val cardAlpha = if (logDetail.log.dismissed) 0.5f else 1f
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
-    val equipmentCategory = allCategories.find { it.id == "EQUIPMENT" }
-    val operationCategory = allCategories.find { it.id == "OPERATION" }
-
-    val equipmentBorderColor = equipmentCategory?.color?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
-    val operationBorderColor = operationCategory?.color?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
+    val equipmentBorderColor = equipmentCategoryColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
+    val operationBorderColor = operationCategoryColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = editedDate)

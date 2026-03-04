@@ -10,12 +10,15 @@ import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+
+data class CategoryUiState(
+    val category: Category,
+    val color: String,
+    val defaultIconIdentifier: String?,
+    val defaultPhotoUri: String?
+)
 
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
@@ -24,52 +27,25 @@ class OptionsViewModel(
 ) : ViewModel() {
 
     sealed class OptionsUiEvent {
-        // Errori Generici di Repository
         data object DatabaseCheckFailed : OptionsUiEvent()
-
-        // Errori Funzione `setUsername`
         data object UsernameInvalid : OptionsUiEvent()
         data object UpdateUsernameFailed : OptionsUiEvent()
-
-        // Errori Funzione `removeImage`
         data object RemoveImageFailed : OptionsUiEvent()
-
-        // Errori Funzione `updateColor`
         data object UpdateColorFailed : OptionsUiEvent()
         data object ColorNameInvalid : OptionsUiEvent()
-
-        // Errori Funzione `isPhotoUsed`
         data object PhotoUriInvalid : OptionsUiEvent()
-
-        // Errori Funzione `setCategoryDefault`
         data object SetCategoryDefaultFailed : OptionsUiEvent()
         data object CategoryIdInvalid : OptionsUiEvent()
         data object NoImageSelectedForDefault : OptionsUiEvent()
-
-        // Errori Funzione `toggleImageVisibility`
         data object ToggleImageVisibilityFailed : OptionsUiEvent()
-
-        // Errori Funzione `addImage`
         data object AddImageFailed : OptionsUiEvent()
-
-        // Errori Funzione `updateImageOrder`
         data object UpdateImageOrderFailed : OptionsUiEvent()
-
-        // Errori Funzione `updateCategoryColor`
         data object UpdateCategoryColorFailed : OptionsUiEvent()
         data object ColorHexInvalid : OptionsUiEvent()
-
-        // Errori Funzione `addColor`
         data class AddColorFailed(val name: String) : OptionsUiEvent()
-
-        // Errori Funzione `updateColorsOrder`
         data object UpdateColorsOrderFailed : OptionsUiEvent()
-
-        // Errori Funzione `toggleColorVisibility`
         data object ToggleColorVisibilityFailed : OptionsUiEvent()
         data object ColorIdInvalid : OptionsUiEvent()
-
-        // Errori Funzione `deleteColor`
         data object DeleteColorFailed : OptionsUiEvent()
     }
 
@@ -96,7 +72,21 @@ class OptionsViewModel(
             initialValue = emptyList()
         )
 
-    val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
+    val categoriesUiState: StateFlow<List<CategoryUiState>> = imageRepository.allCategories
+        .flatMapLatest { categories ->
+            if (categories.isEmpty()) return@flatMapLatest flowOf(emptyList<CategoryUiState>())
+            
+            val flows = categories.map { category ->
+                combine(
+                    imageRepository.getCategoryColor(category.id),
+                    imageRepository.getCategoryDefaultIcon(category.id),
+                    imageRepository.getCategoryDefaultPhoto(category.id)
+                ) { color, icon, photo ->
+                    CategoryUiState(category, color ?: "#808080", icon, photo)
+                }
+            }
+            combine(flows) { it.toList() }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
@@ -127,10 +117,6 @@ class OptionsViewModel(
     fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
         if (categoryId.isBlank()) {
             viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
-            return
-        }
-        if (imageIdentifier == null) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.NoImageSelectedForDefault) }
             return
         }
         viewModelScope.launch {
@@ -177,9 +163,7 @@ class OptionsViewModel(
     }
 
     fun updateImageOrder(imageList: List<Image>) {
-        if (imageList.isEmpty()) {
-            return // Esegui una no-op efficiente, non è un errore
-        }
+        if (imageList.isEmpty()) return
         viewModelScope.launch {
             try {
                 imageRepository.updateImageOrder(imageList)
@@ -240,9 +224,7 @@ class OptionsViewModel(
     }
 
     fun updateColorsOrder(colors: List<AppColor>) {
-        if (colors.isEmpty()) {
-            return // Esegui una no-op efficiente, non è un errore
-        }
+        if (colors.isEmpty()) return
         viewModelScope.launch {
             try {
                 imageRepository.updateColorsOrder(colors)
@@ -283,13 +265,13 @@ class OptionsViewModel(
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {
             _uiEvents.send(OptionsUiEvent.PhotoUriInvalid)
-            return true // Ritorna 'true' per sicurezza, per prevenire eliminazioni
+            return true
         }
         return try {
             equipmentDao.countEquipmentsUsingPhoto(uri) > 0
         } catch (e: Exception) {
             _uiEvents.send(OptionsUiEvent.DatabaseCheckFailed)
-            true // In caso di dubbio/errore, assumi che la foto sia in uso per sicurezza.
+            true
         }
     }
 }
