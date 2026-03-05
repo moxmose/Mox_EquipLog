@@ -49,7 +49,7 @@ class OptionsViewModel(
         data object DeleteColorFailed : OptionsUiEvent()
     }
 
-    private val _uiEvents = Channel<OptionsUiEvent>()
+    private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
     val uiEvents: Flow<OptionsUiEvent> = _uiEvents.receiveAsFlow()
 
     init {
@@ -117,6 +117,10 @@ class OptionsViewModel(
     fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
         if (categoryId.isBlank()) {
             viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            return
+        }
+        if (imageIdentifier == null) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.NoImageSelectedForDefault) }
             return
         }
         viewModelScope.launch {

@@ -2,6 +2,7 @@ package com.moxmose.moxequiplog.ui.equipments
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
+import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
@@ -42,6 +43,7 @@ class EquipmentsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
+    private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var viewModel: EquipmentsViewModel
 
     @Before
@@ -54,8 +56,14 @@ class EquipmentsViewModelTest {
         imageRepository = mockk(relaxed = true) {
             every { getImagesByCategory("EQUIPMENT") } returns MutableStateFlow(emptyList())
             every { allCategories } returns MutableStateFlow(emptyList())
+            every { getCategoryColor("EQUIPMENT") } returns MutableStateFlow("#808080")
+            every { getCategoryDefaultIcon("EQUIPMENT") } returns MutableStateFlow(null)
+            every { getCategoryDefaultPhoto("EQUIPMENT") } returns MutableStateFlow(null)
         }
-        viewModel = EquipmentsViewModel(equipmentDao, imageRepository)
+        appSettingsManager = mockk(relaxed = true) {
+            every { defaultEquipmentId } returns MutableStateFlow(null)
+        }
+        viewModel = EquipmentsViewModel(equipmentDao, imageRepository, appSettingsManager)
     }
 
     @After
@@ -112,7 +120,7 @@ class EquipmentsViewModelTest {
         val description = "New Equipment"
         val imageIdentifier = ImageIdentifier.Icon("some_icon")
 
-        val equipmentCategory = Category(id = "EQUIPMENT", name = "Equipment", color = "#FFFFFF", defaultIconIdentifier = "default_icon")
+        val equipmentCategory = Category(id = "EQUIPMENT", name = "Equipment")
         every { imageRepository.allCategories } returns MutableStateFlow(listOf(equipmentCategory))
 
 

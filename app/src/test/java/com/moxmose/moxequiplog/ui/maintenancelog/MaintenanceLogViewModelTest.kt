@@ -3,6 +3,7 @@ package com.moxmose.moxequiplog.ui.maintenancelog
 import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.CategoryDao
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
@@ -44,6 +45,7 @@ class MaintenanceLogViewModelTest {
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var categoryDao: CategoryDao
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var imageRepository: ImageRepository
     private lateinit var viewModel: MaintenanceLogViewModel
 
     @Before
@@ -65,7 +67,17 @@ class MaintenanceLogViewModelTest {
             every { defaultEquipmentId } returns MutableStateFlow(null)
             every { defaultOperationTypeId } returns MutableStateFlow(null)
         }
-        viewModel = MaintenanceLogViewModel(maintenanceLogDao, equipmentDao, operationTypeDao, categoryDao, appSettingsManager)
+        imageRepository = mockk(relaxed = true) {
+             every { getCategoryColor(any()) } returns MutableStateFlow(null)
+        }
+        viewModel = MaintenanceLogViewModel(
+            maintenanceLogDao, 
+            equipmentDao, 
+            operationTypeDao, 
+            categoryDao, 
+            appSettingsManager,
+            imageRepository
+        )
     }
 
     @After

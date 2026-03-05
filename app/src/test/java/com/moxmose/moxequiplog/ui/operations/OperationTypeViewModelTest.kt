@@ -2,6 +2,7 @@ package com.moxmose.moxequiplog.ui.operations
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
+import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
@@ -15,6 +16,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -42,6 +44,7 @@ class OperationTypeViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var imageRepository: ImageRepository
+    private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var viewModel: OperationTypeViewModel
 
     @Before
@@ -54,8 +57,13 @@ class OperationTypeViewModelTest {
         imageRepository = mockk(relaxed = true) {
             every { getImagesByCategory("OPERATION") } returns MutableStateFlow(emptyList())
             every { allCategories } returns MutableStateFlow(emptyList())
+            every { getCategoryDefaultPhoto("OPERATION") } returns flowOf(null)
+            every { getCategoryDefaultIcon("OPERATION") } returns flowOf(null)
         }
-        viewModel = OperationTypeViewModel(operationTypeDao, imageRepository)
+        appSettingsManager = mockk(relaxed = true) {
+            every { defaultOperationTypeId } returns MutableStateFlow(null)
+        }
+        viewModel = OperationTypeViewModel(operationTypeDao, imageRepository, appSettingsManager)
     }
 
     @After
@@ -112,7 +120,7 @@ class OperationTypeViewModelTest {
         val description = "New OperationType"
         val imageIdentifier = ImageIdentifier.Icon("some_icon")
 
-        val operationCategory = Category(id = "OPERATION", name = "Operation", color = "#FFFFFF", defaultIconIdentifier = "default_icon")
+        val operationCategory = Category(id = "OPERATION", name = "Operation")
         every { imageRepository.allCategories } returns MutableStateFlow(listOf(operationCategory))
 
 

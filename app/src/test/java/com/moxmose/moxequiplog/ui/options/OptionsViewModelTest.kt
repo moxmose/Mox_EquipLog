@@ -5,7 +5,6 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.AppColor
-import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
@@ -54,7 +53,11 @@ class OptionsViewModelTest {
             every { username } returns MutableStateFlow("default_user")
         }
         equipmentDao = mockk(relaxed = true)
-        imageRepository = mockk(relaxed = true)
+        imageRepository = mockk(relaxed = true) {
+            every { allImages } returns MutableStateFlow(emptyList())
+            every { allCategories } returns MutableStateFlow(emptyList())
+            every { allColors } returns MutableStateFlow(emptyList())
+        }
         viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository)
     }
 
@@ -78,9 +81,9 @@ class OptionsViewModelTest {
     }
 
     @Test
-    fun allCategories_onInit_isEmpty() = runTest {
-        viewModel.allCategories.test {
-            assertEquals(emptyList<Category>(), awaitItem())
+    fun categoriesUiState_onInit_isEmpty() = runTest {
+        viewModel.categoriesUiState.test {
+            assertEquals(emptyList<CategoryUiState>(), awaitItem())
         }
     }
 
@@ -492,5 +495,4 @@ class OptionsViewModelTest {
         val result = viewModel.isPhotoUsed(uri)
         assertFalse(result)
     }
-
 }
