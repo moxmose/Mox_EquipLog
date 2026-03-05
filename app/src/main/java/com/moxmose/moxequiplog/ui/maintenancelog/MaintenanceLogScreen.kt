@@ -190,7 +190,11 @@ fun MaintenanceLogScreenContent(
                     onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.kilometers, log.date, log.color)
                     onShowAddDialogChange(false)
                 },
-                allCategories = allCategories
+                allCategories = allCategories,
+                defaultEquipmentId = defaultEquipmentId,
+                defaultOperationTypeId = defaultOperationTypeId,
+                equipmentCategoryColor = equipmentCategoryColor,
+                operationCategoryColor = operationCategoryColor
             )
         }
 
@@ -272,18 +276,31 @@ fun MaintenanceLogDialog(
     operationTypes: List<OperationType>,
     onDismissRequest: () -> Unit,
     onConfirm: (MaintenanceLog) -> Unit,
-    allCategories: List<Category>
+    allCategories: List<Category>,
+    defaultEquipmentId: Int?,
+    defaultOperationTypeId: Int?,
+    equipmentCategoryColor: String?,
+    operationCategoryColor: String?
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
     var notes by remember { mutableStateOf("") }
     var kilometers by remember { mutableStateOf("") }
-    var selectedEquipment by remember { mutableStateOf<Equipment?>(null) }
-    var selectedOperationType by remember { mutableStateOf<OperationType?>(null) }
+    
+    var selectedEquipment by remember(defaultEquipmentId, equipments) { 
+        mutableStateOf(equipments.find { it.id == defaultEquipmentId }) 
+    }
+    var selectedOperationType by remember(defaultOperationTypeId, operationTypes) { 
+        mutableStateOf(operationTypes.find { it.id == defaultOperationTypeId }) 
+    }
+    
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    val eColor = equipmentCategoryColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
+    val oColor = operationCategoryColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDate)
@@ -328,7 +345,9 @@ fun MaintenanceLogDialog(
                                 photoUri = selectedEquipment?.photoUri,
                                 iconIdentifier = selectedEquipment?.iconIdentifier,
                                 modifier = Modifier.size(24.dp),
-                                category = "EQUIPMENT"
+                                category = "EQUIPMENT",
+                                borderColor = eColor,
+                                contentPadding = 2.dp
                             )
                         },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isEquipmentDropdownExpanded) },
@@ -348,7 +367,9 @@ fun MaintenanceLogDialog(
                                         photoUri = equipment.photoUri,
                                         iconIdentifier = equipment.iconIdentifier,
                                         modifier = Modifier.size(24.dp),
-                                        category = "EQUIPMENT"
+                                        category = "EQUIPMENT",
+                                        borderColor = eColor,
+                                        contentPadding = 2.dp
                                     )
                                 },
                                 onClick = {
@@ -373,7 +394,9 @@ fun MaintenanceLogDialog(
                                 photoUri = selectedOperationType?.photoUri,
                                 iconIdentifier = selectedOperationType?.iconIdentifier,
                                 modifier = Modifier.size(24.dp),
-                                category = "OPERATION"
+                                category = "OPERATION",
+                                borderColor = oColor,
+                                contentPadding = 2.dp
                             )
                         },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOperationDropdownExpanded) },
@@ -393,7 +416,9 @@ fun MaintenanceLogDialog(
                                         photoUri = operation.photoUri,
                                         iconIdentifier = operation.iconIdentifier,
                                         modifier = Modifier.size(24.dp),
-                                        category = "OPERATION"
+                                        category = "OPERATION",
+                                        borderColor = oColor,
+                                        contentPadding = 2.dp
                                     )
                                 },
                                 onClick = {
@@ -494,8 +519,8 @@ fun MaintenanceLogCard(
     val cardAlpha = if (logDetail.log.dismissed) 0.5f else 1f
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
-    val equipmentBorderColor = equipmentCategoryColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
-    val operationBorderColor = operationCategoryColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
+    val eColor = equipmentCategoryColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
+    val oColor = operationCategoryColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: MaterialTheme.colorScheme.primary
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = editedDate)
@@ -546,7 +571,9 @@ fun MaintenanceLogCard(
                                     photoUri = selectedEquipment?.photoUri,
                                     iconIdentifier = selectedEquipment?.iconIdentifier,
                                     modifier = Modifier.size(24.dp),
-                                    category = "EQUIPMENT"
+                                    category = "EQUIPMENT",
+                                    borderColor = eColor,
+                                    contentPadding = 2.dp
                                 )
                             },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isEquipmentDropdownExpanded) },
@@ -566,7 +593,9 @@ fun MaintenanceLogCard(
                                             photoUri = equipment.photoUri,
                                             iconIdentifier = equipment.iconIdentifier,
                                             modifier = Modifier.size(24.dp),
-                                            category = "EQUIPMENT"
+                                            category = "EQUIPMENT",
+                                            borderColor = eColor,
+                                            contentPadding = 2.dp
                                         )
                                     },
                                     onClick = {
@@ -591,7 +620,9 @@ fun MaintenanceLogCard(
                                     photoUri = selectedOperationType?.photoUri,
                                     iconIdentifier = selectedOperationType?.iconIdentifier,
                                     modifier = Modifier.size(24.dp),
-                                    category = "OPERATION"
+                                    category = "OPERATION",
+                                    borderColor = oColor,
+                                    contentPadding = 2.dp
                                 )
                             },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOperationDropdownExpanded) },
@@ -611,7 +642,9 @@ fun MaintenanceLogCard(
                                             photoUri = operation.photoUri,
                                             iconIdentifier = operation.iconIdentifier,
                                             modifier = Modifier.size(24.dp),
-                                            category = "OPERATION"
+                                            category = "OPERATION",
+                                            borderColor = oColor,
+                                            contentPadding = 2.dp
                                         )
                                     },
                                     onClick = {
@@ -642,20 +675,14 @@ fun MaintenanceLogCard(
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val equipmentTextAlpha = if (logDetail.equipmentDismissed) 0.5f else 1f
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .border(1.dp, equipmentBorderColor, CircleShape)
-                                .graphicsLayer(alpha = equipmentTextAlpha)
-                        ) {
-                            ImageIcon(
-                                photoUri = logDetail.equipmentPhotoUri,
-                                iconIdentifier = logDetail.equipmentIconIdentifier,
-                                modifier = Modifier.size(24.dp),
-                                category = "EQUIPMENT"
-                            )
-                        }
+                        ImageIcon(
+                            photoUri = logDetail.equipmentPhotoUri,
+                            iconIdentifier = logDetail.equipmentIconIdentifier,
+                            modifier = Modifier.size(24.dp).graphicsLayer(alpha = equipmentTextAlpha),
+                            category = "EQUIPMENT",
+                            borderColor = eColor,
+                            contentPadding = 2.dp
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = (logDetail.equipmentDescription.takeIf { it.isNotBlank() } ?: "id:${logDetail.log.equipmentId} - no description") + if (logDetail.equipmentDismissed) " (dismissed)" else "",
@@ -667,20 +694,14 @@ fun MaintenanceLogCard(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val operationTypeAlpha = if (logDetail.operationTypeDismissed) 0.5f else 1f
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .border(1.dp, operationBorderColor, CircleShape)
-                                .graphicsLayer(alpha = operationTypeAlpha)
-                        ) {
-                            ImageIcon(
-                                photoUri = logDetail.operationTypePhotoUri,
-                                iconIdentifier = logDetail.operationTypeIconIdentifier,
-                                modifier = Modifier.size(24.dp),
-                                category = "OPERATION"
-                            )
-                        }
+                        ImageIcon(
+                            photoUri = logDetail.operationTypePhotoUri,
+                            iconIdentifier = logDetail.operationTypeIconIdentifier,
+                            modifier = Modifier.size(24.dp).graphicsLayer(alpha = operationTypeAlpha),
+                            category = "OPERATION",
+                            borderColor = oColor,
+                            contentPadding = 2.dp
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = (logDetail.operationTypeDescription.takeIf { it.isNotBlank() } ?: "id:${logDetail.log.operationTypeId} - no description") + if (logDetail.operationTypeDismissed) " (dismissed)" else "",
