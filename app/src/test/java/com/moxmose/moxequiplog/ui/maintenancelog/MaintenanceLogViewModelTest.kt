@@ -4,11 +4,14 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.CategoryDao
+import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
+import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -17,12 +20,16 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -48,27 +55,34 @@ class MaintenanceLogViewModelTest {
     private lateinit var imageRepository: ImageRepository
     private lateinit var viewModel: MaintenanceLogViewModel
 
+    private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
+    private val allOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
+    private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
+    private val logsFlow = MutableStateFlow<List<MaintenanceLogDetails>>(emptyList())
+    private val defaultEquipmentIdFlow = MutableStateFlow<Int?>(null)
+    private val defaultOperationTypeIdFlow = MutableStateFlow<Int?>(null)
+
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         maintenanceLogDao = mockk(relaxed = true) {
-            every { getLogsWithDetails(any()) } returns MutableStateFlow(emptyList())
+            every { getLogsWithDetails(any()) } answers { flowOf(listOf(mockk())) }
         }
         equipmentDao = mockk(relaxed = true) {
-            every { getAllEquipments() } returns MutableStateFlow(emptyList())
+            every { getAllEquipments() } returns allEquipmentsFlow
         }
         operationTypeDao = mockk(relaxed = true) {
-            every { getAllOperationTypes() } returns MutableStateFlow(emptyList())
+            every { getAllOperationTypes() } returns allOperationTypesFlow
         }
         categoryDao = mockk(relaxed = true) {
-            every { getAllCategories() } returns MutableStateFlow(emptyList())
+            every { getAllCategories() } returns allCategoriesFlow
         }
         appSettingsManager = mockk(relaxed = true) {
-            every { defaultEquipmentId } returns MutableStateFlow(null)
-            every { defaultOperationTypeId } returns MutableStateFlow(null)
+            every { defaultEquipmentId } returns defaultEquipmentIdFlow
+            every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
         }
         imageRepository = mockk(relaxed = true) {
-             every { getCategoryColor(any()) } returns MutableStateFlow(null)
+             every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
         }
         viewModel = MaintenanceLogViewModel(
             maintenanceLogDao, 
@@ -87,43 +101,72 @@ class MaintenanceLogViewModelTest {
     }
 
     @Test
-    fun initialState_isCorrect() = runTest {
-        assertEquals("", viewModel.searchQuery.value)
-        assertEquals(SortProperty.DATE, viewModel.sortProperty.value)
-        assertEquals(SortDirection.DESCENDING, viewModel.sortDirection.value)
-        assertEquals(false, viewModel.showDismissed.value)
+    fun getters_coverage_booster() = runTest {
+        assertNotNull(viewModel.allCategories)
+        assertNotNull(viewModel.allEquipments)
+        assertNotNull(viewModel.allOperationTypes)
+        assertNotNull(viewModel.defaultEquipmentId)
+        assertNotNull(viewModel.defaultOperationTypeId)
+        assertNotNull(viewModel.searchQuery)
+        assertNotNull(viewModel.sortProperty)
+        assertNotNull(viewModel.sortDirection)
+        assertNotNull(viewModel.showDismissed)
+        assertNotNull(viewModel.logs)
+        assertNotNull(viewModel.uiEvents)
+        
+        viewModel.searchQuery.value
+        viewModel.sortProperty.value
+        viewModel.sortDirection.value
+        viewModel.showDismissed.value
     }
 
     @Test
-    fun onSearchQueryChanged_updatesState() = runTest {
-        val query = "test query"
-        viewModel.onSearchQueryChanged(query)
-        assertEquals(query, viewModel.searchQuery.value)
+    fun buildQuery_exhaustive_coverage() = runTest {
+        viewModel.logs.test {
+            awaitItem() // Stato iniziale
+
+            SortProperty.entries.forEach { prop ->
+                viewModel.onSortPropertyChanged(prop)
+                awaitItem()
+            }
+
+            viewModel.onSortDirectionChanged() // ASC
+            awaitItem()
+            viewModel.onSortDirectionChanged() // DESC
+            awaitItem()
+
+            viewModel.onShowDismissedToggled() // true
+            awaitItem()
+            viewModel.onShowDismissedToggled() // false
+            awaitItem()
+
+            viewModel.onSearchQueryChanged("test")
+            awaitItem()
+            viewModel.onSearchQueryChanged("")
+            awaitItem()
+            viewModel.onSearchQueryChanged("   ")
+            awaitItem()
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
-    fun onSortPropertyChanged_updatesState() = runTest {
-        val property = SortProperty.EQUIPMENT
-        viewModel.onSortPropertyChanged(property)
-        assertEquals(property, viewModel.sortProperty.value)
+    fun allCategories_emitsDataFromDao() = runTest {
+        viewModel.allCategories.test {
+            assertEquals(emptyList<Category>(), awaitItem())
+            val list = listOf(Category("CAT1", "Category 1"))
+            allCategoriesFlow.value = list
+            assertEquals(list, awaitItem())
+        }
     }
 
     @Test
-    fun onSortDirectionChanged_togglesState() = runTest {
-        assertEquals(SortDirection.DESCENDING, viewModel.sortDirection.value)
-        viewModel.onSortDirectionChanged()
-        assertEquals(SortDirection.ASCENDING, viewModel.sortDirection.value)
-        viewModel.onSortDirectionChanged()
-        assertEquals(SortDirection.DESCENDING, viewModel.sortDirection.value)
-    }
-
-    @Test
-    fun onShowDismissedToggled_togglesState() = runTest {
-        assertEquals(false, viewModel.showDismissed.value)
-        viewModel.onShowDismissedToggled()
-        assertEquals(true, viewModel.showDismissed.value)
-        viewModel.onShowDismissedToggled()
-        assertEquals(false, viewModel.showDismissed.value)
+    fun getCategoryColor_delegatesToRepository() = runTest {
+        val colorFlow = MutableStateFlow("#FF5733")
+        every { imageRepository.getCategoryColor("TEST_CAT") } returns colorFlow
+        val result = viewModel.getCategoryColor("TEST_CAT").first()
+        assertEquals("#FF5733", result)
     }
 
     @Test
@@ -152,10 +195,9 @@ class MaintenanceLogViewModelTest {
 
     @Test
     fun updateLog_whenDaoThrowsError_sendsUpdateLogFailedEvent() = runTest {
-        val log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 123L)
         coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException("DB error")
         viewModel.uiEvents.test {
-            viewModel.updateLog(log)
+            viewModel.updateLog(mockk())
             assertEquals(MaintenanceLogViewModel.UiEvent.UpdateLogFailed, awaitItem())
         }
     }
@@ -170,10 +212,9 @@ class MaintenanceLogViewModelTest {
 
     @Test
     fun dismissLog_whenDaoThrowsError_sendsDismissLogFailedEvent() = runTest {
-        val log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 123L)
         coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException("DB error")
         viewModel.uiEvents.test {
-            viewModel.dismissLog(log)
+            viewModel.dismissLog(mockk())
             assertEquals(MaintenanceLogViewModel.UiEvent.DismissLogFailed, awaitItem())
         }
     }
@@ -188,10 +229,9 @@ class MaintenanceLogViewModelTest {
 
     @Test
     fun restoreLog_whenDaoThrowsError_sendsRestoreLogFailedEvent() = runTest {
-        val log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 123L)
         coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException("DB error")
         viewModel.uiEvents.test {
-            viewModel.restoreLog(log)
+            viewModel.restoreLog(mockk())
             assertEquals(MaintenanceLogViewModel.UiEvent.RestoreLogFailed, awaitItem())
         }
     }

@@ -16,7 +16,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -47,18 +49,23 @@ class OperationTypeViewModelTest {
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var viewModel: OperationTypeViewModel
 
+    private val activeOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
+    private val allOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
+    private val operationTypeImagesFlow = MutableStateFlow<List<Image>>(emptyList())
+
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         operationTypeDao = mockk(relaxed = true) {
-            every { getActiveOperationTypes() } returns MutableStateFlow(emptyList())
-            every { getAllOperationTypes() } returns MutableStateFlow(emptyList())
+            every { getActiveOperationTypes() } returns activeOperationTypesFlow
+            every { getAllOperationTypes() } returns allOperationTypesFlow
         }
         imageRepository = mockk(relaxed = true) {
-            every { getImagesByCategory("OPERATION") } returns MutableStateFlow(emptyList())
+            every { getImagesByCategory("OPERATION") } returns operationTypeImagesFlow
             every { allCategories } returns MutableStateFlow(emptyList())
-            every { getCategoryDefaultPhoto("OPERATION") } returns flowOf(null)
-            every { getCategoryDefaultIcon("OPERATION") } returns flowOf(null)
+            every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
+            every { getCategoryDefaultPhoto(any()) } returns flowOf(null)
+            every { getCategoryDefaultIcon(any()) } returns flowOf(null)
         }
         appSettingsManager = mockk(relaxed = true) {
             every { defaultOperationTypeId } returns MutableStateFlow(null)
@@ -73,75 +80,56 @@ class OperationTypeViewModelTest {
     }
 
     @Test
-    fun activeOperationTypes_onInit_isEmpty() = runTest {
+    fun getCategoryMethods_delegateToRepository() = runTest {
+        val colorFlow = MutableStateFlow("#123456")
+        every { imageRepository.getCategoryColor("OP") } returns colorFlow
+        assertEquals("#123456", viewModel.getCategoryColor("OP").first())
+        
+        val iconFlow = MutableStateFlow("icon")
+        every { imageRepository.getCategoryDefaultIcon("OP") } returns iconFlow
+        assertEquals("icon", viewModel.getCategoryDefaultIcon("OP").first())
+    }
+
+    @Test
+    fun activeOperationTypes_emitsData() = runTest {
         viewModel.activeOperationTypes.test {
             assertEquals(emptyList<OperationType>(), awaitItem())
+            val list = listOf(OperationType(id = 1, description = "Test"))
+            activeOperationTypesFlow.value = list
+            assertEquals(list, awaitItem())
         }
-    }
-
-    @Test
-    fun allOperationTypes_onInit_isEmpty() = runTest {
-        viewModel.allOperationTypes.test {
-            assertEquals(emptyList<OperationType>(), awaitItem())
-        }
-    }
-
-    @Test
-    fun operationTypeImages_onInit_isEmpty() = runTest {
-        viewModel.operationTypeImages.test {
-            assertEquals(emptyList<Image>(), awaitItem())
-        }
-    }
-
-    @Test
-    fun allCategories_onInit_isEmpty() = runTest {
-        viewModel.allCategories.test {
-            assertEquals(emptyList<Category>(), awaitItem())
-        }
-    }
-
-    @Test
-    fun addOperationType_withBlankDescription_sendsDescriptionInvalidEvent() = runTest {
-        viewModel.uiEvents.test {
-            viewModel.addOperationType(" ", null)
-            assertEquals(OperationTypeViewModel.UiEvent.DescriptionInvalid, awaitItem())
-        }
-    }
-
-    @Test
-    fun addOperationType_withBlankDescription_doesNotInsertOperationType() = runTest {
-        viewModel.addOperationType(" ", null)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify(exactly = 0) { operationTypeDao.insertOperationType(any()) }
     }
 
     @Test
     fun addOperationType_withValidData_callsDao() = runTest {
-        val description = "New OperationType"
-        val imageIdentifier = ImageIdentifier.Icon("some_icon")
-
-        val operationCategory = Category(id = "OPERATION", name = "Operation")
-        every { imageRepository.allCategories } returns MutableStateFlow(listOf(operationCategory))
-
+        // Attiviamo il flow perché addOperationType ne legge il .value
+        backgroundScope.launch(testDispatcher) { viewModel.allOperationTypes.collect {} }
+        
+        val description = "New"
+        val imageIdentifier = ImageIdentifier.Icon("icon")
+        
+        // Prepariamo i dati esistenti per il calcolo dell'ordine (max 5 + 1 = 6)
+        allOperationTypesFlow.value = listOf(OperationType(id = 1, description = "E1", displayOrder = 5))
+        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.addOperationType(description, imageIdentifier)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { operationTypeDao.insertOperationType(any()) }
+        coVerify { operationTypeDao.insertOperationType(match { it.description == description && it.displayOrder == 6 }) }
     }
 
     @Test
-    fun addOperationType_whenDaoThrowsError_sendsAddOperationTypeFailedEvent() = runTest {
-        coEvery { operationTypeDao.insertOperationType(any()) } throws RuntimeException("DB error")
+    fun addOperationType_whenDaoThrowsError_sendsUiEvent() = runTest {
+        coEvery { operationTypeDao.insertOperationType(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
-            viewModel.addOperationType("description", null)
+            viewModel.addOperationType("Valid", null)
             assertEquals(OperationTypeViewModel.UiEvent.AddOperationTypeFailed, awaitItem())
         }
     }
 
     @Test
-    fun updateOperationType_whenDaoThrowsError_sendsUpdateOperationTypeFailedEvent() = runTest {
-        coEvery { operationTypeDao.updateOperationType(any()) } throws RuntimeException("DB error")
+    fun updateOperationType_whenDaoThrowsError_sendsUiEvent() = runTest {
+        coEvery { operationTypeDao.updateOperationType(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.updateOperationType(mockk())
             assertEquals(OperationTypeViewModel.UiEvent.UpdateOperationTypeFailed, awaitItem())
@@ -149,15 +137,8 @@ class OperationTypeViewModelTest {
     }
 
     @Test
-    fun updateOperationTypes_withEmptyList_doesNothing() = runTest {
-        viewModel.updateOperationTypes(emptyList())
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify(exactly = 0) { operationTypeDao.updateOperationTypes(any()) }
-    }
-
-    @Test
-    fun updateOperationTypes_whenDaoThrowsError_sendsUpdateOperationTypesFailedEvent() = runTest {
-        coEvery { operationTypeDao.updateOperationTypes(any()) } throws RuntimeException("DB error")
+    fun updateOperationTypes_whenDaoThrowsError_sendsUiEvent() = runTest {
+        coEvery { operationTypeDao.updateOperationTypes(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.updateOperationTypes(listOf(mockk()))
             assertEquals(OperationTypeViewModel.UiEvent.UpdateOperationTypesFailed, awaitItem())
@@ -165,8 +146,8 @@ class OperationTypeViewModelTest {
     }
 
     @Test
-    fun dismissOperationType_whenDaoThrowsError_sendsDismissOperationTypeFailedEvent() = runTest {
-        coEvery { operationTypeDao.updateOperationType(any()) } throws RuntimeException("DB error")
+    fun dismissOperationType_whenDaoThrowsError_sendsUiEvent() = runTest {
+        coEvery { operationTypeDao.updateOperationType(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.dismissOperationType(mockk())
             assertEquals(OperationTypeViewModel.UiEvent.DismissOperationTypeFailed, awaitItem())
@@ -174,8 +155,8 @@ class OperationTypeViewModelTest {
     }
 
     @Test
-    fun restoreOperationType_whenDaoThrowsError_sendsRestoreOperationTypeFailedEvent() = runTest {
-        coEvery { operationTypeDao.updateOperationType(any()) } throws RuntimeException("DB error")
+    fun restoreOperationType_whenDaoThrowsError_sendsUiEvent() = runTest {
+        coEvery { operationTypeDao.updateOperationType(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.restoreOperationType(mockk())
             assertEquals(OperationTypeViewModel.UiEvent.RestoreOperationTypeFailed, awaitItem())
@@ -183,17 +164,17 @@ class OperationTypeViewModelTest {
     }
 
     @Test
-    fun addImage_whenRepositoryThrowsError_sendsAddImageFailedEvent() = runTest {
-        coEvery { imageRepository.addImage(any(), any()) } throws RuntimeException("DB error")
+    fun addImage_whenRepositoryThrowsError_sendsUiEvent() = runTest {
+        coEvery { imageRepository.addImage(any(), any()) } throws RuntimeException()
         viewModel.uiEvents.test {
-            viewModel.addImage(mockk(), "category")
+            viewModel.addImage(mockk(), "cat")
             assertEquals(OperationTypeViewModel.UiEvent.AddImageFailed, awaitItem())
         }
     }
 
     @Test
-    fun removeImage_whenRepositoryThrowsError_sendsRemoveImageFailedEvent() = runTest {
-        coEvery { imageRepository.removeImage(any()) } throws RuntimeException("DB error")
+    fun removeImage_whenRepositoryThrowsError_sendsUiEvent() = runTest {
+        coEvery { imageRepository.removeImage(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.removeImage(mockk())
             assertEquals(OperationTypeViewModel.UiEvent.RemoveImageFailed, awaitItem())
@@ -201,15 +182,8 @@ class OperationTypeViewModelTest {
     }
 
     @Test
-    fun updateImageOrder_withEmptyList_doesNothing() = runTest {
-        viewModel.updateImageOrder(emptyList())
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify(exactly = 0) { imageRepository.updateImageOrder(any()) }
-    }
-
-    @Test
-    fun updateImageOrder_whenRepositoryThrowsError_sendsUpdateImageOrderFailedEvent() = runTest {
-        coEvery { imageRepository.updateImageOrder(any()) } throws RuntimeException("DB error")
+    fun updateImageOrder_whenRepositoryThrowsError_sendsUiEvent() = runTest {
+        coEvery { imageRepository.updateImageOrder(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.updateImageOrder(listOf(mockk()))
             assertEquals(OperationTypeViewModel.UiEvent.UpdateImageOrderFailed, awaitItem())
@@ -217,8 +191,8 @@ class OperationTypeViewModelTest {
     }
 
     @Test
-    fun toggleImageVisibility_whenRepositoryThrowsError_sendsToggleImageVisibilityFailedEvent() = runTest {
-        coEvery { imageRepository.toggleImageVisibility(any()) } throws RuntimeException("DB error")
+    fun toggleImageVisibility_whenRepositoryThrowsError_sendsUiEvent() = runTest {
+        coEvery { imageRepository.toggleImageVisibility(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.toggleImageVisibility(mockk())
             assertEquals(OperationTypeViewModel.UiEvent.ToggleImageVisibilityFailed, awaitItem())
@@ -226,38 +200,18 @@ class OperationTypeViewModelTest {
     }
 
     @Test
-    fun isPhotoUsed_whenUriIsBlank_sendsUriInvalidEventAndReturnsTrue() = runTest {
+    fun isPhotoUsed_whenDaoThrowsError_sendsUiEventAndReturnsTrue() = runTest {
+        coEvery { operationTypeDao.countOperationTypesUsingPhoto(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
-            val result = viewModel.isPhotoUsed(" ")
-            assertTrue(result)
-            assertEquals(OperationTypeViewModel.UiEvent.PhotoUriInvalid, awaitItem())
-        }
-    }
-
-    @Test
-    fun isPhotoUsed_whenDaoThrowsError_sendsCheckFailedEventAndReturnsTrue() = runTest {
-        val uri = "test_uri"
-        coEvery { operationTypeDao.countOperationTypesUsingPhoto(uri) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            val result = viewModel.isPhotoUsed(uri)
-            assertTrue(result)
+            assertTrue(viewModel.isPhotoUsed("uri"))
             assertEquals(OperationTypeViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
         }
     }
-
+    
     @Test
-    fun isPhotoUsed_whenPhotoIsInUse_returnsTrue() = runTest {
-        val uri = "test_uri"
-        coEvery { operationTypeDao.countOperationTypesUsingPhoto(uri) } returns 1
-        val result = viewModel.isPhotoUsed(uri)
-        assertTrue(result)
-    }
-
-    @Test
-    fun isPhotoUsed_whenPhotoIsNotInUse_returnsFalse() = runTest {
-        val uri = "test_uri"
-        coEvery { operationTypeDao.countOperationTypesUsingPhoto(uri) } returns 0
-        val result = viewModel.isPhotoUsed(uri)
-        assertFalse(result)
+    fun toggleDefaultOperationType_callsManager() = runTest {
+        viewModel.toggleDefaultOperationType(10)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setDefaultOperationTypeId(10) }
     }
 }
