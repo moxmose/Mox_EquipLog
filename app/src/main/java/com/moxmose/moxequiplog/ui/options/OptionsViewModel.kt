@@ -102,7 +102,7 @@ class OptionsViewModel(
 
     fun setUsername(newUsername: String) {
         if (newUsername.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.UsernameInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.UsernameInvalid)
             return
         }
         viewModelScope.launch {
@@ -116,11 +116,11 @@ class OptionsViewModel(
 
     fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
         if (categoryId.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.CategoryIdInvalid)
             return
         }
         if (imageIdentifier == null) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.NoImageSelectedForDefault) }
+            _uiEvents.trySend(OptionsUiEvent.NoImageSelectedForDefault)
             return
         }
         viewModelScope.launch {
@@ -144,7 +144,7 @@ class OptionsViewModel(
 
     fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         if (category.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.CategoryIdInvalid)
             return
         }
         viewModelScope.launch {
@@ -179,11 +179,11 @@ class OptionsViewModel(
 
     fun updateCategoryColor(categoryId: String, colorHex: String) {
         if (categoryId.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.CategoryIdInvalid)
             return
         }
         if (colorHex.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorHexInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorHexInvalid)
             return
         }
         viewModelScope.launch {
@@ -197,11 +197,11 @@ class OptionsViewModel(
 
     fun addColor(hex: String, name: String) {
         if (name.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorNameInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorNameInvalid)
             return
         }
         if (hex.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorHexInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorHexInvalid)
             return
         }
         viewModelScope.launch {
@@ -215,7 +215,7 @@ class OptionsViewModel(
 
     fun updateColor(color: AppColor) {
         if (color.name.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorNameInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorNameInvalid)
             return
         }
         viewModelScope.launch {
@@ -240,7 +240,7 @@ class OptionsViewModel(
 
     fun toggleColorVisibility(id: Long) {
         if (id == 0L) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorIdInvalid)
             return
         }
         viewModelScope.launch {
@@ -254,7 +254,7 @@ class OptionsViewModel(
 
     fun deleteColor(color: AppColor) {
         if (color.id == 0L) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorIdInvalid)
             return
         }
         viewModelScope.launch {
@@ -268,13 +268,13 @@ class OptionsViewModel(
 
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {
-            _uiEvents.send(OptionsUiEvent.PhotoUriInvalid)
+            _uiEvents.trySend(OptionsUiEvent.PhotoUriInvalid)
             return true
         }
         return try {
             equipmentDao.countEquipmentsUsingPhoto(uri) > 0
         } catch (e: Exception) {
-            _uiEvents.send(OptionsUiEvent.DatabaseCheckFailed)
+            _uiEvents.trySend(OptionsUiEvent.DatabaseCheckFailed)
             true
         }
     }
