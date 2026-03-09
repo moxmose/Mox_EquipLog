@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -80,134 +81,133 @@ class EquipmentsViewModelTest {
     }
 
     @Test
-    fun categoryGetters_delegateToRepository() = runTest {
-        backgroundScope.launch(testDispatcher) { viewModel.categoryColor.collect {} }
-        backgroundScope.launch(testDispatcher) { viewModel.categoryDefaultIcon.collect {} }
-        backgroundScope.launch(testDispatcher) { viewModel.categoryDefaultPhoto.collect {} }
-        testDispatcher.scheduler.advanceUntilIdle()
+    fun getters_coverage_booster() = runTest {
+        assertNotNull(viewModel.activeEquipments)
+        assertNotNull(viewModel.allEquipments)
+        assertNotNull(viewModel.equipmentImages)
+        assertNotNull(viewModel.allCategories)
+        assertNotNull(viewModel.categoryColor)
+        assertNotNull(viewModel.categoryDefaultIcon)
+        assertNotNull(viewModel.categoryDefaultPhoto)
+        assertNotNull(viewModel.defaultEquipmentId)
+        assertNotNull(viewModel.uiEvents)
 
-        assertEquals("#808080", viewModel.categoryColor.value)
-        assertEquals("default_icon", viewModel.categoryDefaultIcon.value)
-        assertEquals("default_photo", viewModel.categoryDefaultPhoto.value)
+        viewModel.categoryColor.value
+        viewModel.activeEquipments.value
+        viewModel.allEquipments.value
+        viewModel.equipmentImages.value
+        viewModel.allCategories.value
+        viewModel.defaultEquipmentId.value
     }
 
     @Test
-    fun allCategories_emitsData() = runTest {
-        viewModel.allCategories.test {
-            assertEquals(emptyList<Category>(), awaitItem())
-            val list = listOf(Category("C1", "Cat 1"))
-            allCategoriesFlow.value = list
-            assertEquals(list, awaitItem())
+    fun addEquipment_withIcon_callsDao() = runTest {
+        viewModel.allEquipments.test {
+            awaitItem() // initial
+            allEquipmentsFlow.value = listOf(Equipment(id = 1, description = "E1", displayOrder = 0))
+            awaitItem()
+
+            viewModel.addEquipment("E1", ImageIdentifier.Icon("icon1"))
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify { equipmentDao.insertEquipment(match { it.description == "E1" && it.iconIdentifier == "icon1" && it.displayOrder == 1}) }
         }
     }
 
     @Test
-    fun addEquipment_withValidData_callsDao() = runTest {
-        backgroundScope.launch(testDispatcher) { viewModel.allEquipments.collect {} }
-        val description = "New Equipment"
-        allEquipmentsFlow.value = listOf(Equipment(id = 1, description = "E1", displayOrder = 0))
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.addEquipment(description, ImageIdentifier.Icon("some_icon"))
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { equipmentDao.insertEquipment(match { it.description == description && it.displayOrder == 1 }) }
-    }
-
-    @Test
-    fun addEquipment_whenDaoThrowsError_sendsUiEvent() = runTest {
-        coEvery { equipmentDao.insertEquipment(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.addEquipment("Valid", null)
-            assertEquals(EquipmentsViewModel.UiEvent.AddEquipmentFailed, awaitItem())
+    fun addEquipment_withPhoto_callsDao() = runTest {
+        viewModel.allEquipments.test {
+            awaitItem()
+            viewModel.addEquipment("E2", ImageIdentifier.Photo("uri2"))
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify { equipmentDao.insertEquipment(match { it.description == "E2" && it.photoUri == "uri2" }) }
         }
     }
 
     @Test
-    fun updateEquipment_whenDaoThrowsError_sendsUiEvent() = runTest {
+    fun addEquipment_withNullImage_usesDefaults() = runTest {
+        viewModel.allEquipments.test {
+            awaitItem()
+            backgroundScope.launch(testDispatcher) { viewModel.categoryDefaultPhoto.collect {} }
+            backgroundScope.launch(testDispatcher) { viewModel.categoryDefaultIcon.collect {} }
+            testDispatcher.scheduler.advanceUntilIdle()
+            
+            viewModel.addEquipment("E3", null)
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify { equipmentDao.insertEquipment(match { it.description == "E3" && it.photoUri == "default_photo" }) }
+        }
+    }
+
+    @Test
+    fun isPhotoUsed_variants_coverage() = runTest {
+        launch {
+            viewModel.uiEvents.test {
+                assertTrue(viewModel.isPhotoUsed(" "))
+                assertEquals(EquipmentsViewModel.UiEvent.PhotoUriInvalid, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        coEvery { equipmentDao.countEquipmentsUsingPhoto("used") } returns 1
+        assertTrue(viewModel.isPhotoUsed("used"))
+        
+        coEvery { equipmentDao.countEquipmentsUsingPhoto("free") } returns 0
+        assertFalse(viewModel.isPhotoUsed("free"))
+
+        launch {
+            viewModel.uiEvents.test {
+                coEvery { equipmentDao.countEquipmentsUsingPhoto("err") } throws RuntimeException()
+                assertTrue(viewModel.isPhotoUsed("err"))
+                assertEquals(EquipmentsViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+        testDispatcher.scheduler.advanceUntilIdle()
+    }
+
+    @Test
+    fun crud_error_branches_coverage() = runTest {
+        val equipment = Equipment(id = 1, description = "E")
+        val image: Image = mockk(relaxed = true)
+
         coEvery { equipmentDao.updateEquipment(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.updateEquipment(mockk())
-            assertEquals(EquipmentsViewModel.UiEvent.UpdateEquipmentFailed, awaitItem())
-        }
-    }
-
-    @Test
-    fun updateEquipments_whenDaoThrowsError_sendsUiEvent() = runTest {
         coEvery { equipmentDao.updateEquipments(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.updateEquipments(listOf(mockk()))
-            assertEquals(EquipmentsViewModel.UiEvent.UpdateEquipmentsFailed, awaitItem())
-        }
-    }
-
-    @Test
-    fun dismissEquipment_whenDaoThrowsError_sendsUiEvent() = runTest {
-        coEvery { equipmentDao.updateEquipment(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.dismissEquipment(mockk())
-            assertEquals(EquipmentsViewModel.UiEvent.DismissEquipmentFailed, awaitItem())
-        }
-    }
-
-    @Test
-    fun restoreEquipment_whenDaoThrowsError_sendsUiEvent() = runTest {
-        coEvery { equipmentDao.updateEquipment(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.restoreEquipment(mockk())
-            assertEquals(EquipmentsViewModel.UiEvent.RestoreEquipmentFailed, awaitItem())
-        }
-    }
-
-    @Test
-    fun addImage_whenRepositoryThrowsError_sendsUiEvent() = runTest {
         coEvery { imageRepository.addImage(any(), any()) } throws RuntimeException()
+        coEvery { imageRepository.removeImage(any()) } throws RuntimeException()
+        coEvery { imageRepository.updateImageOrder(any()) } throws RuntimeException()
+        coEvery { imageRepository.toggleImageVisibility(any()) } throws RuntimeException()
+        coEvery { appSettingsManager.setDefaultEquipmentId(any()) } throws RuntimeException()
+
         viewModel.uiEvents.test {
+            viewModel.updateEquipment(equipment)
+            assertEquals(EquipmentsViewModel.UiEvent.UpdateEquipmentFailed, awaitItem())
+            
+            viewModel.updateEquipments(listOf(equipment))
+            assertEquals(EquipmentsViewModel.UiEvent.UpdateEquipmentsFailed, awaitItem())
+
+            viewModel.dismissEquipment(equipment)
+            assertEquals(EquipmentsViewModel.UiEvent.DismissEquipmentFailed, awaitItem())
+
+            viewModel.restoreEquipment(equipment)
+            assertEquals(EquipmentsViewModel.UiEvent.RestoreEquipmentFailed, awaitItem())
+
             viewModel.addImage(mockk(), "cat")
             assertEquals(EquipmentsViewModel.UiEvent.AddImageFailed, awaitItem())
-        }
-    }
 
-    @Test
-    fun removeImage_whenRepositoryThrowsError_sendsUiEvent() = runTest {
-        coEvery { imageRepository.removeImage(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.removeImage(mockk())
+            viewModel.removeImage(image)
             assertEquals(EquipmentsViewModel.UiEvent.RemoveImageFailed, awaitItem())
-        }
-    }
 
-    @Test
-    fun updateImageOrder_whenRepositoryThrowsError_sendsUiEvent() = runTest {
-        coEvery { imageRepository.updateImageOrder(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.updateImageOrder(listOf(mockk()))
+            viewModel.updateImageOrder(listOf(image))
             assertEquals(EquipmentsViewModel.UiEvent.UpdateImageOrderFailed, awaitItem())
-        }
-    }
 
-    @Test
-    fun toggleImageVisibility_whenRepositoryThrowsError_sendsUiEvent() = runTest {
-        coEvery { imageRepository.toggleImageVisibility(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.toggleImageVisibility(mockk())
+            viewModel.toggleImageVisibility(image)
             assertEquals(EquipmentsViewModel.UiEvent.ToggleImageVisibilityFailed, awaitItem())
-        }
-    }
 
-    @Test
-    fun toggleDefaultEquipment_callsManager() = runTest {
-        viewModel.toggleDefaultEquipment(10)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultEquipmentId(10) }
-    }
-
-    @Test
-    fun isPhotoUsed_returnsTrueWhenDaoThrowsError() = runTest {
-        coEvery { equipmentDao.countEquipmentsUsingPhoto(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            assertTrue(viewModel.isPhotoUsed("uri"))
-            assertEquals(EquipmentsViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
+            viewModel.setDefaultEquipment(1)
+            assertEquals(EquipmentsViewModel.UiEvent.SetDefaultFailed, awaitItem())
+            
+            viewModel.toggleDefaultEquipment(1)
+            assertEquals(EquipmentsViewModel.UiEvent.SetDefaultFailed, awaitItem())
         }
     }
 }

@@ -35,7 +35,7 @@ class OperationTypeViewModel(
         data object SetDefaultFailed : UiEvent()
     }
 
-    private val _uiEvents = Channel<UiEvent>()
+    private val _uiEvents = Channel<UiEvent>(Channel.BUFFERED)
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     val activeOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getActiveOperationTypes()
@@ -89,12 +89,13 @@ class OperationTypeViewModel(
 
     fun addOperationType(description: String, imageIdentifier: ImageIdentifier?) {
         if (description.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
+            _uiEvents.trySend(UiEvent.DescriptionInvalid)
             return
         }
         viewModelScope.launch {
             try {
-                val maxDisplayOrder = allOperationTypes.first().maxOfOrNull { it.displayOrder } ?: -1
+                val currentList = allOperationTypes.value
+                val maxDisplayOrder = currentList.maxOfOrNull { it.displayOrder } ?: -1
                 
                 var operationPhotoUri: String? = null
                 var operationIconIdentifier: String? = null
@@ -103,8 +104,8 @@ class OperationTypeViewModel(
                     is ImageIdentifier.Icon -> operationIconIdentifier = imageIdentifier.name
                     is ImageIdentifier.Photo -> operationPhotoUri = imageIdentifier.uri
                     null -> {
-                        operationPhotoUri = imageRepository.getCategoryDefaultPhoto("OPERATION").first()
-                        operationIconIdentifier = imageRepository.getCategoryDefaultIcon("OPERATION").first()
+                        operationPhotoUri = imageRepository.getCategoryDefaultPhoto("OPERATION").firstOrNull()
+                        operationIconIdentifier = imageRepository.getCategoryDefaultIcon("OPERATION").firstOrNull()
                     }
                 }
 
@@ -146,7 +147,7 @@ class OperationTypeViewModel(
     fun dismissOperationType(operationType: OperationType) {
         viewModelScope.launch {
             try {
-                updateOperationType(operationType.copy(dismissed = true))
+                operationTypeDao.updateOperationType(operationType.copy(dismissed = true))
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.DismissOperationTypeFailed)
             }
@@ -156,7 +157,7 @@ class OperationTypeViewModel(
     fun restoreOperationType(operationType: OperationType) {
         viewModelScope.launch {
             try {
-                updateOperationType(operationType.copy(dismissed = false))
+                operationTypeDao.updateOperationType(operationType.copy(dismissed = false))
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.RestoreOperationTypeFailed)
             }
@@ -206,7 +207,7 @@ class OperationTypeViewModel(
 
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {
-            _uiEvents.send(UiEvent.PhotoUriInvalid)
+            _uiEvents.trySend(UiEvent.PhotoUriInvalid)
             return true
         }
         return try {

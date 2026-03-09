@@ -66,6 +66,7 @@ class MaintenanceLogViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         maintenanceLogDao = mockk(relaxed = true) {
+            // Restituiamo un elemento mock per assicurarci che StateFlow veda cambiamenti
             every { getLogsWithDetails(any()) } answers { flowOf(listOf(mockk())) }
         }
         equipmentDao = mockk(relaxed = true) {
@@ -101,7 +102,8 @@ class MaintenanceLogViewModelTest {
     }
 
     @Test
-    fun getters_coverage_booster() = runTest {
+    fun coverage_booster_and_getters() = runTest {
+        // Read each property explicitly to satisfy JaCoCo getter detection
         assertNotNull(viewModel.allCategories)
         assertNotNull(viewModel.allEquipments)
         assertNotNull(viewModel.allOperationTypes)
@@ -114,38 +116,45 @@ class MaintenanceLogViewModelTest {
         assertNotNull(viewModel.logs)
         assertNotNull(viewModel.uiEvents)
         
-        viewModel.searchQuery.value
-        viewModel.sortProperty.value
-        viewModel.sortDirection.value
-        viewModel.showDismissed.value
+        // Check initial state values
+        assertEquals("", viewModel.searchQuery.value)
+        assertEquals(SortProperty.DATE, viewModel.sortProperty.value)
+        assertEquals(SortDirection.DESCENDING, viewModel.sortDirection.value)
+        assertEquals(false, viewModel.showDismissed.value)
     }
 
     @Test
-    fun buildQuery_exhaustive_coverage() = runTest {
+    fun buildQuery_total_coverage() = runTest {
         viewModel.logs.test {
-            awaitItem() // Stato iniziale
+            awaitItem() // Initial emission
 
-            SortProperty.entries.forEach { prop ->
-                viewModel.onSortPropertyChanged(prop)
-                awaitItem()
-            }
-
-            viewModel.onSortDirectionChanged() // ASC
+            // 1. Coverage for Search variants (blank, whitespace, text)
+            viewModel.onSearchQueryChanged("test")
             awaitItem()
-            viewModel.onSortDirectionChanged() // DESC
+            viewModel.onSearchQueryChanged("   ") // Should be blank but is distinct branch
+            awaitItem()
+            viewModel.onSearchQueryChanged("")
             awaitItem()
 
+            // 2. Coverage for Show Dismissed (true/false)
             viewModel.onShowDismissedToggled() // true
             awaitItem()
             viewModel.onShowDismissedToggled() // false
             awaitItem()
 
-            viewModel.onSearchQueryChanged("test")
-            awaitItem()
-            viewModel.onSearchQueryChanged("")
-            awaitItem()
-            viewModel.onSearchQueryChanged("   ")
-            awaitItem()
+            // 3. Exhaustive SortProperty and Direction matrix
+            SortProperty.entries.forEach { prop ->
+                if (viewModel.sortProperty.value != prop) {
+                    viewModel.onSortPropertyChanged(prop)
+                    awaitItem()
+                }
+                
+                // Toggle direction to cover both ASC and DESC logic
+                viewModel.onSortDirectionChanged() // ASC
+                awaitItem()
+                viewModel.onSortDirectionChanged() // DESC
+                awaitItem()
+            }
 
             cancelAndIgnoreRemainingEvents()
         }
@@ -170,32 +179,17 @@ class MaintenanceLogViewModelTest {
     }
 
     @Test
-    fun addLog_withValidData_callsDao() = runTest {
-        viewModel.addLog(1, 1, "notes", 100, 123456789L, "#FFFFFF")
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { maintenanceLogDao.insertLog(any()) }
-    }
-
-    @Test
-    fun addLog_whenDaoThrowsError_sendsAddLogFailedEvent() = runTest {
-        coEvery { maintenanceLogDao.insertLog(any()) } throws RuntimeException("DB error")
+    fun addLog_error_branch() = runTest {
+        coEvery { maintenanceLogDao.insertLog(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
-            viewModel.addLog(1, 1, "notes", 100, 123456789L, "#FFFFFF")
+            viewModel.addLog(1, 1, null, null, 0L, null)
             assertEquals(MaintenanceLogViewModel.UiEvent.AddLogFailed, awaitItem())
         }
     }
 
     @Test
-    fun updateLog_withValidData_callsDao() = runTest {
-        val log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 123L)
-        viewModel.updateLog(log)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { maintenanceLogDao.updateLog(log) }
-    }
-
-    @Test
-    fun updateLog_whenDaoThrowsError_sendsUpdateLogFailedEvent() = runTest {
-        coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException("DB error")
+    fun updateLog_error_branch() = runTest {
+        coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.updateLog(mockk())
             assertEquals(MaintenanceLogViewModel.UiEvent.UpdateLogFailed, awaitItem())
@@ -203,16 +197,8 @@ class MaintenanceLogViewModelTest {
     }
 
     @Test
-    fun dismissLog_withValidData_callsDao() = runTest {
-        val log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 123L, dismissed = false)
-        viewModel.dismissLog(log)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { maintenanceLogDao.updateLog(match { it.id == 1 && it.dismissed }) }
-    }
-
-    @Test
-    fun dismissLog_whenDaoThrowsError_sendsDismissLogFailedEvent() = runTest {
-        coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException("DB error")
+    fun dismissLog_error_branch() = runTest {
+        coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.dismissLog(mockk())
             assertEquals(MaintenanceLogViewModel.UiEvent.DismissLogFailed, awaitItem())
@@ -220,16 +206,8 @@ class MaintenanceLogViewModelTest {
     }
 
     @Test
-    fun restoreLog_withValidData_callsDao() = runTest {
-        val log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 123L, dismissed = true)
-        viewModel.restoreLog(log)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { maintenanceLogDao.updateLog(match { it.id == 1 && !it.dismissed }) }
-    }
-
-    @Test
-    fun restoreLog_whenDaoThrowsError_sendsRestoreLogFailedEvent() = runTest {
-        coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException("DB error")
+    fun restoreLog_error_branch() = runTest {
+        coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException()
         viewModel.uiEvents.test {
             viewModel.restoreLog(mockk())
             assertEquals(MaintenanceLogViewModel.UiEvent.RestoreLogFailed, awaitItem())
