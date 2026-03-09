@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <default-data>
     <colors>
-        <color hex="#4CAF50" name="Verde" />
-        <color hex="#2196F3" name="Blu" />
-        <color hex="#F44336" name="Rosso" />
+        <color hex="#4CAF50" name="Green" />
+        <color hex="#2196F3" name="Blue" />
+        <color hex="#F44336" name="Red" />
         <color hex="#00FFFF" name="Vivid Cyan" />
         <color hex="#FF00FF" name="Vivid Magenta" />
         <color hex="#FFFF00" name="Vivid Yellow" />
@@ -15,7 +15,7 @@
         <color hex="#98FB98" name="Pastel Mint Green" />
     </colors>
     <categories>
-        <category id="EQUIPMENT" name="Equipaggiamento" color="#4CAF50" />
-        <category id="OPERATION" name="Operazioni" color="#2196F3" />
+        <category id="EQUIPMENT" name="Equipment" color="#4CAF50" />
+        <category id="OPERATION" name="Operation" color="#2196F3" />
     </categories>
 </default-data>

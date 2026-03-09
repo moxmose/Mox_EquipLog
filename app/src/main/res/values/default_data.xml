@@ -3,9 +3,9 @@
     <string name="default_username">User</string>
 
     <string-array name="default_colors">
-        <item>#4CAF50;Verde</item>
-        <item>#2196F3;Blu</item>
-        <item>#F44336;Rosso</item>
+        <item>#4CAF50;Green</item>
+        <item>#2196F3;Blue</item>
+        <item>#F44336;Red</item>
         <item>#00FFFF;Vivid Cyan</item>
         <item>#FF00FF;Vivid Magenta</item>
         <item>#FFFF00;Vivid Yellow</item>
@@ -18,7 +18,7 @@
     </string-array>
 
     <string-array name="default_categories">
-        <item>EQUIPMENT;Equipaggiamento;#4CAF50</item>
-        <item>OPERATION;Operazioni;#2196F3</item>
+        <item>EQUIPMENT;Equipment;#4CAF50</item>
+        <item>OPERATION;Operation;#2196F3</item>
     </string-array>
 </resources>

@@ -7,8 +7,5 @@ import androidx.room.PrimaryKey
 data class Category(
     @PrimaryKey
     val id: String, // "EQUIPMENT", "OPERATION", etc.
-    val name: String,
-    val color: String, // Hex color
-    val defaultIconIdentifier: String? = null,
-    val defaultPhotoUri: String? = null
+    val name: String
 )

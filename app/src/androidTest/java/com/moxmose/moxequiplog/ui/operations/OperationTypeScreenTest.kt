@@ -1,11 +1,14 @@
 package com.moxmose.moxequiplog.ui.operations
 
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import junit.framework.TestCase.assertTrue
 import org.junit.Rule
@@ -13,6 +16,7 @@ import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class OperationTypeScreenTest {
 
@@ -41,10 +45,16 @@ class OperationTypeScreenTest {
                 allCategories = emptyList(),
                 defaultIcon = null,
                 defaultPhotoUri = null,
-                onAddMedia = { _, _ -> },
-                onToggleMediaVisibility = { _, _ -> },
-                operationCategoryColor = null,
-                operationTypeMedia = emptyList(),
+                onAddImage = { _, _ -> },
+                onToggleImageVisibility = { _ -> },
+                operationCategoryColor = "#808080",
+                operationTypeImages = emptyList(),
+                snackbarHostState = remember { SnackbarHostState() },
+                defaultOperationTypeId = null,
+                onToggleDefault = {},
+                categoryColors = emptyMap(),
+                categoryDefaultIcons = emptyMap(),
+                categoryDefaultPhotos = emptyMap()
             )
         }
 
@@ -71,10 +81,16 @@ class OperationTypeScreenTest {
                 allCategories = emptyList(),
                 defaultIcon = null,
                 defaultPhotoUri = null,
-                onAddMedia = { _, _ -> },
-                onToggleMediaVisibility = { _, _ -> },
-                operationCategoryColor = null,
-                operationTypeMedia = emptyList()
+                onAddImage = { _, _ -> },
+                onToggleImageVisibility = { _ -> },
+                operationCategoryColor = "#808080",
+                operationTypeImages = emptyList(),
+                snackbarHostState = remember { SnackbarHostState() },
+                defaultOperationTypeId = null,
+                onToggleDefault = {},
+                categoryColors = emptyMap(),
+                categoryDefaultIcons = emptyMap(),
+                categoryDefaultPhotos = emptyMap()
             )
         }
 
@@ -86,19 +102,22 @@ class OperationTypeScreenTest {
     @Test
     fun addOperationTypeDialog_onConfirm_callsOnAddOperationType() {
         val newOperationDescription = "Tire Rotation"
-        val addedOperationInfo = AtomicReference<String>()
+        val addedOperationInfo = AtomicReference<Pair<String, ImageIdentifier?>>()
 
         composeTestRule.setContent {
             AddOperationTypeDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, _ -> addedOperationInfo.set(desc) },
+                onConfirm = { desc, identifier -> addedOperationInfo.set(Pair(desc, identifier)) },
                 defaultIcon = null,
                 defaultPhotoUri = null,
-                onAddMedia = { _, _ -> },
-                onToggleMediaVisibility = { _, _ -> },
-                operationCategoryColor = null,
-                mediaLibrary = emptyList(),
-                categories = emptyList()
+                onAddImage = { _, _ -> },
+                onToggleImageVisibility = { _ -> },
+                operationCategoryColor = "#808080",
+                imageLibrary = emptyList(),
+                categories = emptyList(),
+                categoryColors = emptyMap(),
+                categoryDefaultIcons = emptyMap(),
+                categoryDefaultPhotos = emptyMap()
             )
         }
 
@@ -109,6 +128,7 @@ class OperationTypeScreenTest {
         composeTestRule.onNodeWithText("Add").performClick()
 
         // 3. Verify the callback was invoked with the correct data
-        assertEquals(newOperationDescription, addedOperationInfo.get())
+        assertEquals(newOperationDescription, addedOperationInfo.get().first)
+        assertNull(addedOperationInfo.get().second)
     }
 }
