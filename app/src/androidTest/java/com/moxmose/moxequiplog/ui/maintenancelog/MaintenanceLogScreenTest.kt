@@ -1,5 +1,7 @@
 package com.moxmose.moxequiplog.ui.maintenancelog
 
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -63,7 +65,12 @@ class MaintenanceLogScreenTest {
                 onUpdateLog = {},
                 onDismissLog = {},
                 onRestoreLog = {},
-                allCategories = emptyList()
+                allCategories = emptyList(),
+                snackbarHostState = remember { SnackbarHostState() },
+                defaultEquipmentId = null,
+                defaultOperationTypeId = null,
+                equipmentCategoryColor = null,
+                operationCategoryColor = null
             )
         }
 
@@ -98,7 +105,12 @@ class MaintenanceLogScreenTest {
                 onUpdateLog = {},
                 onDismissLog = {},
                 onRestoreLog = {},
-                allCategories = emptyList()
+                allCategories = emptyList(),
+                snackbarHostState = remember { SnackbarHostState() },
+                defaultEquipmentId = null,
+                defaultOperationTypeId = null,
+                equipmentCategoryColor = null,
+                operationCategoryColor = null
             )
         }
 
@@ -117,7 +129,11 @@ class MaintenanceLogScreenTest {
                 operationTypes = dummyOps,
                 onDismissRequest = {},
                 onConfirm = { confirmedLog.set(it) },
-                allCategories = emptyList()
+                allCategories = emptyList(),
+                defaultEquipmentId = null,
+                defaultOperationTypeId = null,
+                equipmentCategoryColor = null,
+                operationCategoryColor = null
             )
         }
 
@@ -151,7 +167,21 @@ class MaintenanceLogScreenTest {
         )
 
         composeTestRule.setContent {
-            MaintenanceLogCard(logDetail = log, equipments = dummyEquipments, operationTypes = dummyOps, isExpanded = false, isEditing = false, onExpand = { onCardExpandedCalled.set(true) }, onEdit = {}, onSave = {}, onDismiss = {}, onRestore = {}, allCategories = emptyList())
+            MaintenanceLogCard(
+                logDetail = log, 
+                equipments = dummyEquipments, 
+                operationTypes = dummyOps, 
+                isExpanded = false, 
+                isEditing = false, 
+                onExpand = { onCardExpandedCalled.set(true) }, 
+                onEdit = {}, 
+                onSave = {}, 
+                onDismiss = {}, 
+                onRestore = {}, 
+                allCategories = emptyList(),
+                equipmentCategoryColor = null,
+                operationCategoryColor = null
+            )
         }
 
         composeTestRule.onNodeWithText("Road Equipment").performClick()
@@ -175,7 +205,21 @@ class MaintenanceLogScreenTest {
         )
 
         composeTestRule.setContent {
-            MaintenanceLogCard(logDetail = log, equipments = dummyEquipments, operationTypes = dummyOps, isExpanded = false, isEditing = false, onExpand = {}, onEdit = { onEditCalled.set(true) }, onSave = {}, onDismiss = {}, onRestore = {}, allCategories = emptyList())
+            MaintenanceLogCard(
+                logDetail = log, 
+                equipments = dummyEquipments, 
+                operationTypes = dummyOps, 
+                isExpanded = false, 
+                isEditing = false, 
+                onExpand = {}, 
+                onEdit = { onEditCalled.set(true) }, 
+                onSave = {}, 
+                onDismiss = {}, 
+                onRestore = {}, 
+                allCategories = emptyList(),
+                equipmentCategoryColor = null,
+                operationCategoryColor = null
+            )
         }
 
         composeTestRule.onNodeWithContentDescription("Edit Log").performClick()

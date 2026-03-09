@@ -4,12 +4,15 @@ An Android application to help you manage and track maintenance logs for your eq
 
 ## ✨ Features
 
-*   **Equipment Management**: Add, edit, dismiss, and reorder your list of personal equipments.
+*   **Equipment Management**: Add, edit, archive, and reorder your list of personal equipments.
 *   **Operation Types**: Create and manage a custom list of maintenance operations.
-*   **Maintenance Logs**: Log every maintenance activity, linking a equipment with an operation, date, and notes.
+*   **Maintenance Logs**: Log every maintenance activity, linking an equipment with an operation, date, and notes.
 *   **Advanced Sorting & Filtering**: Easily search through your logs and sort them by date, equipment, operation, kilometers, or notes.
+*   **Full Customization**:
+    *   **Colors**: Assign unique colors to each section (equipments, operations) for better visual identification.
+    *   **Images & Icons**: Personalize each equipment or operation type with predefined icons or images from your gallery.
+    *   **Defaults**: Set default equipments and operations to speed up data entry.
 *   **Data Persistence**: Your data is saved locally using a Room database.
-*   **User Settings**: Simple user preference management using DataStore.
 
 ## 🛠 Tech Stack & Libraries
 
@@ -23,7 +26,12 @@ This project is built with 100% Kotlin and follows modern Android development pr
 *   **Asynchronous Programming**: Kotlin [Coroutines](https://kotlinlang.org/docs/coroutines-overview.html) and [Flow](https://developer.android.com/kotlin/flow) for managing background tasks and data streams.
 *   **Image Loading**: [Coil](https://coil-kt.github.io/coil/) for loading images efficiently.
 *   **Testing**:
-    *   **Unit Tests**: [JUnit](https://junit.org/junit5/), [Robolectric](http://robolectric.org/), and [Turbine](https://github.com/cashapp/turbine) for testing ViewModels, DAOs, and Flows.
+    *   **Unit Tests**: [JUnit](https://junit.org/junit5/), [Robolectric](http://robolectric.org/), [Turbine](https://github.com/cashapp/turbine) and [MockK](https://mockk.io/) for testing ViewModels, DAOs, and Flows.
+    *   **UI Tests**: [Compose Test Rule](https://developer.android.com/jetpack/compose/testing) for integration and UI testing.
+
+## 🛣️ Future Roadmap
+
+*   **Reporting Section**: Implementation of a new section to visualize statistics and charts based on maintenance logs (e.g., most frequent operations, mileage per equipment, etc.).
 
 ## 🚀 Setup & Build
 
@@ -36,4 +44,4 @@ This project is built with 100% Kotlin and follows modern Android development pr
     ```
 
 ---
-*This README and the code was generated with assistance from Gemini in Android Studio, an automated system to do some things right and others wrong .*
+*This README and the code was generated with assistance from Gemini in Android Studio.*

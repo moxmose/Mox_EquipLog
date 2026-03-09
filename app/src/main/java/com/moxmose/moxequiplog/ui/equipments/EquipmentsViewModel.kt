@@ -2,22 +2,41 @@ package com.moxmose.moxequiplog.ui.equipments
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moxmose.moxequiplog.data.MediaRepository
+import com.moxmose.moxequiplog.data.AppSettingsManager
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Media
-import com.moxmose.moxequiplog.data.local.MediaIdentifier
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class EquipmentsViewModel(
     private val equipmentDao: EquipmentDao,
-    private val mediaRepository: MediaRepository
+    private val imageRepository: ImageRepository,
+    private val appSettingsManager: AppSettingsManager
 ) : ViewModel() {
+
+    sealed class UiEvent {
+        data object DescriptionInvalid : UiEvent()
+        data object AddEquipmentFailed : UiEvent()
+        data object UpdateEquipmentFailed : UiEvent()
+        data object UpdateEquipmentsFailed : UiEvent()
+        data object DismissEquipmentFailed : UiEvent()
+        data object RestoreEquipmentFailed : UiEvent()
+        data object AddImageFailed : UiEvent()
+        data object RemoveImageFailed : UiEvent()
+        data object UpdateImageOrderFailed : UiEvent()
+        data object ToggleImageVisibilityFailed : UiEvent()
+        data object DatabaseCheckFailed : UiEvent()
+        data object PhotoUriInvalid : UiEvent()
+        data object SetDefaultFailed : UiEvent()
+    }
+
+    private val _uiEvents = Channel<UiEvent>()
+    val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     val activeEquipments: StateFlow<List<Equipment>> = equipmentDao.getActiveEquipments()
         .stateIn(
@@ -33,98 +52,185 @@ class EquipmentsViewModel(
             initialValue = emptyList()
         )
 
-    val equipmentMedia: StateFlow<List<Media>> = mediaRepository.getMediaByCategory("EQUIPMENT")
+    val equipmentImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory("EQUIPMENT")
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    val allCategories: StateFlow<List<Category>> = mediaRepository.allCategories
+    val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    fun addEquipment(description: String, mediaIdentifier: MediaIdentifier?) {
+    val categoryColor: StateFlow<String> = imageRepository.getCategoryColor("EQUIPMENT")
+        .map { it ?: "#808080" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "#808080")
+
+    val categoryDefaultIcon: StateFlow<String?> = imageRepository.getCategoryDefaultIcon("EQUIPMENT")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+
+    val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto("EQUIPMENT")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+
+    val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
+
+    fun setDefaultEquipment(id: Int?) {
         viewModelScope.launch {
-            val currentList = allEquipments.value
-            val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
-            val equipmentCategory = allCategories.first().find { it.id == "EQUIPMENT" }
-
-            var equipmentPhotoUri: String? = null
-            var equipmentIconIdentifier: String? = null
-
-            when (mediaIdentifier) {
-                is MediaIdentifier.Icon -> equipmentIconIdentifier = mediaIdentifier.name
-                is MediaIdentifier.Photo -> equipmentPhotoUri = mediaIdentifier.uri
-                null -> { // Usa i default di categoria
-                    equipmentPhotoUri = equipmentCategory?.defaultPhotoUri
-                    equipmentIconIdentifier = equipmentCategory?.defaultIconIdentifier
-                }
+            try {
+                appSettingsManager.setDefaultEquipmentId(id)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.SetDefaultFailed)
             }
+        }
+    }
 
-            equipmentDao.insertEquipment(
-                Equipment(
-                    description = description,
-                    photoUri = equipmentPhotoUri,
-                    iconIdentifier = equipmentIconIdentifier,
-                    displayOrder = nextOrder
+    fun toggleDefaultEquipment(id: Int) {
+        viewModelScope.launch {
+            try {
+                val currentDefault = defaultEquipmentId.value
+                if (currentDefault == id) {
+                    appSettingsManager.setDefaultEquipmentId(null)
+                } else {
+                    appSettingsManager.setDefaultEquipmentId(id)
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.SetDefaultFailed)
+            }
+        }
+    }
+
+    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?) {
+        if (description.isBlank()) {
+            viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val currentList = allEquipments.value
+                val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
+                
+                var equipmentPhotoUri: String? = null
+                var equipmentIconIdentifier: String? = null
+
+                when (imageIdentifier) {
+                    is ImageIdentifier.Icon -> equipmentIconIdentifier = imageIdentifier.name
+                    is ImageIdentifier.Photo -> equipmentPhotoUri = imageIdentifier.uri
+                    null -> {
+                        equipmentPhotoUri = categoryDefaultPhoto.value
+                        equipmentIconIdentifier = categoryDefaultIcon.value
+                    }
+                }
+
+                equipmentDao.insertEquipment(
+                    Equipment(
+                        description = description,
+                        photoUri = equipmentPhotoUri,
+                        iconIdentifier = equipmentIconIdentifier,
+                        displayOrder = nextOrder
+                    )
                 )
-            )
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.AddEquipmentFailed)
+            }
         }
     }
 
     fun updateEquipment(equipment: Equipment) {
         viewModelScope.launch {
-            equipmentDao.updateEquipment(equipment)
+            try {
+                equipmentDao.updateEquipment(equipment)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateEquipmentFailed)
+            }
         }
     }
 
     fun updateEquipments(equipments: List<Equipment>) {
+        if (equipments.isEmpty()) return
         viewModelScope.launch {
-            equipmentDao.updateEquipments(equipments)
+            try {
+                equipmentDao.updateEquipments(equipments)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateEquipmentsFailed)
+            }
         }
     }
 
     fun dismissEquipment(equipment: Equipment) {
         viewModelScope.launch {
-            equipmentDao.updateEquipment(equipment.copy(dismissed = true))
+            try {
+                equipmentDao.updateEquipment(equipment.copy(dismissed = true))
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.DismissEquipmentFailed)
+            }
         }
     }
 
     fun restoreEquipment(equipment: Equipment) {
         viewModelScope.launch {
-            equipmentDao.updateEquipment(equipment.copy(dismissed = false))
+            try {
+                equipmentDao.updateEquipment(equipment.copy(dismissed = false))
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.RestoreEquipmentFailed)
+            }
         }
     }
 
-    fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
+    fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         viewModelScope.launch {
-            mediaRepository.addMedia(mediaIdentifier, category)
+            try {
+                imageRepository.addImage(imageIdentifier, category)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.AddImageFailed)
+            }
         }
     }
 
-    fun removeMedia(media: Media) {
+    fun removeImage(image: Image) {
         viewModelScope.launch {
-            mediaRepository.removeMedia(media)
+            try {
+                imageRepository.removeImage(image)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.RemoveImageFailed)
+            }
         }
     }
 
-    fun updateMediaOrder(mediaList: List<Media>) {
+    fun updateImageOrder(imageList: List<Image>) {
+        if (imageList.isEmpty()) return
         viewModelScope.launch {
-            mediaRepository.updateMediaOrder(mediaList)
+            try {
+                imageRepository.updateImageOrder(imageList)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateImageOrderFailed)
+            }
         }
     }
 
-    fun toggleMediaVisibility(media: Media) {
+    fun toggleImageVisibility(image: Image) {
         viewModelScope.launch {
-            mediaRepository.toggleMediaVisibility(media)
+            try {
+                imageRepository.toggleImageVisibility(image)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.ToggleImageVisibilityFailed)
+            }
         }
     }
 
     suspend fun isPhotoUsed(uri: String): Boolean {
-        return equipmentDao.countEquipmentsUsingPhoto(uri) > 0
+        if (uri.isBlank()) {
+            _uiEvents.send(UiEvent.PhotoUriInvalid)
+            return true
+        }
+        return try {
+            equipmentDao.countEquipmentsUsingPhoto(uri) > 0
+        } catch (e: Exception) {
+            _uiEvents.send(UiEvent.DatabaseCheckFailed)
+            true
+        }
     }
 }

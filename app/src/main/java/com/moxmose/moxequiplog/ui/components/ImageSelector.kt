@@ -9,7 +9,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,10 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -60,35 +55,35 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Media
+import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MediaSelector(
+fun ImageSelector(
     photoUri: String?,
     iconIdentifier: String?,
-    onMediaSelected: (String?, String?) -> Unit,
+    onImageSelected: (String?, String?) -> Unit,
     modifier: Modifier = Modifier,
     category: String? = null,
-    mediaLibrary: List<Media> = emptyList(),
+    imageLibrary: List<Image> = emptyList(),
     categories: List<Category> = emptyList(),
-    onAddMedia: ((String, String) -> Unit)? = null,
-    onRemoveMedia: ((String, String) -> Unit)? = null,
-    onUpdateMediaOrder: ((List<Media>) -> Unit)? = null,
-    onToggleMediaVisibility: ((String, String) -> Unit)? = null,
+    categoryColors: Map<String, String> = emptyMap(),
+    categoryDefaultIcons: Map<String, String?> = emptyMap(),
+    categoryDefaultPhotos: Map<String, String?> = emptyMap(),
+    onAddImage: ((String, String) -> Unit)? = null,
+    onRemoveImage: ((String, String) -> Unit)? = null,
+    onUpdateImageOrder: ((List<Image>) -> Unit)? = null,
+    onToggleImageVisibility: ((String, String) -> Unit)? = null,
     onSetDefaultInCategory: ((String, String?, String?) -> Unit)? = null,
     isPhotoUsed: (suspend (String) -> Boolean)? = null,
     isPrefsMode: Boolean = false,
@@ -96,20 +91,23 @@ fun MediaSelector(
 ) {
 
     if (isPrefsMode) {
-        MediaPickerDialog(
+        ImagePickerDialog(
             onDismissRequest = onDismissRequest,
             photoUri = photoUri,
             iconIdentifier = iconIdentifier,
-            onMediaSelected = {
-                onMediaSelected(it.first, it.second)
+            onImageSelected = {
+                onImageSelected(it.first, it.second)
                 onDismissRequest()
             },
-            mediaLibrary = mediaLibrary,
+            imageLibrary = imageLibrary,
             categories = categories,
-            onAddMedia = onAddMedia,
-            onRemoveMedia = onRemoveMedia,
-            onUpdateMediaOrder = onUpdateMediaOrder,
-            onToggleMediaVisibility = onToggleMediaVisibility,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
+            onAddImage = onAddImage,
+            onRemoveImage = onRemoveImage,
+            onUpdateImageOrder = onUpdateImageOrder,
+            onToggleImageVisibility = onToggleImageVisibility,
             onSetDefaultInCategory = onSetDefaultInCategory,
             isPhotoUsed = isPhotoUsed,
             isPrefsMode = isPrefsMode,
@@ -118,20 +116,23 @@ fun MediaSelector(
     } else {
         var showPicker by remember { mutableStateOf(false) }
         if (showPicker) {
-            MediaPickerDialog(
+            ImagePickerDialog(
                 onDismissRequest = { showPicker = false },
                 photoUri = photoUri,
                 iconIdentifier = iconIdentifier,
-                onMediaSelected = {
-                    onMediaSelected(it.first, it.second)
+                onImageSelected = {
+                    onImageSelected(it.first, it.second)
                     showPicker = false
                 },
-                mediaLibrary = mediaLibrary,
+                imageLibrary = imageLibrary,
                 categories = categories,
-                onAddMedia = onAddMedia,
-                onRemoveMedia = onRemoveMedia,
-                onUpdateMediaOrder = onUpdateMediaOrder,
-                onToggleMediaVisibility = onToggleMediaVisibility,
+                categoryColors = categoryColors,
+                categoryDefaultIcons = categoryDefaultIcons,
+                categoryDefaultPhotos = categoryDefaultPhotos,
+                onAddImage = onAddImage,
+                onRemoveImage = onRemoveImage,
+                onUpdateImageOrder = onUpdateImageOrder,
+                onToggleImageVisibility = onToggleImageVisibility,
                 onSetDefaultInCategory = onSetDefaultInCategory,
                 isPhotoUsed = isPhotoUsed,
                 isPrefsMode = isPrefsMode,
@@ -166,25 +167,28 @@ fun MediaSelector(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MediaPickerDialog(
+fun ImagePickerDialog(
     onDismissRequest: () -> Unit,
     photoUri: String?,
     iconIdentifier: String?,
-    onMediaSelected: (Pair<String?, String?>) -> Unit,
-    mediaLibrary: List<Media>,
+    onImageSelected: (Pair<String?, String?>) -> Unit,
+    imageLibrary: List<Image>,
     categories: List<Category>,
-    onAddMedia: ((String, String) -> Unit)?,
-    onRemoveMedia: ((String, String) -> Unit)?,
-    onUpdateMediaOrder: ((List<Media>) -> Unit)?,
-    onToggleMediaVisibility: ((String, String) -> Unit)?,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
+    onAddImage: ((String, String) -> Unit)?,
+    onRemoveImage: ((String, String) -> Unit)?,
+    onUpdateImageOrder: ((List<Image>) -> Unit)?,
+    onToggleImageVisibility: ((String, String) -> Unit)?,
     onSetDefaultInCategory: ((String, String?, String?) -> Unit)?,
     isPhotoUsed: (suspend (String) -> Boolean)?,
     isPrefsMode: Boolean,
     forcedCategory: String?
 ) {
-    var imageToDelete by remember { mutableStateOf<Media?>(null) }
+    var imageToDelete by remember { mutableStateOf<Image?>(null) }
     var showHidden by remember { mutableStateOf(isPrefsMode) }
     var currentFilterCategory by remember { mutableStateOf(forcedCategory ?: "ALL") }
     var dropdownExpanded by remember { mutableStateOf(false) }
@@ -199,9 +203,9 @@ fun MediaPickerDialog(
                 context.contentResolver.takePersistableUriPermission(it, flags)
                 val uriString = it.toString()
                 val targetCategory = forcedCategory ?: currentFilterCategory
-                onAddMedia?.invoke(uriString, targetCategory)
+                onAddImage?.invoke(uriString, targetCategory)
             } catch (e: SecurityException) {
-                Log.e("MediaSelector", "Failed to take permission", e)
+                Log.e("ImageSelector", "Failed to take permission", e)
             }
         }
     }
@@ -226,8 +230,8 @@ fun MediaPickerDialog(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onRemoveMedia?.invoke(it.uri, it.category)
-                        if (photoUri == it.uri) onMediaSelected(Pair(null, null))
+                        onRemoveImage?.invoke(it.uri, it.category)
+                        if (photoUri == it.uri) onImageSelected(Pair(null, null))
                         imageToDelete = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
@@ -241,7 +245,7 @@ fun MediaPickerDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
-                text = if (isPrefsMode) "Gestione Libreria" else "Seleziona Media",
+                text = if (isPrefsMode) "Gestione Libreria" else "Seleziona Immagine",
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
@@ -286,7 +290,7 @@ fun MediaPickerDialog(
                     Button(
                         onClick = { imagePickerLauncher.launch(arrayOf("image/*")) },
                         modifier = Modifier.weight(1f),
-                        enabled = onAddMedia != null && (currentFilterCategory != "ALL" || forcedCategory != null)
+                        enabled = onAddImage != null && (currentFilterCategory != "ALL" || forcedCategory != null)
                     ) {
                         Icon(Icons.Default.AddAPhoto, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -310,7 +314,7 @@ fun MediaPickerDialog(
                 Spacer(Modifier.height(8.dp))
 
                 val isMixedMode = currentFilterCategory == "ALL"
-                val canDrag = onUpdateMediaOrder != null && !isMixedMode
+                val canDrag = onUpdateImageOrder != null && !isMixedMode
                 if (isMixedMode && isPrefsMode) {
                     Surface(
                         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
@@ -357,41 +361,44 @@ fun MediaPickerDialog(
 
                 Spacer(Modifier.height(12.dp))
 
-                val filteredAndSortedMedia = mediaLibrary
-                    .filter { media ->
-                        val matchesCategory = currentFilterCategory == "ALL" || media.category == currentFilterCategory
-                        matchesCategory && (showHidden || !media.hidden)
+                val filteredAndSortedImages = imageLibrary
+                    .filter { image ->
+                        val matchesCategory = currentFilterCategory == "ALL" || image.category == currentFilterCategory
+                        matchesCategory && (showHidden || !image.hidden)
                     }
                     .sortedWith(compareBy({ it.category }, { it.displayOrder }))
 
-                DraggableMediaGrid(
-                    items = filteredAndSortedMedia,
-                    onMove = {
+                DraggableLazyGrid(
+                    items = filteredAndSortedImages,
+                    onMove = { from, to ->
                         if (canDrag) {
-                            val newList = filteredAndSortedMedia.toMutableList().apply { add(it.second, removeAt(it.first)) }
-                            onUpdateMediaOrder?.invoke(newList.mapIndexed { index, m -> m.copy(displayOrder = index) })
+                            val newList = filteredAndSortedImages.toMutableList().apply { add(to, removeAt(from)) }
+                            onUpdateImageOrder?.invoke(newList.mapIndexed { index, m -> m.copy(displayOrder = index) })
                         }
                     },
                     canDrag = canDrag,
-                    itemContent = { media ->
-                        val uriKey = media.uri.removePrefix("icon:")
-                        val cat = categories.find { it.id == media.category }
-                        val catColorHex = cat?.color ?: "#808080"
+                    key = { _, m -> "${m.category}:${m.uri}" },
+                    itemContent = { image ->
+                        val uriKey = image.uri.removePrefix("icon:")
+                        val catColorHex = categoryColors[image.category] ?: "#808080"
                         val catColor = Color(android.graphics.Color.parseColor(catColorHex))
+                        
+                        val defIcon = categoryDefaultIcons[image.category]
+                        val defPhoto = categoryDefaultPhotos[image.category]
 
                         val isSelected = if (isPrefsMode) {
                             if (uriKey == "none") {
-                                cat?.defaultIconIdentifier == null && cat?.defaultPhotoUri == null
+                                defIcon == null && defPhoto == null
                             } else {
-                                (media.mediaType == "ICON" && uriKey == cat?.defaultIconIdentifier) ||
-                                (media.mediaType == "IMAGE" && media.uri == cat?.defaultPhotoUri)
+                                (image.imageType == "ICON" && uriKey == defIcon) ||
+                                (image.imageType == "IMAGE" && image.uri == defPhoto)
                             }
                         } else {
                             if (uriKey == "none") {
                                 photoUri == null && iconIdentifier == null
                             } else {
-                                (media.mediaType == "ICON" && iconIdentifier == uriKey) ||
-                                (media.mediaType == "IMAGE" && photoUri == media.uri)
+                                (image.imageType == "ICON" && iconIdentifier == uriKey) ||
+                                (image.imageType == "IMAGE" && photoUri == image.uri)
                             }
                         }
 
@@ -399,40 +406,40 @@ fun MediaPickerDialog(
                             false // Gestito da isSelected
                         } else {
                             if (uriKey == "none") {
-                                cat?.defaultIconIdentifier == null && cat?.defaultPhotoUri == null
+                                defIcon == null && defPhoto == null
                             } else {
-                                (media.mediaType == "ICON" && uriKey == cat?.defaultIconIdentifier) ||
-                                (media.mediaType == "IMAGE" && media.uri == cat?.defaultPhotoUri)
+                                (image.imageType == "ICON" && uriKey == defIcon) ||
+                                (image.imageType == "IMAGE" && image.uri == defPhoto)
                             }
                         }
 
-                        MediaGridItem(
-                            media = media,
+                        ImageGridItem(
+                            image = image,
                             categoryColor = catColor,
                             isSelected = isSelected,
                             isDefault = isDefaultInCat,
-                            isHidden = media.hidden,
+                            isHidden = image.hidden,
                             isManagementMode = isPrefsMode || forcedCategory == null,
                             onSelect = {
                                 if (isPrefsMode) {
-                                    if (media.mediaType == "ICON") {
-                                        onSetDefaultInCategory?.invoke(media.category, if (uriKey == "none") null else uriKey, null)
+                                    if (image.imageType == "ICON") {
+                                        onSetDefaultInCategory?.invoke(image.category, if (uriKey == "none") null else uriKey, null)
                                     } else {
-                                        onSetDefaultInCategory?.invoke(media.category, null, media.uri)
+                                        onSetDefaultInCategory?.invoke(image.category, null, image.uri)
                                     }
                                 } else {
-                                    if (media.mediaType == "ICON") {
-                                        if (uriKey == "none") onMediaSelected(Pair(null, null))
-                                        else onMediaSelected(Pair(uriKey, null))
+                                    if (image.imageType == "ICON") {
+                                        if (uriKey == "none") onImageSelected(Pair(null, null))
+                                        else onImageSelected(Pair(uriKey, null))
                                     } else {
-                                        onMediaSelected(Pair(null, media.uri))
+                                        onImageSelected(Pair(null, image.uri))
                                     }
                                 }
                             },
                             onToggleVisibility = {
-                                onToggleMediaVisibility?.invoke(media.uri, media.category)
+                                onToggleImageVisibility?.invoke(image.uri, image.category)
                             },
-                            onDelete = { if (media.mediaType == "IMAGE") imageToDelete = media }
+                            onDelete = { if (image.imageType == "IMAGE") imageToDelete = image }
                         )
                     }
                 )
@@ -444,8 +451,8 @@ fun MediaPickerDialog(
 
 
 @Composable
-fun MediaGridItem(
-    media: Media,
+fun ImageGridItem(
+    image: Image,
     categoryColor: Color,
     isSelected: Boolean,
     isDefault: Boolean,
@@ -474,8 +481,8 @@ fun MediaGridItem(
                 .graphicsLayer(alpha = if (isHidden) 0.5f else 1f),
             contentAlignment = Alignment.Center
         ) {
-            val uriKey = media.uri.removePrefix("icon:")
-            if (media.mediaType == "ICON") {
+            val uriKey = image.uri.removePrefix("icon:")
+            if (image.imageType == "ICON") {
                 if (uriKey == "none") {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.NotInterested, null, modifier = Modifier.size(24.dp), tint = if (isHidden) MaterialTheme.colorScheme.onSurface.copy(0.3f) else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -483,14 +490,14 @@ fun MediaGridItem(
                     }
                 } else {
                     Icon(
-                        imageVector = EquipmentIconProvider.getIcon(uriKey, media.category),
+                        imageVector = EquipmentIconProvider.getIcon(uriKey, image.category),
                         contentDescription = null,
                         modifier = Modifier.size(32.dp),
                         tint = if (isHidden) MaterialTheme.colorScheme.onSurface.copy(0.3f) else MaterialTheme.colorScheme.primary
                     )
                 }
             } else {
-                AsyncImage(model = media.uri, contentDescription = null, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
+                AsyncImage(model = image.uri, contentDescription = null, modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
             }
         }
 
@@ -518,69 +525,12 @@ fun MediaGridItem(
                     IconButton(onClick = onToggleVisibility, modifier = Modifier.size(22.dp)) {
                         Icon(if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, Modifier.size(12.dp))
                     }
-                    if (media.mediaType == "IMAGE") {
+                    if (image.imageType == "IMAGE") {
                         IconButton(onClick = onDelete, modifier = Modifier.size(22.dp)) {
                             Icon(Icons.Default.Delete, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun DraggableMediaGrid(
-    items: List<Media>,
-    onMove: (Pair<Int, Int>) -> Unit,
-    canDrag: Boolean,
-    itemContent: @Composable (Media) -> Unit
-) {
-    val gridState = rememberLazyGridState()
-    var draggingItemIndex by remember { mutableStateOf<Int?>(null) }
-    var draggingOffset by remember { mutableStateOf(Offset.Zero) }
-
-    val pointerInputModifier = if (canDrag) {
-        Modifier.pointerInput(items) {
-            detectDragGesturesAfterLongPress(
-                onDragStart = { offset ->
-                    gridState.layoutInfo.visibleItemsInfo
-                        .firstOrNull { offset.y.toInt() in it.offset.y..(it.offset.y + it.size.height) &&
-                                offset.x.toInt() in it.offset.x..(it.offset.x + it.size.width) }
-                        ?.let { draggingItemIndex = it.index }
-                },
-                onDrag = { change, dragAmount ->
-                    change.consume()
-                    draggingOffset += dragAmount
-                    val currentIndex = draggingItemIndex ?: return@detectDragGesturesAfterLongPress
-
-                    gridState.layoutInfo.visibleItemsInfo
-                        .firstOrNull { item ->
-                            val center = Offset(item.offset.x + item.size.width / 2f, item.offset.y + item.size.height / 2f)
-                            (change.position - center).getDistance() < item.size.width / 2f
-                        }?.let { target ->
-                            if (currentIndex != target.index) {
-                                onMove(Pair(currentIndex, target.index))
-                                draggingItemIndex = target.index
-                            }
-                        }
-                },
-                onDragEnd = { draggingItemIndex = null; draggingOffset = Offset.Zero },
-                onDragCancel = { draggingItemIndex = null; draggingOffset = Offset.Zero }
-            )
-        }
-    } else Modifier
-
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 80.dp),
-        state = gridState,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = pointerInputModifier
-    ) {
-        itemsIndexed(items, key = { _, m -> "${m.category}:${m.uri}" }) { index, media ->
-            Box(modifier = Modifier.zIndex(if (draggingItemIndex == index) 1f else 0f)) {
-                itemContent(media)
             }
         }
     }

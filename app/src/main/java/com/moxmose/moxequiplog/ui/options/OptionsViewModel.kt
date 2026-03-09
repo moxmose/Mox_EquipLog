@@ -3,83 +3,58 @@ package com.moxmose.moxequiplog.ui.options
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
-import com.moxmose.moxequiplog.data.MediaRepository
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Media
-import com.moxmose.moxequiplog.data.local.MediaIdentifier
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+
+data class CategoryUiState(
+    val category: Category,
+    val color: String,
+    val defaultIconIdentifier: String?,
+    val defaultPhotoUri: String?
+)
 
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
-    private val mediaRepository: MediaRepository
+    private val imageRepository: ImageRepository
 ) : ViewModel() {
 
     sealed class OptionsUiEvent {
-        // Errori Generici di Repository
         data object DatabaseCheckFailed : OptionsUiEvent()
-
-        // Errori Funzione `setUsername`
         data object UsernameInvalid : OptionsUiEvent()
         data object UpdateUsernameFailed : OptionsUiEvent()
-
-        // Errori Funzione `removeMedia`
-        data object RemoveMediaFailed : OptionsUiEvent()
-
-        // Errori Funzione `updateColor`
+        data object RemoveImageFailed : OptionsUiEvent()
         data object UpdateColorFailed : OptionsUiEvent()
         data object ColorNameInvalid : OptionsUiEvent()
-
-        // Errori Funzione `isPhotoUsed`
         data object PhotoUriInvalid : OptionsUiEvent()
-
-        // Errori Funzione `setCategoryDefault`
         data object SetCategoryDefaultFailed : OptionsUiEvent()
         data object CategoryIdInvalid : OptionsUiEvent()
-        data object NoMediaSelectedForDefault : OptionsUiEvent()
-
-        // Errori Funzione `toggleMediaVisibility`
-        data object ToggleMediaVisibilityFailed : OptionsUiEvent()
-
-        // Errori Funzione `addMedia`
-        data object AddMediaFailed : OptionsUiEvent()
-
-        // Errori Funzione `updateMediaOrder`
-        data object UpdateMediaOrderFailed : OptionsUiEvent()
-
-        // Errori Funzione `updateCategoryColor`
+        data object NoImageSelectedForDefault : OptionsUiEvent()
+        data object ToggleImageVisibilityFailed : OptionsUiEvent()
+        data object AddImageFailed : OptionsUiEvent()
+        data object UpdateImageOrderFailed : OptionsUiEvent()
         data object UpdateCategoryColorFailed : OptionsUiEvent()
         data object ColorHexInvalid : OptionsUiEvent()
-
-        // Errori Funzione `addColor`
-        data object AddColorFailed : OptionsUiEvent()
-
-        // Errori Funzione `updateColorsOrder`
+        data class AddColorFailed(val name: String) : OptionsUiEvent()
         data object UpdateColorsOrderFailed : OptionsUiEvent()
-        data object ColorListInvalid : OptionsUiEvent()
-
-        // Errori Funzione `toggleColorVisibility`
         data object ToggleColorVisibilityFailed : OptionsUiEvent()
         data object ColorIdInvalid : OptionsUiEvent()
-
-        // Errori Funzione `deleteColor`
         data object DeleteColorFailed : OptionsUiEvent()
     }
 
-    private val _uiEvents = Channel<OptionsUiEvent>()
+    private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
     val uiEvents: Flow<OptionsUiEvent> = _uiEvents.receiveAsFlow()
 
     init {
         viewModelScope.launch {
-            mediaRepository.initializeAppData()
+            imageRepository.initializeAppData()
         }
     }
 
@@ -90,21 +65,35 @@ class OptionsViewModel(
             initialValue = ""
         )
 
-    val allMedia: StateFlow<List<Media>> = mediaRepository.allMedia
+    val allImages: StateFlow<List<Image>> = imageRepository.allImages
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    val allCategories: StateFlow<List<Category>> = mediaRepository.allCategories
+    val categoriesUiState: StateFlow<List<CategoryUiState>> = imageRepository.allCategories
+        .flatMapLatest { categories ->
+            if (categories.isEmpty()) return@flatMapLatest flowOf(emptyList<CategoryUiState>())
+            
+            val flows = categories.map { category ->
+                combine(
+                    imageRepository.getCategoryColor(category.id),
+                    imageRepository.getCategoryDefaultIcon(category.id),
+                    imageRepository.getCategoryDefaultPhoto(category.id)
+                ) { color, icon, photo ->
+                    CategoryUiState(category, color ?: "#808080", icon, photo)
+                }
+            }
+            combine(flows) { it.toList() }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
 
-    val allColors: StateFlow<List<AppColor>> = mediaRepository.allColors
+    val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
@@ -113,7 +102,7 @@ class OptionsViewModel(
 
     fun setUsername(newUsername: String) {
         if (newUsername.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.UsernameInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.UsernameInvalid)
             return
         }
         viewModelScope.launch {
@@ -125,79 +114,81 @@ class OptionsViewModel(
         }
     }
 
-    fun setCategoryDefault(categoryId: String, mediaIdentifier: MediaIdentifier?) {
+    fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
         if (categoryId.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.CategoryIdInvalid)
+            return
+        }
+        if (imageIdentifier == null) {
+            _uiEvents.trySend(OptionsUiEvent.NoImageSelectedForDefault)
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.setCategoryDefault(categoryId, mediaIdentifier)
+                imageRepository.setCategoryDefault(categoryId, imageIdentifier)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.SetCategoryDefaultFailed)
             }
         }
     }
 
-    fun toggleMediaVisibility(media: Media) {
+    fun toggleImageVisibility(image: Image) {
         viewModelScope.launch {
             try {
-                mediaRepository.toggleMediaVisibility(media)
+                imageRepository.toggleImageVisibility(image)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.ToggleMediaVisibilityFailed)
+                _uiEvents.send(OptionsUiEvent.ToggleImageVisibilityFailed)
             }
         }
     }
 
-    fun addMedia(mediaIdentifier: MediaIdentifier, category: String) {
+    fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         if (category.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.CategoryIdInvalid)
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.addMedia(mediaIdentifier, category)
+                imageRepository.addImage(imageIdentifier, category)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.AddMediaFailed)
+                _uiEvents.send(OptionsUiEvent.AddImageFailed)
             }
         }
     }
 
-    fun removeMedia(media: Media) {
+    fun removeImage(image: Image) {
         viewModelScope.launch {
             try {
-                mediaRepository.removeMedia(media)
+                imageRepository.removeImage(image)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.RemoveMediaFailed)
+                _uiEvents.send(OptionsUiEvent.RemoveImageFailed)
             }
         }
     }
 
-    fun updateMediaOrder(mediaList: List<Media>) {
-        if (mediaList.isEmpty()) {
-            return // Esegui una no-op efficiente, non è un errore
-        }
+    fun updateImageOrder(imageList: List<Image>) {
+        if (imageList.isEmpty()) return
         viewModelScope.launch {
             try {
-                mediaRepository.updateMediaOrder(mediaList)
+                imageRepository.updateImageOrder(imageList)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.UpdateMediaOrderFailed)
+                _uiEvents.send(OptionsUiEvent.UpdateImageOrderFailed)
             }
         }
     }
 
     fun updateCategoryColor(categoryId: String, colorHex: String) {
         if (categoryId.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.CategoryIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.CategoryIdInvalid)
             return
         }
         if (colorHex.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorHexInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorHexInvalid)
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.updateCategoryColor(categoryId, colorHex)
+                imageRepository.updateCategoryColor(categoryId, colorHex)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateCategoryColorFailed)
             }
@@ -206,30 +197,30 @@ class OptionsViewModel(
 
     fun addColor(hex: String, name: String) {
         if (name.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorNameInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorNameInvalid)
             return
         }
         if (hex.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorHexInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorHexInvalid)
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.addColor(hex, name)
+                imageRepository.addColor(hex, name)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.AddColorFailed)
+                _uiEvents.send(OptionsUiEvent.AddColorFailed(name))
             }
         }
     }
 
     fun updateColor(color: AppColor) {
         if (color.name.isBlank()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorNameInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorNameInvalid)
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.updateColor(color)
+                imageRepository.updateColor(color)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateColorFailed)
             }
@@ -237,13 +228,10 @@ class OptionsViewModel(
     }
 
     fun updateColorsOrder(colors: List<AppColor>) {
-        if (colors.isEmpty()) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorListInvalid) }
-            return
-        }
+        if (colors.isEmpty()) return
         viewModelScope.launch {
             try {
-                mediaRepository.updateColorsOrder(colors)
+                imageRepository.updateColorsOrder(colors)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateColorsOrderFailed)
             }
@@ -252,12 +240,12 @@ class OptionsViewModel(
 
     fun toggleColorVisibility(id: Long) {
         if (id == 0L) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorIdInvalid)
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.toggleColorVisibility(id)
+                imageRepository.toggleColorVisibility(id)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.ToggleColorVisibilityFailed)
             }
@@ -266,12 +254,12 @@ class OptionsViewModel(
 
     fun deleteColor(color: AppColor) {
         if (color.id == 0L) {
-            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.ColorIdInvalid) }
+            _uiEvents.trySend(OptionsUiEvent.ColorIdInvalid)
             return
         }
         viewModelScope.launch {
             try {
-                mediaRepository.deleteColor(color)
+                imageRepository.deleteColor(color)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.DeleteColorFailed)
             }
@@ -280,14 +268,14 @@ class OptionsViewModel(
 
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {
-            _uiEvents.send(OptionsUiEvent.PhotoUriInvalid)
-            return true // Ritorna 'true' per sicurezza, per prevenire eliminazioni
+            _uiEvents.trySend(OptionsUiEvent.PhotoUriInvalid)
+            return true
         }
         return try {
             equipmentDao.countEquipmentsUsingPhoto(uri) > 0
         } catch (e: Exception) {
-            _uiEvents.send(OptionsUiEvent.DatabaseCheckFailed)
-            true // In caso di dubbio/errore, assumi che la foto sia in uso per sicurezza.
+            _uiEvents.trySend(OptionsUiEvent.DatabaseCheckFailed)
+            true
         }
     }
 }

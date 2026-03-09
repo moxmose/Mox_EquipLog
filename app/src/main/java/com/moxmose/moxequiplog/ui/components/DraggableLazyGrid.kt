@@ -1,15 +1,13 @@
 package com.moxmose.moxequiplog.ui.components
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyItemScope
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,30 +23,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.Job
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun <T : Any> DraggableLazyColumn(
-    modifier: Modifier = Modifier,
+fun <T : Any> DraggableLazyGrid(
     items: List<T>,
-    key: (index: Int, item: T) -> Any,
-    onMove: (from: Int, to: Int) -> Unit,
-    onDrop: () -> Unit,
-    itemContent: @Composable LazyItemScope.(index: Int, item: T) -> Unit,
+    onMove: (fromIndex: Int, toIndex: Int) -> Unit,
+    onDrop: () -> Unit = {},
+    modifier: Modifier = Modifier,
+    canDrag: Boolean = true,
+    key: ((index: Int, item: T) -> Any)? = null,
+    gridState: LazyGridState = rememberLazyGridState(),
+    itemContent: @Composable (T) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val lazyListState = rememberLazyListState()
     var overscrollJob by remember { mutableStateOf<Job?>(null) }
-
-    val spacing = 16.dp
+    
+    val spacing = 12.dp
     val spacingPx = with(LocalDensity.current) { spacing.toPx() }
 
     val currentOnMove by rememberUpdatedState(onMove)
     val currentOnDrop by rememberUpdatedState(onDrop)
 
-    val stateHolder = remember(lazyListState) {
+    val stateHolder = remember(gridState) {
         object : DragDropStateHolder {
-            override val lazyListState: LazyListState = lazyListState
-            override val lazyGridState = null
+            override val lazyListState = null
+            override val lazyGridState: LazyGridState = gridState
             override fun onMove(from: Int, to: Int) = currentOnMove(from, to)
             override fun onDrop() = currentOnDrop()
         }
@@ -56,9 +54,10 @@ fun <T : Any> DraggableLazyColumn(
 
     val dragDropState = remember(stateHolder, spacingPx) { DragDropState(stateHolder, spacingPx) }
 
-    LazyColumn(
-        modifier = modifier.pointerInput(Unit) {
+    val pointerInputModifier = if (canDrag) {
+        Modifier.pointerInput(Unit) {
             detectDragGesturesAfterLongPress(
+                onDragStart = { offset -> dragDropState.onDragStart(offset) },
                 onDrag = { change, dragAmount ->
                     change.consume()
                     dragDropState.onDrag(change, dragAmount, scope)
@@ -67,28 +66,33 @@ fun <T : Any> DraggableLazyColumn(
                         overscrollJob = dragDropState.checkForOverscroll(scope, dragAmount)
                     }
                 },
-                onDragStart = { offset -> dragDropState.onDragStart(offset) },
                 onDragEnd = { dragDropState.onDragEnd() },
                 onDragCancel = { dragDropState.onDragEnd() }
             )
-        },
-        state = lazyListState,
-        contentPadding = PaddingValues(8.dp),
-        verticalArrangement = Arrangement.spacedBy(spacing)
+        }
+    } else Modifier
+
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 80.dp),
+        state = gridState,
+        horizontalArrangement = Arrangement.spacedBy(spacing),
+        verticalArrangement = Arrangement.spacedBy(spacing),
+        modifier = modifier.then(pointerInputModifier)
     ) {
         itemsIndexed(items, key = key) { index, item ->
-            val currentKey = key(index, item)
-            val isDragging = dragDropState.isDragging(currentKey)
-            val offsetState by dragDropState.offsetOf(currentKey)
+            val itemKey = key?.invoke(index, item) ?: index
+            val isDragging = dragDropState.isDragging(itemKey)
+            val offsetState by dragDropState.offsetOf(itemKey)
 
             Box(
                 modifier = Modifier
-                    .graphicsLayer { 
-                        translationY = offsetState.y 
-                    }
                     .zIndex(if (isDragging) 1f else 0f)
+                    .graphicsLayer {
+                        translationX = offsetState.x
+                        translationY = offsetState.y
+                    }
             ) {
-                itemContent(index, item)
+                itemContent(item)
             }
         }
     }

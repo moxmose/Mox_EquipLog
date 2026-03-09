@@ -23,4 +23,7 @@ interface OperationTypeDao {
 
     @Query("SELECT * FROM operation_types ORDER BY displayOrder ASC")
     fun getAllOperationTypes(): Flow<List<OperationType>>
+
+    @Query("SELECT COUNT(*) FROM operation_types WHERE photoUri = :uri")
+    suspend fun countOperationTypesUsingPhoto(uri: String): Int
 }

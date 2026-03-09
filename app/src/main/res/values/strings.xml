@@ -18,6 +18,7 @@
 
     <!-- Equipments & Operations -->
     <string name="hold_and_drag_to_reorder">Hold and drag items to change order</string>
+    <string name="set_as_default_instruction">Tap icon to set as default</string>
     <string name="add_equipment">Add Equipment</string>
     <string name="add_operation_type">Add Operation Type</string>
     <string name="hide_dismissed">Hide Dismissed</string>
@@ -74,5 +75,39 @@
     <string name="error_username_invalid">Username cannot be empty.</string>
     <string name="error_update_username_failed">Failed to save username.</string>
     <string name="error_unknown">An unknown error occurred.</string>
-
+    <string name="add_color_failed">Failed to add color %1$s.</string>
+    <string name="remove_image_failed">Failed to remove image.</string>
+    <string name="database_check_failed">Database check failed.</string>
+    <string name="username_invalid">Username cannot be empty.</string>
+    <string name="update_username_failed">Failed to update username.</string>
+    <string name="update_color_failed">Failed to update color.</string>
+    <string name="color_name_invalid">Color name cannot be empty.</string>
+    <string name="photo_uri_invalid">Photo URI is invalid.</string>
+    <string name="set_category_default_failed">Failed to set category default.</string>
+    <string name="category_id_invalid">Category ID is invalid.</string>
+    <string name="no_image_selected">No image selected to be set as default.</string>
+    <string name="toggle_image_visibility_failed">Failed to toggle image visibility.</string>
+    <string name="add_image_failed">Failed to add image.</string>
+    <string name="update_image_order_failed">Failed to update image order.</string>
+    <string name="update_category_color_failed">Failed to update category color.</string>
+    <string name="color_hex_invalid">Color hex is invalid.</string>
+    <string name="update_colors_order_failed">Failed to update colors order.</string>
+    <string name="toggle_color_visibility_failed">Failed to toggle color visibility.</string>
+    <string name="color_id_invalid">Color ID is invalid.</string>
+    <string name="delete_color_failed">Failed to delete color.</string>
+    <string name="description_invalid">Description cannot be empty.</string>
+    <string name="add_equipment_failed">Failed to add equipment.</string>
+    <string name="update_equipment_failed">Failed to update equipment.</string>
+    <string name="update_equipments_failed">Failed to update equipments order.</string>
+    <string name="dismiss_equipment_failed">Failed to dismiss equipment.</string>
+    <string name="restore_equipment_failed">Failed to restore equipment.</string>
+    <string name="add_operation_type_failed">Failed to add operation type.</string>
+    <string name="update_operation_type_failed">Failed to update operation type.</string>
+    <string name="update_operation_types_failed">Failed to update operation types order.</string>
+    <string name="dismiss_operation_type_failed">Failed to dismiss operation type.</string>
+    <string name="restore_operation_type_failed">Failed to restore operation type.</string>
+    <string name="add_log_failed">Failed to add log.</string>
+    <string name="update_log_failed">Failed to update log.</string>
+    <string name="dismiss_log_failed">Failed to dismiss log.</string>
+    <string name="restore_log_failed">Failed to restore log.</string>
 </resources>
