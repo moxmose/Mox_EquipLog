@@ -20,11 +20,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,9 +37,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,18 +63,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppColor
-import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.ui.components.AddColorDialog
 import com.moxmose.moxequiplog.ui.components.ColorItemCard
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
+import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.components.ImageSelector
 import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -82,6 +85,12 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
+    
+    val backgroundUri by viewModel.backgroundUri.collectAsState()
+    val backgroundBlur by viewModel.backgroundBlur.collectAsState()
+    val backgroundSaturation by viewModel.backgroundSaturation.collectAsState()
+    val backgroundTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -108,6 +117,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ToggleColorVisibilityFailed -> context.getString(R.string.toggle_color_visibility_failed)
                 is OptionsViewModel.OptionsUiEvent.ColorIdInvalid -> context.getString(R.string.color_id_invalid)
                 is OptionsViewModel.OptionsUiEvent.DeleteColorFailed -> context.getString(R.string.delete_color_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateBackgroundFailed -> "Update background failed"
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -123,6 +133,10 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         allImages = allImages,
         categoriesUiState = categoriesUiState,
         allColors = allColors,
+        backgroundUri = backgroundUri,
+        backgroundBlur = backgroundBlur,
+        backgroundSaturation = backgroundSaturation,
+        backgroundTintEnabled = backgroundTintEnabled,
         onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
         onAddImage = viewModel::addImage,
@@ -130,6 +144,10 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onUpdateImageOrder = viewModel::updateImageOrder,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         onUpdateCategoryColor = viewModel::updateCategoryColor,
+        onSetBackgroundUri = viewModel::setBackgroundUri,
+        onSetBackgroundBlur = viewModel::setBackgroundBlur,
+        onSetBackgroundSaturation = viewModel::setBackgroundSaturation,
+        onSetBackgroundTintEnabled = viewModel::setBackgroundTintEnabled,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = { showAboutDialog = it },
@@ -145,7 +163,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
 fun OptionsScreenContent(
     modifier: Modifier = Modifier,
@@ -153,6 +171,10 @@ fun OptionsScreenContent(
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
     allColors: List<AppColor>,
+    backgroundUri: String?,
+    backgroundBlur: Float,
+    backgroundSaturation: Float,
+    backgroundTintEnabled: Boolean,
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, ImageIdentifier?) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
@@ -160,6 +182,10 @@ fun OptionsScreenContent(
     onUpdateImageOrder: (List<Image>) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
     onUpdateCategoryColor: (String, String) -> Unit,
+    onSetBackgroundUri: (String?) -> Unit,
+    onSetBackgroundBlur: (Float) -> Unit,
+    onSetBackgroundSaturation: (Float) -> Unit,
+    onSetBackgroundTintEnabled: (Boolean) -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -174,22 +200,40 @@ fun OptionsScreenContent(
     snackbarHostState: SnackbarHostState
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
+    var showBackgroundPicker by remember { mutableStateOf(false) }
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
     val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
 
     if (showAboutDialog) {
-        AlertDialog(
+        BasicAlertDialog(
             onDismissRequest = { onShowAboutDialogChange(false) },
-            title = { Text(stringResource(R.string.about_dialog_title)) },
-            text = { Text(stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME)) },
-            confirmButton = {
-                TextButton(onClick = { onShowAboutDialogChange(false) }) {
-                    Text(stringResource(R.string.button_ok))
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                tonalElevation = 6.dp
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        text = stringResource(R.string.about_dialog_title),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    TextButton(
+                        onClick = { onShowAboutDialogChange(false) },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(stringResource(R.string.button_ok))
+                    }
                 }
             }
-        )
+        }
     }
 
     if (showImageDialog) {
@@ -221,6 +265,35 @@ fun OptionsScreenContent(
         )
     }
 
+    if (showBackgroundPicker) {
+        val allCategories = categoriesUiState.map { it.category }
+        ImagePickerDialog(
+            onDismissRequest = { showBackgroundPicker = false },
+            photoUri = backgroundUri,
+            iconIdentifier = null,
+            onImageSelected = { (_, photoUri) ->
+                if (photoUri != null) {
+                    onSetBackgroundUri(photoUri)
+                }
+                showBackgroundPicker = false
+            },
+            imageLibrary = allImages,
+            categories = allCategories,
+            categoryColors = categoryColorsMap,
+            categoryDefaultIcons = categoryDefaultIconsMap,
+            categoryDefaultPhotos = categoryDefaultPhotosMap,
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> allImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+            onSetDefaultInCategory = null,
+            isPhotoUsed = null,
+            isPrefsMode = false,
+            forcedCategory = null,
+            onlyPhotos = true
+        )
+    }
+
     showColorPicker?.let { categoryId ->
         val categoryUiState = categoriesUiState.find { it.category.id == categoryId }!!
         ColorManagementDialog(
@@ -237,7 +310,8 @@ fun OptionsScreenContent(
 
     Scaffold(
         modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.Transparent
     ) {
         Column(
             modifier = modifier
@@ -291,6 +365,55 @@ fun OptionsScreenContent(
                         )
                     }
                     if (uiState != categoriesUiState.last()) HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                }
+            }
+
+            OptionsSectionCard(
+                title = stringResource(R.string.background_customization),
+                description = "Personalizza lo sfondo dell'app con un'immagine e regola gli effetti."
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showBackgroundPicker = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Image, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.select_background_image))
+                        }
+                        if (backgroundUri != null) {
+                            IconButton(onClick = { onSetBackgroundUri(null) }) {
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear_background), tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+
+                    if (backgroundUri != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Abilita colore sezione", modifier = Modifier.weight(1f))
+                            Switch(checked = backgroundTintEnabled, onCheckedChange = onSetBackgroundTintEnabled)
+                        }
+
+                        Text(stringResource(R.string.blur_radius, backgroundBlur), style = MaterialTheme.typography.labelMedium)
+                        Slider(
+                            value = backgroundBlur,
+                            onValueChange = onSetBackgroundBlur,
+                            valueRange = 0f..25f,
+                            steps = 25
+                        )
+
+                        Text(stringResource(R.string.saturation, backgroundSaturation), style = MaterialTheme.typography.labelMedium)
+                        Slider(
+                            value = backgroundSaturation,
+                            onValueChange = onSetBackgroundSaturation,
+                            valueRange = 0f..2f
+                        )
+                    }
                 }
             }
 
@@ -393,28 +516,33 @@ fun ColorManagementDialog(
         )
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Scaffold(
-            floatingActionButton = {
-                Column(horizontalAlignment = Alignment.End) {
-                    FloatingActionButton(onClick = { showAddColorDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Aggiungi colore")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    FloatingActionButton(
-                        onClick = {
-                            showHidden = !showHidden
-                            scope.launch { lazyListState.animateScrollToItem(0) }
-                        },
-                        containerColor = MaterialTheme.colorScheme.secondary
-                    ) {
-                        Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = "Mostra/Nascondi")
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.padding(16.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp
+        ) {
+            Scaffold(
+                modifier = Modifier.height(500.dp),
+                floatingActionButton = {
+                    Column(horizontalAlignment = Alignment.End) {
+                        FloatingActionButton(onClick = { showAddColorDialog = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Aggiungi colore")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        FloatingActionButton(
+                            onClick = {
+                                showHidden = !showHidden
+                                scope.launch { lazyListState.animateScrollToItem(0) }
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ) {
+                            Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = "Mostra/Nascondi")
+                        }
                     }
                 }
-            }
-        ) { padding ->
-            Surface(modifier = Modifier.padding(padding)) {
-                Column {
+            ) { padding ->
+                Column(Modifier.padding(padding).padding(16.dp)) {
                     Text(
                         text = "Gestione Colori",
                         style = MaterialTheme.typography.headlineSmall,

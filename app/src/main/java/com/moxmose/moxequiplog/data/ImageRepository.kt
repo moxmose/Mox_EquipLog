@@ -39,18 +39,17 @@ class ImageRepository(
             appColorDao.insertAllColors(colorsToInsert)
         }
 
-        // 2. Inizializza Categorie e relative preferenze
-        if (categoryDao.getAllCategories().first().isEmpty()) {
-            val categoriesToInsert = defaultCategories.map { categoryString ->
-                val (id, name, color) = categoryString.split(";")
-                // Salva il colore iniziale come preferenza di default
+        // 2. Inizializza Categorie (aggiunge solo quelle mancanti)
+        val existingCategories = categoryDao.getAllCategories().first().map { it.id }.toSet()
+        defaultCategories.forEach { categoryString ->
+            val (id, name, color) = categoryString.split(";")
+            if (!existingCategories.contains(id)) {
                 appPreferenceDao.insertPreference(AppPreference("default_color_$id", color))
-                Category(id = id, name = name)
+                categoryDao.insertCategory(Category(id = id, name = name))
             }
-            categoryDao.insertAllCategories(categoriesToInsert)
         }
 
-        // 3. Inizializza Icone
+        // 3. Inizializza Icone per ogni categoria esistente
         categoryDao.getAllCategories().first().forEach { category ->
             initializeIconsForCategory(category.id)
         }

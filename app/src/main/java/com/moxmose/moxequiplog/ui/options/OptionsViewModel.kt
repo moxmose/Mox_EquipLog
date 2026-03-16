@@ -9,6 +9,7 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -20,6 +21,7 @@ data class CategoryUiState(
     val defaultPhotoUri: String?
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
@@ -47,6 +49,7 @@ class OptionsViewModel(
         data object ToggleColorVisibilityFailed : OptionsUiEvent()
         data object ColorIdInvalid : OptionsUiEvent()
         data object DeleteColorFailed : OptionsUiEvent()
+        data object UpdateBackgroundFailed : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -99,6 +102,51 @@ class OptionsViewModel(
             started = SharingStarted.WhileSubscribed(5000L),
             initialValue = emptyList()
         )
+
+    val backgroundUri: StateFlow<String?> = appSettingsManager.backgroundUri
+    val backgroundBlur: StateFlow<Float> = appSettingsManager.backgroundBlur
+    val backgroundSaturation: StateFlow<Float> = appSettingsManager.backgroundSaturation
+    val backgroundTintEnabled: StateFlow<Boolean> = appSettingsManager.backgroundTintEnabled
+
+    fun setBackgroundUri(uri: String?) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundUri(uri)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundBlur(blur: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundBlur(blur)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundSaturation(saturation: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundSaturation(saturation)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundTintEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundTintEnabled(enabled)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
 
     fun setUsername(newUsername: String) {
         if (newUsername.isBlank()) {

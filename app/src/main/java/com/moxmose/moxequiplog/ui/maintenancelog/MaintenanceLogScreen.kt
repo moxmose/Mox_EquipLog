@@ -162,6 +162,7 @@ fun MaintenanceLogScreenContent(
     var showSortMenu by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = Color.Transparent, // Rende trasparente lo sfondo
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
@@ -211,7 +212,11 @@ fun MaintenanceLogScreenContent(
                     onValueChange = onSearchQueryChange,
                     label = { Text(stringResource(R.string.search_logs)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_logs)) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                    )
                 )
 
                 Box {
@@ -553,6 +558,9 @@ fun MaintenanceLogCard(
             .graphicsLayer(alpha = cardAlpha)
             .clickable { onExpand() }
             .animateContentSize(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) // Leggera trasparenza
+        )
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {

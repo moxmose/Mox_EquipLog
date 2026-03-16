@@ -181,6 +181,7 @@ fun EquipmentsScreenContent(
 
     Scaffold(
         modifier = modifier,
+        containerColor = Color.Transparent, // Rende trasparente lo sfondo della schermata
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
@@ -530,7 +531,7 @@ fun EquipmentCard(
                     }
                 ),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDefault) equipmentColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
+                containerColor = if (isDefault) equipmentColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) // Leggera trasparenza sulle card
             )
         ) {
             Row(

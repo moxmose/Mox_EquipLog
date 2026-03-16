@@ -92,7 +92,8 @@ class OptionsScreenTest {
         }
 
         composeTestRule.onNodeWithText("Nome Utente").performTextInput(newUsername)
-        composeTestRule.onNodeWithText("Save Username").performClick()
+        // Note: The Done icon is the one that triggers the save
+        composeTestRule.onNodeWithText("Save Username", substring = true, ignoreCase = true).performClick()
 
         assertEquals(newUsername, changedUsername.get())
     }
@@ -129,7 +130,7 @@ class OptionsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Informazioni").performClick()
+        composeTestRule.onNodeWithText("About", ignoreCase = true).performClick()
 
         assertTrue(onShowAboutDialogChangeCalled.get())
     }
