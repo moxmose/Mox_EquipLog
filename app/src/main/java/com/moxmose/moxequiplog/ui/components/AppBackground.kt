@@ -1,6 +1,5 @@
 package com.moxmose.moxequiplog.ui.components
 
-import android.util.Log
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -18,31 +17,47 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import kotlinx.coroutines.delay
+import com.moxmose.moxequiplog.AppDestinations
+import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun AppBackground(
-    backgroundUri: String?,
-    blurRadius: Float,
-    saturation: Float,
-    tintColor: Color? = null
+    currentDestination: AppDestinations,
+    viewModel: OptionsViewModel = koinViewModel()
 ) {
     val context = LocalContext.current
-    var startBlur by remember { mutableStateOf(false) }
     
-    // Animazione fluida del raggio di sfocatura
+    val bgUri by viewModel.backgroundUri.collectAsState()
+    val blurRadius by viewModel.backgroundBlur.collectAsState()
+    val saturation by viewModel.backgroundSaturation.collectAsState()
+    val isTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
+    val categoriesUiState by viewModel.categoriesUiState.collectAsState()
+
+    var isImageReady by remember { mutableStateOf(false) }
+    
     val animatedBlur by animateDpAsState(
-        targetValue = if (startBlur) blurRadius.dp else 0.dp,
-        animationSpec = tween(durationMillis = 1000), // 1 secondo di transizione
+        targetValue = if (isImageReady) blurRadius.dp else 0.dp,
+        animationSpec = tween(durationMillis = 1000),
         label = "BackgroundBlurAnimation"
     )
 
-    // Logica di attivazione: aspetta che l'immagine sia "calda"
-    LaunchedEffect(backgroundUri) {
-        startBlur = false
-        if (!backgroundUri.isNullOrBlank()) {
-            delay(500) // Mezzo secondo di immagine nitida per stabilizzare il rendering
-            startBlur = true
+    LaunchedEffect(bgUri) {
+        isImageReady = false
+    }
+
+    val currentSectionColor = remember(currentDestination, categoriesUiState, isTintEnabled) {
+        if (!isTintEnabled) null
+        else {
+            val categoryId = when (currentDestination) {
+                AppDestinations.LOGS -> "LOG"
+                AppDestinations.EQUIPMENTS -> "EQUIPMENT"
+                AppDestinations.OPERATIONS -> "OPERATION"
+                else -> null
+            }
+            categoriesUiState.find { it.category.id == categoryId }?.color?.let {
+                try { Color(android.graphics.Color.parseColor(it)) } catch (_: Exception) { null }
+            }
         }
     }
 
@@ -51,28 +66,26 @@ fun AppBackground(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        if (!backgroundUri.isNullOrBlank()) {
+        if (!bgUri.isNullOrBlank()) {
             val matrix = ColorMatrix().apply { setToSaturation(saturation) }
             
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(backgroundUri)
-                    .allowHardware(false) // NECESSARIO per i filtri grafici su molti dispositivi
+                    .data(bgUri)
+                    .allowHardware(false) // Fondamentale per i filtri grafici in Compose
                     .crossfade(true)
                     .build(),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(radius = animatedBlur), // Applichiamo il raggio animato
+                    .blur(radius = animatedBlur),
                 contentScale = ContentScale.Crop,
                 colorFilter = ColorFilter.colorMatrix(matrix),
-                onSuccess = { Log.d("AppBackground", "Render Success") },
-                onError = { Log.e("AppBackground", "Render Error: ${it.result.throwable}") }
+                onSuccess = { isImageReady = true }
             )
         }
         
-        // Tint overlay
-        tintColor?.let {
+        currentSectionColor?.let {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
