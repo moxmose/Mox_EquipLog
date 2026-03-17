@@ -64,14 +64,14 @@ class OptionsViewModel(
     val username: StateFlow<String> = appSettingsManager.username
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.Eagerly,
             initialValue = ""
         )
 
     val allImages: StateFlow<List<Image>> = imageRepository.allImages
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList()
         )
 
@@ -92,14 +92,14 @@ class OptionsViewModel(
         }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList()
         )
 
     val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.Eagerly,
             initialValue = emptyList()
         )
 
@@ -107,6 +107,7 @@ class OptionsViewModel(
     val backgroundBlur: StateFlow<Float> = appSettingsManager.backgroundBlur
     val backgroundSaturation: StateFlow<Float> = appSettingsManager.backgroundSaturation
     val backgroundTintEnabled: StateFlow<Boolean> = appSettingsManager.backgroundTintEnabled
+    val backgroundTintAlpha: StateFlow<Float> = appSettingsManager.backgroundTintAlpha
 
     fun setBackgroundUri(uri: String?) {
         viewModelScope.launch {
@@ -142,6 +143,16 @@ class OptionsViewModel(
         viewModelScope.launch {
             try {
                 appSettingsManager.setBackgroundTintEnabled(enabled)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundTintAlpha(alpha: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundTintAlpha(alpha)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
             }

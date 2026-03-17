@@ -531,7 +531,7 @@ fun EquipmentCard(
                     }
                 ),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDefault) equipmentColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) // Leggera trasparenza sulle card
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f) // Più opaco per leggibilità
             )
         ) {
             Row(

@@ -32,6 +32,7 @@ fun AppBackground(
     val blurRadius by viewModel.backgroundBlur.collectAsState()
     val saturation by viewModel.backgroundSaturation.collectAsState()
     val isTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
+    val tintAlpha by viewModel.backgroundTintAlpha.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
 
     var isImageReady by remember { mutableStateOf(false) }
@@ -72,7 +73,7 @@ fun AppBackground(
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(bgUri)
-                    .allowHardware(false) // Fondamentale per i filtri grafici in Compose
+                    .allowHardware(false) 
                     .crossfade(true)
                     .build(),
                 contentDescription = null,
@@ -89,7 +90,7 @@ fun AppBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(it.copy(alpha = 0.25f))
+                    .background(it.copy(alpha = tintAlpha)) // Usa il valore dinamico dello slider
             )
         }
     }

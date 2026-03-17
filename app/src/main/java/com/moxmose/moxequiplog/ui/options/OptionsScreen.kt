@@ -90,6 +90,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val backgroundBlur by viewModel.backgroundBlur.collectAsState()
     val backgroundSaturation by viewModel.backgroundSaturation.collectAsState()
     val backgroundTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
+    val backgroundTintAlpha by viewModel.backgroundTintAlpha.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -137,6 +138,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         backgroundBlur = backgroundBlur,
         backgroundSaturation = backgroundSaturation,
         backgroundTintEnabled = backgroundTintEnabled,
+        backgroundTintAlpha = backgroundTintAlpha,
         onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
         onAddImage = viewModel::addImage,
@@ -148,6 +150,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetBackgroundBlur = viewModel::setBackgroundBlur,
         onSetBackgroundSaturation = viewModel::setBackgroundSaturation,
         onSetBackgroundTintEnabled = viewModel::setBackgroundTintEnabled,
+        onSetBackgroundTintAlpha = viewModel::setBackgroundTintAlpha,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = { showAboutDialog = it },
@@ -175,6 +178,7 @@ fun OptionsScreenContent(
     backgroundBlur: Float,
     backgroundSaturation: Float,
     backgroundTintEnabled: Boolean,
+    backgroundTintAlpha: Float,
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, ImageIdentifier?) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
@@ -186,6 +190,7 @@ fun OptionsScreenContent(
     onSetBackgroundBlur: (Float) -> Unit,
     onSetBackgroundSaturation: (Float) -> Unit,
     onSetBackgroundTintEnabled: (Boolean) -> Unit,
+    onSetBackgroundTintAlpha: (Float) -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -351,21 +356,30 @@ fun OptionsScreenContent(
                 title = "Sezioni e Colori",
                 description = "Personalizza i colori identificativi per ogni sezione dell'app."
             ) {
-                categoriesUiState.sortedBy { it.category.name }.forEach { uiState ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        Spacer(Modifier.width(12.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(android.graphics.Color.parseColor(uiState.color)))
-                                .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                .clickable { onShowColorPickerChange(uiState.category.id) }
-                        )
+                // Ordine personalizzato per rispecchiare le tab: Logs, Equipments, Operations
+                val sectionOrder = listOf("LOG", "EQUIPMENT", "OPERATION")
+                categoriesUiState
+                    .sortedBy { uiState -> 
+                        val index = sectionOrder.indexOf(uiState.category.id)
+                        if (index != -1) index else Int.MAX_VALUE
                     }
-                    if (uiState != categoriesUiState.last()) HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                }
+                    .forEach { uiState ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                            Spacer(Modifier.width(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(android.graphics.Color.parseColor(uiState.color)))
+                                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                    .clickable { onShowColorPickerChange(uiState.category.id) }
+                            )
+                        }
+                    }
             }
 
             OptionsSectionCard(
@@ -373,6 +387,24 @@ fun OptionsScreenContent(
                 description = "Personalizza lo sfondo dell'app con un'immagine e regola gli effetti."
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Controlli del TINT (Sempre visibili o condizionati dallo Switch)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Abilita colore sezione", modifier = Modifier.weight(1f))
+                        Switch(checked = backgroundTintEnabled, onCheckedChange = onSetBackgroundTintEnabled)
+                    }
+
+                    if (backgroundTintEnabled) {
+                        Text("Intensità colore sezione: ${(backgroundTintAlpha * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                        Slider(
+                            value = backgroundTintAlpha,
+                            onValueChange = onSetBackgroundTintAlpha,
+                            valueRange = 0f..1f
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Controlli dell'IMMAGINE
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -394,11 +426,6 @@ fun OptionsScreenContent(
                     }
 
                     if (backgroundUri != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Abilita colore sezione", modifier = Modifier.weight(1f))
-                            Switch(checked = backgroundTintEnabled, onCheckedChange = onSetBackgroundTintEnabled)
-                        }
-
                         Text(stringResource(R.string.blur_radius, backgroundBlur), style = MaterialTheme.typography.labelMedium)
                         Slider(
                             value = backgroundBlur,

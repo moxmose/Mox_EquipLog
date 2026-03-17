@@ -530,7 +530,7 @@ fun OperationTypeCard(
                     }
                 ),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDefault) operationColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) // Leggera trasparenza
+                containerColor = if (isDefault) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
             )
         ) {
             Row(

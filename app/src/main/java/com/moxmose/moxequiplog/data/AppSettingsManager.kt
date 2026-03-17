@@ -43,6 +43,10 @@ class AppSettingsManager(
         .map { it?.toBoolean() ?: false }
         .stateIn(coroutineScope, SharingStarted.Eagerly, false)
 
+    val backgroundTintAlpha: StateFlow<Float> = appPreferenceDao.getPreferenceFlow("background_tint_alpha")
+        .map { it?.toFloatOrNull() ?: 0.25f }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, 0.25f)
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -81,5 +85,9 @@ class AppSettingsManager(
 
     suspend fun setBackgroundTintEnabled(enabled: Boolean) {
         appPreferenceDao.insertPreference(AppPreference("background_tint_enabled", enabled.toString()))
+    }
+
+    suspend fun setBackgroundTintAlpha(alpha: Float) {
+        appPreferenceDao.insertPreference(AppPreference("background_tint_alpha", alpha.toString()))
     }
 }
