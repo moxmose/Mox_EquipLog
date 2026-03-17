@@ -1,6 +1,7 @@
 package com.moxmose.moxequiplog
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +34,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.lifecycleScope
+import com.moxmose.moxequiplog.data.AppSettingsManager
+import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.ui.components.AppBackground
 import com.moxmose.moxequiplog.ui.equipments.EquipmentsScreen
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogScreen
@@ -39,37 +44,50 @@ import com.moxmose.moxequiplog.ui.operations.OperationTypeScreen
 import com.moxmose.moxequiplog.ui.options.OptionsScreen
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import com.moxmose.moxequiplog.ui.theme.MoxEquipLogTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
+    private val imageRepository: ImageRepository by inject()
+    private val appSettingsManager: AppSettingsManager by inject()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        lifecycleScope.launch {
+            imageRepository.initializeAppData()
+        }
+
         enableEdgeToEdge()
         setContent {
             MoxEquipLogTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MoxEquipLogApp()
-                }
+                MoxEquipLogApp(appSettingsManager)
             }
         }
     }
 }
 
 @Composable
-fun MoxEquipLogApp(optionsViewModel: OptionsViewModel = koinViewModel()) {
+fun MoxEquipLogApp(
+    appSettingsManager: AppSettingsManager,
+    optionsViewModel: OptionsViewModel = koinViewModel()
+) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.LOGS) }
     
-    // Background parameters
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
-    val isTintEnabled by optionsViewModel.backgroundTintEnabled.collectAsState()
-    val backgroundUri by optionsViewModel.backgroundUri.collectAsState()
-    val backgroundBlur by optionsViewModel.backgroundBlur.collectAsState()
-    val backgroundSaturation by optionsViewModel.backgroundSaturation.collectAsState()
+    val isTintEnabled by appSettingsManager.backgroundTintEnabled.collectAsState()
+    val bgUri by appSettingsManager.backgroundUri.collectAsState()
+    val bgBlur by appSettingsManager.backgroundBlur.collectAsState()
+    val bgSaturation by appSettingsManager.backgroundSaturation.collectAsState()
 
-    // Determine the tint color based on the current section
+    // TEST REFRESH LOG: Stampa lo stato dopo 5 secondi per vedere se Room si è svegliata
+    LaunchedEffect(Unit) {
+        delay(5000)
+        Log.d("AppBackground", "5s Heartbeat - URI in Manager: $bgUri")
+    }
+
     val currentSectionColor = remember(currentDestination, categoriesUiState, isTintEnabled) {
         if (!isTintEnabled) null
         else {
@@ -86,11 +104,10 @@ fun MoxEquipLogApp(optionsViewModel: OptionsViewModel = koinViewModel()) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Correct Background layer with all parameters
         AppBackground(
-            backgroundUri = backgroundUri,
-            blurRadius = backgroundBlur,
-            saturation = backgroundSaturation,
+            backgroundUri = bgUri,
+            blurRadius = bgBlur,
+            saturation = bgSaturation,
             tintColor = currentSectionColor
         )
         
@@ -100,19 +117,8 @@ fun MoxEquipLogApp(optionsViewModel: OptionsViewModel = koinViewModel()) {
             navigationSuiteItems = {
                 AppDestinations.entries.forEach {
                     item(
-                        icon = {
-                            Icon(
-                                it.icon,
-                                contentDescription = stringResource(it.labelRes)
-                            )
-                        },
-                        label = { 
-                            Text(
-                                text = stringResource(it.labelRes),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            ) 
-                        },
+                        icon = { Icon(it.icon, contentDescription = stringResource(it.labelRes)) },
+                        label = { Text(text = stringResource(it.labelRes), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         selected = it == currentDestination,
                         onClick = { if (it.enabled) currentDestination = it },
                         enabled = it.enabled,
@@ -121,21 +127,16 @@ fun MoxEquipLogApp(optionsViewModel: OptionsViewModel = koinViewModel()) {
                 }
             }
         ) { 
-            Scaffold(
+            Surface(
                 modifier = Modifier.fillMaxSize(),
-                containerColor = Color.Transparent
-            ) { innerPadding ->
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = Color.Transparent
-                ) {
-                    when (currentDestination) {
-                        AppDestinations.LOGS -> MaintenanceLogScreen()
-                        AppDestinations.EQUIPMENTS -> EquipmentsScreen()
-                        AppDestinations.OPERATIONS -> OperationTypeScreen()
-                        AppDestinations.REPORTS -> Greeting(name = "Reports", modifier = Modifier.padding(innerPadding))
-                        AppDestinations.OPTIONS -> OptionsScreen(modifier = Modifier.padding(innerPadding))
-                    }
+                color = Color.Transparent
+            ) {
+                when (currentDestination) {
+                    AppDestinations.LOGS -> MaintenanceLogScreen()
+                    AppDestinations.EQUIPMENTS -> EquipmentsScreen()
+                    AppDestinations.OPERATIONS -> OperationTypeScreen()
+                    AppDestinations.REPORTS -> Greeting(name = "Reports")
+                    AppDestinations.OPTIONS -> OptionsScreen()
                 }
             }
         }
@@ -156,8 +157,5 @@ enum class AppDestinations(
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+    Text(text = "Hello $name!", modifier = modifier)
 }

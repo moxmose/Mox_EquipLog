@@ -449,7 +449,8 @@ fun OptionsScreenContent(
                                         categoryColors = categoryColorsMap,
                                         categoryDefaultIcons = categoryDefaultIconsMap,
                                         categoryDefaultPhotos = categoryDefaultPhotosMap,
-                                        imageLibrary = allImages
+                                        imageLibrary = allImages,
+                                        forcedCategory = "EQUIPMENT"
                                     )
                                 }
                             }

@@ -162,7 +162,7 @@ fun MaintenanceLogScreenContent(
     var showSortMenu by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = Color.Transparent, // Rende trasparente lo sfondo
+        containerColor = Color.Transparent, // RENDI TRASPARENTE
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
