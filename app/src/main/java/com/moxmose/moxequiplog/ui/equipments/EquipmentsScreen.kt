@@ -184,6 +184,7 @@ fun EquipmentsScreenContent(
         containerColor = Color.Transparent, // Rende trasparente lo sfondo della schermata
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
+            val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             Column(horizontalAlignment = Alignment.End) {
                 FloatingActionButton(onClick = { onShowAddDialogChange(true) }) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_equipment))
@@ -326,7 +327,7 @@ fun AddEquipmentDialog(
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
-            forcedCategory = "EQUIPMENT"
+            forcedCategory = Category.EQUIPMENT
         )
     }
 
@@ -492,7 +493,7 @@ fun EquipmentCard(
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
-            forcedCategory = "EQUIPMENT"
+            forcedCategory = Category.EQUIPMENT
         )
     }
 

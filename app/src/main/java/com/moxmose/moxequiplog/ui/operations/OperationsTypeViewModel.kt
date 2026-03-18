@@ -52,7 +52,7 @@ class OperationsTypeViewModel(
             initialValue = emptyList()
         )
 
-    val operationTypeImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory("OPERATION")
+    val operationTypeImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory(Category.OPERATION)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
@@ -105,8 +105,8 @@ class OperationsTypeViewModel(
                     is ImageIdentifier.Icon -> operationIconIdentifier = imageIdentifier.name
                     is ImageIdentifier.Photo -> operationPhotoUri = imageIdentifier.uri
                     null -> {
-                        operationPhotoUri = imageRepository.getCategoryDefaultPhoto("OPERATION").firstOrNull()
-                        operationIconIdentifier = imageRepository.getCategoryDefaultIcon("OPERATION").firstOrNull()
+                        operationPhotoUri = imageRepository.getCategoryDefaultPhoto(Category.OPERATION).firstOrNull()
+                        operationIconIdentifier = imageRepository.getCategoryDefaultIcon(Category.OPERATION).firstOrNull()
                     }
                 }
 

@@ -52,7 +52,7 @@ class EquipmentsViewModel(
             initialValue = emptyList()
         )
 
-    val equipmentImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory("EQUIPMENT")
+    val equipmentImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory(Category.EQUIPMENT)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000L),
@@ -66,14 +66,14 @@ class EquipmentsViewModel(
             initialValue = emptyList()
         )
 
-    val categoryColor: StateFlow<String> = imageRepository.getCategoryColor("EQUIPMENT")
+    val categoryColor: StateFlow<String> = imageRepository.getCategoryColor(Category.EQUIPMENT)
         .map { it ?: "#808080" }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "#808080")
 
-    val categoryDefaultIcon: StateFlow<String?> = imageRepository.getCategoryDefaultIcon("EQUIPMENT")
+    val categoryDefaultIcon: StateFlow<String?> = imageRepository.getCategoryDefaultIcon(Category.EQUIPMENT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
-    val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto("EQUIPMENT")
+    val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto(Category.EQUIPMENT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
@@ -96,7 +96,6 @@ class EquipmentsViewModel(
                 if (currentDefault == id) {
                     appSettingsManager.setDefaultEquipmentId(null)
                 } else {
-                    appSettingsManager.setDefaultOperationTypeId(id) // Fix potential typo if needed, but keeping logic consistent
                     appSettingsManager.setDefaultEquipmentId(id)
                 }
             } catch (e: Exception) {

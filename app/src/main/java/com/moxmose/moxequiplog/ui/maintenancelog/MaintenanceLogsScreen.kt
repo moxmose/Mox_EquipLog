@@ -66,8 +66,8 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     
-    val equipmentColor by viewModel.getCategoryColor("EQUIPMENT").collectAsState(initial = "#808080")
-    val operationColor by viewModel.getCategoryColor("OPERATION").collectAsState(initial = "#808080")
+    val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = "#808080")
+    val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = "#808080")
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -347,7 +347,7 @@ fun MaintenanceLogDialog(
                                 photoUri = selectedEquipment?.photoUri,
                                 iconIdentifier = selectedEquipment?.iconIdentifier,
                                 modifier = Modifier.size(24.dp),
-                                category = "EQUIPMENT",
+                                category = Category.EQUIPMENT,
                                 borderColor = eColor,
                                 contentPadding = 2.dp
                             )
@@ -369,7 +369,7 @@ fun MaintenanceLogDialog(
                                         photoUri = equipment.photoUri,
                                         iconIdentifier = equipment.iconIdentifier,
                                         modifier = Modifier.size(24.dp),
-                                        category = "EQUIPMENT",
+                                        category = Category.EQUIPMENT,
                                         borderColor = eColor,
                                         contentPadding = 2.dp
                                     )
@@ -396,7 +396,7 @@ fun MaintenanceLogDialog(
                                 photoUri = selectedOperationType?.photoUri,
                                 iconIdentifier = selectedOperationType?.iconIdentifier,
                                 modifier = Modifier.size(24.dp),
-                                category = "OPERATION",
+                                category = Category.OPERATION,
                                 borderColor = oColor,
                                 contentPadding = 2.dp
                             )
@@ -418,7 +418,7 @@ fun MaintenanceLogDialog(
                                         photoUri = operation.photoUri,
                                         iconIdentifier = operation.iconIdentifier,
                                         modifier = Modifier.size(24.dp),
-                                        category = "OPERATION",
+                                        category = Category.OPERATION,
                                         borderColor = oColor,
                                         contentPadding = 2.dp
                                     )
@@ -576,7 +576,7 @@ fun MaintenanceLogCard(
                                     photoUri = selectedEquipment?.photoUri,
                                     iconIdentifier = selectedEquipment?.iconIdentifier,
                                     modifier = Modifier.size(24.dp),
-                                    category = "EQUIPMENT",
+                                    category = Category.EQUIPMENT,
                                     borderColor = eColor,
                                     contentPadding = 2.dp
                                 )
@@ -598,7 +598,7 @@ fun MaintenanceLogCard(
                                             photoUri = equipment.photoUri,
                                             iconIdentifier = equipment.iconIdentifier,
                                             modifier = Modifier.size(24.dp),
-                                            category = "EQUIPMENT",
+                                            category = Category.EQUIPMENT,
                                             borderColor = eColor,
                                             contentPadding = 2.dp
                                         )
@@ -625,7 +625,7 @@ fun MaintenanceLogCard(
                                     photoUri = selectedOperationType?.photoUri,
                                     iconIdentifier = selectedOperationType?.iconIdentifier,
                                     modifier = Modifier.size(24.dp),
-                                    category = "OPERATION",
+                                    category = Category.OPERATION,
                                     borderColor = oColor,
                                     contentPadding = 2.dp
                                 )
@@ -647,7 +647,7 @@ fun MaintenanceLogCard(
                                             photoUri = operation.photoUri,
                                             iconIdentifier = operation.iconIdentifier,
                                             modifier = Modifier.size(24.dp),
-                                            category = "OPERATION",
+                                            category = Category.OPERATION,
                                             borderColor = oColor,
                                             contentPadding = 2.dp
                                         )
@@ -684,7 +684,7 @@ fun MaintenanceLogCard(
                             photoUri = logDetail.equipmentPhotoUri,
                             iconIdentifier = logDetail.equipmentIconIdentifier,
                             modifier = Modifier.size(24.dp).graphicsLayer(alpha = equipmentTextAlpha),
-                            category = "EQUIPMENT",
+                            category = Category.EQUIPMENT,
                             borderColor = eColor,
                             contentPadding = 2.dp
                         )
@@ -703,7 +703,7 @@ fun MaintenanceLogCard(
                             photoUri = logDetail.operationTypePhotoUri,
                             iconIdentifier = logDetail.operationTypeIconIdentifier,
                             modifier = Modifier.size(24.dp).graphicsLayer(alpha = operationTypeAlpha),
-                            category = "OPERATION",
+                            category = Category.OPERATION,
                             borderColor = oColor,
                             contentPadding = 2.dp
                         )

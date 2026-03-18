@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.AppDestinations
+import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -53,9 +54,9 @@ fun AppBackground(
         if (!isTintEnabled) null
         else {
             val categoryId = when (currentDestination) {
-                AppDestinations.LOGS -> "LOG"
-                AppDestinations.EQUIPMENTS -> "EQUIPMENT"
-                AppDestinations.OPERATIONS -> "OPERATION"
+                AppDestinations.LOGS -> Category.LOGS
+                AppDestinations.EQUIPMENTS -> Category.EQUIPMENT
+                AppDestinations.OPERATIONS -> Category.OPERATION
                 else -> null
             }
             categoriesUiState.find { it.category.id == categoryId }?.color?.let {

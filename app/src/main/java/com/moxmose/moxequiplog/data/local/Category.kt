@@ -8,4 +8,10 @@ data class Category(
     @PrimaryKey
     val id: String, // "EQUIPMENT", "OPERATION", etc.
     val name: String
-)
+) {
+    companion object {
+        const val LOGS = "LOG"
+        const val EQUIPMENT = "EQUIPMENT"
+        const val OPERATION = "OPERATION"
+    }
+}

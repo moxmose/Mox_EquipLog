@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppColor
+import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.ui.components.AddColorDialog
@@ -361,7 +362,7 @@ fun OptionsScreenContent(
                 title = "Sezioni e Colori",
                 description = "Personalizza i colori identificativi per ogni sezione dell'app."
             ) {
-                val sectionOrder = listOf("LOG", "EQUIPMENT", "OPERATION")
+                val sectionOrder = listOf(Category.LOGS, Category.EQUIPMENT, Category.OPERATION)
                 categoriesUiState
                     .sortedBy { uiState -> 
                         val index = sectionOrder.indexOf(uiState.category.id)
@@ -491,7 +492,7 @@ fun OptionsScreenContent(
                                         categoryDefaultIcons = categoryDefaultIconsMap,
                                         categoryDefaultPhotos = categoryDefaultPhotosMap,
                                         imageLibrary = allImages,
-                                        forcedCategory = "EQUIPMENT"
+                                        forcedCategory = Category.EQUIPMENT
                                     )
                                 }
                             }
@@ -583,8 +584,8 @@ fun ColorManagementDialog(
                         }
                     }
                 }
-            ) { padding ->
-                Column(Modifier.padding(padding).padding(16.dp)) {
+            ) { paddingValues ->
+                Column(Modifier.padding(paddingValues).padding(16.dp)) {
                     Text(
                         text = "Gestione Colori",
                         style = MaterialTheme.typography.headlineSmall,
