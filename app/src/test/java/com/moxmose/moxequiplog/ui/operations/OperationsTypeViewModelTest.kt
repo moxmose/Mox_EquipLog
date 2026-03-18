@@ -4,7 +4,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
@@ -16,7 +15,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -33,13 +31,12 @@ import org.junit.runner.RunWith
 import org.koin.core.context.stopKoin
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest=Config.NONE)
-class OperationTypeViewModelTest {
+class OperationsTypeViewModelTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
@@ -48,7 +45,7 @@ class OperationTypeViewModelTest {
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
-    private lateinit var viewModel: OperationTypeViewModel
+    private lateinit var viewModel: OperationsTypeViewModel
 
     private val activeOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
     private val allOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
@@ -72,7 +69,7 @@ class OperationTypeViewModelTest {
         appSettingsManager = mockk(relaxed = true) {
             every { defaultOperationTypeId } returns defaultOpIdFlow
         }
-        viewModel = OperationTypeViewModel(operationTypeDao, imageRepository, appSettingsManager)
+        viewModel = OperationsTypeViewModel(operationTypeDao, imageRepository, appSettingsManager)
     }
 
     @After
@@ -132,28 +129,28 @@ class OperationTypeViewModelTest {
 
         viewModel.uiEvents.test {
             viewModel.updateOperationType(op)
-            assertEquals(OperationTypeViewModel.UiEvent.UpdateOperationTypeFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.UpdateOperationTypeFailed, awaitItem())
 
             viewModel.updateOperationTypes(listOf(op))
-            assertEquals(OperationTypeViewModel.UiEvent.UpdateOperationTypesFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.UpdateOperationTypesFailed, awaitItem())
 
             viewModel.dismissOperationType(op)
-            assertEquals(OperationTypeViewModel.UiEvent.DismissOperationTypeFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.DismissOperationTypeFailed, awaitItem())
 
             viewModel.restoreOperationType(op)
-            assertEquals(OperationTypeViewModel.UiEvent.RestoreOperationTypeFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.RestoreOperationTypeFailed, awaitItem())
 
             viewModel.addImage(mockk(), "cat")
-            assertEquals(OperationTypeViewModel.UiEvent.AddImageFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.AddImageFailed, awaitItem())
 
             viewModel.removeImage(img)
-            assertEquals(OperationTypeViewModel.UiEvent.RemoveImageFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.RemoveImageFailed, awaitItem())
 
             viewModel.updateImageOrder(listOf(img))
-            assertEquals(OperationTypeViewModel.UiEvent.UpdateImageOrderFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.UpdateImageOrderFailed, awaitItem())
 
             viewModel.toggleImageVisibility(img)
-            assertEquals(OperationTypeViewModel.UiEvent.ToggleImageVisibilityFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.ToggleImageVisibilityFailed, awaitItem())
         }
     }
 
@@ -162,7 +159,7 @@ class OperationTypeViewModelTest {
         launch {
             viewModel.uiEvents.test {
                 assertTrue(viewModel.isPhotoUsed(" "))
-                assertEquals(OperationTypeViewModel.UiEvent.PhotoUriInvalid, awaitItem())
+                assertEquals(OperationsTypeViewModel.UiEvent.PhotoUriInvalid, awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -175,7 +172,7 @@ class OperationTypeViewModelTest {
             viewModel.uiEvents.test {
                 coEvery { operationTypeDao.countOperationTypesUsingPhoto("err") } throws RuntimeException()
                 assertTrue(viewModel.isPhotoUsed("err"))
-                assertEquals(OperationTypeViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
+                assertEquals(OperationsTypeViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
         }

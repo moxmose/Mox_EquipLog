@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
@@ -77,7 +75,7 @@ import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
+fun OperationTypeScreen(viewModel: OperationsTypeViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
     val activeOperationTypes by viewModel.activeOperationTypes.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val operationTypeImages by viewModel.operationTypeImages.collectAsState()
@@ -99,19 +97,19 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel(), opt
     LaunchedEffect(key1 = true) {
         viewModel.uiEvents.collectLatest { event ->
             val message = when(event) {
-                is OperationTypeViewModel.UiEvent.DescriptionInvalid -> context.getString(R.string.description_invalid)
-                is OperationTypeViewModel.UiEvent.AddOperationTypeFailed -> context.getString(R.string.add_operation_type_failed)
-                is OperationTypeViewModel.UiEvent.UpdateOperationTypeFailed -> context.getString(R.string.update_operation_type_failed)
-                is OperationTypeViewModel.UiEvent.UpdateOperationTypesFailed -> context.getString(R.string.update_operation_types_failed)
-                is OperationTypeViewModel.UiEvent.DismissOperationTypeFailed -> context.getString(R.string.dismiss_operation_type_failed)
-                is OperationTypeViewModel.UiEvent.RestoreOperationTypeFailed -> context.getString(R.string.restore_operation_type_failed)
-                is OperationTypeViewModel.UiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
-                is OperationTypeViewModel.UiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
-                is OperationTypeViewModel.UiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
-                is OperationTypeViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
-                is OperationTypeViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
-                is OperationTypeViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
-                is OperationTypeViewModel.UiEvent.SetDefaultFailed -> context.getString(R.string.error_unknown)
+                is OperationsTypeViewModel.UiEvent.DescriptionInvalid -> context.getString(R.string.description_invalid)
+                is OperationsTypeViewModel.UiEvent.AddOperationTypeFailed -> context.getString(R.string.add_operation_type_failed)
+                is OperationsTypeViewModel.UiEvent.UpdateOperationTypeFailed -> context.getString(R.string.update_operation_type_failed)
+                is OperationsTypeViewModel.UiEvent.UpdateOperationTypesFailed -> context.getString(R.string.update_operation_types_failed)
+                is OperationsTypeViewModel.UiEvent.DismissOperationTypeFailed -> context.getString(R.string.dismiss_operation_type_failed)
+                is OperationsTypeViewModel.UiEvent.RestoreOperationTypeFailed -> context.getString(R.string.restore_operation_type_failed)
+                is OperationsTypeViewModel.UiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
+                is OperationsTypeViewModel.UiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
+                is OperationsTypeViewModel.UiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
+                is OperationsTypeViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
+                is OperationsTypeViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
+                is OperationsTypeViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
+                is OperationsTypeViewModel.UiEvent.SetDefaultFailed -> context.getString(R.string.error_unknown)
             }
             snackbarHostState.showSnackbar(message)
         }

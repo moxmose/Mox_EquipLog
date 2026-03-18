@@ -13,7 +13,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class OperationTypeViewModel(
+class OperationsTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager
