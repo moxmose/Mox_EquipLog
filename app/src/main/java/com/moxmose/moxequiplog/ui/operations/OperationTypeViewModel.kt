@@ -67,6 +67,7 @@ class OperationTypeViewModel(
         )
 
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
     fun getCategoryDefaultIcon(categoryId: String): Flow<String?> = imageRepository.getCategoryDefaultIcon(categoryId)

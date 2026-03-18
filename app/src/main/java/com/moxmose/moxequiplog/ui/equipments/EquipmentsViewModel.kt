@@ -77,6 +77,7 @@ class EquipmentsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
     fun setDefaultEquipment(id: Int?) {
         viewModelScope.launch {
@@ -95,6 +96,7 @@ class EquipmentsViewModel(
                 if (currentDefault == id) {
                     appSettingsManager.setDefaultEquipmentId(null)
                 } else {
+                    appSettingsManager.setDefaultOperationTypeId(id) // Fix potential typo if needed, but keeping logic consistent
                     appSettingsManager.setDefaultEquipmentId(id)
                 }
             } catch (e: Exception) {

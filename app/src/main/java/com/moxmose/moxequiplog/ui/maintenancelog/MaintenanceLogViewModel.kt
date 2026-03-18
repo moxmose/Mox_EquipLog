@@ -13,15 +13,7 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 enum class SortProperty {
@@ -49,7 +41,7 @@ class MaintenanceLogViewModel(
         data object RestoreLogFailed : UiEvent()
     }
 
-    private val _uiEvents = Channel<UiEvent>()
+    private val _uiEvents = Channel<UiEvent>(Channel.BUFFERED)
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     private val _searchQuery = MutableStateFlow("")
@@ -85,7 +77,10 @@ class MaintenanceLogViewModel(
         )
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+        
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 

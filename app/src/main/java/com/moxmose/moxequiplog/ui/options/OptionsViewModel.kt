@@ -62,18 +62,10 @@ class OptionsViewModel(
     }
 
     val username: StateFlow<String> = appSettingsManager.username
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = ""
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "")
 
     val allImages: StateFlow<List<Image>> = imageRepository.allImages
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
     val categoriesUiState: StateFlow<List<CategoryUiState>> = imageRepository.allCategories
         .flatMapLatest { categories ->
@@ -90,24 +82,28 @@ class OptionsViewModel(
             }
             combine(flows) { it.toList() }
         }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
     val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
     val backgroundUri: StateFlow<String?> = appSettingsManager.backgroundUri
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+
     val backgroundBlur: StateFlow<Float> = appSettingsManager.backgroundBlur
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0f)
+
     val backgroundSaturation: StateFlow<Float> = appSettingsManager.backgroundSaturation
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1f)
+
     val backgroundTintEnabled: StateFlow<Boolean> = appSettingsManager.backgroundTintEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), false)
+
     val backgroundTintAlpha: StateFlow<Float> = appSettingsManager.backgroundTintAlpha
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0.25f)
+
+    val backgroundImageAlpha: StateFlow<Float> = appSettingsManager.backgroundImageAlpha
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1f)
 
     fun setBackgroundUri(uri: String?) {
         viewModelScope.launch {
@@ -153,6 +149,16 @@ class OptionsViewModel(
         viewModelScope.launch {
             try {
                 appSettingsManager.setBackgroundTintAlpha(alpha)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundImageAlpha(alpha: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundImageAlpha(alpha)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
             }

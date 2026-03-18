@@ -91,6 +91,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val backgroundSaturation by viewModel.backgroundSaturation.collectAsState()
     val backgroundTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
     val backgroundTintAlpha by viewModel.backgroundTintAlpha.collectAsState()
+    val backgroundImageAlpha by viewModel.backgroundImageAlpha.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -139,6 +140,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         backgroundSaturation = backgroundSaturation,
         backgroundTintEnabled = backgroundTintEnabled,
         backgroundTintAlpha = backgroundTintAlpha,
+        backgroundImageAlpha = backgroundImageAlpha,
         onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
         onAddImage = viewModel::addImage,
@@ -151,6 +153,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetBackgroundSaturation = viewModel::setBackgroundSaturation,
         onSetBackgroundTintEnabled = viewModel::setBackgroundTintEnabled,
         onSetBackgroundTintAlpha = viewModel::setBackgroundTintAlpha,
+        onSetBackgroundImageAlpha = viewModel::setBackgroundImageAlpha,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = { showAboutDialog = it },
@@ -179,6 +182,7 @@ fun OptionsScreenContent(
     backgroundSaturation: Float,
     backgroundTintEnabled: Boolean,
     backgroundTintAlpha: Float,
+    backgroundImageAlpha: Float,
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, ImageIdentifier?) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
@@ -191,6 +195,7 @@ fun OptionsScreenContent(
     onSetBackgroundSaturation: (Float) -> Unit,
     onSetBackgroundTintEnabled: (Boolean) -> Unit,
     onSetBackgroundTintAlpha: (Float) -> Unit,
+    onSetBackgroundImageAlpha: (Float) -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -356,7 +361,6 @@ fun OptionsScreenContent(
                 title = "Sezioni e Colori",
                 description = "Personalizza i colori identificativi per ogni sezione dell'app."
             ) {
-                // Ordine personalizzato per rispecchiare le tab: Logs, Equipments, Operations
                 val sectionOrder = listOf("LOG", "EQUIPMENT", "OPERATION")
                 categoriesUiState
                     .sortedBy { uiState -> 
@@ -383,63 +387,73 @@ fun OptionsScreenContent(
             }
 
             OptionsSectionCard(
-                title = stringResource(R.string.background_customization),
-                description = "Personalizza lo sfondo dell'app con un'immagine e regola gli effetti."
+                title = "Personalizzazione Sfondo",
+                description = "Regola l'aspetto dell'immagine di sfondo e del colore della sezione."
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Controlli del TINT (Sempre visibili o condizionati dallo Switch)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Abilita colore sezione", modifier = Modifier.weight(1f))
-                        Switch(checked = backgroundTintEnabled, onCheckedChange = onSetBackgroundTintEnabled)
-                    }
-
-                    if (backgroundTintEnabled) {
-                        Text("Intensità colore sezione: ${(backgroundTintAlpha * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
-                        Slider(
-                            value = backgroundTintAlpha,
-                            onValueChange = onSetBackgroundTintAlpha,
-                            valueRange = 0f..1f
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    // Controlli dell'IMMAGINE
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showBackgroundPicker = true },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Image, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.select_background_image))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Sezione TINT (sempre visibile)
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Abilita colore sezione", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                            Switch(checked = backgroundTintEnabled, onCheckedChange = onSetBackgroundTintEnabled)
                         }
-                        if (backgroundUri != null) {
-                            IconButton(onClick = { onSetBackgroundUri(null) }) {
-                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.clear_background), tint = MaterialTheme.colorScheme.error)
+                        if (backgroundTintEnabled) {
+                            Text("Intensità colore: ${(backgroundTintAlpha * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                            Slider(
+                                value = backgroundTintAlpha,
+                                onValueChange = onSetBackgroundTintAlpha,
+                                valueRange = 0f..1f
+                            )
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    // Sezione IMMAGINE
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showBackgroundPicker = true },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Image, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Seleziona immagine")
+                            }
+                            if (backgroundUri != null) {
+                                IconButton(onClick = { onSetBackgroundUri(null) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Rimuovi sfondo", tint = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
-                    }
 
-                    if (backgroundUri != null) {
-                        Text(stringResource(R.string.blur_radius, backgroundBlur), style = MaterialTheme.typography.labelMedium)
-                        Slider(
-                            value = backgroundBlur,
-                            onValueChange = onSetBackgroundBlur,
-                            valueRange = 0f..25f,
-                            steps = 25
-                        )
+                        if (backgroundUri != null) {
+                            Text("Opacità immagine: ${(backgroundImageAlpha * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                            Slider(
+                                value = backgroundImageAlpha,
+                                onValueChange = onSetBackgroundImageAlpha,
+                                valueRange = 0f..1f
+                            )
 
-                        Text(stringResource(R.string.saturation, backgroundSaturation), style = MaterialTheme.typography.labelMedium)
-                        Slider(
-                            value = backgroundSaturation,
-                            onValueChange = onSetBackgroundSaturation,
-                            valueRange = 0f..2f
-                        )
+                            Text("Sfocatura: ${backgroundBlur.toInt()} dp", style = MaterialTheme.typography.labelMedium)
+                            Slider(
+                                value = backgroundBlur,
+                                onValueChange = onSetBackgroundBlur,
+                                valueRange = 0f..25f,
+                                steps = 25
+                            )
+
+                            Text("Saturazione: ${(backgroundSaturation * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                            Slider(
+                                value = backgroundSaturation,
+                                onValueChange = onSetBackgroundSaturation,
+                                valueRange = 0f..2f
+                            )
+                        }
                     }
                 }
             }

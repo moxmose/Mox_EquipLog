@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -31,6 +32,7 @@ fun AppBackground(
     val bgUri by viewModel.backgroundUri.collectAsState()
     val blurRadius by viewModel.backgroundBlur.collectAsState()
     val saturation by viewModel.backgroundSaturation.collectAsState()
+    val bgAlpha by viewModel.backgroundImageAlpha.collectAsState()
     val isTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
     val tintAlpha by viewModel.backgroundTintAlpha.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
@@ -79,6 +81,7 @@ fun AppBackground(
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
+                    .alpha(bgAlpha) // Applichiamo l'opacità dell'immagine
                     .blur(radius = animatedBlur),
                 contentScale = ContentScale.Crop,
                 colorFilter = ColorFilter.colorMatrix(matrix),
@@ -90,7 +93,7 @@ fun AppBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(it.copy(alpha = tintAlpha)) // Usa il valore dinamico dello slider
+                    .background(it.copy(alpha = tintAlpha))
             )
         }
     }

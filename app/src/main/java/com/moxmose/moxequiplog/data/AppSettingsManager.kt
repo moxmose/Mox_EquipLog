@@ -3,49 +3,37 @@ package com.moxmose.moxequiplog.data
 import com.moxmose.moxequiplog.data.local.AppPreference
 import com.moxmose.moxequiplog.data.local.AppPreferenceDao
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 
 class AppSettingsManager(
     private val appPreferenceDao: AppPreferenceDao,
     private val defaultUsername: String
 ) {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO)
-
-    val username: StateFlow<String> = appPreferenceDao.getPreferenceFlow("default_username")
+    val username: Flow<String> = appPreferenceDao.getPreferenceFlow("default_username")
         .map { it ?: defaultUsername }
-        .stateIn(coroutineScope, SharingStarted.Eagerly, defaultUsername)
 
-    val defaultEquipmentId: StateFlow<Int?> = appPreferenceDao.getPreferenceFlow("default_equipment_id")
+    val defaultEquipmentId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_equipment_id")
         .map { it?.toIntOrNull() }
-        .stateIn(coroutineScope, SharingStarted.Eagerly, null)
 
-    val defaultOperationTypeId: StateFlow<Int?> = appPreferenceDao.getPreferenceFlow("default_operation_type_id")
+    val defaultOperationTypeId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_operation_type_id")
         .map { it?.toIntOrNull() }
-        .stateIn(coroutineScope, SharingStarted.Eagerly, null)
 
-    val backgroundUri: StateFlow<String?> = appPreferenceDao.getPreferenceFlow("background_uri")
-        .stateIn(coroutineScope, SharingStarted.Eagerly, null)
+    val backgroundUri: Flow<String?> = appPreferenceDao.getPreferenceFlow("background_uri")
 
-    val backgroundBlur: StateFlow<Float> = appPreferenceDao.getPreferenceFlow("background_blur")
+    val backgroundBlur: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_blur")
         .map { it?.toFloatOrNull() ?: 0f }
-        .stateIn(coroutineScope, SharingStarted.Eagerly, 0f)
 
-    val backgroundSaturation: StateFlow<Float> = appPreferenceDao.getPreferenceFlow("background_saturation")
+    val backgroundSaturation: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_saturation")
         .map { it?.toFloatOrNull() ?: 1f }
-        .stateIn(coroutineScope, SharingStarted.Eagerly, 1f)
 
-    val backgroundTintEnabled: StateFlow<Boolean> = appPreferenceDao.getPreferenceFlow("background_tint_enabled")
+    val backgroundTintEnabled: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("background_tint_enabled")
         .map { it?.toBoolean() ?: false }
-        .stateIn(coroutineScope, SharingStarted.Eagerly, false)
 
-    val backgroundTintAlpha: StateFlow<Float> = appPreferenceDao.getPreferenceFlow("background_tint_alpha")
+    val backgroundTintAlpha: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_tint_alpha")
         .map { it?.toFloatOrNull() ?: 0.25f }
-        .stateIn(coroutineScope, SharingStarted.Eagerly, 0.25f)
+
+    val backgroundImageAlpha: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_image_alpha")
+        .map { it?.toFloatOrNull() ?: 1f }
 
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
@@ -89,5 +77,9 @@ class AppSettingsManager(
 
     suspend fun setBackgroundTintAlpha(alpha: Float) {
         appPreferenceDao.insertPreference(AppPreference("background_tint_alpha", alpha.toString()))
+    }
+
+    suspend fun setBackgroundImageAlpha(alpha: Float) {
+        appPreferenceDao.insertPreference(AppPreference("background_image_alpha", alpha.toString()))
     }
 }
