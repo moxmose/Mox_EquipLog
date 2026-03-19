@@ -20,5 +20,6 @@
     <string-array name="default_categories">
         <item>EQUIPMENT;Equipment;#4CAF50</item>
         <item>OPERATION;Operation;#2196F3</item>
+        <item>LOG;Logs;#607D8B</item>
     </string-array>
 </resources>

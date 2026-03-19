@@ -1,6 +1,5 @@
 package com.moxmose.moxequiplog.di
 
-import android.content.Context
 import androidx.room.Room
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
@@ -8,7 +7,7 @@ import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.AppDatabase
 import com.moxmose.moxequiplog.ui.equipments.EquipmentsViewModel
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
-import com.moxmose.moxequiplog.ui.operations.OperationTypeViewModel
+import com.moxmose.moxequiplog.ui.operations.OperationsTypeViewModel
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
@@ -47,7 +46,7 @@ val appModule = module {
 
     // ViewModels
     viewModelOf(::EquipmentsViewModel)
-    viewModelOf(::OperationTypeViewModel)
+    viewModelOf(::OperationsTypeViewModel)
     viewModelOf(::MaintenanceLogViewModel)
     viewModelOf(::OptionsViewModel)
 

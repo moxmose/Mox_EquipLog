@@ -4,22 +4,17 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
+import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -33,22 +28,21 @@ import org.junit.runner.RunWith
 import org.koin.core.context.stopKoin
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest=Config.NONE)
-class OperationTypeViewModelTest {
+class OperationsTypeViewModelTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
-    private lateinit var viewModel: OperationTypeViewModel
+    private lateinit var viewModel: OperationsTypeViewModel
 
     private val activeOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
     private val allOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
@@ -63,16 +57,16 @@ class OperationTypeViewModelTest {
             every { getAllOperationTypes() } returns allOperationTypesFlow
         }
         imageRepository = mockk(relaxed = true) {
-            every { getImagesByCategory("OPERATION") } returns operationTypeImagesFlow
+            every { getImagesByCategory(any()) } returns operationTypeImagesFlow
             every { allCategories } returns MutableStateFlow(emptyList())
             every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
-            every { getCategoryDefaultPhoto("OPERATION") } returns flowOf("def_photo")
-            every { getCategoryDefaultIcon("OPERATION") } returns flowOf("def_icon")
+            every { getCategoryDefaultPhoto(any()) } returns flowOf("def_photo")
+            every { getCategoryDefaultIcon(any()) } returns flowOf("def_icon")
         }
         appSettingsManager = mockk(relaxed = true) {
             every { defaultOperationTypeId } returns defaultOpIdFlow
         }
-        viewModel = OperationTypeViewModel(operationTypeDao, imageRepository, appSettingsManager)
+        viewModel = OperationsTypeViewModel(operationTypeDao, imageRepository, appSettingsManager)
     }
 
     @After
@@ -99,23 +93,19 @@ class OperationTypeViewModelTest {
 
     @Test
     fun addOperationType_variants_coverage() = runTest {
-        backgroundScope.launch(testDispatcher) { viewModel.allOperationTypes.collect {} }
-        testDispatcher.scheduler.advanceUntilIdle()
+        // Activation
+        val job = launch { viewModel.allOperationTypes.collect {} }
         
-        // Icon variant
         viewModel.addOperationType("Op1", ImageIdentifier.Icon("icon1"))
-        testDispatcher.scheduler.advanceUntilIdle()
         coVerify { operationTypeDao.insertOperationType(match { it.description == "Op1" && it.iconIdentifier == "icon1" }) }
 
-        // Photo variant
         viewModel.addOperationType("Op2", ImageIdentifier.Photo("uri2"))
-        testDispatcher.scheduler.advanceUntilIdle()
         coVerify { operationTypeDao.insertOperationType(match { it.description == "Op2" && it.photoUri == "uri2" }) }
 
-        // Null variant
         viewModel.addOperationType("Op3", null)
-        testDispatcher.scheduler.advanceUntilIdle()
         coVerify { operationTypeDao.insertOperationType(match { it.description == "Op3" && it.photoUri == "def_photo" }) }
+        
+        job.cancel()
     }
 
     @Test
@@ -132,66 +122,72 @@ class OperationTypeViewModelTest {
 
         viewModel.uiEvents.test {
             viewModel.updateOperationType(op)
-            assertEquals(OperationTypeViewModel.UiEvent.UpdateOperationTypeFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.UpdateOperationTypeFailed, awaitItem())
 
             viewModel.updateOperationTypes(listOf(op))
-            assertEquals(OperationTypeViewModel.UiEvent.UpdateOperationTypesFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.UpdateOperationTypesFailed, awaitItem())
 
             viewModel.dismissOperationType(op)
-            assertEquals(OperationTypeViewModel.UiEvent.DismissOperationTypeFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.DismissOperationTypeFailed, awaitItem())
 
             viewModel.restoreOperationType(op)
-            assertEquals(OperationTypeViewModel.UiEvent.RestoreOperationTypeFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.RestoreOperationTypeFailed, awaitItem())
 
             viewModel.addImage(mockk(), "cat")
-            assertEquals(OperationTypeViewModel.UiEvent.AddImageFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.AddImageFailed, awaitItem())
 
             viewModel.removeImage(img)
-            assertEquals(OperationTypeViewModel.UiEvent.RemoveImageFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.RemoveImageFailed, awaitItem())
 
             viewModel.updateImageOrder(listOf(img))
-            assertEquals(OperationTypeViewModel.UiEvent.UpdateImageOrderFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.UpdateImageOrderFailed, awaitItem())
 
             viewModel.toggleImageVisibility(img)
-            assertEquals(OperationTypeViewModel.UiEvent.ToggleImageVisibilityFailed, awaitItem())
+            assertEquals(OperationsTypeViewModel.UiEvent.ToggleImageVisibilityFailed, awaitItem())
         }
     }
 
     @Test
     fun isPhotoUsed_variants_coverage() = runTest {
-        launch {
-            viewModel.uiEvents.test {
-                assertTrue(viewModel.isPhotoUsed(" "))
-                assertEquals(OperationTypeViewModel.UiEvent.PhotoUriInvalid, awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
+        viewModel.uiEvents.test {
+            assertTrue(viewModel.isPhotoUsed(" "))
+            assertEquals(OperationsTypeViewModel.UiEvent.PhotoUriInvalid, awaitItem())
         }
-        testDispatcher.scheduler.advanceUntilIdle()
         
         coEvery { operationTypeDao.countOperationTypesUsingPhoto("used") } returns 1
         assertTrue(viewModel.isPhotoUsed("used"))
 
-        launch {
-            viewModel.uiEvents.test {
-                coEvery { operationTypeDao.countOperationTypesUsingPhoto("err") } throws RuntimeException()
-                assertTrue(viewModel.isPhotoUsed("err"))
-                assertEquals(OperationTypeViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
+        viewModel.uiEvents.test {
+            coEvery { operationTypeDao.countOperationTypesUsingPhoto("err") } throws RuntimeException()
+            assertTrue(viewModel.isPhotoUsed("err"))
+            assertEquals(OperationsTypeViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
         }
-        testDispatcher.scheduler.advanceUntilIdle()
     }
     
     @Test
     fun toggleDefaultOperationType_coverage() = runTest {
-        viewModel.toggleDefaultOperationType(10)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultOperationTypeId(10) }
+        // Mock che aggiorna il flow sorgente quando viene chiamato
+        coEvery { appSettingsManager.setDefaultOperationTypeId(any()) } answers {
+            defaultOpIdFlow.value = firstArg<Int?>()
+        }
 
-        defaultOpIdFlow.value = 10
-        testDispatcher.scheduler.advanceUntilIdle()
-        viewModel.toggleDefaultOperationType(10)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultOperationTypeId(null) }
+        viewModel.defaultOperationTypeId.test {
+            // L'initial value è null
+            assertEquals(null, awaitItem())
+
+            // 1. Attivazione (da null a 10)
+            viewModel.toggleDefaultOperationType(10)
+            assertEquals(10, awaitItem())
+
+            // 2. Disattivazione (da 10 a null)
+            viewModel.toggleDefaultOperationType(10)
+            assertEquals(null, awaitItem())
+        }
+
+        // Verifica l'ordine e il contenuto delle chiamate.
+        coVerifyOrder {
+            appSettingsManager.setDefaultOperationTypeId(10)
+            appSettingsManager.setDefaultOperationTypeId(null)
+        }
     }
 }

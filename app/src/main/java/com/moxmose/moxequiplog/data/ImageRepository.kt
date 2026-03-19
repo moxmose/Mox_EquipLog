@@ -1,5 +1,6 @@
 package com.moxmose.moxequiplog.data
 
+import android.util.Log
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import kotlinx.coroutines.flow.Flow
@@ -30,6 +31,8 @@ class ImageRepository(
         appPreferenceDao.getPreferenceFlow("default_photo_$categoryId")
 
     suspend fun initializeAppData() {
+        Log.d("MoxEquipLog", "Initializing app data...")
+        
         // 1. Inizializza Colori
         if (appColorDao.getAllColors().first().isEmpty()) {
             val colorsToInsert = defaultColors.mapIndexed { index, colorString ->
@@ -39,18 +42,18 @@ class ImageRepository(
             appColorDao.insertAllColors(colorsToInsert)
         }
 
-        // 2. Inizializza Categorie e relative preferenze
-        if (categoryDao.getAllCategories().first().isEmpty()) {
-            val categoriesToInsert = defaultCategories.map { categoryString ->
-                val (id, name, color) = categoryString.split(";")
-                // Salva il colore iniziale come preferenza di default
+        // 2. Inizializza Categorie (assicura che LOG sia presente)
+        val existingCategories = categoryDao.getAllCategories().first().map { it.id }.toSet()
+        defaultCategories.forEach { categoryString ->
+            val (id, name, color) = categoryString.split(";")
+            if (!existingCategories.contains(id)) {
+                Log.d("MoxEquipLog", "Adding missing category: $id")
                 appPreferenceDao.insertPreference(AppPreference("default_color_$id", color))
-                Category(id = id, name = name)
+                categoryDao.insertCategory(Category(id = id, name = name))
             }
-            categoryDao.insertAllCategories(categoriesToInsert)
         }
 
-        // 3. Inizializza Icone
+        // 3. Inizializza Icone per ogni categoria
         categoryDao.getAllCategories().first().forEach { category ->
             initializeIconsForCategory(category.id)
         }

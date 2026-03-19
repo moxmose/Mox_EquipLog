@@ -9,6 +9,8 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.utils.UiConstants
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -20,6 +22,7 @@ data class CategoryUiState(
     val defaultPhotoUri: String?
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
@@ -47,6 +50,7 @@ class OptionsViewModel(
         data object ToggleColorVisibilityFailed : OptionsUiEvent()
         data object ColorIdInvalid : OptionsUiEvent()
         data object DeleteColorFailed : OptionsUiEvent()
+        data object UpdateBackgroundFailed : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -59,18 +63,10 @@ class OptionsViewModel(
     }
 
     val username: StateFlow<String> = appSettingsManager.username
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
-            initialValue = ""
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), "")
 
     val allImages: StateFlow<List<Image>> = imageRepository.allImages
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val categoriesUiState: StateFlow<List<CategoryUiState>> = imageRepository.allCategories
         .flatMapLatest { categories ->
@@ -82,23 +78,107 @@ class OptionsViewModel(
                     imageRepository.getCategoryDefaultIcon(category.id),
                     imageRepository.getCategoryDefaultPhoto(category.id)
                 ) { color, icon, photo ->
-                    CategoryUiState(category, color ?: "#808080", icon, photo)
+                    CategoryUiState(category, color ?: UiConstants.DEFAULT_FALLBACK_COLOR, icon, photo)
                 }
             }
             combine(flows) { it.toList() }
         }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
-            initialValue = emptyList()
-        )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
+
+    val backgroundUri: StateFlow<String?> = appSettingsManager.backgroundUri
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+
+    val backgroundBlur: StateFlow<Float> = appSettingsManager.backgroundBlur
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_BLUR)
+
+    val backgroundSaturation: StateFlow<Float> = appSettingsManager.backgroundSaturation
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_SATURATION)
+
+    val backgroundTintEnabled: StateFlow<Boolean> = appSettingsManager.backgroundTintEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED)
+
+    val backgroundTintAlpha: StateFlow<Float> = appSettingsManager.backgroundTintAlpha
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA)
+
+    val backgroundImageAlpha: StateFlow<Float> = appSettingsManager.backgroundImageAlpha
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA)
+
+    fun resetBackgroundSettings() {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundBlur(UiConstants.DEFAULT_BACKGROUND_BLUR)
+                appSettingsManager.setBackgroundSaturation(UiConstants.DEFAULT_BACKGROUND_SATURATION)
+                appSettingsManager.setBackgroundTintEnabled(UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED)
+                appSettingsManager.setBackgroundTintAlpha(UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA)
+                appSettingsManager.setBackgroundImageAlpha(UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundUri(uri: String?) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundUri(uri)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundBlur(blur: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundBlur(blur)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundSaturation(saturation: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundSaturation(saturation)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundTintEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundTintEnabled(enabled)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundTintAlpha(alpha: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundTintAlpha(alpha)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setBackgroundImageAlpha(alpha: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setBackgroundImageAlpha(alpha)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
 
     fun setUsername(newUsername: String) {
         if (newUsername.isBlank()) {

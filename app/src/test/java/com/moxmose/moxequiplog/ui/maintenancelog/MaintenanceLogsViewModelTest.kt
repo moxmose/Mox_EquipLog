@@ -8,13 +8,11 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.CategoryDao
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +39,7 @@ import org.robolectric.annotation.Config
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest=Config.NONE)
-class MaintenanceLogViewModelTest {
+class MaintenanceLogsViewModelTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
@@ -58,7 +56,6 @@ class MaintenanceLogViewModelTest {
     private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
     private val allOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
-    private val logsFlow = MutableStateFlow<List<MaintenanceLogDetails>>(emptyList())
     private val defaultEquipmentIdFlow = MutableStateFlow<Int?>(null)
     private val defaultOperationTypeIdFlow = MutableStateFlow<Int?>(null)
 
@@ -66,7 +63,6 @@ class MaintenanceLogViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         maintenanceLogDao = mockk(relaxed = true) {
-            // Restituiamo un elemento mock per assicurarci che StateFlow veda cambiamenti
             every { getLogsWithDetails(any()) } answers { flowOf(listOf(mockk())) }
         }
         equipmentDao = mockk(relaxed = true) {
@@ -103,7 +99,6 @@ class MaintenanceLogViewModelTest {
 
     @Test
     fun coverage_booster_and_getters() = runTest {
-        // Read each property explicitly to satisfy JaCoCo getter detection
         assertNotNull(viewModel.allCategories)
         assertNotNull(viewModel.allEquipments)
         assertNotNull(viewModel.allOperationTypes)
@@ -116,7 +111,6 @@ class MaintenanceLogViewModelTest {
         assertNotNull(viewModel.logs)
         assertNotNull(viewModel.uiEvents)
         
-        // Check initial state values
         assertEquals("", viewModel.searchQuery.value)
         assertEquals(SortProperty.DATE, viewModel.sortProperty.value)
         assertEquals(SortDirection.DESCENDING, viewModel.sortDirection.value)
@@ -124,32 +118,47 @@ class MaintenanceLogViewModelTest {
     }
 
     @Test
+    fun defaultSettings_emitCorrectValues() = runTest {
+        backgroundScope.launch(testDispatcher) { viewModel.defaultEquipmentId.collect {} }
+        backgroundScope.launch(testDispatcher) { viewModel.defaultOperationTypeId.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.defaultEquipmentId.test {
+            assertEquals(null, awaitItem())
+            defaultEquipmentIdFlow.value = 1
+            assertEquals(1, awaitItem())
+        }
+
+        viewModel.defaultOperationTypeId.test {
+            assertEquals(null, awaitItem())
+            defaultOperationTypeIdFlow.value = 2
+            assertEquals(2, awaitItem())
+        }
+    }
+
+    @Test
     fun buildQuery_total_coverage() = runTest {
         viewModel.logs.test {
             awaitItem() // Initial emission
 
-            // 1. Coverage for Search variants (blank, whitespace, text)
             viewModel.onSearchQueryChanged("test")
             awaitItem()
-            viewModel.onSearchQueryChanged("   ") // Should be blank but is distinct branch
+            viewModel.onSearchQueryChanged("   ") 
             awaitItem()
             viewModel.onSearchQueryChanged("")
             awaitItem()
 
-            // 2. Coverage for Show Dismissed (true/false)
             viewModel.onShowDismissedToggled() // true
             awaitItem()
             viewModel.onShowDismissedToggled() // false
             awaitItem()
 
-            // 3. Exhaustive SortProperty and Direction matrix
             SortProperty.entries.forEach { prop ->
                 if (viewModel.sortProperty.value != prop) {
                     viewModel.onSortPropertyChanged(prop)
                     awaitItem()
                 }
                 
-                // Toggle direction to cover both ASC and DESC logic
                 viewModel.onSortDirectionChanged() // ASC
                 awaitItem()
                 viewModel.onSortDirectionChanged() // DESC

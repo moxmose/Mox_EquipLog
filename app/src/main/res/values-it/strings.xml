@@ -6,8 +6,34 @@
     <string name="navigation_operations">Attività</string>
     <string name="navigation_reports">Report</string>
     <string name="navigation_options">Opzioni</string>
+
     <string name="options_version_label">Versione %1$s</string>
     <string name="options_username_label">Nome utente</string>
+    <string name="options_profile_section">Profilo</string>
+    <string name="options_username_field_label">Nome Utente</string>
+    <string name="options_save_username">Salva Nome Utente</string>
+    <string name="options_sections_colors_title">Sezioni e Colori</string>
+    <string name="options_sections_colors_desc">Personalizza i colori identificativi per ogni sezione dell\'app.</string>
+    <string name="options_background_custom_title">Personalizzazione Sfondo</string>
+    <string name="options_background_custom_desc">Regola l\'aspetto dell\'immagine di sfondo e del colore della sezione.</string>
+    <string name="options_enable_section_color">Abilita colore sezione</string>
+    <string name="options_color_intensity">Intensità colore: %1$d%%</string>
+    <string name="options_select_image">Seleziona immagine</string>
+    <string name="options_remove_background">Rimuovi sfondo</string>
+    <string name="options_image_opacity">Opacità immagine: %1$d%%</string>
+    <string name="options_blur_radius_label">Sfocatura: %1$d dp</string>
+    <string name="options_saturation_label">Saturazione: %1$d%%</string>
+    <string name="options_image_mgmt_title">Gestione Immagini e Default</string>
+    <string name="options_image_mgmt_desc">Punto unico per gestire le immagini. Seleziona una categoria specifica per impostare l\'elemento di default per quella sezione.</string>
+    <string name="options_empty_library">Libreria vuota</string>
+    <string name="options_manage_label">Gestisci</string>
+    <string name="options_manage_images">Gestisci Immagini</string>
+    <string name="options_color_mgmt_title">Gestione Colori</string>
+    <string name="options_add_color">Aggiungi colore</string>
+    <string name="options_show_hide">Mostra/Nascondi</string>
+    <string name="options_reset_background_settings">Ripristina valori predefiniti</string>
+    <string name="update_background_failed">Aggiornamento dello sfondo fallito.</string>
+
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
     <string name="set_as_default_instruction">Tocca l\'icona per impostare il predefinito</string>
     <string name="add_equipment">Aggiungi Mezzo</string>
@@ -19,7 +45,6 @@
     <string name="equipment_description">Descrizione Mezzo</string>
     <string name="operation_type_description">Descrizione Tipo di Operazione</string>
     <string name="add_image">Aggiungi immagine</string>
-    <string name="selected_image">Seleziona immagine</string>
     <string name="button_add">Aggiungi</string>
     <string name="button_cancel">Cancella</string>
     <string name="no_image_title">Nessuna Immagine</string>
@@ -37,17 +62,20 @@
     <string name="dismiss_operation_type">Dismetti Tipo di Operazione</string>
     <string name="restore_operation_type">Ripristina Tipo di Operazione</string>
     <string name="drag_to_reorder">Trascina per riordinare</string>
+    <string name="id_no_description">id:%1$d - senza descrizione</string>
+
     <string name="search_logs">Cerca</string>
     <string name="add_log">Aggiungi registrazione</string>
     <string name="sort_by">Ordina per</string>
     <string name="sort_direction">Direzione ordinamento</string>
-    <string name="button_about">Informazioni</string>
-    <string name="about_dialog_title">Informazioni su Mox EquipLog</string>
     <string name="add_new_maintenance_log">Aggiungi nuova registrazione di manutenzione</string>
     <string name="select_an_equipment">Seleziona un mezzo</string>
     <string name="select_an_operation">Selezione un operazione</string>
     <string name="kilometers_optional">Chilometri (opzionale)</string>
     <string name="notes_optional">Note (opzionale)</string>
+    <string name="kilometers_label">Km: %1$d</string>
+    <string name="dismissed_suffix">(dismesso)</string>
+    <string name="selected_content_desc">Selezionato</string>
     <string name="date">Data</string>
     <string name="about_dialog_content">Questa app aiuta a tracciare registrazioni di manutenzione per i vostri mezzi. Mantienili in forma perfetta!</string>
     <string name="select_date">Seleziona data</string>
@@ -55,16 +83,16 @@
     <string name="save_log">Salva registrazione</string>
     <string name="dismiss_log">Dismetti registrazione</string>
     <string name="restore_log">Ripristina registrazione</string>
-    <string name="equipment_icon">Icona mezzo</string>
-    <string name="operation_icon">Icona operazione</string>
+    <string name="button_ok">OK</string>
+    <string name="background_customization">Personalizzazione Sfondo</string>
+    <string name="background_image">Immagine di Sfondo</string>
+    <string name="select_background_image">Seleziona immagine di sfondo</string>
+    <string name="blur_radius">Raggio Sfocatura: %1$.1f</string>
+    <string name="saturation">Saturazione: %1$.1f</string>
+    <string name="clear_background">Cancella Sfondo</string>
+    <string name="select_media">Seleziona media</string>
 
     <!-- Gestione Errori -->
-    <string name="error_dialog_title">Errore</string>
-    <string name="error_remove_media_failed">Impossibile rimuovere il media. Potrebbe essere in uso.</string>
-    <string name="error_update_color_failed">Impossibile aggiornare il colore.</string>
-    <string name="error_color_name_invalid">Il nome del colore non può essere vuoto.</string>
-    <string name="error_username_invalid">Il nome utente non può essere vuoto.</string>
-    <string name="error_update_username_failed">Impossibile salvare il nome utente.</string>
     <string name="error_unknown">Si è verificato un errore sconosciuto.</string>
     <string name="add_color_failed">Impossibile aggiungere il colore %1$s.</string>
     <string name="remove_image_failed">Impossibile rimuovere l\'immagine.</string>

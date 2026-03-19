@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.moxmose.moxequiplog.data.local.Category
 
 object EquipmentIconProvider {
 
@@ -31,15 +32,15 @@ object EquipmentIconProvider {
         "other" to Icons.Filled.QuestionMark
     )
 
-    fun getIcon(identifier: String?, category: String = "EQUIPMENT"): ImageVector {
+    fun getIcon(identifier: String?, category: String = Category.EQUIPMENT): ImageVector {
         if (identifier == null || identifier == "none") {
             return Icons.Default.NotInterested
         }
-        val iconSet = if (category == "OPERATION") operationIcons else equipmentIcons
+        val iconSet = if (category == Category.OPERATION) operationIcons else equipmentIcons
         return iconSet[identifier] ?: Icons.AutoMirrored.Filled.List // Fallback
     }
 
     fun getIconsForCategory(category: String): Map<String, ImageVector> {
-        return if (category == "OPERATION") operationIcons else equipmentIcons
+        return if (category == Category.OPERATION) operationIcons else equipmentIcons
     }
 }

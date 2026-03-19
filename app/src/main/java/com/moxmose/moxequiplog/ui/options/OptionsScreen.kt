@@ -20,11 +20,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,9 +38,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,7 +64,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppColor
@@ -70,8 +74,10 @@ import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.ui.components.AddColorDialog
 import com.moxmose.moxequiplog.ui.components.ColorItemCard
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
+import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.components.ImageSelector
 import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -82,6 +88,14 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
+    
+    val backgroundUri by viewModel.backgroundUri.collectAsState()
+    val backgroundBlur by viewModel.backgroundBlur.collectAsState()
+    val backgroundSaturation by viewModel.backgroundSaturation.collectAsState()
+    val backgroundTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
+    val backgroundTintAlpha by viewModel.backgroundTintAlpha.collectAsState()
+    val backgroundImageAlpha by viewModel.backgroundImageAlpha.collectAsState()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -108,6 +122,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ToggleColorVisibilityFailed -> context.getString(R.string.toggle_color_visibility_failed)
                 is OptionsViewModel.OptionsUiEvent.ColorIdInvalid -> context.getString(R.string.color_id_invalid)
                 is OptionsViewModel.OptionsUiEvent.DeleteColorFailed -> context.getString(R.string.delete_color_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateBackgroundFailed -> context.getString(R.string.update_background_failed)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -123,6 +138,12 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         allImages = allImages,
         categoriesUiState = categoriesUiState,
         allColors = allColors,
+        backgroundUri = backgroundUri,
+        backgroundBlur = backgroundBlur,
+        backgroundSaturation = backgroundSaturation,
+        backgroundTintEnabled = backgroundTintEnabled,
+        backgroundTintAlpha = backgroundTintAlpha,
+        backgroundImageAlpha = backgroundImageAlpha,
         onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
         onAddImage = viewModel::addImage,
@@ -130,6 +151,13 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onUpdateImageOrder = viewModel::updateImageOrder,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         onUpdateCategoryColor = viewModel::updateCategoryColor,
+        onSetBackgroundUri = viewModel::setBackgroundUri,
+        onSetBackgroundBlur = viewModel::setBackgroundBlur,
+        onSetBackgroundSaturation = viewModel::setBackgroundSaturation,
+        onSetBackgroundTintEnabled = viewModel::setBackgroundTintEnabled,
+        onSetBackgroundTintAlpha = viewModel::setBackgroundTintAlpha,
+        onSetBackgroundImageAlpha = viewModel::setBackgroundImageAlpha,
+        onResetBackgroundSettings = viewModel::resetBackgroundSettings,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = { showAboutDialog = it },
@@ -145,7 +173,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
 fun OptionsScreenContent(
     modifier: Modifier = Modifier,
@@ -153,6 +181,12 @@ fun OptionsScreenContent(
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
     allColors: List<AppColor>,
+    backgroundUri: String?,
+    backgroundBlur: Float,
+    backgroundSaturation: Float,
+    backgroundTintEnabled: Boolean,
+    backgroundTintAlpha: Float,
+    backgroundImageAlpha: Float,
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, ImageIdentifier?) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
@@ -160,6 +194,13 @@ fun OptionsScreenContent(
     onUpdateImageOrder: (List<Image>) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
     onUpdateCategoryColor: (String, String) -> Unit,
+    onSetBackgroundUri: (String?) -> Unit,
+    onSetBackgroundBlur: (Float) -> Unit,
+    onSetBackgroundSaturation: (Float) -> Unit,
+    onSetBackgroundTintEnabled: (Boolean) -> Unit,
+    onSetBackgroundTintAlpha: (Float) -> Unit,
+    onSetBackgroundImageAlpha: (Float) -> Unit,
+    onResetBackgroundSettings: () -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -174,22 +215,40 @@ fun OptionsScreenContent(
     snackbarHostState: SnackbarHostState
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
+    var showBackgroundPicker by remember { mutableStateOf(false) }
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
     val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
 
     if (showAboutDialog) {
-        AlertDialog(
+        BasicAlertDialog(
             onDismissRequest = { onShowAboutDialogChange(false) },
-            title = { Text(stringResource(R.string.about_dialog_title)) },
-            text = { Text(stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME)) },
-            confirmButton = {
-                TextButton(onClick = { onShowAboutDialogChange(false) }) {
-                    Text(stringResource(R.string.button_ok))
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                tonalElevation = 6.dp
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(
+                        text = stringResource(R.string.about_dialog_title),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    TextButton(
+                        onClick = { onShowAboutDialogChange(false) },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(stringResource(R.string.button_ok))
+                    }
                 }
             }
-        )
+        }
     }
 
     if (showImageDialog) {
@@ -221,6 +280,35 @@ fun OptionsScreenContent(
         )
     }
 
+    if (showBackgroundPicker) {
+        val allCategories = categoriesUiState.map { it.category }
+        ImagePickerDialog(
+            onDismissRequest = { showBackgroundPicker = false },
+            photoUri = backgroundUri,
+            iconIdentifier = null,
+            onImageSelected = { (_, photoUri) ->
+                if (photoUri != null) {
+                    onSetBackgroundUri(photoUri)
+                }
+                showBackgroundPicker = false
+            },
+            imageLibrary = allImages,
+            categories = allCategories,
+            categoryColors = categoryColorsMap,
+            categoryDefaultIcons = categoryDefaultIconsMap,
+            categoryDefaultPhotos = categoryDefaultPhotosMap,
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> allImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+            onSetDefaultInCategory = null,
+            isPhotoUsed = null,
+            isPrefsMode = false,
+            forcedCategory = null,
+            onlyPhotos = true
+        )
+    }
+
     showColorPicker?.let { categoryId ->
         val categoryUiState = categoriesUiState.find { it.category.id == categoryId }!!
         ColorManagementDialog(
@@ -237,7 +325,8 @@ fun OptionsScreenContent(
 
     Scaffold(
         modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.Transparent
     ) {
         Column(
             modifier = modifier
@@ -256,17 +345,17 @@ fun OptionsScreenContent(
                 textAlign = TextAlign.Center
             )
 
-            OptionsSectionCard(title = "Profilo") {
+            OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
                 OutlinedTextField(
                     value = editedUsername,
                     onValueChange = { editedUsername = it },
-                    label = { Text("Nome Utente") },
+                    label = { Text(stringResource(R.string.options_username_field_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     trailingIcon = {
                         if (editedUsername != username && editedUsername.isNotBlank()) {
                             IconButton(onClick = { onUsernameChange(editedUsername) }) {
-                                Icon(Icons.Default.Done, contentDescription = "Save Username")
+                                Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_username))
                             }
                         }
                     }
@@ -274,29 +363,120 @@ fun OptionsScreenContent(
             }
 
             OptionsSectionCard(
-                title = "Sezioni e Colori",
-                description = "Personalizza i colori identificativi per ogni sezione dell'app."
+                title = stringResource(R.string.options_sections_colors_title),
+                description = stringResource(R.string.options_sections_colors_desc)
             ) {
-                categoriesUiState.sortedBy { it.category.name }.forEach { uiState ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        Spacer(Modifier.width(12.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(android.graphics.Color.parseColor(uiState.color)))
-                                .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                .clickable { onShowColorPickerChange(uiState.category.id) }
-                        )
+                val sectionOrder = listOf(Category.LOGS, Category.EQUIPMENT, Category.OPERATION)
+                categoriesUiState
+                    .sortedBy { uiState -> 
+                        val index = sectionOrder.indexOf(uiState.category.id)
+                        if (index != -1) index else Int.MAX_VALUE
                     }
-                    if (uiState != categoriesUiState.last()) HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                    .forEach { uiState ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                            Spacer(Modifier.width(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(uiState.color.toColorInt()))
+                                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                    .clickable { onShowColorPickerChange(uiState.category.id) }
+                            )
+                        }
+                    }
+            }
+
+            OptionsSectionCard(
+                title = stringResource(R.string.options_background_custom_title),
+                description = stringResource(R.string.options_background_custom_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Sezione TINT (sempre visibile)
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.options_enable_section_color), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                            Switch(checked = backgroundTintEnabled, onCheckedChange = onSetBackgroundTintEnabled)
+                        }
+                        if (backgroundTintEnabled) {
+                            Text(stringResource(R.string.options_color_intensity, (backgroundTintAlpha * 100).toInt()), style = MaterialTheme.typography.labelMedium)
+                            Slider(
+                                value = backgroundTintAlpha,
+                                onValueChange = onSetBackgroundTintAlpha,
+                                valueRange = 0f..1f
+                            )
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    // Sezione IMMAGINE
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showBackgroundPicker = true },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Image, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.options_select_image))
+                            }
+                            if (backgroundUri != null) {
+                                IconButton(onClick = { onSetBackgroundUri(null) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.options_remove_background), tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+
+                        if (backgroundUri != null) {
+                            Text(stringResource(R.string.options_image_opacity, (backgroundImageAlpha * 100).toInt()), style = MaterialTheme.typography.labelMedium)
+                            Slider(
+                                value = backgroundImageAlpha,
+                                onValueChange = onSetBackgroundImageAlpha,
+                                valueRange = 0f..1f
+                            )
+
+                            Text(stringResource(R.string.options_blur_radius_label, backgroundBlur.toInt()), style = MaterialTheme.typography.labelMedium)
+                            Slider(
+                                value = backgroundBlur,
+                                onValueChange = onSetBackgroundBlur,
+                                valueRange = 0f..25f,
+                                steps = 25
+                            )
+
+                            Text(stringResource(R.string.options_saturation_label, (backgroundSaturation * 100).toInt()), style = MaterialTheme.typography.labelMedium)
+                            Slider(
+                                value = backgroundSaturation,
+                                onValueChange = onSetBackgroundSaturation,
+                                valueRange = 0f..2f
+                            )
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    TextButton(
+                        onClick = onResetBackgroundSettings,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_reset_background_settings))
+                    }
                 }
             }
 
             OptionsSectionCard(
-                title = "Gestione Immagini e Default",
-                description = "Punto unico per gestire le immagini. Seleziona una categoria specifica per impostare l'elemento di default per quella sezione."
+                title = stringResource(R.string.options_image_mgmt_title),
+                description = stringResource(R.string.options_image_mgmt_desc)
             ) {
                 OutlinedButton(
                     onClick = { onShowImageDialogChange(true) },
@@ -312,7 +492,7 @@ fun OptionsScreenContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (allImages.isEmpty()) {
-                                Text("Libreria vuota")
+                                Text(stringResource(R.string.options_empty_library))
                             } else {
                                 allImages.filter { !it.hidden }.distinctBy { it.uri }.take(4).forEach { image ->
                                     val allCategories = categoriesUiState.map { it.category }
@@ -326,7 +506,8 @@ fun OptionsScreenContent(
                                         categoryColors = categoryColorsMap,
                                         categoryDefaultIcons = categoryDefaultIconsMap,
                                         categoryDefaultPhotos = categoryDefaultPhotosMap,
-                                        imageLibrary = allImages
+                                        imageLibrary = allImages,
+                                        forcedCategory = Category.EQUIPMENT
                                     )
                                 }
                             }
@@ -337,14 +518,14 @@ fun OptionsScreenContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                "Gestisci",
+                                stringResource(R.string.options_manage_label),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "Gestisci Immagini",
+                                contentDescription = stringResource(R.string.options_manage_images),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -393,30 +574,35 @@ fun ColorManagementDialog(
         )
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Scaffold(
-            floatingActionButton = {
-                Column(horizontalAlignment = Alignment.End) {
-                    FloatingActionButton(onClick = { showAddColorDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Aggiungi colore")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    FloatingActionButton(
-                        onClick = {
-                            showHidden = !showHidden
-                            scope.launch { lazyListState.animateScrollToItem(0) }
-                        },
-                        containerColor = MaterialTheme.colorScheme.secondary
-                    ) {
-                        Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = "Mostra/Nascondi")
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.padding(16.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp
+        ) {
+            Scaffold(
+                modifier = Modifier.height(500.dp),
+                floatingActionButton = {
+                    Column(horizontalAlignment = Alignment.End) {
+                        FloatingActionButton(onClick = { showAddColorDialog = true }) {
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        FloatingActionButton(
+                            onClick = {
+                                showHidden = !showHidden
+                                scope.launch { lazyListState.animateScrollToItem(0) }
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ) {
+                            Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = stringResource(R.string.options_show_hide))
+                        }
                     }
                 }
-            }
-        ) { padding ->
-            Surface(modifier = Modifier.padding(padding)) {
-                Column {
+            ) { paddingValues ->
+                Column(Modifier.padding(paddingValues).padding(16.dp)) {
                     Text(
-                        text = "Gestione Colori",
+                        text = stringResource(R.string.options_color_mgmt_title),
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier
                             .fillMaxWidth()

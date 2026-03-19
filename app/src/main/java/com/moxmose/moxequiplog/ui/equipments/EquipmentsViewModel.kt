@@ -9,6 +9,7 @@ import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -41,42 +42,43 @@ class EquipmentsViewModel(
     val activeEquipments: StateFlow<List<Equipment>> = equipmentDao.getActiveEquipments()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allEquipments: StateFlow<List<Equipment>> = equipmentDao.getAllEquipments()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    val equipmentImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory("EQUIPMENT")
+    val equipmentImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory(Category.EQUIPMENT)
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    val categoryColor: StateFlow<String> = imageRepository.getCategoryColor("EQUIPMENT")
-        .map { it ?: "#808080" }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "#808080")
+    val categoryColor: StateFlow<String> = imageRepository.getCategoryColor(Category.EQUIPMENT)
+        .map { it ?: UiConstants.DEFAULT_FALLBACK_COLOR }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_FALLBACK_COLOR)
 
-    val categoryDefaultIcon: StateFlow<String?> = imageRepository.getCategoryDefaultIcon("EQUIPMENT")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+    val categoryDefaultIcon: StateFlow<String?> = imageRepository.getCategoryDefaultIcon(Category.EQUIPMENT)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
 
-    val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto("EQUIPMENT")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+    val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto(Category.EQUIPMENT)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
 
     fun setDefaultEquipment(id: Int?) {
         viewModelScope.launch {

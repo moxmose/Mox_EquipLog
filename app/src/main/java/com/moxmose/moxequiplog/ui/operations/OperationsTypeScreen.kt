@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
@@ -73,20 +72,21 @@ import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
+fun OperationTypeScreen(viewModel: OperationsTypeViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
     val activeOperationTypes by viewModel.activeOperationTypes.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val operationTypeImages by viewModel.operationTypeImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     
-    val categoryColor by viewModel.getCategoryColor("OPERATION").collectAsState(initial = "#808080")
-    val categoryDefaultIcon by viewModel.getCategoryDefaultIcon("OPERATION").collectAsState(initial = null)
-    val categoryDefaultPhoto by viewModel.getCategoryDefaultPhoto("OPERATION").collectAsState(initial = null)
+    val categoryColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
+    val categoryDefaultIcon by viewModel.getCategoryDefaultIcon(Category.OPERATION).collectAsState(initial = null)
+    val categoryDefaultPhoto by viewModel.getCategoryDefaultPhoto(Category.OPERATION).collectAsState(initial = null)
 
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
@@ -99,19 +99,19 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel(), opt
     LaunchedEffect(key1 = true) {
         viewModel.uiEvents.collectLatest { event ->
             val message = when(event) {
-                is OperationTypeViewModel.UiEvent.DescriptionInvalid -> context.getString(R.string.description_invalid)
-                is OperationTypeViewModel.UiEvent.AddOperationTypeFailed -> context.getString(R.string.add_operation_type_failed)
-                is OperationTypeViewModel.UiEvent.UpdateOperationTypeFailed -> context.getString(R.string.update_operation_type_failed)
-                is OperationTypeViewModel.UiEvent.UpdateOperationTypesFailed -> context.getString(R.string.update_operation_types_failed)
-                is OperationTypeViewModel.UiEvent.DismissOperationTypeFailed -> context.getString(R.string.dismiss_operation_type_failed)
-                is OperationTypeViewModel.UiEvent.RestoreOperationTypeFailed -> context.getString(R.string.restore_operation_type_failed)
-                is OperationTypeViewModel.UiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
-                is OperationTypeViewModel.UiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
-                is OperationTypeViewModel.UiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
-                is OperationTypeViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
-                is OperationTypeViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
-                is OperationTypeViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
-                is OperationTypeViewModel.UiEvent.SetDefaultFailed -> context.getString(R.string.error_unknown)
+                is OperationsTypeViewModel.UiEvent.DescriptionInvalid -> context.getString(R.string.description_invalid)
+                is OperationsTypeViewModel.UiEvent.AddOperationTypeFailed -> context.getString(R.string.add_operation_type_failed)
+                is OperationsTypeViewModel.UiEvent.UpdateOperationTypeFailed -> context.getString(R.string.update_operation_type_failed)
+                is OperationsTypeViewModel.UiEvent.UpdateOperationTypesFailed -> context.getString(R.string.update_operation_types_failed)
+                is OperationsTypeViewModel.UiEvent.DismissOperationTypeFailed -> context.getString(R.string.dismiss_operation_type_failed)
+                is OperationsTypeViewModel.UiEvent.RestoreOperationTypeFailed -> context.getString(R.string.restore_operation_type_failed)
+                is OperationsTypeViewModel.UiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
+                is OperationsTypeViewModel.UiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
+                is OperationsTypeViewModel.UiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
+                is OperationsTypeViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
+                is OperationsTypeViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
+                is OperationsTypeViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
+                is OperationsTypeViewModel.UiEvent.SetDefaultFailed -> context.getString(R.string.error_unknown)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -139,7 +139,7 @@ fun OperationTypeScreen(viewModel: OperationTypeViewModel = koinViewModel(), opt
         onShowAddDialogChange = { showAddDialog = it },
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
-        operationCategoryColor = categoryColor ?: "#808080",
+        operationCategoryColor = categoryColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
         snackbarHostState = snackbarHostState,
         defaultOperationTypeId = defaultOperationTypeId,
         onToggleDefault = viewModel::toggleDefaultOperationType,
@@ -180,6 +180,7 @@ fun OperationTypeScreenContent(
 
     Scaffold(
         modifier = modifier,
+        containerColor = Color.Transparent, // Rende trasparente lo sfondo
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
@@ -329,7 +330,7 @@ fun AddOperationTypeDialog(
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
-            forcedCategory = "OPERATION"
+            forcedCategory = Category.OPERATION
         )
     }
 
@@ -348,10 +349,13 @@ fun AddOperationTypeDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val borderColor = try {
-                    Color(operationCategoryColor.toColorInt())
-                } catch (_: Exception) {
-                    MaterialTheme.colorScheme.primary
+                val primaryColor = MaterialTheme.colorScheme.primary
+                val borderColor = remember(operationCategoryColor, primaryColor) {
+                    try {
+                        Color(operationCategoryColor.toColorInt())
+                    } catch (_: Exception) {
+                        primaryColor
+                    }
                 }
                 Box(
                     modifier = Modifier
@@ -370,7 +374,7 @@ fun AddOperationTypeDialog(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        val icon = EquipmentIconProvider.getIcon(iconId, "OPERATION")
+                        val icon = EquipmentIconProvider.getIcon(iconId, Category.OPERATION)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.operation_type_photo),
@@ -492,7 +496,7 @@ fun OperationTypeCard(
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
-            forcedCategory = "OPERATION"
+            forcedCategory = Category.OPERATION
         )
     }
 
@@ -505,10 +509,13 @@ fun OperationTypeCard(
         .crossfade(true)
         .build()
 
-    val operationColor = try {
-        Color(operationCategoryColor.toColorInt())
-    } catch (_: Exception) {
-        MaterialTheme.colorScheme.primary
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val operationColor = remember(operationCategoryColor, primaryColor) {
+        try {
+            Color(operationCategoryColor.toColorInt())
+        } catch (_: Exception) {
+            primaryColor
+        }
     }
 
     Box(contentAlignment = Alignment.BottomEnd) {
@@ -529,7 +536,7 @@ fun OperationTypeCard(
                     }
                 ),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDefault) operationColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
+                containerColor = if (isDefault) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
             )
         ) {
             Row(
@@ -563,7 +570,7 @@ fun OperationTypeCard(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier, "OPERATION")
+                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier, Category.OPERATION)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.operation_type_photo),
@@ -585,7 +592,7 @@ fun OperationTypeCard(
                         )
                     } else {
                         Text(
-                            text = editedDescription.ifBlank { "id:${operationType.id} - no description" },
+                            text = editedDescription.ifBlank { stringResource(R.string.id_no_description, operationType.id) },
                             color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis

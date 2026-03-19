@@ -9,11 +9,12 @@ import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class OperationTypeViewModel(
+class OperationsTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager
@@ -41,32 +42,33 @@ class OperationTypeViewModel(
     val activeOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getActiveOperationTypes()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getAllOperationTypes()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    val operationTypeImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory("OPERATION")
+    val operationTypeImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory(Category.OPERATION)
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
+            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
 
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
     fun getCategoryDefaultIcon(categoryId: String): Flow<String?> = imageRepository.getCategoryDefaultIcon(categoryId)
@@ -104,8 +106,8 @@ class OperationTypeViewModel(
                     is ImageIdentifier.Icon -> operationIconIdentifier = imageIdentifier.name
                     is ImageIdentifier.Photo -> operationPhotoUri = imageIdentifier.uri
                     null -> {
-                        operationPhotoUri = imageRepository.getCategoryDefaultPhoto("OPERATION").firstOrNull()
-                        operationIconIdentifier = imageRepository.getCategoryDefaultIcon("OPERATION").firstOrNull()
+                        operationPhotoUri = imageRepository.getCategoryDefaultPhoto(Category.OPERATION).firstOrNull()
+                        operationIconIdentifier = imageRepository.getCategoryDefaultIcon(Category.OPERATION).firstOrNull()
                     }
                 }
 

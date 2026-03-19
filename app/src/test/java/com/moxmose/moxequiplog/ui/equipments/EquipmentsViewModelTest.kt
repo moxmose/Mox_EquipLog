@@ -166,6 +166,26 @@ class EquipmentsViewModelTest {
     }
 
     @Test
+    fun toggleDefaultEquipment_coverage() = runTest {
+        backgroundScope.launch(testDispatcher) { viewModel.defaultEquipmentId.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Toggle ON
+        viewModel.toggleDefaultEquipment(5)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setDefaultEquipmentId(5) }
+
+        // Simuliamo aggiornamento
+        defaultEquipmentIdFlow.value = 5
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Toggle OFF (stesso ID)
+        viewModel.toggleDefaultEquipment(5)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setDefaultEquipmentId(null) }
+    }
+
+    @Test
     fun crud_error_branches_coverage() = runTest {
         val equipment = Equipment(id = 1, description = "E")
         val image: Image = mockk(relaxed = true)
