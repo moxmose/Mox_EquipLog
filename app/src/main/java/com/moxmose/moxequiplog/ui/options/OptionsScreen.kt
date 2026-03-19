@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.BasicAlertDialog
@@ -156,6 +157,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetBackgroundTintEnabled = viewModel::setBackgroundTintEnabled,
         onSetBackgroundTintAlpha = viewModel::setBackgroundTintAlpha,
         onSetBackgroundImageAlpha = viewModel::setBackgroundImageAlpha,
+        onResetBackgroundSettings = viewModel::resetBackgroundSettings,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = { showAboutDialog = it },
@@ -198,6 +200,7 @@ fun OptionsScreenContent(
     onSetBackgroundTintEnabled: (Boolean) -> Unit,
     onSetBackgroundTintAlpha: (Float) -> Unit,
     onSetBackgroundImageAlpha: (Float) -> Unit,
+    onResetBackgroundSettings: () -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -456,6 +459,17 @@ fun OptionsScreenContent(
                                 valueRange = 0f..2f
                             )
                         }
+                    }
+
+                    HorizontalDivider()
+
+                    TextButton(
+                        onClick = onResetBackgroundSettings,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_reset_background_settings))
                     }
                 }
             }

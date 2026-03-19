@@ -20,6 +20,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -55,7 +56,6 @@ class MaintenanceLogsViewModelTest {
     private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
     private val allOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
-    private val logsFlow = MutableStateFlow<List<MaintenanceLogDetails>>(emptyList())
     private val defaultEquipmentIdFlow = MutableStateFlow<Int?>(null)
     private val defaultOperationTypeIdFlow = MutableStateFlow<Int?>(null)
 
@@ -63,7 +63,6 @@ class MaintenanceLogsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         maintenanceLogDao = mockk(relaxed = true) {
-            // Restituiamo un elemento mock per assicurarci che StateFlow veda cambiamenti
             every { getLogsWithDetails(any()) } answers { flowOf(listOf(mockk())) }
         }
         equipmentDao = mockk(relaxed = true) {
@@ -100,7 +99,6 @@ class MaintenanceLogsViewModelTest {
 
     @Test
     fun coverage_booster_and_getters() = runTest {
-        // Read each property explicitly to satisfy JaCoCo getter detection
         assertNotNull(viewModel.allCategories)
         assertNotNull(viewModel.allEquipments)
         assertNotNull(viewModel.allOperationTypes)
@@ -113,7 +111,6 @@ class MaintenanceLogsViewModelTest {
         assertNotNull(viewModel.logs)
         assertNotNull(viewModel.uiEvents)
         
-        // Check initial state values
         assertEquals("", viewModel.searchQuery.value)
         assertEquals(SortProperty.DATE, viewModel.sortProperty.value)
         assertEquals(SortDirection.DESCENDING, viewModel.sortDirection.value)
@@ -121,32 +118,47 @@ class MaintenanceLogsViewModelTest {
     }
 
     @Test
+    fun defaultSettings_emitCorrectValues() = runTest {
+        backgroundScope.launch(testDispatcher) { viewModel.defaultEquipmentId.collect {} }
+        backgroundScope.launch(testDispatcher) { viewModel.defaultOperationTypeId.collect {} }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.defaultEquipmentId.test {
+            assertEquals(null, awaitItem())
+            defaultEquipmentIdFlow.value = 1
+            assertEquals(1, awaitItem())
+        }
+
+        viewModel.defaultOperationTypeId.test {
+            assertEquals(null, awaitItem())
+            defaultOperationTypeIdFlow.value = 2
+            assertEquals(2, awaitItem())
+        }
+    }
+
+    @Test
     fun buildQuery_total_coverage() = runTest {
         viewModel.logs.test {
             awaitItem() // Initial emission
 
-            // 1. Coverage for Search variants (blank, whitespace, text)
             viewModel.onSearchQueryChanged("test")
             awaitItem()
-            viewModel.onSearchQueryChanged("   ") // Should be blank but is distinct branch
+            viewModel.onSearchQueryChanged("   ") 
             awaitItem()
             viewModel.onSearchQueryChanged("")
             awaitItem()
 
-            // 2. Coverage for Show Dismissed (true/false)
             viewModel.onShowDismissedToggled() // true
             awaitItem()
             viewModel.onShowDismissedToggled() // false
             awaitItem()
 
-            // 3. Exhaustive SortProperty and Direction matrix
             SortProperty.entries.forEach { prop ->
                 if (viewModel.sortProperty.value != prop) {
                     viewModel.onSortPropertyChanged(prop)
                     awaitItem()
                 }
                 
-                // Toggle direction to cover both ASC and DESC logic
                 viewModel.onSortDirectionChanged() // ASC
                 awaitItem()
                 viewModel.onSortDirectionChanged() // DESC

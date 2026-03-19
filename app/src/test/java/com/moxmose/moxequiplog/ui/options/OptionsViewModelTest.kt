@@ -167,6 +167,17 @@ class OptionsViewModelTest {
     }
 
     @Test
+    fun resetBackgroundSettings_callsManagerWithDefaults() = runTest {
+        viewModel.resetBackgroundSettings()
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setBackgroundBlur(UiConstants.DEFAULT_BACKGROUND_BLUR) }
+        coVerify { appSettingsManager.setBackgroundSaturation(UiConstants.DEFAULT_BACKGROUND_SATURATION) }
+        coVerify { appSettingsManager.setBackgroundTintEnabled(UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED) }
+        coVerify { appSettingsManager.setBackgroundTintAlpha(UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA) }
+        coVerify { appSettingsManager.setBackgroundImageAlpha(UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA) }
+    }
+
+    @Test
     fun backgroundSettings_emitCorrectValues() = runTest {
         viewModel.backgroundUri.test {
             assertEquals(null, awaitItem())
@@ -175,7 +186,7 @@ class OptionsViewModelTest {
         }
         
         viewModel.backgroundBlur.test {
-            assertEquals(0f, awaitItem())
+            assertEquals(UiConstants.DEFAULT_BACKGROUND_BLUR, awaitItem())
             backgroundBlurFlow.value = 5f
             assertEquals(5f, awaitItem())
         }

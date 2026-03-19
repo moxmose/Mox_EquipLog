@@ -2,6 +2,7 @@ package com.moxmose.moxequiplog.data
 
 import com.moxmose.moxequiplog.data.local.AppPreference
 import com.moxmose.moxequiplog.data.local.AppPreferenceDao
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -21,19 +22,19 @@ class AppSettingsManager(
     val backgroundUri: Flow<String?> = appPreferenceDao.getPreferenceFlow("background_uri")
 
     val backgroundBlur: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_blur")
-        .map { it?.toFloatOrNull() ?: 0f }
+        .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_BACKGROUND_BLUR }
 
     val backgroundSaturation: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_saturation")
-        .map { it?.toFloatOrNull() ?: 1f }
+        .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_BACKGROUND_SATURATION }
 
     val backgroundTintEnabled: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("background_tint_enabled")
-        .map { it?.toBoolean() ?: false }
+        .map { it?.toBoolean() ?: UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED }
 
     val backgroundTintAlpha: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_tint_alpha")
-        .map { it?.toFloatOrNull() ?: 0.25f }
+        .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA }
 
     val backgroundImageAlpha: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_image_alpha")
-        .map { it?.toFloatOrNull() ?: 1f }
+        .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA }
 
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))

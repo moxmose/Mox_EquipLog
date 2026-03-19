@@ -8,16 +8,13 @@ import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
+import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -41,7 +38,7 @@ class OperationsTypeViewModelTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
@@ -60,11 +57,11 @@ class OperationsTypeViewModelTest {
             every { getAllOperationTypes() } returns allOperationTypesFlow
         }
         imageRepository = mockk(relaxed = true) {
-            every { getImagesByCategory("OPERATION") } returns operationTypeImagesFlow
+            every { getImagesByCategory(any()) } returns operationTypeImagesFlow
             every { allCategories } returns MutableStateFlow(emptyList())
             every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
-            every { getCategoryDefaultPhoto("OPERATION") } returns flowOf("def_photo")
-            every { getCategoryDefaultIcon("OPERATION") } returns flowOf("def_icon")
+            every { getCategoryDefaultPhoto(any()) } returns flowOf("def_photo")
+            every { getCategoryDefaultIcon(any()) } returns flowOf("def_icon")
         }
         appSettingsManager = mockk(relaxed = true) {
             every { defaultOperationTypeId } returns defaultOpIdFlow
@@ -96,23 +93,19 @@ class OperationsTypeViewModelTest {
 
     @Test
     fun addOperationType_variants_coverage() = runTest {
-        backgroundScope.launch(testDispatcher) { viewModel.allOperationTypes.collect {} }
-        testDispatcher.scheduler.advanceUntilIdle()
+        // Activation
+        val job = launch { viewModel.allOperationTypes.collect {} }
         
-        // Icon variant
         viewModel.addOperationType("Op1", ImageIdentifier.Icon("icon1"))
-        testDispatcher.scheduler.advanceUntilIdle()
         coVerify { operationTypeDao.insertOperationType(match { it.description == "Op1" && it.iconIdentifier == "icon1" }) }
 
-        // Photo variant
         viewModel.addOperationType("Op2", ImageIdentifier.Photo("uri2"))
-        testDispatcher.scheduler.advanceUntilIdle()
         coVerify { operationTypeDao.insertOperationType(match { it.description == "Op2" && it.photoUri == "uri2" }) }
 
-        // Null variant
         viewModel.addOperationType("Op3", null)
-        testDispatcher.scheduler.advanceUntilIdle()
         coVerify { operationTypeDao.insertOperationType(match { it.description == "Op3" && it.photoUri == "def_photo" }) }
+        
+        job.cancel()
     }
 
     @Test
@@ -156,39 +149,45 @@ class OperationsTypeViewModelTest {
 
     @Test
     fun isPhotoUsed_variants_coverage() = runTest {
-        launch {
-            viewModel.uiEvents.test {
-                assertTrue(viewModel.isPhotoUsed(" "))
-                assertEquals(OperationsTypeViewModel.UiEvent.PhotoUriInvalid, awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
+        viewModel.uiEvents.test {
+            assertTrue(viewModel.isPhotoUsed(" "))
+            assertEquals(OperationsTypeViewModel.UiEvent.PhotoUriInvalid, awaitItem())
         }
-        testDispatcher.scheduler.advanceUntilIdle()
         
         coEvery { operationTypeDao.countOperationTypesUsingPhoto("used") } returns 1
         assertTrue(viewModel.isPhotoUsed("used"))
 
-        launch {
-            viewModel.uiEvents.test {
-                coEvery { operationTypeDao.countOperationTypesUsingPhoto("err") } throws RuntimeException()
-                assertTrue(viewModel.isPhotoUsed("err"))
-                assertEquals(OperationsTypeViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
-                cancelAndIgnoreRemainingEvents()
-            }
+        viewModel.uiEvents.test {
+            coEvery { operationTypeDao.countOperationTypesUsingPhoto("err") } throws RuntimeException()
+            assertTrue(viewModel.isPhotoUsed("err"))
+            assertEquals(OperationsTypeViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
         }
-        testDispatcher.scheduler.advanceUntilIdle()
     }
     
     @Test
     fun toggleDefaultOperationType_coverage() = runTest {
-        viewModel.toggleDefaultOperationType(10)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultOperationTypeId(10) }
+        // Mock che aggiorna il flow sorgente quando viene chiamato
+        coEvery { appSettingsManager.setDefaultOperationTypeId(any()) } answers {
+            defaultOpIdFlow.value = firstArg<Int?>()
+        }
 
-        defaultOpIdFlow.value = 10
-        testDispatcher.scheduler.advanceUntilIdle()
-        viewModel.toggleDefaultOperationType(10)
-        testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultOperationTypeId(null) }
+        viewModel.defaultOperationTypeId.test {
+            // L'initial value è null
+            assertEquals(null, awaitItem())
+
+            // 1. Attivazione (da null a 10)
+            viewModel.toggleDefaultOperationType(10)
+            assertEquals(10, awaitItem())
+
+            // 2. Disattivazione (da 10 a null)
+            viewModel.toggleDefaultOperationType(10)
+            assertEquals(null, awaitItem())
+        }
+
+        // Verifica l'ordine e il contenuto delle chiamate.
+        coVerifyOrder {
+            appSettingsManager.setDefaultOperationTypeId(10)
+            appSettingsManager.setDefaultOperationTypeId(null)
+        }
     }
 }

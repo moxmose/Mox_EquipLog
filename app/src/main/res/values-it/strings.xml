@@ -31,6 +31,7 @@
     <string name="options_color_mgmt_title">Gestione Colori</string>
     <string name="options_add_color">Aggiungi colore</string>
     <string name="options_show_hide">Mostra/Nascondi</string>
+    <string name="options_reset_background_settings">Ripristina valori predefiniti</string>
     <string name="update_background_failed">Aggiornamento dello sfondo fallito.</string>
 
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performTextInput
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.utils.UiConstants
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
@@ -33,6 +34,12 @@ class OptionsScreenTest {
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
                 allColors = emptyList(),
+                backgroundUri = null,
+                backgroundBlur = UiConstants.DEFAULT_BACKGROUND_BLUR,
+                backgroundSaturation = UiConstants.DEFAULT_BACKGROUND_SATURATION,
+                backgroundTintEnabled = UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED,
+                backgroundTintAlpha = UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA,
+                backgroundImageAlpha = UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA,
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
                 onAddImage = { _, _ -> },
@@ -40,6 +47,13 @@ class OptionsScreenTest {
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
                 onUpdateCategoryColor = { _, _ -> },
+                onSetBackgroundUri = {},
+                onSetBackgroundBlur = {},
+                onSetBackgroundSaturation = {},
+                onSetBackgroundTintEnabled = {},
+                onSetBackgroundTintAlpha = {},
+                onSetBackgroundImageAlpha = {},
+                onResetBackgroundSettings = {},
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = {},
@@ -69,6 +83,12 @@ class OptionsScreenTest {
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
                 allColors = emptyList(),
+                backgroundUri = null,
+                backgroundBlur = UiConstants.DEFAULT_BACKGROUND_BLUR,
+                backgroundSaturation = UiConstants.DEFAULT_BACKGROUND_SATURATION,
+                backgroundTintEnabled = UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED,
+                backgroundTintAlpha = UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA,
+                backgroundImageAlpha = UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA,
                 onUsernameChange = { changedUsername.set(it) },
                 onSetCategoryDefault = { _, _ -> },
                 onAddImage = { _, _ -> },
@@ -76,6 +96,13 @@ class OptionsScreenTest {
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
                 onUpdateCategoryColor = { _, _ -> },
+                onSetBackgroundUri = {},
+                onSetBackgroundBlur = {},
+                onSetBackgroundSaturation = {},
+                onSetBackgroundTintEnabled = {},
+                onSetBackgroundTintAlpha = {},
+                onSetBackgroundImageAlpha = {},
+                onResetBackgroundSettings = {},
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = {},
@@ -92,8 +119,7 @@ class OptionsScreenTest {
         }
 
         composeTestRule.onNodeWithText("Nome Utente").performTextInput(newUsername)
-        // Note: The Done icon is the one that triggers the save
-        composeTestRule.onNodeWithText("Save Username", substring = true, ignoreCase = true).performClick()
+        composeTestRule.onNodeWithText("Salva Nome Utente", substring = true, ignoreCase = true).performClick()
 
         assertEquals(newUsername, changedUsername.get())
     }
@@ -108,6 +134,12 @@ class OptionsScreenTest {
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
                 allColors = emptyList(),
+                backgroundUri = null,
+                backgroundBlur = UiConstants.DEFAULT_BACKGROUND_BLUR,
+                backgroundSaturation = UiConstants.DEFAULT_BACKGROUND_SATURATION,
+                backgroundTintEnabled = UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED,
+                backgroundTintAlpha = UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA,
+                backgroundImageAlpha = UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA,
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
                 onAddImage = { _, _ -> },
@@ -115,6 +147,13 @@ class OptionsScreenTest {
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
                 onUpdateCategoryColor = { _, _ -> },
+                onSetBackgroundUri = {},
+                onSetBackgroundBlur = {},
+                onSetBackgroundSaturation = {},
+                onSetBackgroundTintEnabled = {},
+                onSetBackgroundTintAlpha = {},
+                onSetBackgroundImageAlpha = {},
+                onResetBackgroundSettings = {},
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = { onShowAboutDialogChangeCalled.set(it) },
@@ -145,6 +184,12 @@ class OptionsScreenTest {
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
                 allColors = emptyList(),
+                backgroundUri = null,
+                backgroundBlur = UiConstants.DEFAULT_BACKGROUND_BLUR,
+                backgroundSaturation = UiConstants.DEFAULT_BACKGROUND_SATURATION,
+                backgroundTintEnabled = UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED,
+                backgroundTintAlpha = UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA,
+                backgroundImageAlpha = UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA,
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
                 onAddImage = { _, _ -> },
@@ -152,8 +197,15 @@ class OptionsScreenTest {
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
                 onUpdateCategoryColor = { _, _ -> },
+                onSetBackgroundUri = {},
+                onSetBackgroundBlur = {},
+                onSetBackgroundSaturation = {},
+                onSetBackgroundTintEnabled = {},
+                onSetBackgroundTintAlpha = {},
+                onSetBackgroundImageAlpha = {},
+                onResetBackgroundSettings = {},
                 isPhotoUsed = { false },
-                showAboutDialog = true, // Dialog is initially shown
+                showAboutDialog = true,
                 onShowAboutDialogChange = { callbackValue.set(it) },
                 showColorPicker = null,
                 onShowColorPickerChange = {},
@@ -167,10 +219,8 @@ class OptionsScreenTest {
             )
         }
 
-        // Click the confirm button to dismiss
         composeTestRule.onNodeWithText("OK").performClick()
 
-        // The callback should be called with `false`
         assertFalse(callbackValue.get())
     }
 }
