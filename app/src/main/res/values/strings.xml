@@ -11,8 +11,32 @@
     <!-- Options Screen -->
     <string name="options_version_label">Version %1$s</string>
     <string name="options_username_label">Username</string>
-    <string name="button_about">About</string>
-    <string name="about_dialog_title">About Mox EquipLog</string>
+    <string name="options_profile_section">Profile</string>
+    <string name="options_username_field_label">User Name</string>
+    <string name="options_save_username">Save Username</string>
+    <string name="options_sections_colors_title">Sections and Colors</string>
+    <string name="options_sections_colors_desc">Customize the identifying colors for each section of the app.</string>
+    <string name="options_background_custom_title">Background Customization</string>
+    <string name="options_background_custom_desc">Adjust the appearance of the background image and section color.</string>
+    <string name="options_enable_section_color">Enable section color</string>
+    <string name="options_color_intensity">Color intensity: %1$d%%</string>
+    <string name="options_select_image">Select image</string>
+    <string name="options_remove_background">Remove background</string>
+    <string name="options_image_opacity">Image opacity: %1$d%%</string>
+    <string name="options_blur_radius_label">Blur: %1$d dp</string>
+    <string name="options_saturation_label">Saturation: %1$d%%</string>
+    <string name="options_image_mgmt_title">Image and Default Management</string>
+    <string name="options_image_mgmt_desc">One-stop shop for managing images. Select a specific category to set the default item for that section.</string>
+    <string name="options_empty_library">Empty library</string>
+    <string name="options_manage_label">Manage</string>
+    <string name="options_manage_images">Manage Images</string>
+    <string name="options_color_mgmt_title">Color Management</string>
+    <string name="options_add_color">Add color</string>
+    <string name="options_show_hide">Show/Hide</string>
+    <string name="update_background_failed">Update background failed.</string>
+
+    <string name="button_about" translatable="false">About</string>
+    <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>
     <string name="about_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Background Customization</string>
@@ -51,6 +75,7 @@
     <string name="dismiss_operation_type">Dismiss Operation Type</string>
     <string name="restore_operation_type">Restore Operation Type</string>
     <string name="drag_to_reorder">Drag to reorder</string>
+    <string name="id_no_description">id:%1$d - no description</string>
 
     <!-- Maintenance Logs -->
     <string name="search_logs">Search</string>
@@ -62,6 +87,9 @@
     <string name="select_an_operation">Select an operation</string>
     <string name="kilometers_optional">Kilometers (optional)</string>
     <string name="notes_optional">Notes (optional)</string>
+    <string name="kilometers_label">Km: %1$d</string>
+    <string name="dismissed_suffix">(dismissed)</string>
+    <string name="selected_content_desc">Selected</string>
     <string name="date">Date</string>
     <string name="select_date">Select Date</string>
     <string name="edit_log">Edit Log</string>

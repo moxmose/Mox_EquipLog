@@ -63,6 +63,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppColor
@@ -120,7 +121,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ToggleColorVisibilityFailed -> context.getString(R.string.toggle_color_visibility_failed)
                 is OptionsViewModel.OptionsUiEvent.ColorIdInvalid -> context.getString(R.string.color_id_invalid)
                 is OptionsViewModel.OptionsUiEvent.DeleteColorFailed -> context.getString(R.string.delete_color_failed)
-                is OptionsViewModel.OptionsUiEvent.UpdateBackgroundFailed -> "Update background failed"
+                is OptionsViewModel.OptionsUiEvent.UpdateBackgroundFailed -> context.getString(R.string.update_background_failed)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -341,17 +342,17 @@ fun OptionsScreenContent(
                 textAlign = TextAlign.Center
             )
 
-            OptionsSectionCard(title = "Profilo") {
+            OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
                 OutlinedTextField(
                     value = editedUsername,
                     onValueChange = { editedUsername = it },
-                    label = { Text("Nome Utente") },
+                    label = { Text(stringResource(R.string.options_username_field_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     trailingIcon = {
                         if (editedUsername != username && editedUsername.isNotBlank()) {
                             IconButton(onClick = { onUsernameChange(editedUsername) }) {
-                                Icon(Icons.Default.Done, contentDescription = "Save Username")
+                                Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_username))
                             }
                         }
                     }
@@ -359,8 +360,8 @@ fun OptionsScreenContent(
             }
 
             OptionsSectionCard(
-                title = "Sezioni e Colori",
-                description = "Personalizza i colori identificativi per ogni sezione dell'app."
+                title = stringResource(R.string.options_sections_colors_title),
+                description = stringResource(R.string.options_sections_colors_desc)
             ) {
                 val sectionOrder = listOf(Category.LOGS, Category.EQUIPMENT, Category.OPERATION)
                 categoriesUiState
@@ -379,7 +380,7 @@ fun OptionsScreenContent(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(Color(android.graphics.Color.parseColor(uiState.color)))
+                                    .background(Color(uiState.color.toColorInt()))
                                     .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
                                     .clickable { onShowColorPickerChange(uiState.category.id) }
                             )
@@ -388,18 +389,18 @@ fun OptionsScreenContent(
             }
 
             OptionsSectionCard(
-                title = "Personalizzazione Sfondo",
-                description = "Regola l'aspetto dell'immagine di sfondo e del colore della sezione."
+                title = stringResource(R.string.options_background_custom_title),
+                description = stringResource(R.string.options_background_custom_desc)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Sezione TINT (sempre visibile)
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Abilita colore sezione", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.options_enable_section_color), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                             Switch(checked = backgroundTintEnabled, onCheckedChange = onSetBackgroundTintEnabled)
                         }
                         if (backgroundTintEnabled) {
-                            Text("Intensità colore: ${(backgroundTintAlpha * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.options_color_intensity, (backgroundTintAlpha * 100).toInt()), style = MaterialTheme.typography.labelMedium)
                             Slider(
                                 value = backgroundTintAlpha,
                                 onValueChange = onSetBackgroundTintAlpha,
@@ -423,24 +424,24 @@ fun OptionsScreenContent(
                             ) {
                                 Icon(Icons.Default.Image, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Seleziona immagine")
+                                Text(stringResource(R.string.options_select_image))
                             }
                             if (backgroundUri != null) {
                                 IconButton(onClick = { onSetBackgroundUri(null) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Rimuovi sfondo", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.options_remove_background), tint = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
 
                         if (backgroundUri != null) {
-                            Text("Opacità immagine: ${(backgroundImageAlpha * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.options_image_opacity, (backgroundImageAlpha * 100).toInt()), style = MaterialTheme.typography.labelMedium)
                             Slider(
                                 value = backgroundImageAlpha,
                                 onValueChange = onSetBackgroundImageAlpha,
                                 valueRange = 0f..1f
                             )
 
-                            Text("Sfocatura: ${backgroundBlur.toInt()} dp", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.options_blur_radius_label, backgroundBlur.toInt()), style = MaterialTheme.typography.labelMedium)
                             Slider(
                                 value = backgroundBlur,
                                 onValueChange = onSetBackgroundBlur,
@@ -448,7 +449,7 @@ fun OptionsScreenContent(
                                 steps = 25
                             )
 
-                            Text("Saturazione: ${(backgroundSaturation * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.options_saturation_label, (backgroundSaturation * 100).toInt()), style = MaterialTheme.typography.labelMedium)
                             Slider(
                                 value = backgroundSaturation,
                                 onValueChange = onSetBackgroundSaturation,
@@ -460,8 +461,8 @@ fun OptionsScreenContent(
             }
 
             OptionsSectionCard(
-                title = "Gestione Immagini e Default",
-                description = "Punto unico per gestire le immagini. Seleziona una categoria specifica per impostare l'elemento di default per quella sezione."
+                title = stringResource(R.string.options_image_mgmt_title),
+                description = stringResource(R.string.options_image_mgmt_desc)
             ) {
                 OutlinedButton(
                     onClick = { onShowImageDialogChange(true) },
@@ -477,7 +478,7 @@ fun OptionsScreenContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (allImages.isEmpty()) {
-                                Text("Libreria vuota")
+                                Text(stringResource(R.string.options_empty_library))
                             } else {
                                 allImages.filter { !it.hidden }.distinctBy { it.uri }.take(4).forEach { image ->
                                     val allCategories = categoriesUiState.map { it.category }
@@ -503,14 +504,14 @@ fun OptionsScreenContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                "Gestisci",
+                                stringResource(R.string.options_manage_label),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "Gestisci Immagini",
+                                contentDescription = stringResource(R.string.options_manage_images),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -570,7 +571,7 @@ fun ColorManagementDialog(
                 floatingActionButton = {
                     Column(horizontalAlignment = Alignment.End) {
                         FloatingActionButton(onClick = { showAddColorDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "Aggiungi colore")
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color))
                         }
                         Spacer(Modifier.height(8.dp))
                         FloatingActionButton(
@@ -580,14 +581,14 @@ fun ColorManagementDialog(
                             },
                             containerColor = MaterialTheme.colorScheme.secondary
                         ) {
-                            Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = "Mostra/Nascondi")
+                            Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = stringResource(R.string.options_show_hide))
                         }
                     }
                 }
             ) { paddingValues ->
                 Column(Modifier.padding(paddingValues).padding(16.dp)) {
                     Text(
-                        text = "Gestione Colori",
+                        text = stringResource(R.string.options_color_mgmt_title),
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier
                             .fillMaxWidth()

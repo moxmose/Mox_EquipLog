@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -71,6 +72,7 @@ import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
@@ -82,9 +84,9 @@ fun OperationTypeScreen(viewModel: OperationsTypeViewModel = koinViewModel(), op
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     
-    val categoryColor by viewModel.getCategoryColor("OPERATION").collectAsState(initial = "#808080")
-    val categoryDefaultIcon by viewModel.getCategoryDefaultIcon("OPERATION").collectAsState(initial = null)
-    val categoryDefaultPhoto by viewModel.getCategoryDefaultPhoto("OPERATION").collectAsState(initial = null)
+    val categoryColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
+    val categoryDefaultIcon by viewModel.getCategoryDefaultIcon(Category.OPERATION).collectAsState(initial = null)
+    val categoryDefaultPhoto by viewModel.getCategoryDefaultPhoto(Category.OPERATION).collectAsState(initial = null)
 
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
@@ -137,7 +139,7 @@ fun OperationTypeScreen(viewModel: OperationsTypeViewModel = koinViewModel(), op
         onShowAddDialogChange = { showAddDialog = it },
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
-        operationCategoryColor = categoryColor ?: "#808080",
+        operationCategoryColor = categoryColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
         snackbarHostState = snackbarHostState,
         defaultOperationTypeId = defaultOperationTypeId,
         onToggleDefault = viewModel::toggleDefaultOperationType,
@@ -328,7 +330,7 @@ fun AddOperationTypeDialog(
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
-            forcedCategory = "OPERATION"
+            forcedCategory = Category.OPERATION
         )
     }
 
@@ -347,10 +349,13 @@ fun AddOperationTypeDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val borderColor = try {
-                    Color(operationCategoryColor.toColorInt())
-                } catch (_: Exception) {
-                    MaterialTheme.colorScheme.primary
+                val primaryColor = MaterialTheme.colorScheme.primary
+                val borderColor = remember(operationCategoryColor, primaryColor) {
+                    try {
+                        Color(operationCategoryColor.toColorInt())
+                    } catch (_: Exception) {
+                        primaryColor
+                    }
                 }
                 Box(
                     modifier = Modifier
@@ -369,7 +374,7 @@ fun AddOperationTypeDialog(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        val icon = EquipmentIconProvider.getIcon(iconId, "OPERATION")
+                        val icon = EquipmentIconProvider.getIcon(iconId, Category.OPERATION)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.operation_type_photo),
@@ -491,7 +496,7 @@ fun OperationTypeCard(
             onSetDefaultInCategory = null,
             isPhotoUsed = null,
             isPrefsMode = false,
-            forcedCategory = "OPERATION"
+            forcedCategory = Category.OPERATION
         )
     }
 
@@ -504,10 +509,13 @@ fun OperationTypeCard(
         .crossfade(true)
         .build()
 
-    val operationColor = try {
-        Color(operationCategoryColor.toColorInt())
-    } catch (_: Exception) {
-        MaterialTheme.colorScheme.primary
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val operationColor = remember(operationCategoryColor, primaryColor) {
+        try {
+            Color(operationCategoryColor.toColorInt())
+        } catch (_: Exception) {
+            primaryColor
+        }
     }
 
     Box(contentAlignment = Alignment.BottomEnd) {
@@ -562,7 +570,7 @@ fun OperationTypeCard(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier, "OPERATION")
+                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier, Category.OPERATION)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.operation_type_photo),
@@ -584,7 +592,7 @@ fun OperationTypeCard(
                         )
                     } else {
                         Text(
-                            text = editedDescription.ifBlank { "id:${operationType.id} - no description" },
+                            text = editedDescription.ifBlank { stringResource(R.string.id_no_description, operationType.id) },
                             color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis

@@ -9,6 +9,7 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -16,7 +17,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -50,12 +50,25 @@ class OptionsViewModelTest {
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
     private val allImagesFlow = MutableStateFlow<List<Image>>(emptyList())
     private val allColorsFlow = MutableStateFlow<List<AppColor>>(emptyList())
+    
+    private val backgroundUriFlow = MutableStateFlow<String?>(null)
+    private val backgroundBlurFlow = MutableStateFlow(0f)
+    private val backgroundSaturationFlow = MutableStateFlow(1f)
+    private val backgroundTintEnabledFlow = MutableStateFlow(false)
+    private val backgroundTintAlphaFlow = MutableStateFlow(0.25f)
+    private val backgroundImageAlphaFlow = MutableStateFlow(1f)
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         appSettingsManager = mockk(relaxed = true) {
             every { username } returns MutableStateFlow("default_user")
+            every { backgroundUri } returns backgroundUriFlow
+            every { backgroundBlur } returns backgroundBlurFlow
+            every { backgroundSaturation } returns backgroundSaturationFlow
+            every { backgroundTintEnabled } returns backgroundTintEnabledFlow
+            every { backgroundTintAlpha } returns backgroundTintAlphaFlow
+            every { backgroundImageAlpha } returns backgroundImageAlphaFlow
         }
         equipmentDao = mockk(relaxed = true)
         
@@ -63,7 +76,7 @@ class OptionsViewModelTest {
             every { allImages } returns allImagesFlow
             every { allCategories } returns allCategoriesFlow
             every { allColors } returns allColorsFlow
-            every { getCategoryColor(any()) } returns MutableStateFlow("#808080")
+            every { getCategoryColor(any()) } returns MutableStateFlow(UiConstants.DEFAULT_FALLBACK_COLOR)
             every { getCategoryDefaultIcon(any()) } returns MutableStateFlow(null)
             every { getCategoryDefaultPhoto(any()) } returns MutableStateFlow(null)
         }
@@ -103,6 +116,68 @@ class OptionsViewModelTest {
             assertEquals("photo1", result[0].defaultPhotoUri)
             
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun setBackgroundUri_callsManager() = runTest {
+        val uri = "content://image"
+        viewModel.setBackgroundUri(uri)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setBackgroundUri(uri) }
+    }
+
+    @Test
+    fun setBackgroundBlur_callsManager() = runTest {
+        val blur = 10f
+        viewModel.setBackgroundBlur(blur)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setBackgroundBlur(blur) }
+    }
+
+    @Test
+    fun setBackgroundSaturation_callsManager() = runTest {
+        val saturation = 1.5f
+        viewModel.setBackgroundSaturation(saturation)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setBackgroundSaturation(saturation) }
+    }
+
+    @Test
+    fun setBackgroundTintEnabled_callsManager() = runTest {
+        viewModel.setBackgroundTintEnabled(true)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setBackgroundTintEnabled(true) }
+    }
+
+    @Test
+    fun setBackgroundTintAlpha_callsManager() = runTest {
+        val alpha = 0.5f
+        viewModel.setBackgroundTintAlpha(alpha)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setBackgroundTintAlpha(alpha) }
+    }
+
+    @Test
+    fun setBackgroundImageAlpha_callsManager() = runTest {
+        val alpha = 0.8f
+        viewModel.setBackgroundImageAlpha(alpha)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { appSettingsManager.setBackgroundImageAlpha(alpha) }
+    }
+
+    @Test
+    fun backgroundSettings_emitCorrectValues() = runTest {
+        viewModel.backgroundUri.test {
+            assertEquals(null, awaitItem())
+            backgroundUriFlow.value = "test_uri"
+            assertEquals("test_uri", awaitItem())
+        }
+        
+        viewModel.backgroundBlur.test {
+            assertEquals(0f, awaitItem())
+            backgroundBlurFlow.value = 5f
+            assertEquals(5f, awaitItem())
         }
     }
 

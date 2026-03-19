@@ -9,6 +9,7 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -62,10 +63,10 @@ class OptionsViewModel(
     }
 
     val username: StateFlow<String> = appSettingsManager.username
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), "")
 
     val allImages: StateFlow<List<Image>> = imageRepository.allImages
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val categoriesUiState: StateFlow<List<CategoryUiState>> = imageRepository.allCategories
         .flatMapLatest { categories ->
@@ -77,33 +78,33 @@ class OptionsViewModel(
                     imageRepository.getCategoryDefaultIcon(category.id),
                     imageRepository.getCategoryDefaultPhoto(category.id)
                 ) { color, icon, photo ->
-                    CategoryUiState(category, color ?: "#808080", icon, photo)
+                    CategoryUiState(category, color ?: UiConstants.DEFAULT_FALLBACK_COLOR, icon, photo)
                 }
             }
             combine(flows) { it.toList() }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val backgroundUri: StateFlow<String?> = appSettingsManager.backgroundUri
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
 
     val backgroundBlur: StateFlow<Float> = appSettingsManager.backgroundBlur
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0f)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), 0f)
 
     val backgroundSaturation: StateFlow<Float> = appSettingsManager.backgroundSaturation
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1f)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), 1f)
 
     val backgroundTintEnabled: StateFlow<Boolean> = appSettingsManager.backgroundTintEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), false)
 
     val backgroundTintAlpha: StateFlow<Float> = appSettingsManager.backgroundTintAlpha
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0.25f)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), 0.25f)
 
     val backgroundImageAlpha: StateFlow<Float> = appSettingsManager.backgroundImageAlpha
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1f)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), 1f)
 
     fun setBackgroundUri(uri: String?) {
         viewModelScope.launch {

@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
@@ -62,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
@@ -184,7 +184,6 @@ fun EquipmentsScreenContent(
         containerColor = Color.Transparent, // Rende trasparente lo sfondo della schermata
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             Column(horizontalAlignment = Alignment.End) {
                 FloatingActionButton(onClick = { onShowAddDialogChange(true) }) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_equipment))
@@ -346,13 +345,14 @@ fun AddEquipmentDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val borderColor = equipmentCategoryColor?.let {
+                val primaryColor = MaterialTheme.colorScheme.primary
+                val borderColor = remember(equipmentCategoryColor, primaryColor) {
                     try {
-                        Color(android.graphics.Color.parseColor(it))
-                    } catch (e: Exception) {
-                        MaterialTheme.colorScheme.primary
+                        equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
+                    } catch (_: Exception) {
+                        primaryColor
                     }
-                } ?: MaterialTheme.colorScheme.primary
+                }
 
                 Box(
                     modifier = Modifier
@@ -506,13 +506,14 @@ fun EquipmentCard(
         .crossfade(true)
         .build()
 
-    val equipmentColor = equipmentCategoryColor?.let {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val equipmentColor = remember(equipmentCategoryColor, primaryColor) {
         try {
-            Color(android.graphics.Color.parseColor(it))
-        } catch (e: Exception) {
-            MaterialTheme.colorScheme.primary
+            equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
+        } catch (_: Exception) {
+            primaryColor
         }
-    } ?: MaterialTheme.colorScheme.primary
+    }
 
     Box(contentAlignment = Alignment.BottomEnd) {
         Card(
@@ -589,7 +590,7 @@ fun EquipmentCard(
                         )
                     } else {
                         Text(
-                            text = if (editedDescription.isNotBlank()) editedDescription else "id:${equipment.id} - no description",
+                            text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, equipment.id),
                             color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
