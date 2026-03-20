@@ -8,6 +8,15 @@
     <string name="navigation_reports">Reports</string>
     <string name="navigation_options">Options</string>
 
+    <!-- Reports -->
+    <string name="report_section_equipments">Equipments</string>
+    <string name="report_section_operations">Operations</string>
+    <string name="report_km_over_time">Kilometers over time</string>
+    <string name="report_km_to_date">KM to date</string>
+    <string name="report_no_data">No data available</string>
+    <string name="select_equipment">Select Equipment</string>
+    <string name="select_operation">Select Operation</string>
+
     <!-- Options Screen -->
     <string name="options_version_label">Version %1$s</string>
     <string name="options_username_label">Username</string>
