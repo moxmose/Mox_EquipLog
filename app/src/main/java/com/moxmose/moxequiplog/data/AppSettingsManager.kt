@@ -18,6 +18,9 @@ class AppSettingsManager(
 
     val defaultOperationTypeId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_operation_type_id")
         .map { it?.toIntOrNull() }
+        
+    val defaultUnitId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_unit_id")
+        .map { it?.toIntOrNull() }
 
     val backgroundUri: Flow<String?> = appPreferenceDao.getPreferenceFlow("background_uri")
 
@@ -53,6 +56,14 @@ class AppSettingsManager(
             appPreferenceDao.deletePreference("default_operation_type_id")
         } else {
             appPreferenceDao.insertPreference(AppPreference("default_operation_type_id", id.toString()))
+        }
+    }
+    
+    suspend fun setDefaultUnitId(id: Int?) {
+        if (id == null) {
+            appPreferenceDao.deletePreference("default_unit_id")
+        } else {
+            appPreferenceDao.insertPreference(AppPreference("default_unit_id", id.toString()))
         }
     }
 

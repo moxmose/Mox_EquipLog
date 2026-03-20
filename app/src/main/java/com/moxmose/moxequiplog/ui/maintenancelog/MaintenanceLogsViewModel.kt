@@ -5,13 +5,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.CategoryDao
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLog
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
-import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -33,7 +28,8 @@ class MaintenanceLogViewModel(
     private val operationTypeDao: OperationTypeDao,
     private val categoryDao: CategoryDao,
     private val appSettingsManager: AppSettingsManager,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val measurementUnitDao: MeasurementUnitDao
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -67,22 +63,29 @@ class MaintenanceLogViewModel(
         maintenanceLogDao.getLogsWithDetails(query)
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
         initialValue = emptyList()
     )
+
+    val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
 
     val allCategories = categoryDao.getAllCategories()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
         
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 
@@ -170,14 +173,14 @@ class MaintenanceLogViewModel(
     val allEquipments = equipmentDao.getAllEquipments()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allOperationTypes = operationTypeDao.getAllOperationTypes()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 

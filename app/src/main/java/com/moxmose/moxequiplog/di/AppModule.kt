@@ -29,6 +29,7 @@ val appModule = module {
             AppDatabase::class.java,
             "mox-maintenance-logs-db"
         )
+        .addCallback(AppDatabase.CALLBACK)
         .fallbackToDestructiveMigration(true)
         .build()
     }
@@ -40,6 +41,7 @@ val appModule = module {
     single { get<AppDatabase>().categoryDao() }
     single { get<AppDatabase>().appColorDao() }
     single { get<AppDatabase>().appPreferenceDao() }
+    single { get<AppDatabase>().measurementUnitDao() }
 
     // Repositories
     single { ImageRepository(get(), get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }

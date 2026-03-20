@@ -45,6 +45,14 @@
     <string name="options_reset_background_settings">Reset to defaults</string>
     <string name="update_background_failed">Update background failed.</string>
 
+    <string name="options_units_title">Measurement Units</string>
+    <string name="options_units_desc">Manage the units of measure for your equipments (e.g., km, hours, liters).</string>
+    <string name="options_add_unit">Add Unit</string>
+    <string name="options_unit_label_placeholder">Label (e.g., hh)</string>
+    <string name="options_unit_desc_placeholder">Description (e.g., Hours)</string>
+    <string name="add_unit_failed">Failed to add unit.</string>
+    <string name="delete_unit_failed">Failed to delete unit.</string>
+
     <string name="button_about" translatable="false">About</string>
     <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>
     <string name="about_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!</string>
@@ -86,6 +94,7 @@
     <string name="restore_operation_type">Restore Operation Type</string>
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="id_no_description">id:%1$d - no description</string>
+    <string name="measurement_unit">Measurement Unit</string>
 
     <!-- Maintenance Logs -->
     <string name="search_logs">Search</string>
@@ -145,4 +154,5 @@
     <string name="update_log_failed">Failed to update log.</string>
     <string name="dismiss_log_failed">Failed to dismiss log.</string>
     <string name="restore_log_failed">Failed to restore log.</string>
+    <string name="set_default_failed">Set default failed</string>
 </resources>

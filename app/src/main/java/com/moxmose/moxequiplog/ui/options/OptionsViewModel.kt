@@ -4,11 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.AppColor
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -26,7 +23,8 @@ data class CategoryUiState(
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val measurementUnitDao: MeasurementUnitDao
 ) : ViewModel() {
 
     sealed class OptionsUiEvent {
@@ -51,6 +49,9 @@ class OptionsViewModel(
         data object ColorIdInvalid : OptionsUiEvent()
         data object DeleteColorFailed : OptionsUiEvent()
         data object UpdateBackgroundFailed : OptionsUiEvent()
+        data object AddUnitFailed : OptionsUiEvent()
+        data object DeleteUnitFailed : OptionsUiEvent()
+        data object SetDefaultFailed : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -59,14 +60,25 @@ class OptionsViewModel(
     init {
         viewModelScope.launch {
             imageRepository.initializeAppData()
+            checkAndPopulateUnits()
+        }
+    }
+
+    private suspend fun checkAndPopulateUnits() {
+        if (measurementUnitDao.countUnits() == 0) {
+            measurementUnitDao.insertUnit(MeasurementUnit(id = 1, label = "km", description = "Kilometers", isSystem = true))
+            measurementUnitDao.insertUnit(MeasurementUnit(id = 2, label = "hh", description = "Hours", isSystem = true))
+            measurementUnitDao.insertUnit(MeasurementUnit(id = 3, label = "lt", description = "Liters", isSystem = true))
+            measurementUnitDao.insertUnit(MeasurementUnit(id = 4, label = "dy", description = "Days", isSystem = true))
+            measurementUnitDao.insertUnit(MeasurementUnit(id = 5, label = "un", description = "Units", isSystem = true))
         }
     }
 
     val username: StateFlow<String> = appSettingsManager.username
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), "")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), "")
 
     val allImages: StateFlow<List<Image>> = imageRepository.allImages
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val categoriesUiState: StateFlow<List<CategoryUiState>> = imageRepository.allCategories
         .flatMapLatest { categories ->
@@ -83,28 +95,34 @@ class OptionsViewModel(
             }
             combine(flows) { it.toList() }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+
+    val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+        
+    val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val backgroundUri: StateFlow<String?> = appSettingsManager.backgroundUri
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val backgroundBlur: StateFlow<Float> = appSettingsManager.backgroundBlur
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_BLUR)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_BLUR)
 
     val backgroundSaturation: StateFlow<Float> = appSettingsManager.backgroundSaturation
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_SATURATION)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_SATURATION)
 
     val backgroundTintEnabled: StateFlow<Boolean> = appSettingsManager.backgroundTintEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED)
 
     val backgroundTintAlpha: StateFlow<Float> = appSettingsManager.backgroundTintAlpha
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA)
 
     val backgroundImageAlpha: StateFlow<Float> = appSettingsManager.backgroundImageAlpha
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA)
 
     fun resetBackgroundSettings() {
         viewModelScope.launch {
@@ -181,7 +199,7 @@ class OptionsViewModel(
     }
 
     fun setUsername(newUsername: String) {
-        if (newUsername.isBlank()) {
+        if (newUsername.isBlank() || newUsername.length > AppConstants.USERNAME_MAX_LENGTH) {
             _uiEvents.trySend(OptionsUiEvent.UsernameInvalid)
             return
         }
@@ -342,6 +360,43 @@ class OptionsViewModel(
                 imageRepository.deleteColor(color)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.DeleteColorFailed)
+            }
+        }
+    }
+
+    fun addMeasurementUnit(label: String, description: String) {
+        if (label.isBlank() || label.length > AppConstants.UNIT_LABEL_MAX_LENGTH) return
+        viewModelScope.launch {
+            try {
+                measurementUnitDao.insertUnit(MeasurementUnit(label = label, description = description))
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.AddUnitFailed)
+            }
+        }
+    }
+
+    fun deleteMeasurementUnit(unit: MeasurementUnit) {
+        if (unit.isSystem) return // Non cancelliamo le unità di sistema
+        viewModelScope.launch {
+            try {
+                measurementUnitDao.deleteUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.DeleteUnitFailed)
+            }
+        }
+    }
+    
+    fun toggleDefaultUnit(id: Int) {
+        viewModelScope.launch {
+            try {
+                val currentDefault = defaultUnitId.value
+                if (currentDefault == id) {
+                    appSettingsManager.setDefaultUnitId(null)
+                } else {
+                    appSettingsManager.setDefaultUnitId(id)
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.SetDefaultFailed)
             }
         }
     }

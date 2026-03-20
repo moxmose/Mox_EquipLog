@@ -5,49 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,13 +44,13 @@ import org.koin.androidx.compose.koinViewModel
 fun OperationTypeScreen(viewModel: OperationsTypeViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
     val activeOperationTypes by viewModel.activeOperationTypes.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
-    val operationTypeImages by viewModel.operationTypeImages.collectAsState()
+    val operationTypeImages by viewModel.operationImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     
-    val categoryColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
-    val categoryDefaultIcon by viewModel.getCategoryDefaultIcon(Category.OPERATION).collectAsState(initial = null)
-    val categoryDefaultPhoto by viewModel.getCategoryDefaultPhoto(Category.OPERATION).collectAsState(initial = null)
+    val categoryColor by viewModel.categoryColor.collectAsState()
+    val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
+    val categoryDefaultPhoto by viewModel.categoryDefaultPhoto.collectAsState()
 
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
@@ -139,7 +103,7 @@ fun OperationTypeScreen(viewModel: OperationsTypeViewModel = koinViewModel(), op
         onShowAddDialogChange = { showAddDialog = it },
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
-        operationCategoryColor = categoryColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+        operationCategoryColor = categoryColor,
         snackbarHostState = snackbarHostState,
         defaultOperationTypeId = defaultOperationTypeId,
         onToggleDefault = viewModel::toggleDefaultOperationType,
@@ -149,6 +113,7 @@ fun OperationTypeScreen(viewModel: OperationsTypeViewModel = koinViewModel(), op
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OperationTypeScreenContent(
     operationTypes: List<OperationType>,
@@ -180,7 +145,7 @@ fun OperationTypeScreenContent(
 
     Scaffold(
         modifier = modifier,
-        containerColor = Color.Transparent, // Rende trasparente lo sfondo
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
@@ -299,7 +264,6 @@ fun AddOperationTypeDialog(
     var isPristine by rememberSaveable { mutableStateOf(true) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
-
     if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
         LaunchedEffect(defaultIcon, defaultPhotoUri) {
             iconId = defaultIcon
@@ -324,7 +288,7 @@ fun AddOperationTypeDialog(
             categoryDefaultIcons = categoryDefaultIcons,
             categoryDefaultPhotos = categoryDefaultPhotos,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+            onRemoveImage = null,
             onUpdateImageOrder = null,
             onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
@@ -349,14 +313,10 @@ fun AddOperationTypeDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val primaryColor = MaterialTheme.colorScheme.primary
-                val borderColor = remember(operationCategoryColor, primaryColor) {
-                    try {
-                        Color(operationCategoryColor.toColorInt())
-                    } catch (_: Exception) {
-                        primaryColor
-                    }
+                val borderColor = remember(operationCategoryColor) {
+                    try { Color(operationCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray }
                 }
+
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -374,7 +334,7 @@ fun AddOperationTypeDialog(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        val icon = EquipmentIconProvider.getIcon(iconId, Category.OPERATION)
+                        val icon = EquipmentIconProvider.getIcon(iconId)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.operation_type_photo),
@@ -410,27 +370,6 @@ fun AddOperationTypeDialog(
             TextButton(onClick = onDismissRequest) {
                 Text(stringResource(R.string.button_cancel))
             }
-        }
-    )
-}
-
-@Composable
-fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { onDismiss() }) {
-                Text(stringResource(R.string.button_ok))
-            }
-        },
-        modifier = Modifier.padding(16.dp),
-        text = {
-            AsyncImage(
-                model = photoUri,
-                contentDescription = stringResource(R.string.full_size_operation_photo),
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.Fit
-            )
         }
     )
 }
@@ -490,7 +429,7 @@ fun OperationTypeCard(
             categoryDefaultIcons = categoryDefaultIcons,
             categoryDefaultPhotos = categoryDefaultPhotos,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = { uri, category -> operationTypeImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+            onRemoveImage = null,
             onUpdateImageOrder = null,
             onToggleImageVisibility = { uri, category -> operationTypeImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
@@ -504,18 +443,8 @@ fun OperationTypeCard(
         FullImageDialog(photoUri = uri, onDismiss = { showFullImageDialog = null })
     }
 
-    val imageRequest = ImageRequest.Builder(context)
-        .data(operationType.photoUri)
-        .crossfade(true)
-        .build()
-
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val operationColor = remember(operationCategoryColor, primaryColor) {
-        try {
-            Color(operationCategoryColor.toColorInt())
-        } catch (_: Exception) {
-            primaryColor
-        }
+    val operationColor = remember(operationCategoryColor) {
+        try { Color(operationCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray }
     }
 
     Box(contentAlignment = Alignment.BottomEnd) {
@@ -536,7 +465,7 @@ fun OperationTypeCard(
                     }
                 ),
             colors = CardDefaults.cardColors(
-                containerColor = if (isDefault) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
             )
         ) {
             Row(
@@ -564,13 +493,13 @@ fun OperationTypeCard(
                 ) {
                     if (operationType.photoUri != null) {
                         AsyncImage(
-                            model = imageRequest,
+                            model = ImageRequest.Builder(context).data(operationType.photoUri).crossfade(true).build(),
                             contentDescription = stringResource(R.string.operation_type_photo),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier, Category.OPERATION)
+                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.operation_type_photo),
@@ -579,6 +508,7 @@ fun OperationTypeCard(
                         )
                     }
                 }
+
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
@@ -592,7 +522,7 @@ fun OperationTypeCard(
                         )
                     } else {
                         Text(
-                            text = editedDescription.ifBlank { stringResource(R.string.id_no_description, operationType.id) },
+                            text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, operationType.id),
                             color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -633,7 +563,7 @@ fun OperationTypeCard(
                             contentDescription = if (isEditing) stringResource(R.string.save_operation_type) else stringResource(R.string.edit_operation_type)
                         )
                     }
-                    IconButton(onClick = { /* Drag is handled by the parent */ }) {
+                    IconButton(onClick = { /* Drag handled by parent */ }) {
                         Icon(
                             imageVector = Icons.Filled.DragHandle,
                             contentDescription = stringResource(R.string.drag_to_reorder)
@@ -661,4 +591,25 @@ fun OperationTypeCard(
             }
         }
     }
+}
+
+@Composable
+fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onDismiss() }) {
+                Text(stringResource(R.string.button_ok))
+            }
+        },
+        modifier = Modifier.padding(16.dp),
+        text = {
+            AsyncImage(
+                model = photoUri,
+                contentDescription = stringResource(R.string.full_size_operation_photo),
+                modifier = Modifier.fillMaxWidth(),
+                contentScale = ContentScale.Fit
+            )
+        }
+    )
 }

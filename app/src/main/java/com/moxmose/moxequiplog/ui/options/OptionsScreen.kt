@@ -3,58 +3,16 @@ package com.moxmose.moxequiplog.ui.options
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,16 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.AppColor
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
-import com.moxmose.moxequiplog.ui.components.AddColorDialog
-import com.moxmose.moxequiplog.ui.components.ColorItemCard
-import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
-import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
-import com.moxmose.moxequiplog.ui.components.ImageSelector
-import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -88,6 +38,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
+    val measurementUnits by viewModel.measurementUnits.collectAsState()
     
     val backgroundUri by viewModel.backgroundUri.collectAsState()
     val backgroundBlur by viewModel.backgroundBlur.collectAsState()
@@ -123,6 +74,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ColorIdInvalid -> context.getString(R.string.color_id_invalid)
                 is OptionsViewModel.OptionsUiEvent.DeleteColorFailed -> context.getString(R.string.delete_color_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateBackgroundFailed -> context.getString(R.string.update_background_failed)
+                is OptionsViewModel.OptionsUiEvent.AddUnitFailed -> context.getString(R.string.add_unit_failed)
+                is OptionsViewModel.OptionsUiEvent.DeleteUnitFailed -> context.getString(R.string.delete_unit_failed)
+                is OptionsViewModel.OptionsUiEvent.SetDefaultFailed -> context.getString(R.string.set_default_failed)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -138,6 +92,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         allImages = allImages,
         categoriesUiState = categoriesUiState,
         allColors = allColors,
+        measurementUnits = measurementUnits,
         backgroundUri = backgroundUri,
         backgroundBlur = backgroundBlur,
         backgroundSaturation = backgroundSaturation,
@@ -158,6 +113,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetBackgroundTintAlpha = viewModel::setBackgroundTintAlpha,
         onSetBackgroundImageAlpha = viewModel::setBackgroundImageAlpha,
         onResetBackgroundSettings = viewModel::resetBackgroundSettings,
+        onAddUnit = viewModel::addMeasurementUnit,
+        onDeleteUnit = viewModel::deleteMeasurementUnit,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = { showAboutDialog = it },
@@ -181,6 +138,7 @@ fun OptionsScreenContent(
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
     allColors: List<AppColor>,
+    measurementUnits: List<MeasurementUnit>,
     backgroundUri: String?,
     backgroundBlur: Float,
     backgroundSaturation: Float,
@@ -201,6 +159,8 @@ fun OptionsScreenContent(
     onSetBackgroundTintAlpha: (Float) -> Unit,
     onSetBackgroundImageAlpha: (Float) -> Unit,
     onResetBackgroundSettings: () -> Unit,
+    onAddUnit: (String, String) -> Unit,
+    onDeleteUnit: (MeasurementUnit) -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -216,39 +176,60 @@ fun OptionsScreenContent(
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
     var showBackgroundPicker by remember { mutableStateOf(false) }
+    var showAddUnitDialog by remember { mutableStateOf(false) }
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
     val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
 
     if (showAboutDialog) {
-        BasicAlertDialog(
-            onDismissRequest = { onShowAboutDialogChange(false) },
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = 6.dp
-            ) {
+        BasicAlertDialog(onDismissRequest = { onShowAboutDialogChange(false) }) {
+            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
                 Column(modifier = Modifier.padding(24.dp)) {
-                    Text(
-                        text = stringResource(R.string.about_dialog_title),
-                        style = MaterialTheme.typography.headlineSmall
-                    )
+                    Text(text = stringResource(R.string.about_dialog_title), style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text(text = stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(24.dp))
-                    TextButton(
-                        onClick = { onShowAboutDialogChange(false) },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
+                    TextButton(onClick = { onShowAboutDialogChange(false) }, modifier = Modifier.align(Alignment.End)) {
                         Text(stringResource(R.string.button_ok))
                     }
                 }
             }
         }
+    }
+
+    if (showAddUnitDialog) {
+        var label by remember { mutableStateOf("") }
+        var description by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAddUnitDialog = false },
+            title = { Text(stringResource(R.string.options_add_unit)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = label,
+                        onValueChange = { label = it },
+                        label = { Text(stringResource(R.string.options_unit_label_placeholder)) },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = { Text(stringResource(R.string.options_unit_desc_placeholder)) },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onAddUnit(label, description)
+                    showAddUnitDialog = false
+                }) { Text(stringResource(R.string.button_add)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddUnitDialog = false }) { Text(stringResource(R.string.button_cancel)) }
+            }
+        )
     }
 
     if (showImageDialog) {
@@ -287,9 +268,7 @@ fun OptionsScreenContent(
             photoUri = backgroundUri,
             iconIdentifier = null,
             onImageSelected = { (_, photoUri) ->
-                if (photoUri != null) {
-                    onSetBackgroundUri(photoUri)
-                }
+                if (photoUri != null) onSetBackgroundUri(photoUri)
                 showBackgroundPicker = false
             },
             imageLibrary = allImages,
@@ -345,6 +324,7 @@ fun OptionsScreenContent(
                 textAlign = TextAlign.Center
             )
 
+            // Sezione PROFILO
             OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
                 OutlinedTextField(
                     value = editedUsername,
@@ -362,6 +342,44 @@ fun OptionsScreenContent(
                 )
             }
 
+            // Sezione UNITÀ DI MISURA (NUOVA)
+            OptionsSectionCard(
+                title = stringResource(R.string.options_units_title),
+                description = stringResource(R.string.options_units_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    measurementUnits.forEach { unit ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(unit.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                if (unit.description.isNotBlank()) {
+                                    Text(unit.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            if (!unit.isSystem) {
+                                IconButton(onClick = { onDeleteUnit(unit) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                }
+                            } else {
+                                Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = { showAddUnitDialog = true },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_add_unit))
+                    }
+                }
+            }
+
+            // Sezione COLORI
             OptionsSectionCard(
                 title = stringResource(R.string.options_sections_colors_title),
                 description = stringResource(R.string.options_sections_colors_desc)
@@ -391,12 +409,12 @@ fun OptionsScreenContent(
                     }
             }
 
+            // Sezione BACKGROUND
             OptionsSectionCard(
                 title = stringResource(R.string.options_background_custom_title),
                 description = stringResource(R.string.options_background_custom_desc)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Sezione TINT (sempre visibile)
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(R.string.options_enable_section_color), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
@@ -404,27 +422,13 @@ fun OptionsScreenContent(
                         }
                         if (backgroundTintEnabled) {
                             Text(stringResource(R.string.options_color_intensity, (backgroundTintAlpha * 100).toInt()), style = MaterialTheme.typography.labelMedium)
-                            Slider(
-                                value = backgroundTintAlpha,
-                                onValueChange = onSetBackgroundTintAlpha,
-                                valueRange = 0f..1f
-                            )
+                            Slider(value = backgroundTintAlpha, onValueChange = onSetBackgroundTintAlpha, valueRange = 0f..1f)
                         }
                     }
-
                     HorizontalDivider()
-
-                    // Sezione IMMAGINE
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { showBackgroundPicker = true },
-                                modifier = Modifier.weight(1f)
-                            ) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { showBackgroundPicker = true }, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.Image, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.options_select_image))
@@ -435,38 +439,17 @@ fun OptionsScreenContent(
                                 }
                             }
                         }
-
                         if (backgroundUri != null) {
                             Text(stringResource(R.string.options_image_opacity, (backgroundImageAlpha * 100).toInt()), style = MaterialTheme.typography.labelMedium)
-                            Slider(
-                                value = backgroundImageAlpha,
-                                onValueChange = onSetBackgroundImageAlpha,
-                                valueRange = 0f..1f
-                            )
-
+                            Slider(value = backgroundImageAlpha, onValueChange = onSetBackgroundImageAlpha, valueRange = 0f..1f)
                             Text(stringResource(R.string.options_blur_radius_label, backgroundBlur.toInt()), style = MaterialTheme.typography.labelMedium)
-                            Slider(
-                                value = backgroundBlur,
-                                onValueChange = onSetBackgroundBlur,
-                                valueRange = 0f..25f,
-                                steps = 25
-                            )
-
+                            Slider(value = backgroundBlur, onValueChange = onSetBackgroundBlur, valueRange = 0f..25f, steps = 25)
                             Text(stringResource(R.string.options_saturation_label, (backgroundSaturation * 100).toInt()), style = MaterialTheme.typography.labelMedium)
-                            Slider(
-                                value = backgroundSaturation,
-                                onValueChange = onSetBackgroundSaturation,
-                                valueRange = 0f..2f
-                            )
+                            Slider(value = backgroundSaturation, onValueChange = onSetBackgroundSaturation, valueRange = 0f..2f)
                         }
                     }
-
                     HorizontalDivider()
-
-                    TextButton(
-                        onClick = onResetBackgroundSettings,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    TextButton(onClick = onResetBackgroundSettings, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_reset_background_settings))
@@ -474,23 +457,14 @@ fun OptionsScreenContent(
                 }
             }
 
+            // Sezione IMMAGINI
             OptionsSectionCard(
                 title = stringResource(R.string.options_image_mgmt_title),
                 description = stringResource(R.string.options_image_mgmt_desc)
             ) {
-                OutlinedButton(
-                    onClick = { onShowImageDialogChange(true) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                OutlinedButton(onClick = { onShowImageDialogChange(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (allImages.isEmpty()) {
                                 Text(stringResource(R.string.options_empty_library))
                             } else {
@@ -512,33 +486,16 @@ fun OptionsScreenContent(
                                 }
                             }
                         }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.options_manage_label),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.options_manage_images),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_images), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { onShowAboutDialogChange(true) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Button(onClick = { onShowAboutDialogChange(true) }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.button_about))
             }
         }
@@ -562,74 +519,28 @@ fun ColorManagementDialog(
     var showHidden by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
-
-    val colorsState = remember(allColors, showHidden) {
-        allColors.filter { !it.hidden || showHidden }.toMutableStateList()
-    }
-
-    if (showAddColorDialog) {
-        AddColorDialog(
-            onDismiss = { showAddColorDialog = false },
-            onAddColor = { hex, name -> onAddColor(hex, name) }
-        )
-    }
-
+    val colorsState = remember(allColors, showHidden) { allColors.filter { !it.hidden || showHidden }.toMutableStateList() }
+    if (showAddColorDialog) { AddColorDialog(onDismiss = { showAddColorDialog = false }, onAddColor = { hex, name -> onAddColor(hex, name) }) }
     BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.padding(16.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp
-        ) {
+        Surface(modifier = Modifier.padding(16.dp), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
             Scaffold(
                 modifier = Modifier.height(500.dp),
                 floatingActionButton = {
                     Column(horizontalAlignment = Alignment.End) {
-                        FloatingActionButton(onClick = { showAddColorDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color))
-                        }
+                        FloatingActionButton(onClick = { showAddColorDialog = true }) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color)) }
                         Spacer(Modifier.height(8.dp))
-                        FloatingActionButton(
-                            onClick = {
-                                showHidden = !showHidden
-                                scope.launch { lazyListState.animateScrollToItem(0) }
-                            },
-                            containerColor = MaterialTheme.colorScheme.secondary
-                        ) {
-                            Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = stringResource(R.string.options_show_hide))
-                        }
+                        FloatingActionButton(onClick = { showHidden = !showHidden; scope.launch { lazyListState.animateScrollToItem(0) } }, containerColor = MaterialTheme.colorScheme.secondary) { Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = stringResource(R.string.options_show_hide)) }
                     }
                 }
             ) { paddingValues ->
                 Column(Modifier.padding(paddingValues).padding(16.dp)) {
-                    Text(
-                        text = stringResource(R.string.options_color_mgmt_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        textAlign = TextAlign.Center
-                    )
+                    Text(text = stringResource(R.string.options_color_mgmt_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
                     DraggableLazyColumn(
                         items = colorsState,
                         key = { _, color -> color.id },
                         onMove = { from, to -> colorsState.add(to, colorsState.removeAt(from)) },
-                        onDrop = {
-                            val hiddenColors = allColors.filter { it.hidden && !showHidden }
-                            val fullNewList = colorsState + hiddenColors
-                            onUpdateColorsOrder(fullNewList.mapIndexed { index, appColor -> appColor.copy(displayOrder = index) })
-                        },
-                        itemContent = { _, color ->
-                            ColorItemCard(
-                                color = color,
-                                isSelected = categoryUiState.color.equals(color.hexValue, ignoreCase = true),
-                                onColorSelected = {
-                                    onColorSelected(color.hexValue)
-                                    onDismiss()
-                                },
-                                onUpdateColor = onUpdateColor,
-                                onToggleVisibility = { onToggleColorVisibility(color.id) }
-                            )
-                        }
+                        onDrop = { val hiddenColors = allColors.filter { it.hidden && !showHidden }; val fullNewList = colorsState + hiddenColors; onUpdateColorsOrder(fullNewList.mapIndexed { index, appColor -> appColor.copy(displayOrder = index) }) },
+                        itemContent = { _, color -> ColorItemCard(color = color, isSelected = categoryUiState.color.equals(color.hexValue, ignoreCase = true), onColorSelected = { onColorSelected(color.hexValue); onDismiss() }, onUpdateColor = onUpdateColor, onToggleVisibility = { onToggleColorVisibility(color.id) }) }
                     )
                 }
             }

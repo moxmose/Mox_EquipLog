@@ -5,50 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,10 +28,7 @@ import androidx.core.graphics.toColorInt
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
@@ -83,6 +43,8 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
     val equipmentImages by viewModel.equipmentImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
+    val measurementUnits by viewModel.measurementUnits.collectAsState()
+    val defaultUnitId by viewModel.defaultUnitId.collectAsState()
     
     val categoryColor by viewModel.categoryColor.collectAsState()
     val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
@@ -126,6 +88,8 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
         equipments = equipmentsToShow,
         equipmentImages = equipmentImages,
         allCategories = allCategories,
+        measurementUnits = measurementUnits,
+        defaultUnitId = defaultUnitId,
         defaultIcon = categoryDefaultIcon,
         defaultPhotoUri = categoryDefaultPhoto,
         equipmentCategoryColor = categoryColor,
@@ -155,6 +119,8 @@ fun EquipmentsScreenContent(
     equipments: List<Equipment>,
     equipmentImages: List<Image>,
     allCategories: List<Category>,
+    measurementUnits: List<MeasurementUnit>,
+    defaultUnitId: Int?,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     equipmentCategoryColor: String?,
@@ -162,7 +128,7 @@ fun EquipmentsScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
@@ -181,7 +147,7 @@ fun EquipmentsScreenContent(
 
     Scaffold(
         modifier = modifier,
-        containerColor = Color.Transparent, // Rende trasparente lo sfondo della schermata
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
@@ -207,13 +173,15 @@ fun EquipmentsScreenContent(
                 defaultPhotoUri = defaultPhotoUri,
                 imageLibrary = equipmentImages,
                 categories = allCategories,
+                measurementUnits = measurementUnits,
+                defaultUnitId = defaultUnitId,
                 equipmentCategoryColor = equipmentCategoryColor,
                 categoryColors = categoryColors,
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier ->
-                    onAddEquipment(desc, identifier)
+                onConfirm = { desc, identifier, unitId ->
+                    onAddEquipment(desc, identifier, unitId)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -257,6 +225,7 @@ fun EquipmentsScreenContent(
                         equipment = equipment,
                         equipmentImages = equipmentImages,
                         allCategories = allCategories,
+                        measurementUnits = measurementUnits,
                         onUpdateEquipment = onUpdateEquipment,
                         onDismissEquipment = onDismissEquipment,
                         onRestoreEquipment = onRestoreEquipment,
@@ -275,14 +244,17 @@ fun EquipmentsScreenContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     imageLibrary: List<Image>,
     categories: List<Category>,
+    measurementUnits: List<MeasurementUnit>,
+    defaultUnitId: Int?,
     equipmentCategoryColor: String?,
     categoryColors: Map<String, String>,
     categoryDefaultIcons: Map<String, String?>,
@@ -293,6 +265,7 @@ fun AddEquipmentDialog(
     var description by rememberSaveable { mutableStateOf("") }
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
     var iconId by rememberSaveable { mutableStateOf<String?>(null) }
+    var unitId by rememberSaveable(defaultUnitId) { mutableIntStateOf(defaultUnitId ?: 1) }
     var isPristine by rememberSaveable { mutableStateOf(true) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
@@ -332,60 +305,60 @@ fun AddEquipmentDialog(
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = {
-            Text(
-                text = stringResource(R.string.add_a_new_equipment),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
+        title = { Text(text = stringResource(R.string.add_a_new_equipment), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
         text = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val primaryColor = MaterialTheme.colorScheme.primary
-                val borderColor = remember(equipmentCategoryColor, primaryColor) {
-                    try {
-                        equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
-                    } catch (_: Exception) {
-                        primaryColor
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val primaryColor = MaterialTheme.colorScheme.primary
+                    val borderColor = remember(equipmentCategoryColor, primaryColor) {
+                        try {
+                            equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
+                        } catch (_: Exception) { primaryColor }
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .border(2.dp, borderColor, CircleShape)
+                            .clickable { showImageSelectorDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (photoUri != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(),
+                                contentDescription = stringResource(R.string.equipment_photo),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            val icon = EquipmentIconProvider.getIcon(iconId)
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = stringResource(R.string.equipment_photo),
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { if (it.length <= 50) description = it },
+                        label = { Text(stringResource(R.string.equipment_description)) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .border(2.dp, borderColor, CircleShape)
-                        .clickable { showImageSelectorDialog = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (photoUri != null) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(),
-                            contentDescription = stringResource(R.string.equipment_photo),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        val icon = EquipmentIconProvider.getIcon(iconId)
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = stringResource(R.string.equipment_photo),
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { if (it.length <= 50) description = it },
-                    label = { Text(stringResource(R.string.equipment_description)) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+                UnitSelector(
+                    measurementUnits = measurementUnits,
+                    selectedUnitId = unitId,
+                    onUnitSelected = { unitId = it }
                 )
             }
         },
@@ -397,39 +370,64 @@ fun AddEquipmentDialog(
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
-                    onConfirm(description, identifier) 
+                    onConfirm(description, identifier, unitId) 
                 }
-            ) {
-                Text(stringResource(R.string.button_add))
-            }
+            ) { Text(stringResource(R.string.button_add)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text(stringResource(R.string.button_cancel))
-            }
+            TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) }
         }
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { onDismiss() }) {
-                Text(stringResource(R.string.button_ok))
+fun UnitSelector(
+    measurementUnits: List<MeasurementUnit>,
+    selectedUnitId: Int,
+    onUnitSelected: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedUnit = measurementUnits.find { it.id == selectedUnitId }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = if (selectedUnit != null) {
+                if (selectedUnit.description.isNotBlank()) "${selectedUnit.label} - ${selectedUnit.description}"
+                else selectedUnit.label
+            } else "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.measurement_unit)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            measurementUnits.forEach { unit ->
+                DropdownMenuItem(
+                    text = { 
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(unit.label, fontWeight = FontWeight.Bold)
+                            if (unit.description.isNotBlank()) {
+                                Text(unit.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    },
+                    onClick = {
+                        onUnitSelected(unit.id)
+                        expanded = false
+                    }
+                )
             }
-        },
-        modifier = Modifier.padding(16.dp),
-        text = {
-            AsyncImage(
-                model = photoUri,
-                contentDescription = stringResource(R.string.full_size_equipment_photo),
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.Fit
-            )
         }
-    )
+    }
 }
 
 @Composable
@@ -437,6 +435,7 @@ fun EquipmentCard(
     equipment: Equipment,
     equipmentImages: List<Image>,
     allCategories: List<Category>,
+    measurementUnits: List<MeasurementUnit>,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
@@ -452,12 +451,12 @@ fun EquipmentCard(
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editedDescription by remember(equipment.description) { mutableStateOf(equipment.description) }
-    val context = LocalContext.current
+    var editedUnitId by remember(equipment.unitId) { mutableIntStateOf(equipment.unitId) }
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
-    val cardAlpha = if (equipment.dismissed) 0.5f else 1f
+    val unitLabel = measurementUnits.find { it.id == equipment.unitId }?.label ?: ""
 
     if (showNoPictureDialog) {
         AlertDialog(
@@ -487,7 +486,7 @@ fun EquipmentCard(
             categoryDefaultIcons = categoryDefaultIcons,
             categoryDefaultPhotos = categoryDefaultPhotos,
             onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+            onRemoveImage = null,
             onUpdateImageOrder = null,
             onToggleImageVisibility = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
             onSetDefaultInCategory = null,
@@ -497,22 +496,13 @@ fun EquipmentCard(
         )
     }
 
-    showFullImageDialog?.let { uri ->
-        FullImageDialog(photoUri = uri, onDismiss = { showFullImageDialog = null })
+    showFullImageDialog?.let { uri -> 
+        FullImageDialog(photoUri = uri, onDismiss = { showFullImageDialog = null }) 
     }
-
-    val imageRequest = ImageRequest.Builder(context)
-        .data(equipment.photoUri)
-        .crossfade(true)
-        .build()
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val equipmentColor = remember(equipmentCategoryColor, primaryColor) {
-        try {
-            equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
-        } catch (_: Exception) {
-            primaryColor
-        }
+        try { equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor } catch (_: Exception) { primaryColor }
     }
 
     Box(contentAlignment = Alignment.BottomEnd) {
@@ -520,143 +510,122 @@ fun EquipmentCard(
             modifier = modifier
                 .fillMaxWidth()
                 .animateContentSize()
-                .graphicsLayer(alpha = cardAlpha)
-                .then(
-                    if (isDefault) Modifier.border(3.dp, equipmentColor, MaterialTheme.shapes.medium)
-                    else Modifier
-                )
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {
-                        if (!isEditing) onToggleDefault()
-                    }
-                ),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f) // Più opaco per leggibilità
-            )
+                .graphicsLayer(alpha = if (equipment.dismissed) 0.5f else 1f)
+                .then(if (isDefault) Modifier.border(3.dp, equipmentColor, MaterialTheme.shapes.medium) else Modifier)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { if (!isEditing) onToggleDefault() }),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .border(2.dp, equipmentColor, CircleShape)
-                        .clickable {
-                            if (isEditing) {
-                                showImageSelectorDialog = true
-                            } else {
-                                if (equipment.photoUri != null) {
-                                    showFullImageDialog = equipment.photoUri
-                                } else if (equipment.iconIdentifier == null) {
-                                    showNoPictureDialog = true
-                                }
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (equipment.photoUri != null) {
-                        AsyncImage(
-                            model = imageRequest,
-                            contentDescription = stringResource(R.string.equipment_photo),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        val icon = EquipmentIconProvider.getIcon(equipment.iconIdentifier)
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = stringResource(R.string.equipment_photo),
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                Column(modifier = Modifier.weight(1f)) {
-                    if (isEditing) {
-                        OutlinedTextField(
-                            value = editedDescription,
-                            onValueChange = { if (it.length <= 50) editedDescription = it },
-                            label = { Text(stringResource(R.string.equipment_description)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                    } else {
-                        Text(
-                            text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, equipment.id),
-                            color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (isEditing) {
-                        IconButton(
-                            onClick = { 
-                                if (equipment.dismissed) {
-                                    onRestoreEquipment(equipment)
-                                } else {
-                                    onDismissEquipment(equipment)
-                                }
-                             }
-                        ) {
-                            Icon(
-                                imageVector = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (equipment.dismissed) stringResource(R.string.restore_equipment) else stringResource(R.string.dismiss_equipment)
-                            )
-                        }
-                    }
-                    IconButton(
-                        onClick = {
-                            if (isEditing) {
-                                onUpdateEquipment(equipment.copy(description = editedDescription))
-                            }
-                            isEditing = !isEditing
-                        }
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .border(2.dp, equipmentColor, CircleShape)
+                            .clickable {
+                                if (isEditing) showImageSelectorDialog = true
+                                else if (equipment.photoUri != null) showFullImageDialog = equipment.photoUri
+                                else if (equipment.iconIdentifier == null) showNoPictureDialog = true
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit,
-                            contentDescription = if (isEditing) stringResource(R.string.save_equipment) else stringResource(R.string.edit_equipment)
-                        )
+                        if (equipment.photoUri != null) {
+                            AsyncImage(model = equipment.photoUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        } else {
+                            Icon(imageVector = EquipmentIconProvider.getIcon(equipment.iconIdentifier), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        }
                     }
-                    IconButton(onClick = { /* Drag is handled by the parent */ }) {
-                        Icon(
-                            imageVector = Icons.Filled.DragHandle,
-                            contentDescription = stringResource(R.string.drag_to_reorder)
-                        )
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (isEditing) {
+                            OutlinedTextField(
+                                value = editedDescription,
+                                onValueChange = { if (it.length <= 50) editedDescription = it },
+                                label = { Text(stringResource(R.string.equipment_description)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, equipment.id),
+                                    modifier = Modifier.weight(1f, fill = false),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (unitLabel.isNotBlank()) {
+                                    Surface(
+                                        color = equipmentColor.copy(alpha = 0.2f),
+                                        shape = MaterialTheme.shapes.small
+                                    ) {
+                                        Text(
+                                            text = unitLabel,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = equipmentColor,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
+
+                    Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        if (isEditing) {
+                            IconButton(onClick = { if (equipment.dismissed) onRestoreEquipment(equipment) else onDismissEquipment(equipment) }) {
+                                Icon(imageVector = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null)
+                            }
+                        }
+                        IconButton(onClick = {
+                            if (isEditing) onUpdateEquipment(equipment.copy(description = editedDescription, unitId = editedUnitId))
+                            isEditing = !isEditing
+                        }) {
+                            Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null)
+                        }
+                        IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
+                    }
+                }
+                
+                if (isEditing) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    UnitSelector(
+                        measurementUnits = measurementUnits,
+                        selectedUnitId = editedUnitId,
+                        onUnitSelected = { editedUnitId = it }
+                    )
                 }
             }
         }
         if (isDefault) {
             Box(
-                modifier = Modifier
-                    .padding(end = 4.dp, bottom = 4.dp)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(equipmentColor)
-                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                modifier = Modifier.padding(end = 4.dp, bottom = 4.dp).size(24.dp).clip(CircleShape).background(equipmentColor).border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
                 contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = Color.White
-                )
-            }
+            ) { Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White) }
         }
     }
+}
+
+@Composable
+fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onDismiss() }) {
+                Text(stringResource(R.string.button_ok))
+            }
+        },
+        modifier = Modifier.padding(16.dp),
+        text = {
+            AsyncImage(
+                model = photoUri,
+                contentDescription = stringResource(R.string.full_size_equipment_photo),
+                modifier = Modifier.fillMaxWidth(),
+                contentScale = ContentScale.Fit
+            )
+        }
+    )
 }

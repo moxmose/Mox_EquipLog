@@ -4,11 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -17,7 +14,8 @@ import kotlinx.coroutines.launch
 class EquipmentsViewModel(
     private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
-    private val appSettingsManager: AppSettingsManager
+    private val appSettingsManager: AppSettingsManager,
+    private val measurementUnitDao: MeasurementUnitDao
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -42,43 +40,53 @@ class EquipmentsViewModel(
     val activeEquipments: StateFlow<List<Equipment>> = equipmentDao.getActiveEquipments()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allEquipments: StateFlow<List<Equipment>> = equipmentDao.getAllEquipments()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
+    val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val equipmentImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory(Category.EQUIPMENT)
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val categoryColor: StateFlow<String> = imageRepository.getCategoryColor(Category.EQUIPMENT)
         .map { it ?: UiConstants.DEFAULT_FALLBACK_COLOR }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_FALLBACK_COLOR)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_FALLBACK_COLOR)
 
     val categoryDefaultIcon: StateFlow<String?> = imageRepository.getCategoryDefaultIcon(Category.EQUIPMENT)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto(Category.EQUIPMENT)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+        
+    val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     fun setDefaultEquipment(id: Int?) {
         viewModelScope.launch {
@@ -105,7 +113,7 @@ class EquipmentsViewModel(
         }
     }
 
-    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?) {
+    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?, unitId: Int) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
             return
@@ -132,7 +140,8 @@ class EquipmentsViewModel(
                         description = description,
                         photoUri = equipmentPhotoUri,
                         iconIdentifier = equipmentIconIdentifier,
-                        displayOrder = nextOrder
+                        displayOrder = nextOrder,
+                        unitId = unitId
                     )
                 )
             } catch (e: Exception) {
@@ -231,7 +240,7 @@ class EquipmentsViewModel(
         return try {
             equipmentDao.countEquipmentsUsingPhoto(uri) > 0
         } catch (e: Exception) {
-            _uiEvents.send(UiEvent.DatabaseCheckFailed)
+            _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
         }
     }

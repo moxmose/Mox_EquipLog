@@ -1,13 +1,7 @@
 package com.moxmose.moxequiplog.utils
 
-object UiConstants {
-    const val DEFAULT_FALLBACK_COLOR = "#808080"
+object AppConstants {
     const val FLOW_STOP_TIMEOUT = 5000L
-
-    // Background defaults
-    const val DEFAULT_BACKGROUND_BLUR = 0f
-    const val DEFAULT_BACKGROUND_SATURATION = 1f
-    const val DEFAULT_BACKGROUND_TINT_ENABLED = false
-    const val DEFAULT_BACKGROUND_TINT_ALPHA = 0.25f
-    const val DEFAULT_BACKGROUND_IMAGE_ALPHA = 1f
+    const val UNIT_LABEL_MAX_LENGTH = 3
+    const val USERNAME_MAX_LENGTH = 20
 }
