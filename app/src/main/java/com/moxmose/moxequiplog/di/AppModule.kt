@@ -9,6 +9,7 @@ import com.moxmose.moxequiplog.ui.equipments.EquipmentsViewModel
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.operations.OperationsTypeViewModel
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import com.moxmose.moxequiplog.ui.reports.ReportsViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
@@ -49,5 +50,6 @@ val appModule = module {
     viewModelOf(::OperationsTypeViewModel)
     viewModelOf(::MaintenanceLogViewModel)
     viewModelOf(::OptionsViewModel)
+    viewModelOf(::ReportsViewModel)
 
 }

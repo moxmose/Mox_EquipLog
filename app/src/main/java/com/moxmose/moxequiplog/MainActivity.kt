@@ -36,6 +36,7 @@ import com.moxmose.moxequiplog.ui.equipments.EquipmentsScreen
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogScreen
 import com.moxmose.moxequiplog.ui.operations.OperationTypeScreen
 import com.moxmose.moxequiplog.ui.options.OptionsScreen
+import com.moxmose.moxequiplog.ui.reports.ReportsScreen
 import com.moxmose.moxequiplog.ui.theme.MoxEquipLogTheme
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
@@ -90,7 +91,7 @@ fun MoxEquipLogApp() {
                     AppDestinations.LOGS -> MaintenanceLogScreen()
                     AppDestinations.EQUIPMENTS -> EquipmentsScreen()
                     AppDestinations.OPERATIONS -> OperationTypeScreen()
-                    AppDestinations.REPORTS -> Greeting(name = "Reports")
+                    AppDestinations.REPORTS -> ReportsScreen()
                     AppDestinations.OPTIONS -> OptionsScreen()
                 }
             }
@@ -106,11 +107,6 @@ enum class AppDestinations(
     LOGS(R.string.navigation_logs, Icons.Default.Home),
     EQUIPMENTS(R.string.navigation_equipments, Icons.AutoMirrored.Filled.List),
     OPERATIONS(R.string.navigation_operations, Icons.Default.Build),
-    REPORTS(R.string.navigation_reports, Icons.Default.Assessment, false),
+    REPORTS(R.string.navigation_reports, Icons.Default.Assessment),
     OPTIONS(R.string.navigation_options, Icons.Default.Settings),
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(text = "Hello $name!", modifier = modifier)
 }

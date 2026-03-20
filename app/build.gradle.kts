@@ -85,6 +85,9 @@ tasks.register<JacocoReport>("jacocoTestReport") {
 }
 
 dependencies {
+    // Return to stable Kotlin alignment
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:2.0.21"))
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -114,6 +117,11 @@ dependencies {
 
     // Color Picker
     implementation("com.github.skydoves:colorpicker-compose:1.0.0")
+
+    // Vico Charts (Stable Beta for Kotlin 2.0.x)
+    implementation(libs.vico.compose)
+    implementation(libs.vico.compose.m3)
+    implementation(libs.vico.core)
 
     // Testing
     testImplementation(libs.junit)
