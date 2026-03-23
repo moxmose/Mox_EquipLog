@@ -4,11 +4,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -46,6 +43,7 @@ class EquipmentsViewModelTest {
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var measurementUnitDao: MeasurementUnitDao
     private lateinit var viewModel: EquipmentsViewModel
 
     private val activeEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
@@ -70,8 +68,12 @@ class EquipmentsViewModelTest {
         }
         appSettingsManager = mockk(relaxed = true) {
             every { defaultEquipmentId } returns defaultEquipmentIdFlow
+            every { defaultUnitId } returns MutableStateFlow(null)
         }
-        viewModel = EquipmentsViewModel(equipmentDao, imageRepository, appSettingsManager)
+        measurementUnitDao = mockk(relaxed = true) {
+            every { getAllUnits() } returns MutableStateFlow(emptyList())
+        }
+        viewModel = EquipmentsViewModel(equipmentDao, imageRepository, appSettingsManager, measurementUnitDao)
     }
 
     @After
@@ -107,9 +109,9 @@ class EquipmentsViewModelTest {
             allEquipmentsFlow.value = listOf(Equipment(id = 1, description = "E1", displayOrder = 0))
             awaitItem()
 
-            viewModel.addEquipment("E1", ImageIdentifier.Icon("icon1"))
+            viewModel.addEquipment("E1", ImageIdentifier.Icon("icon1"), 1)
             testDispatcher.scheduler.advanceUntilIdle()
-            coVerify { equipmentDao.insertEquipment(match { it.description == "E1" && it.iconIdentifier == "icon1" && it.displayOrder == 1}) }
+            coVerify { equipmentDao.insertEquipment(match { it.description == "E1" && it.iconIdentifier == "icon1" && it.displayOrder == 1 && it.unitId == 1}) }
         }
     }
 
@@ -117,9 +119,9 @@ class EquipmentsViewModelTest {
     fun addEquipment_withPhoto_callsDao() = runTest {
         viewModel.allEquipments.test {
             awaitItem()
-            viewModel.addEquipment("E2", ImageIdentifier.Photo("uri2"))
+            viewModel.addEquipment("E2", ImageIdentifier.Photo("uri2"), 1)
             testDispatcher.scheduler.advanceUntilIdle()
-            coVerify { equipmentDao.insertEquipment(match { it.description == "E2" && it.photoUri == "uri2" }) }
+            coVerify { equipmentDao.insertEquipment(match { it.description == "E2" && it.photoUri == "uri2" && it.unitId == 1 }) }
         }
     }
 
@@ -131,9 +133,9 @@ class EquipmentsViewModelTest {
             backgroundScope.launch(testDispatcher) { viewModel.categoryDefaultIcon.collect {} }
             testDispatcher.scheduler.advanceUntilIdle()
             
-            viewModel.addEquipment("E3", null)
+            viewModel.addEquipment("E3", null, 2)
             testDispatcher.scheduler.advanceUntilIdle()
-            coVerify { equipmentDao.insertEquipment(match { it.description == "E3" && it.photoUri == "default_photo" }) }
+            coVerify { equipmentDao.insertEquipment(match { it.description == "E3" && it.photoUri == "default_photo" && it.unitId == 2 }) }
         }
     }
 

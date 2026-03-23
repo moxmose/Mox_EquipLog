@@ -36,8 +36,9 @@ abstract class AppDatabase : RoomDatabase() {
         val CALLBACK = object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
-                // Popolamento iniziale delle unità di misura
-                CoroutineScope(Dispatchers.IO).launch {
+                // Popolamento iniziale delle unità di misura in modo sincrono
+                db.beginTransaction()
+                try {
                     AppConstants.INITIAL_MEASUREMENT_UNITS.forEachIndexed { index, unit ->
                         db.execSQL(
                             "INSERT INTO measurement_units (id, label, description, isSystem, isHidden, displayOrder) VALUES (?, ?, ?, ?, ?, ?)",
@@ -51,6 +52,9 @@ abstract class AppDatabase : RoomDatabase() {
                             )
                         )
                     }
+                    db.setTransactionSuccessful()
+                } finally {
+                    db.endTransaction()
                 }
             }
         }

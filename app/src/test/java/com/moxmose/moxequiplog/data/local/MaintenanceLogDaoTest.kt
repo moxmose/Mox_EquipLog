@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
+import com.moxmose.moxequiplog.utils.AppConstants
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -26,9 +27,10 @@ class MaintenanceLogDaoTest {
     private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var operationTypeDao: OperationTypeDao
+    private lateinit var measurementUnitDao: MeasurementUnitDao
 
     @Before
-    fun setupDatabase() {
+    fun setupDatabase() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
@@ -36,6 +38,12 @@ class MaintenanceLogDaoTest {
         maintenanceLogDao = database.maintenanceLogDao()
         equipmentDao = database.equipmentDao()
         operationTypeDao = database.operationTypeDao()
+        measurementUnitDao = database.measurementUnitDao()
+
+        // Popolamento manuale delle unità necessario per Equipment FK
+        AppConstants.INITIAL_MEASUREMENT_UNITS.forEach { unit ->
+            measurementUnitDao.insertUnit(unit)
+        }
     }
 
     @After

@@ -4,14 +4,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.CategoryDao
-import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
-import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.*
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -51,6 +44,7 @@ class MaintenanceLogsViewModelTest {
     private lateinit var categoryDao: CategoryDao
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var imageRepository: ImageRepository
+    private lateinit var measurementUnitDao: MeasurementUnitDao
     private lateinit var viewModel: MaintenanceLogViewModel
 
     private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
@@ -81,13 +75,17 @@ class MaintenanceLogsViewModelTest {
         imageRepository = mockk(relaxed = true) {
              every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
         }
+        measurementUnitDao = mockk(relaxed = true) {
+            every { getAllUnits() } returns MutableStateFlow(emptyList())
+        }
         viewModel = MaintenanceLogViewModel(
             maintenanceLogDao, 
             equipmentDao, 
             operationTypeDao, 
             categoryDao, 
             appSettingsManager,
-            imageRepository
+            imageRepository,
+            measurementUnitDao
         )
     }
 
