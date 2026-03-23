@@ -52,6 +52,18 @@
     <string name="options_unit_desc_placeholder">Description (e.g., Hours)</string>
     <string name="add_unit_failed">Failed to add unit.</string>
     <string name="delete_unit_failed">Failed to delete unit.</string>
+    <string name="update_unit_failed">Failed to update unit.</string>
+    <string name="update_units_order_failed">Failed to update units order.</string>
+    <string name="toggle_unit_visibility_failed">Failed to toggle unit visibility.</string>
+    <string name="options_unit_mgmt_title">Unit Management</string>
+    <string name="options_unit_label">Label</string>
+    <string name="options_save_unit">Save unit</string>
+    <string name="options_edit_unit">Edit unit</string>
+
+    <string name="options_info_drag_reorder">Hold and drag items to change order.</string>
+    <string name="options_info_select_default">Tap an item to set it as default.</string>
+    <string name="options_info_select_category_to_reorder">Select a specific category to change the display order.</string>
+    <string name="options_info_background_select">Select an image for the application background.</string>
 
     <string name="button_about" translatable="false">About</string>
     <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>

@@ -59,10 +59,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
@@ -106,7 +108,7 @@ fun ImageSelector(
             categoryColors = categoryColors,
             categoryDefaultIcons = categoryDefaultIcons,
             categoryDefaultPhotos = categoryDefaultPhotos,
-            onAddImage = onAddImage,
+            onAddImage = { uri, cat -> onAddImage?.invoke(uri, cat) },
             onRemoveImage = onRemoveImage,
             onUpdateImageOrder = onUpdateImageOrder,
             onToggleImageVisibility = onToggleImageVisibility,
@@ -132,7 +134,7 @@ fun ImageSelector(
                 categoryColors = categoryColors,
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
-                onAddImage = onAddImage,
+                onAddImage = { uri, cat -> onAddImage?.invoke(uri, cat) },
                 onRemoveImage = onRemoveImage,
                 onUpdateImageOrder = onUpdateImageOrder,
                 onToggleImageVisibility = onToggleImageVisibility,
@@ -183,7 +185,7 @@ fun ImagePickerDialog(
     categoryColors: Map<String, String>,
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
-    onAddImage: ((String, String) -> Unit)?,
+    onAddImage: (String, String) -> Unit,
     onRemoveImage: ((String, String) -> Unit)?,
     onUpdateImageOrder: ((List<Image>) -> Unit)?,
     onToggleImageVisibility: ((String, String) -> Unit)?,
@@ -200,11 +202,11 @@ fun ImagePickerDialog(
     val context = LocalContext.current
 
     val filteredCategories = remember(categories, imageLibrary, onlyPhotos) {
-        if (!onlyPhotos) categories.sortedBy { it.name }
-        else {
+        val baseList = if (!onlyPhotos) categories else {
             val categoriesWithPhotos = imageLibrary.filter { it.imageType == "IMAGE" }.map { it.category }.toSet()
-            categories.filter { it.id in categoriesWithPhotos }.sortedBy { it.name }
+            categories.filter { it.id in categoriesWithPhotos }
         }
+        baseList.filter { it.id != Category.LOGS }.sortedBy { it.name }
     }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -217,7 +219,7 @@ fun ImagePickerDialog(
                 context.contentResolver.takePersistableUriPermission(it, flags)
                 val uriString = it.toString()
                 val targetCategory = if (forcedCategory != null) forcedCategory else if (currentFilterCategory != "ALL") currentFilterCategory else "EQUIPMENT"
-                onAddImage?.invoke(uriString, targetCategory)
+                onAddImage(uriString, targetCategory)
             } catch (e: Exception) {
                 Log.e("ImageSelector", "Failed to take persistable permission", e)
             }
@@ -303,8 +305,7 @@ fun ImagePickerDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Button(
                         onClick = { imagePickerLauncher.launch(arrayOf("image/*")) },
-                        modifier = Modifier.weight(1f),
-                        enabled = onAddImage != null
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.AddAPhoto, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -333,20 +334,35 @@ fun ImagePickerDialog(
                 val canDrag = onUpdateImageOrder != null && !isMixedMode && !onlyPhotos
                 
                 Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                    color = if (isMixedMode && isPrefsMode && !onlyPhotos) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+                        Icon(
+                            imageVector = Icons.Default.Info, 
+                            contentDescription = null, 
+                            modifier = Modifier.size(16.dp), 
+                            tint = if (isMixedMode && isPrefsMode && !onlyPhotos) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
+                        )
                         Spacer(Modifier.width(8.dp))
-                        val infoText = when {
-                            onlyPhotos -> "Seleziona un'immagine per lo sfondo dell'applicazione."
-                            isMixedMode && isPrefsMode -> "Clicca un elemento per impostarlo come default."
-                            isPrefsMode && canDrag -> "Clicca per default, trascina per ordinare, importa nuove immagini."
-                            else -> "Tocca per selezionare."
+                        val infoText = buildString {
+                            append(when {
+                                onlyPhotos -> stringResource(R.string.options_info_background_select)
+                                isMixedMode && isPrefsMode -> stringResource(R.string.options_info_select_category_to_reorder)
+                                isPrefsMode && canDrag -> stringResource(R.string.options_info_drag_reorder)
+                                else -> "Tocca per selezionare."
+                            })
+                            if (isPrefsMode && !onlyPhotos) {
+                                append("\n")
+                                append(stringResource(R.string.options_info_select_default))
+                            }
                         }
-                        Text(infoText, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            text = infoText, 
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isMixedMode && isPrefsMode && !onlyPhotos) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
 
@@ -354,7 +370,7 @@ fun ImagePickerDialog(
 
                 val filteredAndSortedImages = imageLibrary
                     .filter { image ->
-                        val matchesCategory = currentFilterCategory == "ALL" || image.category == currentFilterCategory
+                        val matchesCategory = (currentFilterCategory == "ALL" && image.category != Category.LOGS) || image.category == currentFilterCategory
                         val matchesType = !onlyPhotos || image.imageType == "IMAGE"
                         matchesCategory && matchesType && (showHidden || !image.hidden)
                     }

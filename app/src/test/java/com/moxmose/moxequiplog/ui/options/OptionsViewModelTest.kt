@@ -4,11 +4,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.AppColor
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -45,6 +41,7 @@ class OptionsViewModelTest {
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
+    private lateinit var measurementUnitDao: MeasurementUnitDao
     private lateinit var viewModel: OptionsViewModel
 
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
@@ -69,8 +66,12 @@ class OptionsViewModelTest {
             every { backgroundTintEnabled } returns backgroundTintEnabledFlow
             every { backgroundTintAlpha } returns backgroundTintAlphaFlow
             every { backgroundImageAlpha } returns backgroundImageAlphaFlow
+            every { defaultUnitId } returns MutableStateFlow(null)
         }
         equipmentDao = mockk(relaxed = true)
+        measurementUnitDao = mockk(relaxed = true) {
+            every { getAllUnits() } returns MutableStateFlow(emptyList())
+        }
         
         imageRepository = mockk(relaxed = true) {
             every { allImages } returns allImagesFlow
@@ -81,7 +82,7 @@ class OptionsViewModelTest {
             every { getCategoryDefaultPhoto(any()) } returns MutableStateFlow(null)
         }
         
-        viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository)
+        viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository, measurementUnitDao)
     }
 
     @After
@@ -231,11 +232,11 @@ class OptionsViewModelTest {
     }
 
     @Test
-    fun setCategoryDefault_withNullImageIdentifier_sendsNoImageSelectedEvent() = runTest {
-        viewModel.uiEvents.test {
-            viewModel.setCategoryDefault("test_category", null)
-            assertEquals(OptionsViewModel.OptionsUiEvent.NoImageSelectedForDefault, awaitItem())
-        }
+    fun setCategoryDefault_withNullImageIdentifier_callsRepositoryWithNull() = runTest {
+        val categoryId = "test_category"
+        viewModel.setCategoryDefault(categoryId, null)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { imageRepository.setCategoryDefault(categoryId, null) }
     }
     
     @Test

@@ -46,6 +46,7 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
@@ -67,6 +68,7 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
+    val measurementUnits by viewModel.measurementUnits.collectAsState()
     
     val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
     val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
@@ -97,6 +99,7 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
         logs = logs,
         equipments = activeEquipments,
         operationTypes = activeOperationTypes,
+        measurementUnits = measurementUnits,
         searchQuery = searchQuery,
         onSearchQueryChange = viewModel::onSearchQueryChanged,
         sortProperty = sortProperty,
@@ -133,6 +136,7 @@ fun MaintenanceLogScreenContent(
     logs: List<MaintenanceLogDetails>,
     equipments: List<Equipment>,
     operationTypes: List<OperationType>,
+    measurementUnits: List<MeasurementUnit>,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     sortProperty: SortProperty,
@@ -185,6 +189,7 @@ fun MaintenanceLogScreenContent(
             MaintenanceLogDialog(
                 equipments = equipments,
                 operationTypes = operationTypes,
+                measurementUnits = measurementUnits,
                 onDismissRequest = { onShowAddDialogChange(false) },
                 onConfirm = { log ->
                     onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.kilometers, log.date, log.color)
@@ -228,7 +233,13 @@ fun MaintenanceLogScreenContent(
                     ) {
                         SortProperty.entries.forEach { prop ->
                             DropdownMenuItem(
-                                text = { Text(prop.name.lowercase().replaceFirstChar { it.titlecase() }) },
+                                text = { 
+                                    val label = when (prop) {
+                                        SortProperty.KILOMETERS -> stringResource(R.string.measurement_unit)
+                                        else -> prop.name.lowercase().replaceFirstChar { it.titlecase() }
+                                    }
+                                    Text(label) 
+                                },
                                 onClick = {
                                     onSortPropertyChange(prop)
                                     showSortMenu = false
@@ -256,6 +267,7 @@ fun MaintenanceLogScreenContent(
                         logDetail = logDetail,
                         equipments = equipments,
                         operationTypes = operationTypes,
+                        measurementUnits = measurementUnits,
                         isExpanded = logDetail.log.id == expandedCardId,
                         isEditing = logDetail.log.id == editingCardId,
                         onExpand = { onCardExpanded(logDetail.log.id) },
@@ -278,6 +290,7 @@ fun MaintenanceLogScreenContent(
 fun MaintenanceLogDialog(
     equipments: List<Equipment>,
     operationTypes: List<OperationType>,
+    measurementUnits: List<MeasurementUnit>,
     onDismissRequest: () -> Unit,
     onConfirm: (MaintenanceLog) -> Unit,
     allCategories: List<Category>,
@@ -296,6 +309,11 @@ fun MaintenanceLogDialog(
     }
     var selectedOperationType by remember(defaultOperationTypeId, operationTypes) { 
         mutableStateOf(operationTypes.find { it.id == defaultOperationTypeId }) 
+    }
+
+    val unitLabel = remember(selectedEquipment, measurementUnits) {
+        val unit = measurementUnits.find { it.id == selectedEquipment?.unitId }
+        unit?.label ?: "Km"
     }
     
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
@@ -449,7 +467,7 @@ fun MaintenanceLogDialog(
                 OutlinedTextField(
                     value = kilometers,
                     onValueChange = { if (it.length <= 6 && it.all { char -> char.isDigit() }) kilometers = it },
-                    label = { Text(stringResource(R.string.kilometers_optional)) },
+                    label = { Text("$unitLabel (optional)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -511,6 +529,7 @@ fun MaintenanceLogCard(
     logDetail: MaintenanceLogDetails,
     equipments: List<Equipment>,
     operationTypes: List<OperationType>,
+    measurementUnits: List<MeasurementUnit>,
     isExpanded: Boolean,
     isEditing: Boolean,
     onExpand: () -> Unit,
@@ -531,6 +550,11 @@ fun MaintenanceLogCard(
     var selectedOperationType by remember(logDetail, isEditing) { mutableStateOf(operationTypes.find { it.id == logDetail.log.operationTypeId }) }
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
+
+    val unitLabel = remember(selectedEquipment, measurementUnits) {
+        val unit = measurementUnits.find { it.id == selectedEquipment?.unitId }
+        unit?.label ?: "Km"
+    }
 
     val cardAlpha = if (logDetail.log.dismissed) 0.5f else 1f
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
@@ -689,7 +713,7 @@ fun MaintenanceLogCard(
                     OutlinedTextField(
                         value = editedKilometers,
                         onValueChange = { if (it.length <= 6 && it.all { char -> char.isDigit() }) editedKilometers = it },
-                        label = { Text(stringResource(R.string.kilometers_optional)) },
+                        label = { Text("$unitLabel (optional)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -749,7 +773,7 @@ fun MaintenanceLogCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = logDetail.log.kilometers?.let { stringResource(R.string.kilometers_label, it) } ?: "",
+                            text = logDetail.log.kilometers?.let { "$it $unitLabel" } ?: "",
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis

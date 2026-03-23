@@ -9,5 +9,7 @@ data class MeasurementUnit(
     val id: Int = 0,
     val label: String, // es. "km", "hh", "lt"
     val description: String, // es. "Kilometers", "Hours", "Liters"
-    val isSystem: Boolean = false // Se true, non può essere eliminata
+    val isSystem: Boolean = false, // Se true, non può essere eliminata
+    val isHidden: Boolean = false, // Se true, non viene visualizzata nella UI
+    val displayOrder: Int = 0
 )

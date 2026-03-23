@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.data.local.AppColor
+import com.moxmose.moxequiplog.utils.AppConstants
 
 @Composable
 fun ColorItemCard(
@@ -45,6 +46,7 @@ fun ColorItemCard(
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editedName by remember(color.name) { mutableStateOf(color.name) }
+    var editedHex by remember(color.hexValue) { mutableStateOf(color.hexValue) }
 
     Card(
         modifier = Modifier
@@ -65,12 +67,24 @@ fun ColorItemCard(
             )
             Spacer(Modifier.width(16.dp))
             if (isEditing) {
-                OutlinedTextField(
-                    value = editedName,
-                    onValueChange = { editedName = it },
-                    label = { Text("Nome") },
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = editedName,
+                        onValueChange = { if (it.length <= AppConstants.COLOR_NAME_MAX_LENGTH) editedName = it },
+                        label = { Text("Nome") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    if (!color.isDefault) {
+                        OutlinedTextField(
+                            value = editedHex,
+                            onValueChange = { if (it.length <= 7) editedHex = it },
+                            label = { Text("HEX") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                }
             } else {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(color.name, style = MaterialTheme.typography.bodyLarge)
@@ -79,7 +93,7 @@ fun ColorItemCard(
             }
             if (isEditing) {
                 IconButton(onClick = {
-                    onUpdateColor(color.copy(name = editedName))
+                    onUpdateColor(color.copy(name = editedName, hexValue = editedHex))
                     isEditing = false
                 }) {
                     Icon(Icons.Default.Done, contentDescription = "Salva colore")

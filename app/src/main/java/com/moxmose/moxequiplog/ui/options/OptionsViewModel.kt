@@ -51,6 +51,9 @@ class OptionsViewModel(
         data object UpdateBackgroundFailed : OptionsUiEvent()
         data object AddUnitFailed : OptionsUiEvent()
         data object DeleteUnitFailed : OptionsUiEvent()
+        data object UpdateUnitFailed : OptionsUiEvent()
+        data object UpdateUnitsOrderFailed : OptionsUiEvent()
+        data object ToggleUnitVisibilityFailed : OptionsUiEvent()
         data object SetDefaultFailed : OptionsUiEvent()
     }
 
@@ -66,11 +69,9 @@ class OptionsViewModel(
 
     private suspend fun checkAndPopulateUnits() {
         if (measurementUnitDao.countUnits() == 0) {
-            measurementUnitDao.insertUnit(MeasurementUnit(id = 1, label = "km", description = "Kilometers", isSystem = true))
-            measurementUnitDao.insertUnit(MeasurementUnit(id = 2, label = "hh", description = "Hours", isSystem = true))
-            measurementUnitDao.insertUnit(MeasurementUnit(id = 3, label = "lt", description = "Liters", isSystem = true))
-            measurementUnitDao.insertUnit(MeasurementUnit(id = 4, label = "dy", description = "Days", isSystem = true))
-            measurementUnitDao.insertUnit(MeasurementUnit(id = 5, label = "un", description = "Units", isSystem = true))
+            AppConstants.INITIAL_MEASUREMENT_UNITS.forEachIndexed { index, unit ->
+                measurementUnitDao.insertUnit(unit.copy(displayOrder = index))
+            }
         }
     }
 
@@ -215,10 +216,6 @@ class OptionsViewModel(
     fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
         if (categoryId.isBlank()) {
             _uiEvents.trySend(OptionsUiEvent.CategoryIdInvalid)
-            return
-        }
-        if (imageIdentifier == null) {
-            _uiEvents.trySend(OptionsUiEvent.NoImageSelectedForDefault)
             return
         }
         viewModelScope.launch {
@@ -368,15 +365,50 @@ class OptionsViewModel(
         if (label.isBlank() || label.length > AppConstants.UNIT_LABEL_MAX_LENGTH) return
         viewModelScope.launch {
             try {
-                measurementUnitDao.insertUnit(MeasurementUnit(label = label, description = description))
+                val maxOrder = measurementUnits.value.maxOfOrNull { it.displayOrder } ?: -1
+                measurementUnitDao.insertUnit(MeasurementUnit(label = label, description = description, displayOrder = maxOrder + 1))
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.AddUnitFailed)
             }
         }
     }
 
+    fun updateMeasurementUnit(unit: MeasurementUnit) {
+        viewModelScope.launch {
+            try {
+                measurementUnitDao.updateUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateUnitFailed)
+            }
+        }
+    }
+
+    fun toggleMeasurementUnitVisibility(id: Int) {
+        viewModelScope.launch {
+            try {
+                measurementUnitDao.getUnitById(id)?.let { unit ->
+                    measurementUnitDao.updateUnit(unit.copy(isHidden = !unit.isHidden))
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.ToggleUnitVisibilityFailed)
+            }
+        }
+    }
+
+    fun updateMeasurementUnitsOrder(units: List<MeasurementUnit>) {
+        viewModelScope.launch {
+            try {
+                units.forEachIndexed { index, unit ->
+                    measurementUnitDao.updateUnit(unit.copy(displayOrder = index))
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateUnitsOrderFailed)
+            }
+        }
+    }
+
     fun deleteMeasurementUnit(unit: MeasurementUnit) {
-        if (unit.isSystem) return // Non cancelliamo le unità di sistema
+        if (unit.isSystem) return
         viewModelScope.launch {
             try {
                 measurementUnitDao.deleteUnit(unit)

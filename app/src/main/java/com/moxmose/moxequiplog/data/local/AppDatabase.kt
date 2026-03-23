@@ -3,6 +3,7 @@ package com.moxmose.moxequiplog.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.moxmose.moxequiplog.utils.AppConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,7 +19,7 @@ import kotlinx.coroutines.launch
         AppPreference::class,
         MeasurementUnit::class
     ], 
-    version = 32, 
+    version = 35,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,11 +38,19 @@ abstract class AppDatabase : RoomDatabase() {
                 super.onCreate(db)
                 // Popolamento iniziale delle unità di misura
                 CoroutineScope(Dispatchers.IO).launch {
-                    db.execSQL("INSERT INTO measurement_units (id, label, description, isSystem) VALUES (1, 'km', 'Kilometers', 1)")
-                    db.execSQL("INSERT INTO measurement_units (id, label, description, isSystem) VALUES (2, 'hh', 'Hours', 1)")
-                    db.execSQL("INSERT INTO measurement_units (id, label, description, isSystem) VALUES (3, 'lt', 'Liters', 1)")
-                    db.execSQL("INSERT INTO measurement_units (id, label, description, isSystem) VALUES (4, 'dy', 'Days', 1)")
-                    db.execSQL("INSERT INTO measurement_units (id, label, description, isSystem) VALUES (5, 'un', 'Units', 1)")
+                    AppConstants.INITIAL_MEASUREMENT_UNITS.forEachIndexed { index, unit ->
+                        db.execSQL(
+                            "INSERT INTO measurement_units (id, label, description, isSystem, isHidden, displayOrder) VALUES (?, ?, ?, ?, ?, ?)",
+                            arrayOf(
+                                unit.id,
+                                unit.label,
+                                unit.description,
+                                if (unit.isSystem) 1 else 0,
+                                if (unit.isHidden) 1 else 0,
+                                index
+                            )
+                        )
+                    }
                 }
             }
         }

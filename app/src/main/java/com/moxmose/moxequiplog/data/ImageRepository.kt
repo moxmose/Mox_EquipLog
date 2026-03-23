@@ -34,7 +34,8 @@ class ImageRepository(
         Log.d("MoxEquipLog", "Initializing app data...")
         
         // 1. Inizializza Colori
-        if (appColorDao.getAllColors().first().isEmpty()) {
+        val currentColors = appColorDao.getAllColors().first()
+        if (currentColors.isEmpty()) {
             val colorsToInsert = defaultColors.mapIndexed { index, colorString ->
                 val (hex, name) = colorString.split(";")
                 AppColor(hexValue = hex, name = name, isDefault = true, displayOrder = index, hidden = false)
@@ -53,9 +54,17 @@ class ImageRepository(
             }
         }
 
-        // 3. Inizializza Icone per ogni categoria
+        // 3. Inizializza Icone per ogni categoria (tranne LOG)
         categoryDao.getAllCategories().first().forEach { category ->
-            initializeIconsForCategory(category.id)
+            if (category.id != Category.LOGS) {
+                initializeIconsForCategory(category.id)
+            } else {
+                // Rimuovi eventuali icone LOG create erroneamente in precedenza
+                val logImages = imageDao.getImagesByCategory(Category.LOGS).first()
+                logImages.filter { it.imageType == "ICON" }.forEach { 
+                    imageDao.deleteImage(it)
+                }
+            }
         }
     }
 
