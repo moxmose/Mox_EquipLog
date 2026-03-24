@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -231,7 +232,6 @@ fun StandardFilterSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Date Range Button
                 OutlinedButton(
                     onClick = { showDatePickerRange = true },
                     modifier = Modifier.weight(1f),
@@ -249,7 +249,6 @@ fun StandardFilterSection(
                     )
                 }
 
-                // Reset Button
                 IconButton(
                     onClick = {
                         onReset()
@@ -265,7 +264,6 @@ fun StandardFilterSection(
                 }
             }
 
-            // Granularity Selector
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -325,69 +323,84 @@ fun EquipmentReportsScreen(
         },
         containerColor = Color.Transparent
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    EquipmentSelector(
-                        equipments = uiState.equipments,
-                        selectedId = uiState.selectedEquipmentId,
-                        onEquipmentSelected = { 
-                            viewModel.selectEquipment(it.id)
-                            viewModel.refresh()
-                        },
-                        categoryColor = categoryColor
-                    )
-                }
-                
-                IconButton(
-                    onClick = { viewModel.toggleShowDismissed() },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                    )
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                        tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        EquipmentMultiSelector(
+                            equipments = uiState.equipments,
+                            selectedIds = uiState.selectedEquipmentIds,
+                            onToggleSelection = { 
+                                viewModel.toggleEquipmentSelection(it)
+                                viewModel.refresh()
+                            },
+                            categoryColor = categoryColor
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            StandardFilterSection(
-                startDate = uiState.startDate,
-                endDate = uiState.endDate,
-                granularity = uiState.timeGranularity,
-                onDateRangeSelected = viewModel::setDateRange,
-                onGranularitySelected = viewModel::setTimeGranularity,
-                onReset = viewModel::resetFilters,
-                onRefresh = viewModel::refresh
-            )
+            item {
+                StandardFilterSection(
+                    startDate = uiState.startDate,
+                    endDate = uiState.endDate,
+                    granularity = uiState.timeGranularity,
+                    onDateRangeSelected = viewModel::setDateRange,
+                    onGranularitySelected = viewModel::setTimeGranularity,
+                    onReset = viewModel::resetFilters,
+                    onRefresh = viewModel::refresh
+                )
+            }
 
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    val unitPart = if (uiState.equipmentUnitLabel.isNotEmpty()) "[${uiState.equipmentUnitLabel}] " else ""
-                    Text(
-                        text = unitPart + stringResource(R.string.report_value_over_time),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                    
-                    if (uiState.equipmentChartData.isNotEmpty()) {
-                        GenericChart(chartData = uiState.equipmentChartData, granularity = uiState.timeGranularity)
-                    } else {
-                        NoDataPlaceholder()
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        val unitPart = if (uiState.equipmentUnitLabel.isNotEmpty()) "[${uiState.equipmentUnitLabel}] " else ""
+                        Text(
+                            text = unitPart + stringResource(R.string.report_value_over_time),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        if (uiState.equipmentChartData.isNotEmpty()) {
+                            MultiLineChart(chartDataMap = uiState.equipmentChartData, granularity = uiState.timeGranularity)
+                        } else {
+                            NoDataPlaceholder()
+                        }
                     }
                 }
+            }
+
+            item {
+                DistributionCard(
+                    title = stringResource(R.string.report_section_equipments),
+                    distribution = uiState.equipmentDistribution,
+                    categoryColor = categoryColor
+                )
             }
         }
     }
@@ -417,68 +430,83 @@ fun OperationReportsScreen(
         },
         containerColor = Color.Transparent
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    OperationSelector(
-                        operationTypes = uiState.operationTypes,
-                        selectedId = uiState.selectedOperationTypeId,
-                        onOperationSelected = { 
-                            viewModel.selectOperationType(it.id)
-                            viewModel.refresh()
-                        },
-                        categoryColor = categoryColor
-                    )
-                }
-                
-                IconButton(
-                    onClick = { viewModel.toggleShowDismissed() },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                    )
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                        tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        OperationMultiSelector(
+                            operationTypes = uiState.operationTypes,
+                            selectedIds = uiState.selectedOperationTypeIds,
+                            onToggleSelection = { 
+                                viewModel.toggleOperationTypeSelection(it)
+                                viewModel.refresh()
+                            },
+                            categoryColor = categoryColor
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            StandardFilterSection(
-                startDate = uiState.startDate,
-                endDate = uiState.endDate,
-                granularity = uiState.timeGranularity,
-                onDateRangeSelected = viewModel::setDateRange,
-                onGranularitySelected = viewModel::setTimeGranularity,
-                onReset = viewModel::resetFilters,
-                onRefresh = viewModel::refresh
-            )
+            item {
+                StandardFilterSection(
+                    startDate = uiState.startDate,
+                    endDate = uiState.endDate,
+                    granularity = uiState.timeGranularity,
+                    onDateRangeSelected = viewModel::setDateRange,
+                    onGranularitySelected = viewModel::setTimeGranularity,
+                    onReset = viewModel::resetFilters,
+                    onRefresh = viewModel::refresh
+                )
+            }
 
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = stringResource(R.string.report_value_to_date),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                    
-                    if (uiState.operationChartData.isNotEmpty()) {
-                        GenericChart(chartData = uiState.operationChartData, granularity = uiState.timeGranularity)
-                    } else {
-                        NoDataPlaceholder()
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = stringResource(R.string.report_value_to_date),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        if (uiState.operationChartData.isNotEmpty()) {
+                            MultiLineChart(chartDataMap = uiState.operationChartData, granularity = uiState.timeGranularity)
+                        } else {
+                            NoDataPlaceholder()
+                        }
                     }
                 }
+            }
+
+            item {
+                DistributionCard(
+                    title = stringResource(R.string.report_section_operations),
+                    distribution = uiState.operationDistribution,
+                    categoryColor = categoryColor
+                )
             }
         }
     }
@@ -500,36 +528,90 @@ fun NoDataPlaceholder() {
     }
 }
 
+@Composable
+fun DistributionCard(
+    title: String,
+    distribution: List<PieChartPoint>,
+    categoryColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.distribution_analysis) + " - " + title,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            if (distribution.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.report_no_data),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                val total = distribution.sumOf { it.value.toDouble() }.toFloat()
+                distribution.forEach { item ->
+                    val percentage = if (total > 0) (item.value / total) else 0f
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = item.label, style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                text = "${item.value.toInt()} (${(percentage * 100).toInt()}%)",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { percentage },
+                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(MaterialTheme.shapes.small),
+                            color = categoryColor,
+                            trackColor = categoryColor.copy(alpha = 0.1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EquipmentSelector(
+fun EquipmentMultiSelector(
     equipments: List<Equipment>,
-    selectedId: Int?,
-    onEquipmentSelected: (Equipment) -> Unit,
+    selectedIds: Set<Int>,
+    onToggleSelection: (Int) -> Unit,
     categoryColor: Color
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedEquipment = equipments.find { it.id == selectedId }
+    val displayText = if (selectedIds.isEmpty()) {
+        stringResource(R.string.select_equipment)
+    } else {
+        val firstSelected = equipments.find { it.id == selectedIds.first() }?.description?.takeIf { it.isNotBlank() }
+        if (selectedIds.size > 1) {
+            "$firstSelected + ${selectedIds.size - 1}"
+        } else {
+            firstSelected ?: "ID: ${selectedIds.first()}"
+        }
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it }
     ) {
         OutlinedTextField(
-            value = selectedEquipment?.description?.takeIf { it.isNotBlank() } ?: selectedEquipment?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_equipment),
+            value = displayText,
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.navigation_equipments)) },
-            leadingIcon = {
-                ImageIcon(
-                    photoUri = selectedEquipment?.photoUri,
-                    iconIdentifier = selectedEquipment?.iconIdentifier,
-                    modifier = Modifier.size(24.dp),
-                    category = Category.EQUIPMENT,
-                    borderColor = categoryColor,
-                    contentPadding = 2.dp
-                )
-            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -541,12 +623,17 @@ fun EquipmentSelector(
             onDismissRequest = { expanded = false }
         ) {
             equipments.forEach { equipment ->
+                val isSelected = selectedIds.contains(equipment.id)
                 DropdownMenuItem(
                     text = { 
-                        Text(
-                            text = (equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id)) + if (equipment.dismissed) " " + stringResource(R.string.dismissed_suffix) else "",
-                            color = if (equipment.dismissed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.Unspecified
-                        ) 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = isSelected, onCheckedChange = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = (equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id)) + if (equipment.dismissed) " " + stringResource(R.string.dismissed_suffix) else "",
+                                color = if (equipment.dismissed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.Unspecified
+                            )
+                        }
                     },
                     leadingIcon = {
                         ImageIcon(
@@ -559,8 +646,7 @@ fun EquipmentSelector(
                         )
                     },
                     onClick = {
-                        onEquipmentSelected(equipment)
-                        expanded = false
+                        onToggleSelection(equipment.id)
                     }
                 )
             }
@@ -570,34 +656,33 @@ fun EquipmentSelector(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OperationSelector(
+fun OperationMultiSelector(
     operationTypes: List<OperationType>,
-    selectedId: Int?,
-    onOperationSelected: (OperationType) -> Unit,
+    selectedIds: Set<Int>,
+    onToggleSelection: (Int) -> Unit,
     categoryColor: Color
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedOp = operationTypes.find { it.id == selectedId }
+    val displayText = if (selectedIds.isEmpty()) {
+        stringResource(R.string.select_operation)
+    } else {
+        val firstSelected = operationTypes.find { it.id == selectedIds.first() }?.description?.takeIf { it.isNotBlank() }
+        if (selectedIds.size > 1) {
+            "$firstSelected + ${selectedIds.size - 1}"
+        } else {
+            firstSelected ?: "ID: ${selectedIds.first()}"
+        }
+    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it }
     ) {
         OutlinedTextField(
-            value = selectedOp?.description?.takeIf { it.isNotBlank() } ?: selectedOp?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_operation),
+            value = displayText,
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.navigation_operations)) },
-            leadingIcon = {
-                ImageIcon(
-                    photoUri = selectedOp?.photoUri,
-                    iconIdentifier = selectedOp?.iconIdentifier,
-                    modifier = Modifier.size(24.dp),
-                    category = Category.OPERATION,
-                    borderColor = categoryColor,
-                    contentPadding = 2.dp
-                )
-            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -609,12 +694,17 @@ fun OperationSelector(
             onDismissRequest = { expanded = false }
         ) {
             operationTypes.forEach { op ->
+                val isSelected = selectedIds.contains(op.id)
                 DropdownMenuItem(
                     text = { 
-                        Text(
-                            text = (op.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, op.id)) + if (op.dismissed) " " + stringResource(R.string.dismissed_suffix) else "",
-                            color = if (op.dismissed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.Unspecified
-                        ) 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = isSelected, onCheckedChange = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = (op.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, op.id)) + if (op.dismissed) " " + stringResource(R.string.dismissed_suffix) else "",
+                                color = if (op.dismissed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.Unspecified
+                            )
+                        }
                     },
                     leadingIcon = {
                         ImageIcon(
@@ -627,8 +717,7 @@ fun OperationSelector(
                         )
                     },
                     onClick = {
-                        onOperationSelected(op)
-                        expanded = false
+                        onToggleSelection(op.id)
                     }
                 )
             }
@@ -637,9 +726,8 @@ fun OperationSelector(
 }
 
 @Composable
-fun GenericChart(chartData: List<ChartPoint>, granularity: TimeGranularity) {
+fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, granularity: TimeGranularity) {
     val modelProducer = remember { CartesianChartModelProducer() }
-    
     val dateFormat = remember(granularity) {
         when (granularity) {
             TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
@@ -649,20 +737,24 @@ fun GenericChart(chartData: List<ChartPoint>, granularity: TimeGranularity) {
         }
     }
 
-    LaunchedEffect(chartData, granularity) {
-        if (chartData.isNotEmpty()) {
+    LaunchedEffect(chartDataMap, granularity) {
+        // Filtriamo le serie che non hanno punti per evitare l'eccezione "Series can't be empty"
+        val validSeries = chartDataMap.values.filter { it.isNotEmpty() }
+        if (validSeries.isNotEmpty()) {
             modelProducer.runTransaction {
                 lineSeries {
-                    series(
-                        x = chartData.map { it.date },
-                        y = chartData.map { it.kilometers }
-                    )
+                    validSeries.forEach { points ->
+                        series(
+                            x = points.map { it.date },
+                            y = points.map { it.kilometers }
+                        )
+                    }
                 }
             }
         }
     }
 
-    key(granularity) {
+    key(granularity, chartDataMap.keys) {
         CartesianChartHost(
             chart = rememberCartesianChart(
                 rememberLineCartesianLayer(),

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.UiConstants
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import java.util.*
 
@@ -18,17 +19,24 @@ data class ChartPoint(
     val label: String? = null
 )
 
+data class PieChartPoint(
+    val label: String,
+    val value: Float,
+    val color: String? = null
+)
+
 data class ReportsUiState(
     val equipments: List<Equipment> = emptyList(),
-    val selectedEquipmentId: Int? = null,
-    val equipmentChartData: List<ChartPoint> = emptyList(),
-    val equipmentUnitLabel: String = "",
+    val selectedEquipmentIds: Set<Int> = emptySet(),
+    val equipmentChartData: Map<Int, List<ChartPoint>> = emptyMap(), // Mappa per multi-serie
+    val equipmentDistribution: List<PieChartPoint> = emptyList(),
     val equipmentCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
+    val equipmentUnitLabel: String = "",
     
     val operationTypes: List<OperationType> = emptyList(),
-    val selectedOperationTypeId: Int? = null,
-    val operationChartData: List<ChartPoint> = emptyList(),
-    val operationUnitLabel: String = "", // Generic label or first equipment's unit
+    val selectedOperationTypeIds: Set<Int> = emptySet(),
+    val operationChartData: Map<Int, List<ChartPoint>> = emptyMap(), // Mappa per multi-serie
+    val operationDistribution: List<PieChartPoint> = emptyList(),
     val operationCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
 
     // Time Filter State
@@ -39,8 +47,8 @@ data class ReportsUiState(
 )
 
 private data class SelectionState(
-    val selectedEquipmentId: Int?,
-    val selectedOperationTypeId: Int?,
+    val selectedEquipmentIds: Set<Int>,
+    val selectedOperationTypeIds: Set<Int>,
     val startDate: Long?,
     val endDate: Long?,
     val timeGranularity: TimeGranularity,
@@ -48,6 +56,7 @@ private data class SelectionState(
     val showDismissed: Boolean
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReportsViewModel(
     private val equipmentDao: EquipmentDao,
     private val maintenanceLogDao: MaintenanceLogDao,
@@ -56,8 +65,8 @@ class ReportsViewModel(
     private val imageRepository: ImageRepository
 ) : ViewModel() {
 
-    private val _selectedEquipmentId = MutableStateFlow<Int?>(null)
-    private val _selectedOperationTypeId = MutableStateFlow<Int?>(null)
+    private val _selectedEquipmentIds = MutableStateFlow<Set<Int>>(emptySet())
+    private val _selectedOperationTypeIds = MutableStateFlow<Set<Int>>(emptySet())
     
     private val _startDate = MutableStateFlow<Long?>(null)
     private val _endDate = MutableStateFlow<Long?>(null)
@@ -66,13 +75,13 @@ class ReportsViewModel(
     private val _showDismissed = MutableStateFlow(false)
 
     private val selectionState = combine(
-        _selectedEquipmentId,
-        _selectedOperationTypeId,
+        _selectedEquipmentIds,
+        _selectedOperationTypeIds,
         _startDate,
         _endDate,
         combine(_timeGranularity, _refreshTrigger, _showDismissed) { gran, refresh, dismissed -> Triple(gran, refresh, dismissed) }
-    ) { selEquip, selOp, start, end, triple ->
-        SelectionState(selEquip, selOp, start, end, triple.first, triple.second, triple.third)
+    ) { selEquips, selOps, start, end, triple ->
+        SelectionState(selEquips, selOps, start, end, triple.first, triple.second, triple.third)
     }
 
     val uiState: StateFlow<ReportsUiState> = combine(
@@ -96,41 +105,55 @@ class ReportsViewModel(
             matchesDate && matchesVisibility
         }
 
-        // Equipment Report Logic
-        val currentEquipId = selections.selectedEquipmentId ?: equipments.firstOrNull()?.id
-        val selectedEquipment = equipments.find { it.id == currentEquipId }
-        val equipUnit = units.find { it.id == selectedEquipment?.unitId }?.label ?: ""
-        
-        val rawEquipPoints = filteredLogs
-            .filter { it.log.equipmentId == currentEquipId && it.log.kilometers != null }
-            .map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
-        
-        val equipChartPoints = aggregateData(rawEquipPoints, selections.timeGranularity)
+        // --- DISTRIBUZIONI (TORTE) ---
+        // Occorrenze per Equipaggiamento
+        val equipDist = filteredLogs.groupBy { it.log.equipmentId }
+            .map { (id, logs) ->
+                val label = equipments.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+                PieChartPoint(label, logs.size.toFloat())
+            }.sortedByDescending { it.value }
 
-        // Operation Report Logic
-        val currentOpId = selections.selectedOperationTypeId ?: operationTypes.firstOrNull()?.id
-        val rawOpPoints = filteredLogs
-            .filter { it.log.operationTypeId == currentOpId && it.log.kilometers != null }
-            .map { 
-                ChartPoint(
-                    date = it.log.date, 
-                    kilometers = it.log.kilometers!!.toFloat(),
-                    label = it.equipmentDescription
-                ) 
-            }
+        // Occorrenze per Operazione
+        val opDist = filteredLogs.groupBy { it.log.operationTypeId }
+            .map { (id, logs) ->
+                val label = operationTypes.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+                PieChartPoint(label, logs.size.toFloat())
+            }.sortedByDescending { it.value }
+
+        // --- ANDAMENTO (LINEE MULTIPLE) ---
+        // Se non c'è selezione, mostriamo il primo per default per non avere grafici vuoti
+        val activeEquipIds = selections.selectedEquipmentIds.ifEmpty { equipments.firstOrNull()?.id?.let { setOf(it) } ?: emptySet() }
+        val activeOpIds = selections.selectedOperationTypeIds.ifEmpty { operationTypes.firstOrNull()?.id?.let { setOf(it) } ?: emptySet() }
+
+        val equipChartData = activeEquipIds.associateWith { id ->
+            val points = filteredLogs
+                .filter { it.log.equipmentId == id && it.log.kilometers != null }
+                .map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
+            aggregateData(points, selections.timeGranularity)
+        }
+
+        val opChartData = activeOpIds.associateWith { id ->
+            val points = filteredLogs
+                .filter { it.log.operationTypeId == id && it.log.kilometers != null }
+                .map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat(), it.equipmentDescription) }
+            aggregateData(points, selections.timeGranularity)
+        }
         
-        val opChartPoints = aggregateData(rawOpPoints, selections.timeGranularity)
+        // Unit label logic (first selected equipment's unit or general)
+        val firstEquip = equipments.find { it.id == activeEquipIds.firstOrNull() }
+        val equipUnit = units.find { it.id == firstEquip?.unitId }?.label ?: ""
 
         ReportsUiState(
             equipments = equipments,
-            selectedEquipmentId = currentEquipId,
-            equipmentChartData = equipChartPoints,
-            equipmentUnitLabel = equipUnit,
+            selectedEquipmentIds = selections.selectedEquipmentIds,
+            equipmentChartData = equipChartData,
+            equipmentDistribution = equipDist,
             equipmentCategoryColor = eColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+            equipmentUnitLabel = equipUnit,
             operationTypes = operationTypes,
-            selectedOperationTypeId = currentOpId,
-            operationChartData = opChartPoints,
-            operationUnitLabel = "", 
+            selectedOperationTypeIds = selections.selectedOperationTypeIds,
+            operationChartData = opChartData,
+            operationDistribution = opDist,
             operationCategoryColor = oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
             startDate = selections.startDate,
             endDate = selections.endDate,
@@ -145,57 +168,36 @@ class ReportsViewModel(
 
     private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity): List<ChartPoint> {
         if (points.isEmpty()) return emptyList()
-        
         val calendar = Calendar.getInstance()
         return points.groupBy { point ->
             calendar.timeInMillis = point.date
             when (granularity) {
-                TimeGranularity.HOURS -> {
-                    calendar.set(Calendar.MINUTE, 0)
-                    calendar.set(Calendar.SECOND, 0)
-                    calendar.set(Calendar.MILLISECOND, 0)
-                }
-                TimeGranularity.DAYS -> {
-                    calendar.set(Calendar.HOUR_OF_DAY, 0)
-                    calendar.set(Calendar.MINUTE, 0)
-                    calendar.set(Calendar.SECOND, 0)
-                    calendar.set(Calendar.MILLISECOND, 0)
-                }
-                TimeGranularity.WEEKS -> {
-                    calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-                    calendar.set(Calendar.HOUR_OF_DAY, 0)
-                    calendar.set(Calendar.MINUTE, 0)
-                    calendar.set(Calendar.SECOND, 0)
-                    calendar.set(Calendar.MILLISECOND, 0)
-                }
-                TimeGranularity.MONTHS -> {
-                    calendar.set(Calendar.DAY_OF_MONTH, 1)
-                    calendar.set(Calendar.HOUR_OF_DAY, 0)
-                    calendar.set(Calendar.MINUTE, 0)
-                    calendar.set(Calendar.SECOND, 0)
-                    calendar.set(Calendar.MILLISECOND, 0)
-                }
-                TimeGranularity.YEARS -> {
-                    calendar.set(Calendar.DAY_OF_YEAR, 1)
-                    calendar.set(Calendar.HOUR_OF_DAY, 0)
-                    calendar.set(Calendar.MINUTE, 0)
-                    calendar.set(Calendar.SECOND, 0)
-                    calendar.set(Calendar.MILLISECOND, 0)
-                }
+                TimeGranularity.HOURS -> { calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
+                TimeGranularity.DAYS -> { calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
+                TimeGranularity.WEEKS -> { calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek); calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
+                TimeGranularity.MONTHS -> { calendar.set(Calendar.DAY_OF_MONTH, 1); calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
+                TimeGranularity.YEARS -> { calendar.set(Calendar.DAY_OF_YEAR, 1); calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
             }
             calendar.timeInMillis
         }.map { (timestamp, groupedPoints) ->
-            // For kilometers, we usually want the maximum value in that period
             ChartPoint(timestamp, groupedPoints.maxOf { it.kilometers })
         }.sortedBy { it.date }
     }
 
-    fun selectEquipment(id: Int) {
-        _selectedEquipmentId.value = id
+    fun toggleEquipmentSelection(id: Int) {
+        _selectedEquipmentIds.value = if (_selectedEquipmentIds.value.contains(id)) {
+            _selectedEquipmentIds.value - id
+        } else {
+            _selectedEquipmentIds.value + id
+        }
     }
 
-    fun selectOperationType(id: Int) {
-        _selectedOperationTypeId.value = id
+    fun toggleOperationTypeSelection(id: Int) {
+        _selectedOperationTypeIds.value = if (_selectedOperationTypeIds.value.contains(id)) {
+            _selectedOperationTypeIds.value - id
+        } else {
+            _selectedOperationTypeIds.value + id
+        }
     }
 
     fun setDateRange(start: Long?, end: Long?) {
@@ -212,6 +214,8 @@ class ReportsViewModel(
         _endDate.value = null
         _timeGranularity.value = TimeGranularity.HOURS
         _showDismissed.value = false
+        _selectedEquipmentIds.value = emptySet()
+        _selectedOperationTypeIds.value = emptySet()
     }
     
     fun toggleShowDismissed() {
