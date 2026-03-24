@@ -11,11 +11,23 @@
     <!-- Reports -->
     <string name="report_section_equipments">Equipments</string>
     <string name="report_section_operations">Operations</string>
-    <string name="report_km_over_time">Kilometers over time</string>
-    <string name="report_km_to_date">KM to date</string>
+    <string name="report_value_over_time">Values over time</string>
+    <string name="report_value_to_date">Value to date</string>
     <string name="report_no_data">No data available</string>
     <string name="select_equipment">Select Equipment</string>
     <string name="select_operation">Select Operation</string>
+    <string name="report_equipment_subtitle">Analysis of usage values</string>
+    <string name="report_operation_subtitle">Frequency and values for single operation</string>
+
+    <string name="filter_from">From</string>
+    <string name="filter_to">To</string>
+    <string name="filter_granularity">Granularity</string>
+    <string name="filter_reset">Reset</string>
+    <string name="granularity_hours">Hours</string>
+    <string name="granularity_days">Days</string>
+    <string name="granularity_weeks">Weeks</string>
+    <string name="granularity_months">Months</string>
+    <string name="granularity_years">Years</string>
 
     <!-- Options Screen -->
     <string name="options_version_label">Version %1$s</string>
@@ -116,9 +128,10 @@
     <string name="add_new_maintenance_log">Add New Maintenance Log</string>
     <string name="select_an_equipment">Select an equipment</string>
     <string name="select_an_operation">Select an operation</string>
-    <string name="kilometers_optional">Kilometers (optional)</string>
+    <string name="notes_label">Notes</string>
     <string name="notes_optional">Notes (optional)</string>
-    <string name="kilometers_label">Km: %1$d</string>
+    <string name="value_label">Value: %1$d %2$s</string>
+    <string name="value_optional">Value (optional)</string>
     <string name="dismissed_suffix">(dismissed)</string>
     <string name="selected_content_desc">Selected</string>
     <string name="date">Date</string>

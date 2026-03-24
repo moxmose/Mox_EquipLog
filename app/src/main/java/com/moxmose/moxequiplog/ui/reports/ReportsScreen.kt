@@ -10,6 +10,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Equipment
@@ -92,7 +95,7 @@ fun ReportMenu(onNavigate: (ReportDestination) -> Unit) {
         item {
             ReportMenuCard(
                 title = stringResource(R.string.report_section_equipments),
-                subtitle = "Analisi km e utilizzo dei mezzi",
+                subtitle = stringResource(R.string.report_equipment_subtitle),
                 icon = Icons.AutoMirrored.Filled.DirectionsBike,
                 onClick = { onNavigate(ReportDestination.EQUIPMENTS) }
             )
@@ -101,7 +104,7 @@ fun ReportMenu(onNavigate: (ReportDestination) -> Unit) {
         item {
             ReportMenuCard(
                 title = stringResource(R.string.report_section_operations),
-                subtitle = "Frequenza e km per singola operazione",
+                subtitle = stringResource(R.string.report_operation_subtitle),
                 icon = Icons.Default.Build,
                 onClick = { onNavigate(ReportDestination.OPERATIONS) }
             )
@@ -168,6 +171,128 @@ fun ReportMenuCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun StandardFilterSection(
+    startDate: Long?,
+    endDate: Long?,
+    granularity: TimeGranularity,
+    onDateRangeSelected: (Long?, Long?) -> Unit,
+    onGranularitySelected: (TimeGranularity) -> Unit,
+    onReset: () -> Unit
+) {
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    var showDatePickerRange by remember { mutableStateOf(false) }
+
+    if (showDatePickerRange) {
+        val dateRangePickerState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = startDate,
+            initialSelectedEndDateMillis = endDate
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePickerRange = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDateRangeSelected(
+                        dateRangePickerState.selectedStartDateMillis,
+                        dateRangePickerState.selectedEndDateMillis
+                    )
+                    showDatePickerRange = false
+                }) {
+                    Text(stringResource(R.string.button_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePickerRange = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            }
+        ) {
+            DateRangePicker(
+                state = dateRangePickerState,
+                title = { Text(stringResource(R.string.date), modifier = Modifier.padding(16.dp)) },
+                showModeToggle = false,
+                modifier = Modifier.fillMaxWidth().height(400.dp)
+            )
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Date Range Button
+                OutlinedButton(
+                    onClick = { showDatePickerRange = true },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (startDate != null && endDate != null) {
+                            "${dateFormat.format(Date(startDate))} - ${dateFormat.format(Date(endDate))}"
+                        } else {
+                            stringResource(R.string.date)
+                        },
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                // Reset Button
+                IconButton(
+                    onClick = onReset,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.filter_reset),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Granularity Selector
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                TimeGranularity.entries.forEach { entry ->
+                    val isSelected = entry == granularity
+                    val label = when (entry) {
+                        TimeGranularity.HOURS -> stringResource(R.string.granularity_hours)
+                        TimeGranularity.DAYS -> stringResource(R.string.granularity_days)
+                        TimeGranularity.WEEKS -> stringResource(R.string.granularity_weeks)
+                        TimeGranularity.MONTHS -> stringResource(R.string.granularity_months)
+                        TimeGranularity.YEARS -> stringResource(R.string.granularity_years)
+                    }
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onGranularitySelected(entry) },
+                        label = { 
+                            Text(
+                                text = label, 
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            ) 
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun EquipmentReportsScreen(
     viewModel: ReportsViewModel,
     onBack: () -> Unit
@@ -190,9 +315,9 @@ fun EquipmentReportsScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             EquipmentSelector(
                 equipments = uiState.equipments,
@@ -200,23 +325,31 @@ fun EquipmentReportsScreen(
                 onEquipmentSelected = { viewModel.selectEquipment(it.id) }
             )
 
+            StandardFilterSection(
+                startDate = uiState.startDate,
+                endDate = uiState.endDate,
+                granularity = uiState.timeGranularity,
+                onDateRangeSelected = viewModel::setDateRange,
+                onGranularitySelected = viewModel::setTimeGranularity,
+                onReset = viewModel::resetFilters
+            )
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    val unitPart = if (uiState.equipmentUnitLabel.isNotEmpty()) "[${uiState.equipmentUnitLabel}] " else ""
                     Text(
-                        text = stringResource(R.string.report_km_over_time),
+                        text = unitPart + stringResource(R.string.report_value_over_time),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     
                     if (uiState.equipmentChartData.isNotEmpty()) {
-                        GenericChart(chartData = uiState.equipmentChartData)
+                        GenericChart(chartData = uiState.equipmentChartData, granularity = uiState.timeGranularity)
                     } else {
                         NoDataPlaceholder()
                     }
                 }
             }
-            
-            // Qui potrai aggiungere altri filtri o grafici in futuro
         }
     }
 }
@@ -245,9 +378,9 @@ fun OperationReportsScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             OperationSelector(
                 operationTypes = uiState.operationTypes,
@@ -255,23 +388,30 @@ fun OperationReportsScreen(
                 onOperationSelected = { viewModel.selectOperationType(it.id) }
             )
 
+            StandardFilterSection(
+                startDate = uiState.startDate,
+                endDate = uiState.endDate,
+                granularity = uiState.timeGranularity,
+                onDateRangeSelected = viewModel::setDateRange,
+                onGranularitySelected = viewModel::setTimeGranularity,
+                onReset = viewModel::resetFilters
+            )
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = stringResource(R.string.report_km_to_date),
+                        text = stringResource(R.string.report_value_to_date),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     
                     if (uiState.operationChartData.isNotEmpty()) {
-                        GenericChart(chartData = uiState.operationChartData)
+                        GenericChart(chartData = uiState.operationChartData, granularity = uiState.timeGranularity)
                     } else {
                         NoDataPlaceholder()
                     }
                 }
             }
-            
-            // Qui potrai aggiungere altri filtri o grafici in futuro
         }
     }
 }
@@ -377,14 +517,25 @@ fun OperationSelector(
 }
 
 @Composable
-fun GenericChart(chartData: List<ChartPoint>) {
+fun GenericChart(chartData: List<ChartPoint>, granularity: TimeGranularity) {
     val modelProducer = remember { CartesianChartModelProducer() }
-    val dateFormat = remember { SimpleDateFormat("dd/MM", Locale.getDefault()) }
+    
+    val dateFormat = remember(granularity) {
+        when (granularity) {
+            TimeGranularity.HOURS -> SimpleDateFormat("HH:mm", Locale.getDefault())
+            TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault())
+            TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
+            TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
+        }
+    }
 
     LaunchedEffect(chartData) {
         modelProducer.runTransaction {
             lineSeries {
-                series(chartData.map { it.kilometers })
+                series(
+                    x = chartData.map { it.date },
+                    y = chartData.map { it.kilometers }
+                )
             }
         }
     }
@@ -395,10 +546,7 @@ fun GenericChart(chartData: List<ChartPoint>) {
             startAxis = VerticalAxis.rememberStart(),
             bottomAxis = HorizontalAxis.rememberBottom(
                 valueFormatter = CartesianValueFormatter { _, value, _ ->
-                    val index = value.roundToInt()
-                    if (index in chartData.indices) {
-                        dateFormat.format(Date(chartData[index].date))
-                    } else ""
+                    dateFormat.format(Date(value.toLong()))
                 }
             ),
         ),

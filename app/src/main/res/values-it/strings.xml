@@ -7,6 +7,27 @@
     <string name="navigation_reports">Report</string>
     <string name="navigation_options">Opzioni</string>
 
+    <!-- Reports -->
+    <string name="report_section_equipments">Mezzi</string>
+    <string name="report_section_operations">Attività</string>
+    <string name="report_value_over_time">Valori nel tempo</string>
+    <string name="report_value_to_date">Valore ad oggi</string>
+    <string name="report_no_data">Nessun dato disponibile</string>
+    <string name="select_equipment">Seleziona Mezzo</string>
+    <string name="select_operation">Seleziona Attività</string>
+    <string name="report_equipment_subtitle">Analisi dei valori di utilizzo</string>
+    <string name="report_operation_subtitle">Frequenza e valori per singola attività</string>
+
+    <string name="filter_from">Da</string>
+    <string name="filter_to">A</string>
+    <string name="filter_granularity">Granularità</string>
+    <string name="filter_reset">Reset</string>
+    <string name="granularity_hours">Ore</string>
+    <string name="granularity_days">Giorni</string>
+    <string name="granularity_weeks">Sett</string>
+    <string name="granularity_months">Mesi</string>
+    <string name="granularity_years">Anni</string>
+
     <string name="options_version_label">Versione %1$s</string>
     <string name="options_username_label">Nome utente</string>
     <string name="options_profile_section">Profilo</string>
@@ -71,9 +92,8 @@
     <string name="add_new_maintenance_log">Aggiungi nuova registrazione di manutenzione</string>
     <string name="select_an_equipment">Seleziona un mezzo</string>
     <string name="select_an_operation">Selezione un operazione</string>
-    <string name="kilometers_optional">Chilometri (opzionale)</string>
-    <string name="notes_optional">Note (opzionale)</string>
-    <string name="kilometers_label">Km: %1$d</string>
+    <string name="value_label">Valore: %1$d %2$s</string>
+    <string name="value_optional">Valore (opzionale)</string>
     <string name="dismissed_suffix">(dismesso)</string>
     <string name="selected_content_desc">Selezionato</string>
     <string name="date">Data</string>
