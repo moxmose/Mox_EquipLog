@@ -9,21 +9,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
+import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -37,7 +40,6 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.roundToInt
 
 enum class ReportDestination {
     MENU,
@@ -177,7 +179,8 @@ fun StandardFilterSection(
     granularity: TimeGranularity,
     onDateRangeSelected: (Long?, Long?) -> Unit,
     onGranularitySelected: (TimeGranularity) -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    onRefresh: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     var showDatePickerRange by remember { mutableStateOf(false) }
@@ -196,6 +199,7 @@ fun StandardFilterSection(
                         dateRangePickerState.selectedEndDateMillis
                     )
                     showDatePickerRange = false
+                    onRefresh()
                 }) {
                     Text(stringResource(R.string.button_ok))
                 }
@@ -247,11 +251,14 @@ fun StandardFilterSection(
 
                 // Reset Button
                 IconButton(
-                    onClick = onReset,
+                    onClick = {
+                        onReset()
+                        onRefresh()
+                    },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Refresh,
+                        imageVector = Icons.Default.FilterAltOff,
                         contentDescription = stringResource(R.string.filter_reset),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -274,7 +281,10 @@ fun StandardFilterSection(
                     }
                     FilterChip(
                         selected = isSelected,
-                        onClick = { onGranularitySelected(entry) },
+                        onClick = { 
+                            onGranularitySelected(entry)
+                            onRefresh() 
+                        },
                         label = { 
                             Text(
                                 text = label, 
@@ -298,6 +308,9 @@ fun EquipmentReportsScreen(
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val categoryColor = remember(uiState.equipmentCategoryColor) {
+        try { Color(uiState.equipmentCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray }
+    }
 
     Scaffold(
         topBar = {
@@ -310,7 +323,7 @@ fun EquipmentReportsScreen(
                 }
             )
         },
-        containerColor = androidx.compose.ui.graphics.Color.Transparent
+        containerColor = Color.Transparent
     ) { padding ->
         Column(
             modifier = Modifier
@@ -319,11 +332,36 @@ fun EquipmentReportsScreen(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            EquipmentSelector(
-                equipments = uiState.equipments,
-                selectedId = uiState.selectedEquipmentId,
-                onEquipmentSelected = { viewModel.selectEquipment(it.id) }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    EquipmentSelector(
+                        equipments = uiState.equipments,
+                        selectedId = uiState.selectedEquipmentId,
+                        onEquipmentSelected = { 
+                            viewModel.selectEquipment(it.id)
+                            viewModel.refresh()
+                        },
+                        categoryColor = categoryColor
+                    )
+                }
+                
+                IconButton(
+                    onClick = { viewModel.toggleShowDismissed() },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                        tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             StandardFilterSection(
                 startDate = uiState.startDate,
@@ -331,7 +369,8 @@ fun EquipmentReportsScreen(
                 granularity = uiState.timeGranularity,
                 onDateRangeSelected = viewModel::setDateRange,
                 onGranularitySelected = viewModel::setTimeGranularity,
-                onReset = viewModel::resetFilters
+                onReset = viewModel::resetFilters,
+                onRefresh = viewModel::refresh
             )
 
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -361,6 +400,9 @@ fun OperationReportsScreen(
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val categoryColor = remember(uiState.operationCategoryColor) {
+        try { Color(uiState.operationCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray }
+    }
 
     Scaffold(
         topBar = {
@@ -373,7 +415,7 @@ fun OperationReportsScreen(
                 }
             )
         },
-        containerColor = androidx.compose.ui.graphics.Color.Transparent
+        containerColor = Color.Transparent
     ) { padding ->
         Column(
             modifier = Modifier
@@ -382,11 +424,36 @@ fun OperationReportsScreen(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OperationSelector(
-                operationTypes = uiState.operationTypes,
-                selectedId = uiState.selectedOperationTypeId,
-                onOperationSelected = { viewModel.selectOperationType(it.id) }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    OperationSelector(
+                        operationTypes = uiState.operationTypes,
+                        selectedId = uiState.selectedOperationTypeId,
+                        onOperationSelected = { 
+                            viewModel.selectOperationType(it.id)
+                            viewModel.refresh()
+                        },
+                        categoryColor = categoryColor
+                    )
+                }
+                
+                IconButton(
+                    onClick = { viewModel.toggleShowDismissed() },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                        tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             StandardFilterSection(
                 startDate = uiState.startDate,
@@ -394,7 +461,8 @@ fun OperationReportsScreen(
                 granularity = uiState.timeGranularity,
                 onDateRangeSelected = viewModel::setDateRange,
                 onGranularitySelected = viewModel::setTimeGranularity,
-                onReset = viewModel::resetFilters
+                onReset = viewModel::resetFilters,
+                onRefresh = viewModel::refresh
             )
 
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -437,7 +505,8 @@ fun NoDataPlaceholder() {
 fun EquipmentSelector(
     equipments: List<Equipment>,
     selectedId: Int?,
-    onEquipmentSelected: (Equipment) -> Unit
+    onEquipmentSelected: (Equipment) -> Unit,
+    categoryColor: Color
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedEquipment = equipments.find { it.id == selectedId }
@@ -447,10 +516,20 @@ fun EquipmentSelector(
         onExpandedChange = { expanded = it }
     ) {
         OutlinedTextField(
-            value = selectedEquipment?.description ?: stringResource(R.string.select_equipment),
+            value = selectedEquipment?.description?.takeIf { it.isNotBlank() } ?: selectedEquipment?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_equipment),
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.navigation_equipments)) },
+            leadingIcon = {
+                ImageIcon(
+                    photoUri = selectedEquipment?.photoUri,
+                    iconIdentifier = selectedEquipment?.iconIdentifier,
+                    modifier = Modifier.size(24.dp),
+                    category = Category.EQUIPMENT,
+                    borderColor = categoryColor,
+                    contentPadding = 2.dp
+                )
+            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -463,7 +542,22 @@ fun EquipmentSelector(
         ) {
             equipments.forEach { equipment ->
                 DropdownMenuItem(
-                    text = { Text(equipment.description) },
+                    text = { 
+                        Text(
+                            text = (equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id)) + if (equipment.dismissed) " " + stringResource(R.string.dismissed_suffix) else "",
+                            color = if (equipment.dismissed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.Unspecified
+                        ) 
+                    },
+                    leadingIcon = {
+                        ImageIcon(
+                            photoUri = equipment.photoUri,
+                            iconIdentifier = equipment.iconIdentifier,
+                            modifier = Modifier.size(24.dp).graphicsLayer(alpha = if (equipment.dismissed) 0.5f else 1f),
+                            category = Category.EQUIPMENT,
+                            borderColor = categoryColor,
+                            contentPadding = 2.dp
+                        )
+                    },
                     onClick = {
                         onEquipmentSelected(equipment)
                         expanded = false
@@ -479,7 +573,8 @@ fun EquipmentSelector(
 fun OperationSelector(
     operationTypes: List<OperationType>,
     selectedId: Int?,
-    onOperationSelected: (OperationType) -> Unit
+    onOperationSelected: (OperationType) -> Unit,
+    categoryColor: Color
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedOp = operationTypes.find { it.id == selectedId }
@@ -489,10 +584,20 @@ fun OperationSelector(
         onExpandedChange = { expanded = it }
     ) {
         OutlinedTextField(
-            value = selectedOp?.description ?: stringResource(R.string.select_operation),
+            value = selectedOp?.description?.takeIf { it.isNotBlank() } ?: selectedOp?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_operation),
             onValueChange = {},
             readOnly = true,
             label = { Text(stringResource(R.string.navigation_operations)) },
+            leadingIcon = {
+                ImageIcon(
+                    photoUri = selectedOp?.photoUri,
+                    iconIdentifier = selectedOp?.iconIdentifier,
+                    modifier = Modifier.size(24.dp),
+                    category = Category.OPERATION,
+                    borderColor = categoryColor,
+                    contentPadding = 2.dp
+                )
+            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -505,7 +610,22 @@ fun OperationSelector(
         ) {
             operationTypes.forEach { op ->
                 DropdownMenuItem(
-                    text = { Text(op.description) },
+                    text = { 
+                        Text(
+                            text = (op.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, op.id)) + if (op.dismissed) " " + stringResource(R.string.dismissed_suffix) else "",
+                            color = if (op.dismissed) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else Color.Unspecified
+                        ) 
+                    },
+                    leadingIcon = {
+                        ImageIcon(
+                            photoUri = op.photoUri,
+                            iconIdentifier = op.iconIdentifier,
+                            modifier = Modifier.size(24.dp).graphicsLayer(alpha = if (op.dismissed) 0.5f else 1f),
+                            category = Category.OPERATION,
+                            borderColor = categoryColor,
+                            contentPadding = 2.dp
+                        )
+                    },
                     onClick = {
                         onOperationSelected(op)
                         expanded = false
@@ -522,37 +642,41 @@ fun GenericChart(chartData: List<ChartPoint>, granularity: TimeGranularity) {
     
     val dateFormat = remember(granularity) {
         when (granularity) {
-            TimeGranularity.HOURS -> SimpleDateFormat("HH:mm", Locale.getDefault())
+            TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
             TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault())
             TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
             TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
         }
     }
 
-    LaunchedEffect(chartData) {
-        modelProducer.runTransaction {
-            lineSeries {
-                series(
-                    x = chartData.map { it.date },
-                    y = chartData.map { it.kilometers }
-                )
+    LaunchedEffect(chartData, granularity) {
+        if (chartData.isNotEmpty()) {
+            modelProducer.runTransaction {
+                lineSeries {
+                    series(
+                        x = chartData.map { it.date },
+                        y = chartData.map { it.kilometers }
+                    )
+                }
             }
         }
     }
 
-    CartesianChartHost(
-        chart = rememberCartesianChart(
-            rememberLineCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom(
-                valueFormatter = CartesianValueFormatter { _, value, _ ->
-                    dateFormat.format(Date(value.toLong()))
-                }
+    key(granularity) {
+        CartesianChartHost(
+            chart = rememberCartesianChart(
+                rememberLineCartesianLayer(),
+                startAxis = VerticalAxis.rememberStart(),
+                bottomAxis = HorizontalAxis.rememberBottom(
+                    valueFormatter = CartesianValueFormatter { _, value, _ ->
+                        dateFormat.format(Date(value.toLong()))
+                    }
+                ),
             ),
-        ),
-        modelProducer = modelProducer,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(250.dp)
-    )
+            modelProducer = modelProducer,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+        )
+    }
 }

@@ -180,4 +180,5 @@
     <string name="dismiss_log_failed">Failed to dismiss log.</string>
     <string name="restore_log_failed">Failed to restore log.</string>
     <string name="set_default_failed">Set default failed</string>
+    <string name="refresh">Refresh</string>
 </resources>

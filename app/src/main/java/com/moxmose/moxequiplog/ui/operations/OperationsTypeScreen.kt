@@ -334,7 +334,7 @@ fun AddOperationTypeDialog(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        val icon = EquipmentIconProvider.getIcon(iconId)
+                        val icon = EquipmentIconProvider.getIcon(iconId, Category.OPERATION)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.operation_type_photo),
@@ -499,7 +499,7 @@ fun OperationTypeCard(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier)
+                        val icon = EquipmentIconProvider.getIcon(operationType.iconIdentifier, Category.OPERATION)
                         Icon(
                             imageVector = icon,
                             contentDescription = stringResource(R.string.operation_type_photo),
