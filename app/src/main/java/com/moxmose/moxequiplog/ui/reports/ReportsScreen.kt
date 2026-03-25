@@ -2,6 +2,8 @@ package com.moxmose.moxequiplog.ui.reports
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,12 +17,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
@@ -45,7 +53,9 @@ import java.util.*
 enum class ReportDestination {
     MENU,
     EQUIPMENTS,
-    OPERATIONS
+    OPERATIONS,
+    EQUIPMENTS_FREQ,
+    OPERATIONS_FREQ
 }
 
 @Composable
@@ -71,6 +81,14 @@ fun ReportsScreen(
                 onBack = { currentSubDestination = ReportDestination.MENU }
             )
             ReportDestination.OPERATIONS -> OperationReportsScreen(
+                viewModel = viewModel,
+                onBack = { currentSubDestination = ReportDestination.MENU }
+            )
+            ReportDestination.EQUIPMENTS_FREQ -> EquipmentFrequencyScreen(
+                viewModel = viewModel,
+                onBack = { currentSubDestination = ReportDestination.MENU }
+            )
+            ReportDestination.OPERATIONS_FREQ -> OperationFrequencyScreen(
                 viewModel = viewModel,
                 onBack = { currentSubDestination = ReportDestination.MENU }
             )
@@ -110,6 +128,24 @@ fun ReportMenu(onNavigate: (ReportDestination) -> Unit) {
                 subtitle = stringResource(R.string.report_operation_subtitle),
                 icon = Icons.Default.Build,
                 onClick = { onNavigate(ReportDestination.OPERATIONS) }
+            )
+        }
+
+        item {
+            ReportMenuCard(
+                title = stringResource(R.string.report_section_equipments_freq),
+                subtitle = stringResource(R.string.report_equipment_freq_subtitle),
+                icon = Icons.Default.PieChart,
+                onClick = { onNavigate(ReportDestination.EQUIPMENTS_FREQ) }
+            )
+        }
+
+        item {
+            ReportMenuCard(
+                title = stringResource(R.string.report_section_operations_freq),
+                subtitle = stringResource(R.string.report_operation_freq_subtitle),
+                icon = Icons.Default.DataUsage,
+                onClick = { onNavigate(ReportDestination.OPERATIONS_FREQ) }
             )
         }
     }
@@ -337,6 +373,19 @@ fun EquipmentReportsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
                     Box(modifier = Modifier.weight(1f)) {
                         EquipmentMultiSelector(
                             equipments = uiState.equipments,
@@ -348,17 +397,30 @@ fun EquipmentReportsScreen(
                             categoryColor = categoryColor
                         )
                     }
-                    
+
                     IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
+                        onClick = {
+                            viewModel.invertEquipmentSelection()
+                            viewModel.refresh()
+                        }
                     ) {
                         Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = stringResource(R.string.selection_invert),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.clearEquipmentSelection()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterAltOff,
+                            contentDescription = stringResource(R.string.selection_clear),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -379,9 +441,17 @@ fun EquipmentReportsScreen(
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        val unitPart = if (uiState.equipmentUnitLabel.isNotEmpty()) "[${uiState.equipmentUnitLabel}] " else ""
+                        val unitLabel = buildAnnotatedString {
+                            if (uiState.equipmentUnitLabel.isNotEmpty()) {
+                                withStyle(style = SpanStyle(color = if (uiState.hasMixedUnits) Color.Red else Color.Unspecified)) {
+                                    append("[${uiState.equipmentUnitLabel}] ")
+                                }
+                            }
+                            append(stringResource(R.string.report_value_over_time))
+                        }
+                        
                         Text(
-                            text = unitPart + stringResource(R.string.report_value_over_time),
+                            text = unitLabel,
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
@@ -444,6 +514,19 @@ fun OperationReportsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
                     Box(modifier = Modifier.weight(1f)) {
                         OperationMultiSelector(
                             operationTypes = uiState.operationTypes,
@@ -455,17 +538,30 @@ fun OperationReportsScreen(
                             categoryColor = categoryColor
                         )
                     }
-                    
+
                     IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
+                        onClick = {
+                            viewModel.invertOperationTypeSelection()
+                            viewModel.refresh()
+                        }
                     ) {
                         Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = stringResource(R.string.selection_invert),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.clearOperationTypeSelection()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterAltOff,
+                            contentDescription = stringResource(R.string.selection_clear),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -508,6 +604,341 @@ fun OperationReportsScreen(
                     categoryColor = categoryColor
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EquipmentFrequencyScreen(
+    viewModel: ReportsViewModel,
+    onBack: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val categoryColor = remember(uiState.equipmentCategoryColor) {
+        try { Color(uiState.equipmentCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.report_section_equipments_freq)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        containerColor = Color.Transparent
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        EquipmentMultiSelector(
+                            equipments = uiState.equipments,
+                            selectedIds = uiState.selectedEquipmentIds,
+                            onToggleSelection = { 
+                                viewModel.toggleEquipmentSelection(it)
+                                viewModel.refresh()
+                            },
+                            categoryColor = categoryColor
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.invertEquipmentSelection()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = stringResource(R.string.selection_invert),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.clearEquipmentSelection()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterAltOff,
+                            contentDescription = stringResource(R.string.selection_clear),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            item {
+                StandardFilterSection(
+                    startDate = uiState.startDate,
+                    endDate = uiState.endDate,
+                    granularity = uiState.timeGranularity,
+                    onDateRangeSelected = viewModel::setDateRange,
+                    onGranularitySelected = viewModel::setTimeGranularity,
+                    onReset = viewModel::resetFilters,
+                    onRefresh = viewModel::refresh
+                )
+            }
+
+            item {
+                PieChartCard(
+                    title = stringResource(R.string.report_section_equipments_freq),
+                    distribution = uiState.equipmentDistribution,
+                    baseColor = categoryColor
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OperationFrequencyScreen(
+    viewModel: ReportsViewModel,
+    onBack: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val categoryColor = remember(uiState.operationCategoryColor) {
+        try { Color(uiState.operationCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.report_section_operations_freq)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        containerColor = Color.Transparent
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        OperationMultiSelector(
+                            operationTypes = uiState.operationTypes,
+                            selectedIds = uiState.selectedOperationTypeIds,
+                            onToggleSelection = { 
+                                viewModel.toggleOperationTypeSelection(it)
+                                viewModel.refresh()
+                            },
+                            categoryColor = categoryColor
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.invertOperationTypeSelection()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = stringResource(R.string.selection_invert),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.clearOperationTypeSelection()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterAltOff,
+                            contentDescription = stringResource(R.string.selection_clear),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            item {
+                StandardFilterSection(
+                    startDate = uiState.startDate,
+                    endDate = uiState.endDate,
+                    granularity = uiState.timeGranularity,
+                    onDateRangeSelected = viewModel::setDateRange,
+                    onGranularitySelected = viewModel::setTimeGranularity,
+                    onReset = viewModel::resetFilters,
+                    onRefresh = viewModel::refresh
+                )
+            }
+
+            item {
+                PieChartCard(
+                    title = stringResource(R.string.report_section_operations_freq),
+                    distribution = uiState.operationDistribution,
+                    baseColor = categoryColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PieChartCard(
+    title: String,
+    distribution: List<PieChartPoint>,
+    baseColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            if (distribution.isEmpty()) {
+                NoDataPlaceholder()
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PieChart(
+                        modifier = Modifier.size(140.dp),
+                        points = distribution,
+                        baseColor = baseColor
+                    )
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        distribution.take(5).forEachIndexed { index, point ->
+                            Row(verticalAlignment = Alignment.Top) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .size(12.dp)
+                                        .clip(MaterialTheme.shapes.extraSmall)
+                                        .graphicsLayer(alpha = (1f - (index * 0.15f)).coerceAtLeast(0.2f))
+                                        .background(baseColor)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.occurrences_format, point.label, point.value.toInt()),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                        if (distribution.size > 5) {
+                            Text(
+                                text = "...",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(start = 20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PieChart(
+    modifier: Modifier = Modifier,
+    points: List<PieChartPoint>,
+    baseColor: Color
+) {
+    val total = points.sumOf { it.value.toDouble() }.toFloat()
+    
+    Canvas(modifier = modifier) {
+        var startAngle = -90f
+        points.forEachIndexed { index, point ->
+            val sweepAngle = (point.value / total) * 360f
+            val colorAlpha = (1f - (index * 0.15f)).coerceAtMost(1f).coerceAtLeast(0.2f)
+            
+            drawArc(
+                color = baseColor.copy(alpha = colorAlpha),
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = true,
+                size = Size(size.minDimension, size.minDimension),
+                topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2)
+            )
+            
+            drawArc(
+                color = Color.White.copy(alpha = 0.3f),
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = true,
+                style = Stroke(width = 1.dp.toPx()),
+                size = Size(size.minDimension, size.minDimension),
+                topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2)
+            )
+            
+            startAngle += sweepAngle
         }
     }
 }
@@ -738,7 +1169,6 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, granularity: TimeGr
     }
 
     LaunchedEffect(chartDataMap, granularity) {
-        // Filtriamo le serie che non hanno punti per evitare l'eccezione "Series can't be empty"
         val validSeries = chartDataMap.values.filter { it.isNotEmpty() }
         if (validSeries.isNotEmpty()) {
             modelProducer.runTransaction {

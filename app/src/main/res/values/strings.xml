@@ -11,6 +11,8 @@
     <!-- Reports -->
     <string name="report_section_equipments">Equipments</string>
     <string name="report_section_operations">Operations</string>
+    <string name="report_section_equipments_freq">Equipments Frequency</string>
+    <string name="report_section_operations_freq">Operations Frequency</string>
     <string name="report_value_over_time">Values over time</string>
     <string name="report_value_to_date">Value to date</string>
     <string name="report_no_data">No data available</string>
@@ -18,6 +20,8 @@
     <string name="select_operation">Select Operation</string>
     <string name="report_equipment_subtitle">Analysis of usage values</string>
     <string name="report_operation_subtitle">Frequency and values for single operation</string>
+    <string name="report_equipment_freq_subtitle">Usage frequency of equipments</string>
+    <string name="report_operation_freq_subtitle">Frequency of performed operations</string>
 
     <string name="filter_from">From</string>
     <string name="filter_to">To</string>
@@ -28,6 +32,9 @@
     <string name="granularity_weeks">Weeks</string>
     <string name="granularity_months">Months</string>
     <string name="granularity_years">Years</string>
+    <string name="selection_invert">Invert selection</string>
+    <string name="selection_clear">Clear selection</string>
+    <string name="occurrences_format">%1$s [%2$d occurrences]</string>
 
     <!-- Options Screen -->
     <string name="options_version_label">Version %1$s</string>

@@ -10,6 +10,8 @@
     <!-- Reports -->
     <string name="report_section_equipments">Mezzi</string>
     <string name="report_section_operations">Attività</string>
+    <string name="report_section_equipments_freq">Frequenza Mezzi</string>
+    <string name="report_section_operations_freq">Frequenza Attività</string>
     <string name="report_value_over_time">Valori nel tempo</string>
     <string name="report_value_to_date">Valore ad oggi</string>
     <string name="report_no_data">Nessun dato disponibile</string>
@@ -17,6 +19,8 @@
     <string name="select_operation">Seleziona Attività</string>
     <string name="report_equipment_subtitle">Analisi dei valori di utilizzo</string>
     <string name="report_operation_subtitle">Frequenza e valori per singola attività</string>
+    <string name="report_equipment_freq_subtitle">Frequenza di utilizzo dei mezzi</string>
+    <string name="report_operation_freq_subtitle">Frequenza delle attività svolte</string>
 
     <string name="filter_from">Da</string>
     <string name="filter_to">A</string>
@@ -27,6 +31,9 @@
     <string name="granularity_weeks">Sett</string>
     <string name="granularity_months">Mesi</string>
     <string name="granularity_years">Anni</string>
+    <string name="selection_invert">Inverti selezione</string>
+    <string name="selection_clear">Cancella selezione</string>
+    <string name="occurrences_format">%1$s [%2$d occorrenze]</string>
 
     <string name="options_version_label">Versione %1$s</string>
     <string name="options_username_label">Nome utente</string>
@@ -149,4 +156,6 @@
     <string name="update_log_failed">Aggiornamento della registrazione fallito.</string>
     <string name="dismiss_log_failed">Dismissione della registrazione fallita.</string>
     <string name="restore_log_failed">Ripristino della registrazione fallito.</string>
+    <string name="refresh">Aggiorna</string>
+    <string name="distribution_analysis">Analisi distribuzione</string>
 </resources>

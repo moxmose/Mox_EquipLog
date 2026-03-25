@@ -32,6 +32,7 @@ data class ReportsUiState(
     val equipmentDistribution: List<PieChartPoint> = emptyList(),
     val equipmentCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
     val equipmentUnitLabel: String = "",
+    val hasMixedUnits: Boolean = false,
     
     val operationTypes: List<OperationType> = emptyList(),
     val selectedOperationTypeIds: Set<Int> = emptySet(),
@@ -106,15 +107,27 @@ class ReportsViewModel(
         }
 
         // --- DISTRIBUZIONI (TORTE) ---
-        // Occorrenze per Equipaggiamento
-        val equipDist = filteredLogs.groupBy { it.log.equipmentId }
+        // Occorrenze per Equipaggiamento (reali selezioni)
+        val equipDist = filteredLogs
+            .let { logsList ->
+                if (selections.selectedEquipmentIds.isNotEmpty()) {
+                    logsList.filter { it.log.equipmentId in selections.selectedEquipmentIds }
+                } else logsList
+            }
+            .groupBy { it.log.equipmentId }
             .map { (id, logs) ->
                 val label = equipments.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
                 PieChartPoint(label, logs.size.toFloat())
             }.sortedByDescending { it.value }
 
-        // Occorrenze per Operazione
-        val opDist = filteredLogs.groupBy { it.log.operationTypeId }
+        // Occorrenze per Operazione (reali selezioni)
+        val opDist = filteredLogs
+            .let { logsList ->
+                if (selections.selectedOperationTypeIds.isNotEmpty()) {
+                    logsList.filter { it.log.operationTypeId in selections.selectedOperationTypeIds }
+                } else logsList
+            }
+            .groupBy { it.log.operationTypeId }
             .map { (id, logs) ->
                 val label = operationTypes.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
                 PieChartPoint(label, logs.size.toFloat())
@@ -139,9 +152,14 @@ class ReportsViewModel(
             aggregateData(points, selections.timeGranularity)
         }
         
-        // Unit label logic (first selected equipment's unit or general)
-        val firstEquip = equipments.find { it.id == activeEquipIds.firstOrNull() }
-        val equipUnit = units.find { it.id == firstEquip?.unitId }?.label ?: ""
+        // Unit label logic
+        val selectedUnits = activeEquipIds.mapNotNull { id ->
+            val equip = equipments.find { it.id == id }
+            units.find { it.id == equip?.unitId }?.label
+        }.distinct()
+        
+        val equipUnit = selectedUnits.joinToString(", ")
+        val hasMixedUnits = selectedUnits.size > 1
 
         ReportsUiState(
             equipments = equipments,
@@ -150,6 +168,7 @@ class ReportsViewModel(
             equipmentDistribution = equipDist,
             equipmentCategoryColor = eColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
             equipmentUnitLabel = equipUnit,
+            hasMixedUnits = hasMixedUnits,
             operationTypes = operationTypes,
             selectedOperationTypeIds = selections.selectedOperationTypeIds,
             operationChartData = opChartData,
@@ -198,6 +217,26 @@ class ReportsViewModel(
         } else {
             _selectedOperationTypeIds.value + id
         }
+    }
+
+    fun invertEquipmentSelection() {
+        val currentEquipments = uiState.value.equipments
+        val currentSelected = _selectedEquipmentIds.value
+        _selectedEquipmentIds.value = currentEquipments.map { it.id }.toSet() - currentSelected
+    }
+
+    fun clearEquipmentSelection() {
+        _selectedEquipmentIds.value = emptySet()
+    }
+
+    fun invertOperationTypeSelection() {
+        val currentOps = uiState.value.operationTypes
+        val currentSelected = _selectedOperationTypeIds.value
+        _selectedOperationTypeIds.value = currentOps.map { it.id }.toSet() - currentSelected
+    }
+
+    fun clearOperationTypeSelection() {
+        _selectedOperationTypeIds.value = emptySet()
     }
 
     fun setDateRange(start: Long?, end: Long?) {
