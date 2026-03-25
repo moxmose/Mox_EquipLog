@@ -55,6 +55,7 @@ class OptionsViewModel(
         data object UpdateUnitsOrderFailed : OptionsUiEvent()
         data object ToggleUnitVisibilityFailed : OptionsUiEvent()
         data object SetDefaultFailed : OptionsUiEvent()
+        data object UpdateReportsSettingsFailed : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -124,6 +125,12 @@ class OptionsViewModel(
 
     val backgroundImageAlpha: StateFlow<Float> = appSettingsManager.backgroundImageAlpha
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA)
+
+    val reportsColorMode: StateFlow<String> = appSettingsManager.reportsColorMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_REPORTS_COLOR_MODE)
+
+    val reportsCustomColors: StateFlow<List<String>> = appSettingsManager.reportsCustomColors
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_REPORTS_CUSTOM_COLORS.split(";"))
 
     fun resetBackgroundSettings() {
         viewModelScope.launch {
@@ -195,6 +202,26 @@ class OptionsViewModel(
                 appSettingsManager.setBackgroundImageAlpha(alpha)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateBackgroundFailed)
+            }
+        }
+    }
+
+    fun setReportsColorMode(mode: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setReportsColorMode(mode)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
+    fun setReportsCustomColors(colors: List<String>) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setReportsCustomColors(colors)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
             }
         }
     }

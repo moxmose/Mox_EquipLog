@@ -11,7 +11,7 @@ import com.moxmose.moxequiplog.ui.operations.OperationsTypeViewModel
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import com.moxmose.moxequiplog.ui.reports.ReportsViewModel
 import org.koin.android.ext.koin.androidContext
-import org.koin.core.module.dsl.viewModelOf
+import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 

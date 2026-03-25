@@ -39,6 +39,12 @@ class AppSettingsManager(
     val backgroundImageAlpha: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_image_alpha")
         .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA }
 
+    val reportsColorMode: Flow<String> = appPreferenceDao.getPreferenceFlow("reports_color_mode")
+        .map { it ?: UiConstants.DEFAULT_REPORTS_COLOR_MODE }
+
+    val reportsCustomColors: Flow<List<String>> = appPreferenceDao.getPreferenceFlow("reports_custom_colors")
+        .map { it?.split(";") ?: UiConstants.DEFAULT_REPORTS_CUSTOM_COLORS.split(";") }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -93,5 +99,13 @@ class AppSettingsManager(
 
     suspend fun setBackgroundImageAlpha(alpha: Float) {
         appPreferenceDao.insertPreference(AppPreference("background_image_alpha", alpha.toString()))
+    }
+
+    suspend fun setReportsColorMode(mode: String) {
+        appPreferenceDao.insertPreference(AppPreference("reports_color_mode", mode))
+    }
+
+    suspend fun setReportsCustomColors(colors: List<String>) {
+        appPreferenceDao.insertPreference(AppPreference("reports_custom_colors", colors.joinToString(";")))
     }
 }

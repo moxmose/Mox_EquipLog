@@ -2,11 +2,13 @@ package com.moxmose.moxequiplog.ui.reports
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import java.util.*
 
 enum class TimeGranularity {
@@ -44,7 +46,11 @@ data class ReportsUiState(
     val startDate: Long? = null,
     val endDate: Long? = null,
     val timeGranularity: TimeGranularity = TimeGranularity.HOURS,
-    val showDismissed: Boolean = false
+    val showDismissed: Boolean = false,
+
+    // Color preferences
+    val colorMode: String = UiConstants.DEFAULT_REPORTS_COLOR_MODE,
+    val customColors: List<String> = emptyList()
 )
 
 private data class SelectionState(
@@ -54,7 +60,9 @@ private data class SelectionState(
     val endDate: Long?,
     val timeGranularity: TimeGranularity,
     val refreshKey: Int,
-    val showDismissed: Boolean
+    val showDismissed: Boolean,
+    val colorMode: String,
+    val customColors: List<String>
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -63,7 +71,8 @@ class ReportsViewModel(
     private val maintenanceLogDao: MaintenanceLogDao,
     private val operationTypeDao: OperationTypeDao,
     private val measurementUnitDao: MeasurementUnitDao,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val appSettingsManager: AppSettingsManager
 ) : ViewModel() {
 
     private val _selectedEquipmentIds = MutableStateFlow<Set<Int>>(emptySet())
@@ -80,10 +89,30 @@ class ReportsViewModel(
         _selectedOperationTypeIds,
         _startDate,
         _endDate,
-        combine(_timeGranularity, _refreshTrigger, _showDismissed) { gran, refresh, dismissed -> Triple(gran, refresh, dismissed) }
-    ) { selEquips, selOps, start, end, triple ->
-        SelectionState(selEquips, selOps, start, end, triple.first, triple.second, triple.third)
+        combine(
+            _timeGranularity, 
+            _refreshTrigger, 
+            _showDismissed,
+            appSettingsManager.reportsColorMode,
+            appSettingsManager.reportsCustomColors
+        ) { gran, refresh, dismissed, mode, colors -> 
+            Quintet(gran, refresh, dismissed, mode, colors) 
+        }
+    ) { selEquips, selOps, start, end, quintet ->
+        SelectionState(
+            selEquips, 
+            selOps, 
+            start, 
+            end, 
+            quintet.first, 
+            quintet.second, 
+            quintet.third, 
+            quintet.fourth, 
+            quintet.fifth
+        )
     }
+
+    private data class Quintet<A, B, C, D, E>(val first: A, val second: B, val third: C, val fourth: D, val fifth: E)
 
     val uiState: StateFlow<ReportsUiState> = combine(
         _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() },
@@ -107,7 +136,6 @@ class ReportsViewModel(
         }
 
         // --- DISTRIBUZIONI (TORTE) ---
-        // Occorrenze per Equipaggiamento (reali selezioni)
         val equipDist = filteredLogs
             .let { logsList ->
                 if (selections.selectedEquipmentIds.isNotEmpty()) {
@@ -120,7 +148,6 @@ class ReportsViewModel(
                 PieChartPoint(label, logs.size.toFloat())
             }.sortedByDescending { it.value }
 
-        // Occorrenze per Operazione (reali selezioni)
         val opDist = filteredLogs
             .let { logsList ->
                 if (selections.selectedOperationTypeIds.isNotEmpty()) {
@@ -134,7 +161,6 @@ class ReportsViewModel(
             }.sortedByDescending { it.value }
 
         // --- ANDAMENTO (LINEE MULTIPLE) ---
-        // Se non c'è selezione, mostriamo il primo per default per non avere grafici vuoti
         val activeEquipIds = selections.selectedEquipmentIds.ifEmpty { equipments.firstOrNull()?.id?.let { setOf(it) } ?: emptySet() }
         val activeOpIds = selections.selectedOperationTypeIds.ifEmpty { operationTypes.firstOrNull()?.id?.let { setOf(it) } ?: emptySet() }
 
@@ -152,7 +178,6 @@ class ReportsViewModel(
             aggregateData(points, selections.timeGranularity)
         }
         
-        // Unit label logic
         val selectedUnits = activeEquipIds.mapNotNull { id ->
             val equip = equipments.find { it.id == id }
             units.find { it.id == equip?.unitId }?.label
@@ -177,7 +202,9 @@ class ReportsViewModel(
             startDate = selections.startDate,
             endDate = selections.endDate,
             timeGranularity = selections.timeGranularity,
-            showDismissed = selections.showDismissed
+            showDismissed = selections.showDismissed,
+            colorMode = selections.colorMode,
+            customColors = selections.customColors
         )
     }.stateIn(
         scope = viewModelScope,
@@ -259,6 +286,18 @@ class ReportsViewModel(
     
     fun toggleShowDismissed() {
         _showDismissed.value = !_showDismissed.value
+    }
+
+    fun setColorMode(mode: String) {
+        viewModelScope.launch {
+            appSettingsManager.setReportsColorMode(mode)
+        }
+    }
+
+    fun updateCustomColors(colors: List<String>) {
+        viewModelScope.launch {
+            appSettingsManager.setReportsCustomColors(colors)
+        }
     }
     
     fun refresh() {

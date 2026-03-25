@@ -91,7 +91,7 @@ fun MoxEquipLogApp() {
                     AppDestinations.LOGS -> MaintenanceLogScreen()
                     AppDestinations.EQUIPMENTS -> EquipmentsScreen()
                     AppDestinations.OPERATIONS -> OperationTypeScreen()
-                    AppDestinations.REPORTS -> ReportsScreen()
+                    AppDestinations.REPORTS -> ReportsScreen(onBack = { currentDestination = AppDestinations.LOGS })
                     AppDestinations.OPTIONS -> OptionsScreen()
                 }
             }
