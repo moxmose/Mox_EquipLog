@@ -44,14 +44,14 @@ import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineSpec
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.common.shader.color
+import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.shader.DynamicShader
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
@@ -303,13 +303,6 @@ fun EquipmentsReportScreen(
             }
 
             item {
-                ReportsSettingsCard(
-                    colorMode = uiState.colorMode,
-                    onColorModeChange = viewModel::setColorMode
-                )
-            }
-
-            item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -364,48 +357,6 @@ fun EquipmentsReportScreen(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun ReportsSettingsCard(
-    colorMode: String,
-    onColorModeChange: (String) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = stringResource(R.string.options_sections_colors_title),
-                style = MaterialTheme.typography.titleSmall
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FilterChip(
-                    selected = colorMode == UiConstants.REPORTS_COLOR_MODE_M3,
-                    onClick = { onColorModeChange(UiConstants.REPORTS_COLOR_MODE_M3) },
-                    label = { Text("Material 3") },
-                    leadingIcon = if (colorMode == UiConstants.REPORTS_COLOR_MODE_M3) {
-                        { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) }
-                    } else null
-                )
-                FilterChip(
-                    selected = colorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM,
-                    onClick = { onColorModeChange(UiConstants.REPORTS_COLOR_MODE_CUSTOM) },
-                    label = { Text("Custom") },
-                    leadingIcon = if (colorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
-                        { Icon(Icons.Default.Palette, null, Modifier.size(18.dp)) }
-                    } else null
-                )
             }
         }
     }
@@ -509,13 +460,6 @@ fun OperationsReportScreen(
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
                     onRefresh = viewModel::refresh
-                )
-            }
-
-            item {
-                ReportsSettingsCard(
-                    colorMode = uiState.colorMode,
-                    onColorModeChange = viewModel::setColorMode
                 )
             }
 
@@ -1119,24 +1063,16 @@ fun MultiLineChart(
         }
     }
 
-    val chartColors = remember(colorMode, customColors) {
+    val finalColors = remember(colorMode, customColors) {
         if (colorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM && customColors.isNotEmpty()) {
             customColors.map { Color(it.toColorInt()) }
         } else {
-            null // Use default Vico/M3 logic
+            listOf(
+                Color(0xFF4285F4), Color(0xFF34A853), Color(0xFFFBBC05),
+                Color(0xFFEA4335), Color(0xFF9C27B0), Color(0xFF00BCD4)
+            )
         }
     }
-
-    val m3Colors = listOf(
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.secondary,
-        MaterialTheme.colorScheme.tertiary,
-        MaterialTheme.colorScheme.error,
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-        MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
-    )
-
-    val finalColors = chartColors ?: m3Colors
 
     LaunchedEffect(chartDataMap, granularity) {
         val validSeries = chartDataMap.values.filter { it.isNotEmpty() }
@@ -1158,11 +1094,15 @@ fun MultiLineChart(
         CartesianChartHost(
             chart = rememberCartesianChart(
                 rememberLineCartesianLayer(
-                    lines = chartDataMap.keys.mapIndexed { index, _ ->
-                        rememberLineSpec(
-                            shader = DynamicShader.color(finalColors[index % finalColors.size])
-                        )
-                    }
+                    lineProvider = LineCartesianLayer.LineProvider.series(
+                        chartDataMap.keys.mapIndexed { index, _ ->
+                            LineCartesianLayer.Line(
+                                fill = LineCartesianLayer.LineFill.single(
+                                    fill = fill(finalColors[index % finalColors.size])
+                                )
+                            )
+                        }
+                    )
                 ),
                 startAxis = VerticalAxis.rememberStart(),
                 bottomAxis = HorizontalAxis.rememberBottom(

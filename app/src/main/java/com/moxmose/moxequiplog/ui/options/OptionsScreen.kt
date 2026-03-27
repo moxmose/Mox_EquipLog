@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.BuildConfig
@@ -29,6 +32,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.*
 import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -37,9 +41,9 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = koinViewModel()) {
     val username by viewModel.username.collectAsState()
+    val allColors by viewModel.allColors.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
-    val allColors by viewModel.allColors.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
     
@@ -49,6 +53,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val backgroundTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
     val backgroundTintAlpha by viewModel.backgroundTintAlpha.collectAsState()
     val backgroundImageAlpha by viewModel.backgroundImageAlpha.collectAsState()
+
+    val reportsColorMode by viewModel.reportsColorMode.collectAsState()
+    val reportsCustomColors by viewModel.reportsCustomColors.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -107,6 +114,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         backgroundTintEnabled = backgroundTintEnabled,
         backgroundTintAlpha = backgroundTintAlpha,
         backgroundImageAlpha = backgroundImageAlpha,
+        reportsColorMode = reportsColorMode,
+        reportsCustomColors = reportsCustomColors,
         onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
         onAddImage = viewModel::addImage,
@@ -121,6 +130,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetBackgroundTintAlpha = viewModel::setBackgroundTintAlpha,
         onSetBackgroundImageAlpha = viewModel::setBackgroundImageAlpha,
         onResetBackgroundSettings = viewModel::resetBackgroundSettings,
+        onSetReportsColorMode = viewModel::setReportsColorMode,
+        onUpdateReportsCustomColors = viewModel::setReportsCustomColors,
         onAddUnit = viewModel::addMeasurementUnit,
         onUpdateUnit = viewModel::updateMeasurementUnit,
         onToggleUnitVisibility = viewModel::toggleMeasurementUnitVisibility,
@@ -158,6 +169,8 @@ fun OptionsScreenContent(
     backgroundTintEnabled: Boolean,
     backgroundTintAlpha: Float,
     backgroundImageAlpha: Float,
+    reportsColorMode: String,
+    reportsCustomColors: List<String>,
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, ImageIdentifier?) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
@@ -172,6 +185,8 @@ fun OptionsScreenContent(
     onSetBackgroundTintAlpha: (Float) -> Unit,
     onSetBackgroundImageAlpha: (Float) -> Unit,
     onResetBackgroundSettings: () -> Unit,
+    onSetReportsColorMode: (String) -> Unit,
+    onUpdateReportsCustomColors: (List<String>) -> Unit,
     onAddUnit: (String, String) -> Unit,
     onUpdateUnit: (MeasurementUnit) -> Unit,
     onToggleUnitVisibility: (Int) -> Unit,
@@ -194,6 +209,7 @@ fun OptionsScreenContent(
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
     var showBackgroundPicker by remember { mutableStateOf(false) }
     var showUnitManagement by remember { mutableStateOf(false) }
+    var showReportsColorMgmt by remember { mutableStateOf(false) }
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
@@ -226,6 +242,15 @@ fun OptionsScreenContent(
             onToggleUnitVisibility = onToggleUnitVisibility,
             onDeleteUnit = onDeleteUnit,
             onToggleDefaultUnit = onToggleDefaultUnit
+        )
+    }
+
+    if (showReportsColorMgmt) {
+        ReportsColorManagementDialog(
+            allColors = allColors,
+            currentColors = reportsCustomColors,
+            onDismiss = { showReportsColorMgmt = false },
+            onUpdateColors = onUpdateReportsCustomColors
         )
     }
 
@@ -381,7 +406,13 @@ fun OptionsScreenContent(
                 title = stringResource(R.string.options_sections_colors_title),
                 description = stringResource(R.string.options_sections_colors_desc)
             ) {
-                val sectionOrder = listOf(Category.LOGS, Category.EQUIPMENT, Category.OPERATION)
+                val sectionOrder = listOf(
+                    Category.LOGS, 
+                    Category.EQUIPMENT, 
+                    Category.OPERATION, 
+                    Category.REPORTS, 
+                    Category.OPTIONS
+                )
                 categoriesUiState
                     .sortedBy { uiState -> 
                         val index = sectionOrder.indexOf(uiState.category.id)
@@ -442,7 +473,47 @@ fun OptionsScreenContent(
                 }
             }
 
-            // 5. BACKGROUND
+            // 5. REPORTS
+            OptionsSectionCard(
+                title = stringResource(R.string.reports_title),
+                description = stringResource(R.string.report_equipments_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.options_use_custom_colors_reports), 
+                            modifier = Modifier.weight(1f), 
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Switch(
+                            checked = reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM,
+                            onCheckedChange = { 
+                                onSetReportsColorMode(if (it) UiConstants.REPORTS_COLOR_MODE_CUSTOM else UiConstants.REPORTS_COLOR_MODE_M3)
+                            }
+                        )
+                    }
+                    
+                    if (reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
+                        OutlinedButton(onClick = { showReportsColorMgmt = true }, modifier = Modifier.fillMaxWidth()) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    reportsCustomColors.take(6).forEach { hex ->
+                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(hex.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 6. BACKGROUND
             OptionsSectionCard(
                 title = stringResource(R.string.options_background_custom_title),
                 description = stringResource(R.string.options_background_custom_desc)
@@ -551,6 +622,50 @@ fun ColorManagementDialog(
                         onDrop = { val hiddenColors = allColors.filter { it.hidden && !showHidden }; val fullNewList = colorsState + hiddenColors; onUpdateColorsOrder(fullNewList.mapIndexed { index, appColor -> appColor.copy(displayOrder = index) }) },
                         itemContent = { _, color -> ColorItemCard(color = color, isSelected = categoryUiState.color.equals(color.hexValue, ignoreCase = true), onColorSelected = { onColorSelected(color.hexValue); onDismiss() }, onUpdateColor = onUpdateColor, onToggleVisibility = { onToggleColorVisibility(color.id) }) }
                     )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReportsColorManagementDialog(
+    allColors: List<AppColor>,
+    currentColors: List<String>,
+    onDismiss: () -> Unit,
+    onUpdateColors: (List<String>) -> Unit
+) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(modifier = Modifier.padding(16.dp), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
+            Column(Modifier.padding(16.dp).height(500.dp)) {
+                Text(stringResource(R.string.options_color_mgmt_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), textAlign = TextAlign.Center)
+                Text(stringResource(R.string.options_info_drag_reorder), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 8.dp))
+                
+                val filteredColors = remember(allColors) { allColors.filter { !it.hidden } }
+                
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                    items(filteredColors) { color ->
+                        val isSelected = currentColors.contains(color.hexValue)
+                        Card(
+                            onClick = { 
+                                val newList = if (isSelected) currentColors - color.hexValue else currentColors + color.hexValue
+                                onUpdateColors(newList)
+                            },
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+                        ) {
+                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(32.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())))
+                                Spacer(Modifier.width(12.dp))
+                                Text(color.name, modifier = Modifier.weight(1f))
+                                Checkbox(checked = isSelected, onCheckedChange = null)
+                            }
+                        }
+                    }
+                }
+                
+                Button(onClick = onDismiss, modifier = Modifier.align(Alignment.End).padding(top = 16.dp)) {
+                    Text(stringResource(R.string.button_ok))
                 }
             }
         }

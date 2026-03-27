@@ -76,6 +76,7 @@
     <string name="options_reset_background_settings">Reset to defaults</string>
     <string name="update_background_failed">Update background failed.</string>
     <string name="update_reports_settings_failed">Update reports settings failed.</string>
+    <string name="options_use_custom_colors_reports">Use custom colors instead of Material</string>
 
     <string name="options_units_title">Measurement Units</string>
     <string name="options_units_desc">Manage the units of measure for your equipments (e.g., km, hours, liters).</string>
