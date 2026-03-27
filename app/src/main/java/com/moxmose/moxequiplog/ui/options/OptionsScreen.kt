@@ -38,10 +38,16 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
+enum class ColorManagerMode {
+    CATEGORY_PICKER,
+    REPORTS_MANAGER
+}
+
 @Composable
 fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = koinViewModel()) {
     val username by viewModel.username.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
+    val reportsColors by viewModel.reportsColors.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
@@ -55,7 +61,6 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val backgroundImageAlpha by viewModel.backgroundImageAlpha.collectAsState()
 
     val reportsColorMode by viewModel.reportsColorMode.collectAsState()
-    val reportsCustomColors by viewModel.reportsCustomColors.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -97,7 +102,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     }
 
     var showAboutDialog by rememberSaveable { mutableStateOf(false) }
-    var showColorPicker by rememberSaveable { mutableStateOf<String?>(null) }
+    var colorMgmtState by rememberSaveable { mutableStateOf<Pair<ColorManagerMode, String?>?>(null) }
     var showImageDialog by rememberSaveable { mutableStateOf(false) }
 
     OptionsScreenContent(
@@ -106,6 +111,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         allImages = allImages,
         categoriesUiState = categoriesUiState,
         allColors = allColors,
+        reportsColors = reportsColors,
         measurementUnits = measurementUnits,
         defaultUnitId = defaultUnitId,
         backgroundUri = backgroundUri,
@@ -115,7 +121,6 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         backgroundTintAlpha = backgroundTintAlpha,
         backgroundImageAlpha = backgroundImageAlpha,
         reportsColorMode = reportsColorMode,
-        reportsCustomColors = reportsCustomColors,
         onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
         onAddImage = viewModel::addImage,
@@ -131,7 +136,6 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetBackgroundImageAlpha = viewModel::setBackgroundImageAlpha,
         onResetBackgroundSettings = viewModel::resetBackgroundSettings,
         onSetReportsColorMode = viewModel::setReportsColorMode,
-        onUpdateReportsCustomColors = viewModel::setReportsCustomColors,
         onAddUnit = viewModel::addMeasurementUnit,
         onUpdateUnit = viewModel::updateMeasurementUnit,
         onToggleUnitVisibility = viewModel::toggleMeasurementUnitVisibility,
@@ -141,16 +145,44 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = { showAboutDialog = it },
-        showColorPicker = showColorPicker,
-        onShowColorPickerChange = { showColorPicker = it },
+        onShowColorManager = { mode, catId -> colorMgmtState = Pair(mode, catId) },
         showImageDialog = showImageDialog,
         onShowImageDialogChange = { showImageDialog = it },
         onAddColor = viewModel::addColor,
         onUpdateColor = viewModel::updateColor,
         onUpdateColorsOrder = viewModel::updateColorsOrder,
+        onUpdateReportColorsOrder = viewModel::updateReportColorsOrder,
         onToggleColorVisibility = viewModel::toggleColorVisibility,
+        onToggleReportColorVisibility = viewModel::toggleReportColorVisibility,
         snackbarHostState = snackbarHostState
     )
+
+    colorMgmtState?.let { (mode, categoryId) ->
+        val currentList = if (mode == ColorManagerMode.REPORTS_MANAGER) reportsColors else allColors
+        val title = if (mode == ColorManagerMode.REPORTS_MANAGER) 
+            stringResource(R.string.reports_title) else stringResource(R.string.options_color_mgmt_title)
+        
+        val selectedHex = if (mode == ColorManagerMode.CATEGORY_PICKER) 
+            categoriesUiState.find { it.category.id == categoryId }?.color else null
+
+        ColorLibraryManagerDialog(
+            mode = mode,
+            title = title,
+            allColors = currentList,
+            selectedHex = selectedHex,
+            onDismiss = { colorMgmtState = null },
+            onColorSelected = { hex ->
+                if (mode == ColorManagerMode.CATEGORY_PICKER && categoryId != null) {
+                    viewModel.updateCategoryColor(categoryId, hex)
+                }
+                colorMgmtState = null
+            },
+            onAddColor = viewModel::addColor,
+            onUpdateColor = viewModel::updateColor,
+            onUpdateOrder = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.updateReportColorsOrder(it) else viewModel.updateColorsOrder(it) },
+            onToggleVisibility = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.toggleReportColorVisibility(it) else viewModel.toggleColorVisibility(it) }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
@@ -161,6 +193,7 @@ fun OptionsScreenContent(
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
     allColors: List<AppColor>,
+    reportsColors: List<AppColor>,
     measurementUnits: List<MeasurementUnit>,
     defaultUnitId: Int?,
     backgroundUri: String?,
@@ -170,7 +203,6 @@ fun OptionsScreenContent(
     backgroundTintAlpha: Float,
     backgroundImageAlpha: Float,
     reportsColorMode: String,
-    reportsCustomColors: List<String>,
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, ImageIdentifier?) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
@@ -186,7 +218,6 @@ fun OptionsScreenContent(
     onSetBackgroundImageAlpha: (Float) -> Unit,
     onResetBackgroundSettings: () -> Unit,
     onSetReportsColorMode: (String) -> Unit,
-    onUpdateReportsCustomColors: (List<String>) -> Unit,
     onAddUnit: (String, String) -> Unit,
     onUpdateUnit: (MeasurementUnit) -> Unit,
     onToggleUnitVisibility: (Int) -> Unit,
@@ -196,20 +227,20 @@ fun OptionsScreenContent(
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
-    showColorPicker: String?,
-    onShowColorPickerChange: (String?) -> Unit,
+    onShowColorManager: (ColorManagerMode, String?) -> Unit,
     showImageDialog: Boolean,
     onShowImageDialogChange: (Boolean) -> Unit,
     onAddColor: (String, String) -> Unit,
     onUpdateColor: (AppColor) -> Unit,
     onUpdateColorsOrder: (List<AppColor>) -> Unit,
+    onUpdateReportColorsOrder: (List<AppColor>) -> Unit,
     onToggleColorVisibility: (Long) -> Unit,
+    onToggleReportColorVisibility: (Long) -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
     var showBackgroundPicker by remember { mutableStateOf(false) }
     var showUnitManagement by remember { mutableStateOf(false) }
-    var showReportsColorMgmt by remember { mutableStateOf(false) }
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
@@ -242,15 +273,6 @@ fun OptionsScreenContent(
             onToggleUnitVisibility = onToggleUnitVisibility,
             onDeleteUnit = onDeleteUnit,
             onToggleDefaultUnit = onToggleDefaultUnit
-        )
-    }
-
-    if (showReportsColorMgmt) {
-        ReportsColorManagementDialog(
-            allColors = allColors,
-            currentColors = reportsCustomColors,
-            onDismiss = { showReportsColorMgmt = false },
-            onUpdateColors = onUpdateReportsCustomColors
         )
     }
 
@@ -307,20 +329,6 @@ fun OptionsScreenContent(
             isPrefsMode = false,
             forcedCategory = null,
             onlyPhotos = true
-        )
-    }
-
-    showColorPicker?.let { categoryId ->
-        val categoryUiState = categoriesUiState.find { it.category.id == categoryId }!!
-        ColorManagementDialog(
-            allColors = allColors,
-            categoryUiState = categoryUiState,
-            onDismiss = { onShowColorPickerChange(null) },
-            onColorSelected = { onUpdateCategoryColor(categoryId, it) },
-            onAddColor = onAddColor,
-            onUpdateColor = onUpdateColor,
-            onUpdateColorsOrder = onUpdateColorsOrder,
-            onToggleColorVisibility = onToggleColorVisibility
         )
     }
 
@@ -431,7 +439,7 @@ fun OptionsScreenContent(
                                     .clip(CircleShape)
                                     .background(Color(uiState.color.toColorInt()))
                                     .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                    .clickable { onShowColorPickerChange(uiState.category.id) }
+                                    .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
                             )
                         }
                     }
@@ -496,11 +504,11 @@ fun OptionsScreenContent(
                     }
                     
                     if (reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
-                        OutlinedButton(onClick = { showReportsColorMgmt = true }, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { onShowColorManager(ColorManagerMode.REPORTS_MANAGER, null) }, modifier = Modifier.fillMaxWidth()) {
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    reportsCustomColors.take(6).forEach { hex ->
-                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(hex.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+                                    reportsColors.filter { !it.reportHidden }.take(6).forEach { color ->
+                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
                                     }
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -571,37 +579,56 @@ fun OptionsScreenContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ColorManagementDialog(
+fun ColorLibraryManagerDialog(
+    mode: ColorManagerMode,
+    title: String,
     allColors: List<AppColor>,
-    categoryUiState: CategoryUiState,
+    selectedHex: String?,
     onDismiss: () -> Unit,
     onColorSelected: (String) -> Unit,
     onAddColor: (String, String) -> Unit,
     onUpdateColor: (AppColor) -> Unit,
-    onUpdateColorsOrder: (List<AppColor>) -> Unit,
-    onToggleColorVisibility: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    onUpdateOrder: (List<AppColor>) -> Unit,
+    onToggleVisibility: (Long) -> Unit
 ) {
     var showAddColorDialog by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
-    val colorsState = remember(allColors, showHidden) { allColors.filter { !it.hidden || showHidden }.toMutableStateList() }
-    if (showAddColorDialog) { AddColorDialog(onDismiss = { showAddColorDialog = false }, onAddColor = { hex, name -> onAddColor(hex, name) }) }
+    
+    // In modalità report, mostriamo sempre tutti i colori per permettere di attivarli
+    val displayHidden = showHidden || mode == ColorManagerMode.REPORTS_MANAGER
+    val colorsState = remember(allColors, displayHidden) { 
+        allColors.filter { (if (mode == ColorManagerMode.REPORTS_MANAGER) true else !it.hidden) || displayHidden }.toMutableStateList() 
+    }
+
+    if (showAddColorDialog) { 
+        AddColorDialog(onDismiss = { showAddColorDialog = false }, onAddColor = { hex, name -> onAddColor(hex, name) }) 
+    }
+
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(modifier = Modifier.padding(16.dp), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
             Scaffold(
-                modifier = Modifier.height(500.dp),
+                modifier = Modifier.height(550.dp),
                 floatingActionButton = {
                     Column(horizontalAlignment = Alignment.End) {
-                        FloatingActionButton(onClick = { showAddColorDialog = true }) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color)) }
-                        Spacer(Modifier.height(8.dp))
-                        FloatingActionButton(onClick = { showHidden = !showHidden; scope.launch { lazyListState.animateScrollToItem(0) } }, containerColor = MaterialTheme.colorScheme.secondary) { Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = stringResource(R.string.options_show_hide)) }
+                        FloatingActionButton(onClick = { showAddColorDialog = true }) { 
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color)) 
+                        }
+                        if (mode == ColorManagerMode.CATEGORY_PICKER) {
+                            Spacer(Modifier.height(8.dp))
+                            FloatingActionButton(
+                                onClick = { showHidden = !showHidden; scope.launch { lazyListState.animateScrollToItem(0) } }, 
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            ) { 
+                                Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null) 
+                            }
+                        }
                     }
                 }
             ) { paddingValues ->
                 Column(Modifier.padding(paddingValues).padding(16.dp)) {
-                    Text(text = stringResource(R.string.options_color_mgmt_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
+                    Text(text = title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
                     
                     Surface(
                         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
@@ -619,53 +646,25 @@ fun ColorManagementDialog(
                         items = colorsState,
                         key = { _, color -> color.id },
                         onMove = { from, to -> colorsState.add(to, colorsState.removeAt(from)) },
-                        onDrop = { val hiddenColors = allColors.filter { it.hidden && !showHidden }; val fullNewList = colorsState + hiddenColors; onUpdateColorsOrder(fullNewList.mapIndexed { index, appColor -> appColor.copy(displayOrder = index) }) },
-                        itemContent = { _, color -> ColorItemCard(color = color, isSelected = categoryUiState.color.equals(color.hexValue, ignoreCase = true), onColorSelected = { onColorSelected(color.hexValue); onDismiss() }, onUpdateColor = onUpdateColor, onToggleVisibility = { onToggleColorVisibility(color.id) }) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ReportsColorManagementDialog(
-    allColors: List<AppColor>,
-    currentColors: List<String>,
-    onDismiss: () -> Unit,
-    onUpdateColors: (List<String>) -> Unit
-) {
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(modifier = Modifier.padding(16.dp), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
-            Column(Modifier.padding(16.dp).height(500.dp)) {
-                Text(stringResource(R.string.options_color_mgmt_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), textAlign = TextAlign.Center)
-                Text(stringResource(R.string.options_info_drag_reorder), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 8.dp))
-                
-                val filteredColors = remember(allColors) { allColors.filter { !it.hidden } }
-                
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                    items(filteredColors) { color ->
-                        val isSelected = currentColors.contains(color.hexValue)
-                        Card(
-                            onClick = { 
-                                val newList = if (isSelected) currentColors - color.hexValue else currentColors + color.hexValue
-                                onUpdateColors(newList)
-                            },
-                            colors = CardDefaults.cardColors(containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-                        ) {
-                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(32.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())))
-                                Spacer(Modifier.width(12.dp))
-                                Text(color.name, modifier = Modifier.weight(1f))
-                                Checkbox(checked = isSelected, onCheckedChange = null)
+                        onDrop = { 
+                            // Quando rilasciamo, aggiorniamo l'ordine corretto nel DB
+                            val updatedList = colorsState.mapIndexed { index, color ->
+                                if (mode == ColorManagerMode.REPORTS_MANAGER) color.copy(reportOrder = index)
+                                else color.copy(displayOrder = index)
                             }
+                            onUpdateOrder(updatedList)
+                        },
+                        itemContent = { _, color -> 
+                            ColorItemCard(
+                                color = color, 
+                                isSelected = color.hexValue.equals(selectedHex, ignoreCase = true), 
+                                onColorSelected = { onColorSelected(color.hexValue) }, 
+                                onUpdateColor = onUpdateColor, 
+                                onToggleVisibility = { onToggleVisibility(color.id) },
+                                showReportVisibility = mode == ColorManagerMode.REPORTS_MANAGER
+                            ) 
                         }
-                    }
-                }
-                
-                Button(onClick = onDismiss, modifier = Modifier.align(Alignment.End).padding(top = 16.dp)) {
-                    Text(stringResource(R.string.button_ok))
+                    )
                 }
             }
         }

@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
         AppPreference::class,
         MeasurementUnit::class
     ], 
-    version = 35,
+    version = 36,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

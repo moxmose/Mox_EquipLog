@@ -102,6 +102,9 @@ class OptionsViewModel(
     val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
+    val reportsColors: StateFlow<List<AppColor>> = imageRepository.allColorsForReports
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+
     val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
         
@@ -130,7 +133,7 @@ class OptionsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_REPORTS_COLOR_MODE)
 
     val reportsCustomColors: StateFlow<List<String>> = appSettingsManager.reportsCustomColors
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_REPORTS_CUSTOM_COLORS.split(";"))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     fun resetBackgroundSettings() {
         viewModelScope.launch {
@@ -360,6 +363,21 @@ class OptionsViewModel(
         }
     }
 
+    fun updateReportColorsOrder(colors: List<AppColor>) {
+        if (colors.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                // Aggiorniamo l'ordine dei report mappando la lista sulla colonna reportOrder
+                val updatedColors = colors.mapIndexed { index, appColor ->
+                    appColor.copy(reportOrder = index)
+                }
+                imageRepository.updateColorsOrder(updatedColors)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateColorsOrderFailed)
+            }
+        }
+    }
+
     fun toggleColorVisibility(id: Long) {
         if (id == 0L) {
             _uiEvents.trySend(OptionsUiEvent.ColorIdInvalid)
@@ -368,6 +386,30 @@ class OptionsViewModel(
         viewModelScope.launch {
             try {
                 imageRepository.toggleColorVisibility(id)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.ToggleColorVisibilityFailed)
+            }
+        }
+    }
+
+    fun toggleReportColorVisibility(id: Long) {
+        if (id == 0L) {
+            _uiEvents.trySend(OptionsUiEvent.ColorIdInvalid)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                // Vincolo: Almeno un colore deve rimanere visibile per i report
+                val currentVisibleCount = reportsColors.value.count { !it.reportHidden }
+                val targetColor = reportsColors.value.find { it.id == id }
+                
+                if (currentVisibleCount <= 1 && targetColor != null && !targetColor.reportHidden) {
+                    // Stiamo cercando di nascondere l'ultimo visibile: lo impediamo
+                    _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+                    return@launch
+                }
+
+                imageRepository.toggleReportColorVisibility(id)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.ToggleColorVisibilityFailed)
             }

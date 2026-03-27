@@ -8,7 +8,6 @@ import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.util.*
 
 enum class TimeGranularity {
@@ -30,7 +29,7 @@ data class PieChartPoint(
 data class ReportsUiState(
     val equipments: List<Equipment> = emptyList(),
     val selectedEquipmentIds: Set<Int> = emptySet(),
-    val equipmentChartData: Map<Int, List<ChartPoint>> = emptyMap(), // Mappa per multi-serie
+    val equipmentChartData: Map<Int, List<ChartPoint>> = emptyMap(),
     val equipmentDistribution: List<PieChartPoint> = emptyList(),
     val equipmentCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
     val equipmentUnitLabel: String = "",
@@ -38,17 +37,15 @@ data class ReportsUiState(
     
     val operationTypes: List<OperationType> = emptyList(),
     val selectedOperationTypeIds: Set<Int> = emptySet(),
-    val operationChartData: Map<Int, List<ChartPoint>> = emptyMap(), // Mappa per multi-serie
+    val operationChartData: Map<Int, List<ChartPoint>> = emptyMap(),
     val operationDistribution: List<PieChartPoint> = emptyList(),
     val operationCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
 
-    // Time Filter State
     val startDate: Long? = null,
     val endDate: Long? = null,
     val timeGranularity: TimeGranularity = TimeGranularity.HOURS,
     val showDismissed: Boolean = false,
 
-    // Color preferences
     val colorMode: String = UiConstants.DEFAULT_REPORTS_COLOR_MODE,
     val customColors: List<String> = emptyList()
 )
@@ -94,7 +91,9 @@ class ReportsViewModel(
             _refreshTrigger, 
             _showDismissed,
             appSettingsManager.reportsColorMode,
-            appSettingsManager.reportsCustomColors
+            imageRepository.allColorsForReports.map { list -> 
+                list.filter { !it.reportHidden }.map { it.hexValue } 
+            }
         ) { gran, refresh, dismissed, mode, colors -> 
             Quintet(gran, refresh, dismissed, mode, colors) 
         }
@@ -135,7 +134,6 @@ class ReportsViewModel(
             matchesDate && matchesVisibility
         }
 
-        // --- DISTRIBUZIONI (TORTE) ---
         val equipDist = filteredLogs
             .let { logsList ->
                 if (selections.selectedEquipmentIds.isNotEmpty()) {
@@ -160,7 +158,6 @@ class ReportsViewModel(
                 PieChartPoint(label, logs.size.toFloat())
             }.sortedByDescending { it.value }
 
-        // --- ANDAMENTO (LINEE MULTIPLE) ---
         val activeEquipIds = selections.selectedEquipmentIds.ifEmpty { equipments.firstOrNull()?.id?.let { setOf(it) } ?: emptySet() }
         val activeOpIds = selections.selectedOperationTypeIds.ifEmpty { operationTypes.firstOrNull()?.id?.let { setOf(it) } ?: emptySet() }
 
@@ -286,18 +283,6 @@ class ReportsViewModel(
     
     fun toggleShowDismissed() {
         _showDismissed.value = !_showDismissed.value
-    }
-
-    fun setColorMode(mode: String) {
-        viewModelScope.launch {
-            appSettingsManager.setReportsColorMode(mode)
-        }
-    }
-
-    fun updateCustomColors(colors: List<String>) {
-        viewModelScope.launch {
-            appSettingsManager.setReportsCustomColors(colors)
-        }
     }
     
     fun refresh() {

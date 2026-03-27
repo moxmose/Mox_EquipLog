@@ -42,11 +42,14 @@ fun ColorItemCard(
     isSelected: Boolean,
     onColorSelected: () -> Unit,
     onUpdateColor: (AppColor) -> Unit,
-    onToggleVisibility: () -> Unit
+    onToggleVisibility: () -> Unit,
+    showReportVisibility: Boolean = false
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editedName by remember(color.name) { mutableStateOf(color.name) }
     var editedHex by remember(color.hexValue) { mutableStateOf(color.hexValue) }
+
+    val isHidden = if (showReportVisibility) color.reportHidden else color.hidden
 
     Card(
         modifier = Modifier
@@ -101,8 +104,8 @@ fun ColorItemCard(
             } else {
                 IconButton(onClick = onToggleVisibility) {
                     Icon(
-                        imageVector = if (color.hidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (color.hidden) "Mostra" else "Nascondi"
+                        imageVector = if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (isHidden) "Mostra" else "Nascondi"
                     )
                 }
                 IconButton(onClick = { isEditing = true }) {
