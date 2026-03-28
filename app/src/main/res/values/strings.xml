@@ -75,7 +75,7 @@
     <string name="options_show_hide">Show/Hide</string>
     <string name="options_reset_background_settings">Reset to defaults</string>
     <string name="update_background_failed">Update background failed.</string>
-    <string name="update_reports_settings_failed">Update reports settings failed.</string>
+    <string name="update_reports_settings_failed">Cannot hide the last visible color.</string>
     <string name="options_use_custom_colors_reports">Use custom colors instead of Material</string>
 
     <string name="options_units_title">Measurement Units</string>
@@ -97,6 +97,7 @@
     <string name="options_info_select_default">Tap an item to set it as default.</string>
     <string name="options_info_select_category_to_reorder">Select a specific category to change the display order.</string>
     <string name="options_info_background_select">Select an image for the application background.</string>
+    <string name="options_info_min_one_color">At least one color must remain visible for reports.</string>
 
     <string name="button_about" translatable="false">About</string>
     <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>

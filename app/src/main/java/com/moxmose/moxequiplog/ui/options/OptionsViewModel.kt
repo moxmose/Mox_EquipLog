@@ -63,7 +63,8 @@ class OptionsViewModel(
 
     init {
         viewModelScope.launch {
-            imageRepository.initializeAppData()
+            // L'inizializzazione dei dati dell'app viene gestita ora solo nella MainActivity
+            // per evitare race condition durante il primo avvio.
             checkAndPopulateUnits()
         }
     }

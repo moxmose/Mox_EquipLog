@@ -596,10 +596,14 @@ fun ColorLibraryManagerDialog(
     val scope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
     
-    // In modalità report, mostriamo sempre tutti i colori per permettere di attivarli
-    val displayHidden = showHidden || mode == ColorManagerMode.REPORTS_MANAGER
-    val colorsState = remember(allColors, displayHidden) { 
-        allColors.filter { (if (mode == ColorManagerMode.REPORTS_MANAGER) true else !it.hidden) || displayHidden }.toMutableStateList() 
+    val colorsState = remember(allColors, showHidden) { 
+        allColors.filter { color ->
+            if (mode == ColorManagerMode.REPORTS_MANAGER) {
+                !color.reportHidden || showHidden
+            } else {
+                !color.hidden || showHidden
+            }
+        }.toMutableStateList() 
     }
 
     if (showAddColorDialog) { 
@@ -615,14 +619,12 @@ fun ColorLibraryManagerDialog(
                         FloatingActionButton(onClick = { showAddColorDialog = true }) { 
                             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color)) 
                         }
-                        if (mode == ColorManagerMode.CATEGORY_PICKER) {
-                            Spacer(Modifier.height(8.dp))
-                            FloatingActionButton(
-                                onClick = { showHidden = !showHidden; scope.launch { lazyListState.animateScrollToItem(0) } }, 
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            ) { 
-                                Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null) 
-                            }
+                        Spacer(Modifier.height(8.dp))
+                        FloatingActionButton(
+                            onClick = { showHidden = !showHidden; scope.launch { lazyListState.animateScrollToItem(0) } }, 
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ) { 
+                            Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null) 
                         }
                     }
                 }
@@ -635,10 +637,21 @@ fun ColorLibraryManagerDialog(
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                     ) {
-                        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.options_info_drag_reorder), style = MaterialTheme.typography.labelSmall)
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.options_info_drag_reorder), style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (mode == ColorManagerMode.REPORTS_MANAGER) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = stringResource(R.string.options_info_min_one_color),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
 
@@ -647,8 +660,13 @@ fun ColorLibraryManagerDialog(
                         key = { _, color -> color.id },
                         onMove = { from, to -> colorsState.add(to, colorsState.removeAt(from)) },
                         onDrop = { 
-                            // Quando rilasciamo, aggiorniamo l'ordine corretto nel DB
-                            val updatedList = colorsState.mapIndexed { index, color ->
+                            // Quando rilasciamo, aggiorniamo l'ordine corretto nel DB includendo gli elementi nascosti
+                            val hiddenColors = allColors.filter { 
+                                if (mode == ColorManagerMode.REPORTS_MANAGER) it.reportHidden && !showHidden 
+                                else it.hidden && !showHidden 
+                            }
+                            val fullList = colorsState + hiddenColors
+                            val updatedList = fullList.mapIndexed { index, color ->
                                 if (mode == ColorManagerMode.REPORTS_MANAGER) color.copy(reportOrder = index)
                                 else color.copy(displayOrder = index)
                             }
