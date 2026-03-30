@@ -7,10 +7,15 @@ import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.*
 
+@Serializable
 enum class TimeGranularity {
     HOURS, DAYS, WEEKS, MONTHS, YEARS
 }
@@ -25,6 +30,16 @@ data class PieChartPoint(
     val label: String,
     val value: Float,
     val color: String? = null
+)
+
+@Serializable
+data class ReportFilterState(
+    val selectedEquipmentIds: Set<Int> = emptySet(),
+    val selectedOperationTypeIds: Set<Int> = emptySet(),
+    val startDate: Long? = null,
+    val endDate: Long? = null,
+    val timeGranularity: TimeGranularity = TimeGranularity.HOURS,
+    val showDismissed: Boolean = false
 )
 
 data class ReportsUiState(
@@ -50,7 +65,9 @@ data class ReportsUiState(
     val showDismissed: Boolean = false,
 
     val colorMode: String = UiConstants.DEFAULT_REPORTS_COLOR_MODE,
-    val customColors: List<String> = emptyList()
+    val customColors: List<String> = emptyList(),
+    
+    val savedFilters: List<ReportFilter> = emptyList()
 )
 
 private data class SelectionState(
@@ -65,14 +82,15 @@ private data class SelectionState(
     val customColors: List<String>
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class ReportsViewModel(
     private val equipmentDao: EquipmentDao,
     private val maintenanceLogDao: MaintenanceLogDao,
     private val operationTypeDao: OperationTypeDao,
     private val measurementUnitDao: MeasurementUnitDao,
     private val imageRepository: ImageRepository,
-    private val appSettingsManager: AppSettingsManager
+    private val appSettingsManager: AppSettingsManager,
+    private val reportFilterDao: ReportFilterDao
 ) : ViewModel() {
 
     private val _selectedEquipmentIds = MutableStateFlow<Set<Int>>(emptySet())
@@ -88,6 +106,27 @@ class ReportsViewModel(
     private val _showDismissed = MutableStateFlow(false)
 
     init {
+        // Load last session
+        viewModelScope.launch {
+            val lastSession = reportFilterDao.getLastSession("ALL_REPORTS").firstOrNull()
+            lastSession?.let { session ->
+                try {
+                    val state = Json.decodeFromString<ReportFilterState>(session.filterJson)
+                    _selectedEquipmentIds.value = state.selectedEquipmentIds
+                    _selectedOperationTypeIds.value = state.selectedOperationTypeIds
+                    _startDate.value = state.startDate
+                    _endDate.value = state.endDate
+                    _timeGranularity.value = state.timeGranularity
+                    _showDismissed.value = state.showDismissed
+                    initializedEquipments = true
+                    initializedOperations = true
+                } catch (e: Exception) {
+                    // Fallback to default if JSON is invalid
+                }
+            }
+        }
+
+        // Initialize selections if not loaded from session
         viewModelScope.launch {
             _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() }
                 .collect { list ->
@@ -106,6 +145,33 @@ class ReportsViewModel(
                     }
                 }
         }
+
+        // Auto-save session on changes (debounced)
+        combine(
+            _selectedEquipmentIds,
+            _selectedOperationTypeIds,
+            _startDate,
+            _endDate,
+            _timeGranularity,
+            _showDismissed
+        ) { args ->
+            ReportFilterState(
+                selectedEquipmentIds = args[0] as Set<Int>,
+                selectedOperationTypeIds = args[1] as Set<Int>,
+                startDate = args[2] as Long?,
+                endDate = args[3] as Long?,
+                timeGranularity = args[4] as TimeGranularity,
+                showDismissed = args[5] as Boolean
+            )
+        }
+        .debounce(1000)
+        .onEach { state ->
+            val json = Json.encodeToString(state)
+            reportFilterDao.updateLastSession(
+                ReportFilter(reportType = "ALL_REPORTS", filterJson = json, name = null)
+            )
+        }
+        .launchIn(viewModelScope)
     }
 
     private val selectionState = combine(
@@ -148,10 +214,11 @@ class ReportsViewModel(
         combine(
             imageRepository.getCategoryColor(Category.EQUIPMENT),
             imageRepository.getCategoryColor(Category.OPERATION),
-            selectionState
-        ) { eColor, oColor, selections -> Triple(eColor, oColor, selections) }
-    ) { equipments, operationTypes, logs, units, triple ->
-        val (eColor, oColor, selections) = triple
+            selectionState,
+            reportFilterDao.getSavedFilters("ALL_REPORTS")
+        ) { eColor, oColor, selections, saved -> Quadruple(eColor, oColor, selections, saved) }
+    ) { equipments, operationTypes, logs, units, quadruple ->
+        val (eColor, oColor, selections, savedFilters) = quadruple
         
         val filteredLogs = logs.filter { logDetail ->
             val date = logDetail.log.date
@@ -233,13 +300,16 @@ class ReportsViewModel(
             timeGranularity = selections.timeGranularity,
             showDismissed = selections.showDismissed,
             colorMode = selections.colorMode,
-            customColors = selections.customColors
+            customColors = selections.customColors,
+            savedFilters = savedFilters
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = ReportsUiState()
     )
+
+    private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
     private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity): List<ChartPoint> {
         if (points.isEmpty()) return emptyList()
@@ -329,5 +399,43 @@ class ReportsViewModel(
     
     fun refresh() {
         _refreshTrigger.value += 1
+    }
+
+    fun saveCurrentFilter(name: String) {
+        viewModelScope.launch {
+            val state = ReportFilterState(
+                selectedEquipmentIds = _selectedEquipmentIds.value,
+                selectedOperationTypeIds = _selectedOperationTypeIds.value,
+                startDate = _startDate.value,
+                endDate = _endDate.value,
+                timeGranularity = _timeGranularity.value,
+                showDismissed = _showDismissed.value
+            )
+            val json = Json.encodeToString(state)
+            reportFilterDao.insertFilter(
+                ReportFilter(name = name, reportType = "ALL_REPORTS", filterJson = json, isLastSession = false)
+            )
+        }
+    }
+
+    fun applySavedFilter(filter: ReportFilter) {
+        try {
+            val state = Json.decodeFromString<ReportFilterState>(filter.filterJson)
+            _selectedEquipmentIds.value = state.selectedEquipmentIds
+            _selectedOperationTypeIds.value = state.selectedOperationTypeIds
+            _startDate.value = state.startDate
+            _endDate.value = state.endDate
+            _timeGranularity.value = state.timeGranularity
+            _showDismissed.value = state.showDismissed
+            refresh()
+        } catch (e: Exception) {
+            // Error applying filter
+        }
+    }
+
+    fun deleteSavedFilter(id: Int) {
+        viewModelScope.launch {
+            reportFilterDao.deleteFilter(id)
+        }
     }
 }

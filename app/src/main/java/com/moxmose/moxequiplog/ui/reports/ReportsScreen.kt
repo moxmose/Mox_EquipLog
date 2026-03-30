@@ -4,8 +4,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,6 +34,7 @@ import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.ReportFilter
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -309,7 +313,11 @@ fun EquipmentsReportScreen(
                     onDateRangeSelected = viewModel::setDateRange,
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh
+                    onRefresh = viewModel::refresh,
+                    onSaveFilter = viewModel::saveCurrentFilter,
+                    savedFilters = uiState.savedFilters,
+                    onApplyFilter = viewModel::applySavedFilter,
+                    onDeleteFilter = viewModel::deleteSavedFilter
                 )
             }
 
@@ -498,7 +506,11 @@ fun OperationsReportScreen(
                     onDateRangeSelected = viewModel::setDateRange,
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh
+                    onRefresh = viewModel::refresh,
+                    onSaveFilter = viewModel::saveCurrentFilter,
+                    savedFilters = uiState.savedFilters,
+                    onApplyFilter = viewModel::applySavedFilter,
+                    onDeleteFilter = viewModel::deleteSavedFilter
                 )
             }
 
@@ -687,7 +699,11 @@ fun EquipmentsFreqReportScreen(
                     onDateRangeSelected = viewModel::setDateRange,
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh
+                    onRefresh = viewModel::refresh,
+                    onSaveFilter = viewModel::saveCurrentFilter,
+                    savedFilters = uiState.savedFilters,
+                    onApplyFilter = viewModel::applySavedFilter,
+                    onDeleteFilter = viewModel::deleteSavedFilter
                 )
             }
 
@@ -818,7 +834,11 @@ fun OperationsFreqReportScreen(
                     onDateRangeSelected = viewModel::setDateRange,
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh
+                    onRefresh = viewModel::refresh,
+                    onSaveFilter = viewModel::saveCurrentFilter,
+                    savedFilters = uiState.savedFilters,
+                    onApplyFilter = viewModel::applySavedFilter,
+                    onDeleteFilter = viewModel::deleteSavedFilter
                 )
             }
 
@@ -1270,10 +1290,16 @@ fun StandardFilterSection(
     onDateRangeSelected: (Long?, Long?) -> Unit,
     onGranularitySelected: (TimeGranularity) -> Unit,
     onReset: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onSaveFilter: (String) -> Unit,
+    savedFilters: List<ReportFilter>,
+    onApplyFilter: (ReportFilter) -> Unit,
+    onDeleteFilter: (Int) -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     var showDatePickerRange by remember { mutableStateOf(false) }
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var filterName by remember { mutableStateOf("") }
 
     if (showDatePickerRange) {
         val dateRangePickerState = rememberDateRangePickerState(
@@ -1309,6 +1335,39 @@ fun StandardFilterSection(
         }
     }
 
+    if (showSaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveDialog = false },
+            title = { Text(stringResource(R.string.save_filter)) },
+            text = {
+                OutlinedTextField(
+                    value = filterName,
+                    onValueChange = { filterName = it },
+                    label = { Text(stringResource(R.string.filter_name)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (filterName.isNotBlank()) {
+                            onSaveFilter(filterName)
+                            filterName = ""
+                            showSaveDialog = false
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.button_add))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveDialog = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -1335,6 +1394,17 @@ fun StandardFilterSection(
                             stringResource(R.string.date)
                         },
                         style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                IconButton(
+                    onClick = { showSaveDialog = true },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Save,
+                        contentDescription = stringResource(R.string.save_filter),
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -1382,6 +1452,34 @@ fun StandardFilterSection(
                         },
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+
+            if (savedFilters.isNotEmpty()) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                Text(
+                    text = stringResource(R.string.saved_filters),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(savedFilters) { filter ->
+                        FilterChip(
+                            selected = false,
+                            onClick = { onApplyFilter(filter) },
+                            label = { Text(filter.name ?: "", style = MaterialTheme.typography.labelSmall) },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp).clickable { onDeleteFilter(filter.id) }
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }

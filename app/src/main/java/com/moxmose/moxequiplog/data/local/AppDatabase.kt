@@ -17,9 +17,10 @@ import kotlinx.coroutines.launch
         Category::class, 
         AppColor::class, 
         AppPreference::class,
-        MeasurementUnit::class
+        MeasurementUnit::class,
+        ReportFilter::class
     ], 
-    version = 36,
+    version = 37,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun appColorDao(): AppColorDao
     abstract fun appPreferenceDao(): AppPreferenceDao
     abstract fun measurementUnitDao(): MeasurementUnitDao
+    abstract fun reportFilterDao(): ReportFilterDao
 
     companion object {
         val CALLBACK = object : RoomDatabase.Callback() {

@@ -42,6 +42,7 @@ val appModule = module {
     single { get<AppDatabase>().appColorDao() }
     single { get<AppDatabase>().appPreferenceDao() }
     single { get<AppDatabase>().measurementUnitDao() }
+    single { get<AppDatabase>().reportFilterDao() }
 
     // Repositories
     single { ImageRepository(get(), get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }

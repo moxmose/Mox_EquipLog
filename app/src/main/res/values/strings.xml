@@ -48,6 +48,10 @@
     <string name="selection_invert">Invert selection</string>
     <string name="selection_clear">Clear selection</string>
     <string name="occurrences_format">%1$s [%2$d occurrences]</string>
+    <string name="save_filter">Save Filter</string>
+    <string name="filter_name">Filter Name</string>
+    <string name="saved_filters">Saved Filters</string>
+    <string name="delete_filter_confirm">Are you sure you want to delete this filter/?</string>
 
     <!-- Options Screen -->
     <string name="options_version_label">Version %1$s</string>

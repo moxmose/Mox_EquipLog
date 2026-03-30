@@ -31,9 +31,14 @@
     <string name="granularity_weeks">Sett</string>
     <string name="granularity_months">Mesi</string>
     <string name="granularity_years">Anni</string>
+    <string name="selection_all">Seleziona tutto</string>
     <string name="selection_invert">Inverti selezione</string>
     <string name="selection_clear">Cancella selezione</string>
     <string name="occurrences_format">%1$s [%2$d occorrenze]</string>
+    <string name="save_filter">Salva Filtro</string>
+    <string name="filter_name">Nome Filtro</string>
+    <string name="saved_filters">Filtri Salvati</string>
+    <string name="delete_filter_confirm">Sei sicuro di voler eliminare questo filtro?</string>
 
     <string name="options_version_label">Versione %1$s</string>
     <string name="options_username_label">Nome utente</string>
