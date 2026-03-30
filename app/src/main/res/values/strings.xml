@@ -44,6 +44,7 @@
     <string name="granularity_weeks">Weeks</string>
     <string name="granularity_months">Months</string>
     <string name="granularity_years">Years</string>
+    <string name="selection_all">Select all</string>
     <string name="selection_invert">Invert selection</string>
     <string name="selection_clear">Clear selection</string>
     <string name="occurrences_format">%1$s [%2$d occurrences]</string>

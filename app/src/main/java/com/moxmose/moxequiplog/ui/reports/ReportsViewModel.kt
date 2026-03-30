@@ -8,6 +8,7 @@ import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import java.util.*
 
 enum class TimeGranularity {
@@ -40,6 +41,8 @@ data class ReportsUiState(
     val operationChartData: Map<Int, List<ChartPoint>> = emptyMap(),
     val operationDistribution: List<PieChartPoint> = emptyList(),
     val operationCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
+    val operationUnitLabel: String = "",
+    val opHasMixedUnits: Boolean = false,
 
     val startDate: Long? = null,
     val endDate: Long? = null,
@@ -75,11 +78,35 @@ class ReportsViewModel(
     private val _selectedEquipmentIds = MutableStateFlow<Set<Int>>(emptySet())
     private val _selectedOperationTypeIds = MutableStateFlow<Set<Int>>(emptySet())
     
+    private var initializedEquipments = false
+    private var initializedOperations = false
+    
     private val _startDate = MutableStateFlow<Long?>(null)
     private val _endDate = MutableStateFlow<Long?>(null)
     private val _timeGranularity = MutableStateFlow(TimeGranularity.HOURS)
     private val _refreshTrigger = MutableStateFlow(0)
     private val _showDismissed = MutableStateFlow(false)
+
+    init {
+        viewModelScope.launch {
+            _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() }
+                .collect { list ->
+                    if (!initializedEquipments && list.isNotEmpty()) {
+                        _selectedEquipmentIds.value = list.map { it.id }.toSet()
+                        initializedEquipments = true
+                    }
+                }
+        }
+        viewModelScope.launch {
+            _showDismissed.flatMapLatest { if (it) operationTypeDao.getAllOperationTypes() else operationTypeDao.getActiveOperationTypes() }
+                .collect { list ->
+                    if (!initializedOperations && list.isNotEmpty()) {
+                        _selectedOperationTypeIds.value = list.map { it.id }.toSet()
+                        initializedOperations = true
+                    }
+                }
+        }
+    }
 
     private val selectionState = combine(
         _selectedEquipmentIds,
@@ -134,12 +161,12 @@ class ReportsViewModel(
             matchesDate && matchesVisibility
         }
 
+        // Use stable order based on the master lists
+        val sortedSelectedEquipIds = equipments.map { it.id }.filter { it in selections.selectedEquipmentIds }
+        val sortedSelectedOpIds = operationTypes.map { it.id }.filter { it in selections.selectedOperationTypeIds }
+
         val equipDist = filteredLogs
-            .let { logsList ->
-                if (selections.selectedEquipmentIds.isNotEmpty()) {
-                    logsList.filter { it.log.equipmentId in selections.selectedEquipmentIds }
-                } else logsList
-            }
+            .filter { it.log.equipmentId in selections.selectedEquipmentIds }
             .groupBy { it.log.equipmentId }
             .map { (id, logs) ->
                 val label = equipments.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
@@ -147,41 +174,44 @@ class ReportsViewModel(
             }.sortedByDescending { it.value }
 
         val opDist = filteredLogs
-            .let { logsList ->
-                if (selections.selectedOperationTypeIds.isNotEmpty()) {
-                    logsList.filter { it.log.operationTypeId in selections.selectedOperationTypeIds }
-                } else logsList
-            }
+            .filter { it.log.operationTypeId in selections.selectedOperationTypeIds }
             .groupBy { it.log.operationTypeId }
             .map { (id, logs) ->
                 val label = operationTypes.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
                 PieChartPoint(label, logs.size.toFloat())
             }.sortedByDescending { it.value }
 
-        val activeEquipIds = selections.selectedEquipmentIds.ifEmpty { equipments.firstOrNull()?.id?.let { setOf(it) } ?: emptySet() }
-        val activeOpIds = selections.selectedOperationTypeIds.ifEmpty { operationTypes.firstOrNull()?.id?.let { setOf(it) } ?: emptySet() }
-
-        val equipChartData = activeEquipIds.associateWith { id ->
+        val equipChartData = sortedSelectedEquipIds.associateWith { id ->
             val points = filteredLogs
                 .filter { it.log.equipmentId == id && it.log.kilometers != null }
                 .map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
             aggregateData(points, selections.timeGranularity)
         }
 
-        val opChartData = activeOpIds.associateWith { id ->
+        val opChartData = sortedSelectedOpIds.associateWith { id ->
             val points = filteredLogs
                 .filter { it.log.operationTypeId == id && it.log.kilometers != null }
                 .map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat(), it.equipmentDescription) }
             aggregateData(points, selections.timeGranularity)
         }
         
-        val selectedUnits = activeEquipIds.mapNotNull { id ->
+        val selectedUnits = sortedSelectedEquipIds.mapNotNull { id ->
             val equip = equipments.find { it.id == id }
             units.find { it.id == equip?.unitId }?.label
         }.distinct()
         
         val equipUnit = selectedUnits.joinToString(", ")
         val hasMixedUnits = selectedUnits.size > 1
+
+        val opSelectedUnits = sortedSelectedOpIds.flatMap { opId ->
+            filteredLogs.filter { it.log.operationTypeId == opId }
+                .mapNotNull { logDetail ->
+                    equipments.find { it.id == logDetail.log.equipmentId }?.unitId
+                        ?.let { unitId -> units.find { it.id == unitId }?.label }
+                }
+        }.distinct()
+        val opUnitLabel = opSelectedUnits.joinToString(", ")
+        val opHasMixedUnits = opSelectedUnits.size > 1
 
         ReportsUiState(
             equipments = equipments,
@@ -196,6 +226,8 @@ class ReportsViewModel(
             operationChartData = opChartData,
             operationDistribution = opDist,
             operationCategoryColor = oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+            operationUnitLabel = opUnitLabel,
+            opHasMixedUnits = opHasMixedUnits,
             startDate = selections.startDate,
             endDate = selections.endDate,
             timeGranularity = selections.timeGranularity,
@@ -243,6 +275,11 @@ class ReportsViewModel(
         }
     }
 
+    fun selectAllEquipment() {
+        val currentEquipments = uiState.value.equipments
+        _selectedEquipmentIds.value = currentEquipments.map { it.id }.toSet()
+    }
+
     fun invertEquipmentSelection() {
         val currentEquipments = uiState.value.equipments
         val currentSelected = _selectedEquipmentIds.value
@@ -251,6 +288,11 @@ class ReportsViewModel(
 
     fun clearEquipmentSelection() {
         _selectedEquipmentIds.value = emptySet()
+    }
+
+    fun selectAllOperationTypes() {
+        val currentOps = uiState.value.operationTypes
+        _selectedOperationTypeIds.value = currentOps.map { it.id }.toSet()
     }
 
     fun invertOperationTypeSelection() {
@@ -277,8 +319,8 @@ class ReportsViewModel(
         _endDate.value = null
         _timeGranularity.value = TimeGranularity.HOURS
         _showDismissed.value = false
-        _selectedEquipmentIds.value = emptySet()
-        _selectedOperationTypeIds.value = emptySet()
+        selectAllEquipment()
+        selectAllOperationTypes()
     }
     
     fun toggleShowDismissed() {

@@ -4,15 +4,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,16 +23,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.ui.components.ImageIcon
@@ -52,7 +45,6 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
-import com.patrykandpatrick.vico.core.common.shader.DynamicShader
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -209,6 +201,10 @@ fun EquipmentsReportScreen(
     onBack: () -> Unit
 ) {
     val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) {
+        uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds }
+    }
     
     Scaffold(
         topBar = {
@@ -235,7 +231,7 @@ fun EquipmentsReportScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     IconButton(
                         onClick = { viewModel.toggleShowDismissed() },
@@ -258,7 +254,22 @@ fun EquipmentsReportScreen(
                                 viewModel.toggleEquipmentSelection(it)
                                 viewModel.refresh()
                             },
-                            categoryColor = categoryColor
+                            categoryColor = categoryColor,
+                            chartColors = chartColors,
+                            sortedSelectedIds = sortedSelectedIds
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.selectAllEquipment()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SelectAll,
+                            contentDescription = stringResource(R.string.selection_all),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -310,25 +321,29 @@ fun EquipmentsReportScreen(
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        val unitsPart = if (uiState.equipmentUnitLabel.isNotBlank()) {
+                            uiState.equipmentUnitLabel.split(", ").joinToString("") { "[$it]" }
+                        } else ""
+                        
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = stringResource(R.string.km_trend),
+                                text = "$unitsPart ${stringResource(R.string.report_value_over_time)}",
                                 style = MaterialTheme.typography.titleMedium
                             )
-                            if (uiState.equipmentUnitLabel.isNotBlank()) {
+                            if (uiState.hasMixedUnits) {
                                 Surface(
-                                    color = if (uiState.hasMixedUnits) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                                    color = MaterialTheme.colorScheme.errorContainer,
                                     shape = MaterialTheme.shapes.extraSmall
                                 ) {
-                                    Text(
-                                        text = uiState.equipmentUnitLabel,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                        color = if (uiState.hasMixedUnits) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp).padding(2.dp),
+                                        tint = MaterialTheme.colorScheme.onErrorContainer
                                     )
                                 }
                             }
@@ -345,14 +360,19 @@ fun EquipmentsReportScreen(
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        if (uiState.equipmentChartData.values.all { it.isEmpty() }) {
-                            NoDataPlaceholder()
-                        } else {
-                            MultiLineChart(
-                                chartDataMap = uiState.equipmentChartData,
-                                granularity = uiState.timeGranularity,
-                                colorMode = uiState.colorMode,
-                                customColors = uiState.customColors
+                        MultiLineChart(
+                            chartDataMap = uiState.equipmentChartData,
+                            granularity = uiState.timeGranularity,
+                            finalColors = chartColors
+                        )
+                        
+                        if (uiState.equipmentChartData.any { it.value.isNotEmpty() }) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            ChartLegend(
+                                items = sortedSelectedIds.mapNotNull { id -> 
+                                    uiState.equipments.find { it.id == id }?.description?.let { id to it }
+                                },
+                                colors = chartColors
                             )
                         }
                     }
@@ -370,6 +390,10 @@ fun OperationsReportScreen(
     onBack: () -> Unit
 ) {
     val categoryColor = Color(uiState.operationCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) {
+        uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds }
+    }
     
     Scaffold(
         topBar = {
@@ -396,7 +420,7 @@ fun OperationsReportScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     IconButton(
                         onClick = { viewModel.toggleShowDismissed() },
@@ -419,7 +443,22 @@ fun OperationsReportScreen(
                                 viewModel.toggleOperationTypeSelection(it)
                                 viewModel.refresh()
                             },
-                            categoryColor = categoryColor
+                            categoryColor = categoryColor,
+                            chartColors = chartColors,
+                            sortedSelectedIds = sortedSelectedIds
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.selectAllOperationTypes()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SelectAll,
+                            contentDescription = stringResource(R.string.selection_all),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -471,20 +510,58 @@ fun OperationsReportScreen(
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = stringResource(R.string.km_trend),
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(bottom = 16.dp)
+                        val unitsPart = if (uiState.operationUnitLabel.isNotBlank()) {
+                            uiState.operationUnitLabel.split(", ").joinToString("") { "[$it]" }
+                        } else ""
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "$unitsPart ${stringResource(R.string.report_value_over_time)}",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            if (uiState.opHasMixedUnits) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    shape = MaterialTheme.shapes.extraSmall
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp).padding(2.dp),
+                                        tint = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
+                        }
+
+                        if (uiState.opHasMixedUnits) {
+                            Text(
+                                text = stringResource(R.string.mixed_units_warning),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        MultiLineChart(
+                            chartDataMap = uiState.operationChartData,
+                            granularity = uiState.timeGranularity,
+                            finalColors = chartColors
                         )
                         
-                        if (uiState.operationChartData.values.all { it.isEmpty() }) {
-                            NoDataPlaceholder()
-                        } else {
-                            MultiLineChart(
-                                chartDataMap = uiState.operationChartData,
-                                granularity = uiState.timeGranularity,
-                                colorMode = uiState.colorMode,
-                                customColors = uiState.customColors
+                        if (uiState.operationChartData.any { it.value.isNotEmpty() }) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            ChartLegend(
+                                items = sortedSelectedIds.mapNotNull { id -> 
+                                    uiState.operationTypes.find { it.id == id }?.description?.let { id to it }
+                                },
+                                colors = chartColors
                             )
                         }
                     }
@@ -502,6 +579,10 @@ fun EquipmentsFreqReportScreen(
     onBack: () -> Unit
 ) {
     val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) {
+        uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds }
+    }
     
     Scaffold(
         topBar = {
@@ -528,7 +609,7 @@ fun EquipmentsFreqReportScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     IconButton(
                         onClick = { viewModel.toggleShowDismissed() },
@@ -551,7 +632,22 @@ fun EquipmentsFreqReportScreen(
                                 viewModel.toggleEquipmentSelection(it)
                                 viewModel.refresh()
                             },
-                            categoryColor = categoryColor
+                            categoryColor = categoryColor,
+                            chartColors = chartColors,
+                            sortedSelectedIds = sortedSelectedIds
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.selectAllEquipment()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SelectAll,
+                            contentDescription = stringResource(R.string.selection_all),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -614,6 +710,10 @@ fun OperationsFreqReportScreen(
     onBack: () -> Unit
 ) {
     val categoryColor = Color(uiState.operationCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) {
+        uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds }
+    }
     
     Scaffold(
         topBar = {
@@ -640,7 +740,7 @@ fun OperationsFreqReportScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     IconButton(
                         onClick = { viewModel.toggleShowDismissed() },
@@ -663,7 +763,22 @@ fun OperationsFreqReportScreen(
                                 viewModel.toggleOperationTypeSelection(it)
                                 viewModel.refresh()
                             },
-                            categoryColor = categoryColor
+                            categoryColor = categoryColor,
+                            chartColors = chartColors,
+                            sortedSelectedIds = sortedSelectedIds
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            viewModel.selectAllOperationTypes()
+                            viewModel.refresh()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SelectAll,
+                            contentDescription = stringResource(R.string.selection_all),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -841,68 +956,15 @@ fun NoDataPlaceholder() {
     }
 }
 
-@Composable
-fun DistributionCard(
-    title: String,
-    distribution: List<PieChartPoint>,
-    categoryColor: Color
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.distribution_analysis) + " - " + title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-            
-            if (distribution.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.report_no_data),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                val total = distribution.sumOf { it.value.toDouble() }.toFloat()
-                distribution.forEach { item ->
-                    val percentage = if (total > 0) (item.value / total) else 0f
-                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = item.label, style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                text = "${item.value.toInt()} (${(percentage * 100).toInt()}%)",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = { percentage },
-                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(MaterialTheme.shapes.small),
-                            color = categoryColor,
-                            trackColor = categoryColor.copy(alpha = 0.1f)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EquipmentMultiSelector(
     equipments: List<Equipment>,
     selectedIds: Set<Int>,
     onToggleSelection: (Int) -> Unit,
-    categoryColor: Color
+    categoryColor: Color,
+    chartColors: List<Color>,
+    sortedSelectedIds: List<Int>
 ) {
     var expanded by remember { mutableStateOf(false) }
     val displayText = if (selectedIds.isEmpty()) {
@@ -940,6 +1002,9 @@ fun EquipmentMultiSelector(
             onDismissRequest = { expanded = false }
         ) {
             equipments.forEach { equipment ->
+                val isSelected = equipment.id in selectedIds
+                val colorIndex = if (isSelected) sortedSelectedIds.indexOf(equipment.id) else -1
+                
                 DropdownMenuItem(
                     text = {
                         Row(
@@ -947,19 +1012,31 @@ fun EquipmentMultiSelector(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Checkbox(
-                                checked = equipment.id in selectedIds,
+                                checked = isSelected,
                                 onCheckedChange = null
                             )
+                            
+                            if (isSelected && colorIndex != -1) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(chartColors[colorIndex % chartColors.size])
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.size(12.dp))
+                            }
+                            
                             ImageIcon(
                                 iconIdentifier = equipment.iconIdentifier,
                                 photoUri = equipment.photoUri,
                                 modifier = Modifier.size(24.dp),
-                                tint = if (equipment.id in selectedIds) categoryColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (isSelected) categoryColor else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = equipment.description,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (equipment.id in selectedIds) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             )
                         }
                     },
@@ -976,7 +1053,9 @@ fun OperationMultiSelector(
     operationTypes: List<OperationType>,
     selectedIds: Set<Int>,
     onToggleSelection: (Int) -> Unit,
-    categoryColor: Color
+    categoryColor: Color,
+    chartColors: List<Color>,
+    sortedSelectedIds: List<Int>
 ) {
     var expanded by remember { mutableStateOf(false) }
     val displayText = if (selectedIds.isEmpty()) {
@@ -1014,6 +1093,9 @@ fun OperationMultiSelector(
             onDismissRequest = { expanded = false }
         ) {
             operationTypes.forEach { op ->
+                val isSelected = op.id in selectedIds
+                val colorIndex = if (isSelected) sortedSelectedIds.indexOf(op.id) else -1
+
                 DropdownMenuItem(
                     text = {
                         Row(
@@ -1021,19 +1103,31 @@ fun OperationMultiSelector(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Checkbox(
-                                checked = op.id in selectedIds,
+                                checked = isSelected,
                                 onCheckedChange = null
                             )
+
+                            if (isSelected && colorIndex != -1) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(chartColors[colorIndex % chartColors.size])
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.size(12.dp))
+                            }
+
                             ImageIcon(
                                 iconIdentifier = op.iconIdentifier,
                                 photoUri = op.photoUri,
                                 modifier = Modifier.size(24.dp),
-                                tint = if (op.id in selectedIds) categoryColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (isSelected) categoryColor else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = op.description,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (op.id in selectedIds) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             )
                         }
                     },
@@ -1050,10 +1144,26 @@ fun OperationMultiSelector(
 fun MultiLineChart(
     chartDataMap: Map<Int, List<ChartPoint>>, 
     granularity: TimeGranularity,
-    colorMode: String,
-    customColors: List<String>
+    finalColors: List<Color>
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
+    
+    val dataWithPoints = remember(chartDataMap) {
+        chartDataMap.filter { it.value.isNotEmpty() }
+    }
+    
+    val lineStyles = remember(dataWithPoints, chartDataMap.keys, finalColors) {
+        val allIds = chartDataMap.keys.toList()
+        dataWithPoints.keys.map { id ->
+            val colorIndex = allIds.indexOf(id)
+            LineCartesianLayer.Line(
+                fill = LineCartesianLayer.LineFill.single(
+                    fill = fill(finalColors[colorIndex % finalColors.size])
+                )
+            )
+        }
+    }
+
     val dateFormat = remember(granularity) {
         when (granularity) {
             TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
@@ -1063,23 +1173,11 @@ fun MultiLineChart(
         }
     }
 
-    val finalColors = remember(colorMode, customColors) {
-        if (colorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM && customColors.isNotEmpty()) {
-            customColors.map { Color(it.toColorInt()) }
-        } else {
-            listOf(
-                Color(0xFF4285F4), Color(0xFF34A853), Color(0xFFFBBC05),
-                Color(0xFFEA4335), Color(0xFF9C27B0), Color(0xFF00BCD4)
-            )
-        }
-    }
-
-    LaunchedEffect(chartDataMap, granularity) {
-        val validSeries = chartDataMap.values.filter { it.isNotEmpty() }
-        if (validSeries.isNotEmpty()) {
+    LaunchedEffect(dataWithPoints, granularity) {
+        if (dataWithPoints.isNotEmpty()) {
             modelProducer.runTransaction {
                 lineSeries {
-                    validSeries.forEach { points ->
+                    dataWithPoints.values.forEach { points ->
                         series(
                             x = points.map { it.date },
                             y = points.map { it.kilometers }
@@ -1090,32 +1188,76 @@ fun MultiLineChart(
         }
     }
 
-    key(granularity, chartDataMap.keys, colorMode) {
-        CartesianChartHost(
-            chart = rememberCartesianChart(
-                rememberLineCartesianLayer(
-                    lineProvider = LineCartesianLayer.LineProvider.series(
-                        chartDataMap.keys.mapIndexed { index, _ ->
-                            LineCartesianLayer.Line(
-                                fill = LineCartesianLayer.LineFill.single(
-                                    fill = fill(finalColors[index % finalColors.size])
-                                )
-                            )
+    if (dataWithPoints.isNotEmpty()) {
+        key(granularity, dataWithPoints.keys, finalColors) {
+            CartesianChartHost(
+                chart = rememberCartesianChart(
+                    rememberLineCartesianLayer(
+                        lineProvider = LineCartesianLayer.LineProvider.series(lineStyles)
+                    ),
+                    startAxis = VerticalAxis.rememberStart(),
+                    bottomAxis = HorizontalAxis.rememberBottom(
+                        valueFormatter = CartesianValueFormatter { _, value, _ ->
+                            dateFormat.format(Date(value.toLong()))
                         }
-                    )
+                    ),
                 ),
-                startAxis = VerticalAxis.rememberStart(),
-                bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = CartesianValueFormatter { _, value, _ ->
-                        dateFormat.format(Date(value.toLong()))
-                    }
-                ),
-            ),
-            modelProducer = modelProducer,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-        )
+                modelProducer = modelProducer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+            )
+        }
+    } else {
+        NoDataPlaceholder()
+    }
+}
+
+@Composable
+fun ChartLegend(
+    items: List<Pair<Int, String>>,
+    colors: List<Color>
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items.forEachIndexed { index, pair ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 2.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(colors[index % colors.size])
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = pair.second,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 10.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun rememberChartColors(colorMode: String, customColors: List<String>): List<Color> {
+    return remember(colorMode, customColors) {
+        if (colorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM && customColors.isNotEmpty()) {
+            customColors.map { Color(it.toColorInt()) }
+        } else {
+            listOf(
+                Color(0xFF4285F4), Color(0xFF34A853), Color(0xFFFBBC05),
+                Color(0xFFEA4335), Color(0xFF9C27B0), Color(0xFF00BCD4)
+            )
+        }
     }
 }
 
