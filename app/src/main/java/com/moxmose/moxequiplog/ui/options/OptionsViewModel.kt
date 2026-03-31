@@ -134,6 +134,7 @@ class OptionsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_REPORTS_COLOR_MODE)
 
     val reportsCustomColors: StateFlow<List<String>> = appSettingsManager.reportsCustomColors
+        .map { it ?: emptyList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     fun resetBackgroundSettings() {

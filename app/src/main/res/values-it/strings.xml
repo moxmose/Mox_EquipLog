@@ -16,7 +16,9 @@
     <string name="report_value_to_date">Valore ad oggi</string>
     <string name="report_no_data">Nessun dato disponibile</string>
     <string name="select_equipment">Seleziona Mezzo</string>
-    <string name="select_operation">Seleziona Attività</string>
+    <string name="select_operation_type">Seleziona Attività</string>
+    <string name="km_trend">Andamento Valori</string>
+    <string name="mixed_units_warning">Attenzione: i mezzi selezionati usano unità di misura diverse.</string>
     <string name="report_equipment_subtitle">Analisi dei valori di utilizzo</string>
     <string name="report_operation_subtitle">Frequenza e valori per singola attività</string>
     <string name="report_equipment_freq_subtitle">Frequenza di utilizzo dei mezzi</string>
@@ -36,9 +38,13 @@
     <string name="selection_clear">Cancella selezione</string>
     <string name="occurrences_format">%1$s [%2$d occorrenze]</string>
     <string name="save_filter">Salva Filtro</string>
+    <string name="save_new_filter">Salva come nuovo</string>
+    <string name="overwrite_filter">Sovrascrivi corrente</string>
+    <string name="load_filter">Carica Filtro</string>
     <string name="filter_name">Nome Filtro</string>
     <string name="saved_filters">Filtri Salvati</string>
     <string name="delete_filter_confirm">Sei sicuro di voler eliminare questo filtro?</string>
+    <string name="custom_filter">Personalizzato (non salvato)</string>
 
     <string name="options_version_label">Versione %1$s</string>
     <string name="options_username_label">Nome utente</string>
@@ -66,6 +72,29 @@
     <string name="options_show_hide">Mostra/Nascondi</string>
     <string name="options_reset_background_settings">Ripristina valori predefiniti</string>
     <string name="update_background_failed">Aggiornamento dello sfondo fallito.</string>
+    <string name="update_reports_settings_failed">Impossibile nascondere l\'ultimo colore visibile.</string>
+    <string name="options_use_custom_colors_reports">Usa colori personalizzati nei report</string>
+
+    <string name="options_units_title">Unità di Misura</string>
+    <string name="options_units_desc">Gestisci le unità di misura per i tuoi mezzi (es. km, ore, litri).</string>
+    <string name="options_add_unit">Aggiungi Unità</string>
+    <string name="options_unit_label_placeholder">Etichetta (es. hh)</string>
+    <string name="options_unit_desc_placeholder">Descrizione (es. Ore)</string>
+    <string name="add_unit_failed">Aggiunta unità fallita.</string>
+    <string name="delete_unit_failed">Eliminazione unità fallita.</string>
+    <string name="update_unit_failed">Aggiornamento unità fallito.</string>
+    <string name="update_units_order_failed">Aggiornamento ordine unità fallito.</string>
+    <string name="toggle_unit_visibility_failed">Attivazione visibilità unità fallita.</string>
+    <string name="options_unit_mgmt_title">Gestione Unità</string>
+    <string name="options_unit_label">Etichetta</string>
+    <string name="options_save_unit">Salva unità</string>
+    <string name="options_edit_unit">Modifica unità</string>
+
+    <string name="options_info_drag_reorder">Tieni premuto e trascina per cambiare l\'ordine.</string>
+    <string name="options_info_select_default">Tocca un elemento per impostarlo come predefinito.</string>
+    <string name="options_info_select_category_to_reorder">Seleziona una categoria specifica per cambiare l\'ordine di visualizzazione.</string>
+    <string name="options_info_background_select">Seleziona un\'immagine per lo sfondo dell\'applicazione.</string>
+    <string name="options_info_min_one_color">Almeno un colore deve rimanere visibile per i report.</string>
 
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
     <string name="set_as_default_instruction">Tocca l\'icona per impostare il predefinito</string>
@@ -96,6 +125,7 @@
     <string name="restore_operation_type">Ripristina Tipo di Operazione</string>
     <string name="drag_to_reorder">Trascina per riordinare</string>
     <string name="id_no_description">id:%1$d - senza descrizione</string>
+    <string name="measurement_unit">Unità di Misura</string>
 
     <string name="search_logs">Cerca</string>
     <string name="add_log">Aggiungi registrazione</string>
@@ -104,6 +134,8 @@
     <string name="add_new_maintenance_log">Aggiungi nuova registrazione di manutenzione</string>
     <string name="select_an_equipment">Seleziona un mezzo</string>
     <string name="select_an_operation">Selezione un operazione</string>
+    <string name="notes_label">Note</string>
+    <string name="notes_optional">Note (opzionale)</string>
     <string name="value_label">Valore: %1$d %2$s</string>
     <string name="value_optional">Valore (opzionale)</string>
     <string name="dismissed_suffix">(dismesso)</string>

@@ -7,8 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -237,19 +236,6 @@ fun EquipmentsReportScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
                     Box(modifier = Modifier.weight(1f)) {
                         EquipmentMultiSelector(
                             equipments = uiState.equipments,
@@ -261,6 +247,19 @@ fun EquipmentsReportScreen(
                             categoryColor = categoryColor,
                             chartColors = chartColors,
                             sortedSelectedIds = sortedSelectedIds
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -313,11 +312,19 @@ fun EquipmentsReportScreen(
                     onDateRangeSelected = viewModel::setDateRange,
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh,
-                    onSaveFilter = viewModel::saveCurrentFilter,
+                    onRefresh = viewModel::refresh
+                )
+            }
+
+            item {
+                FilterManagementRow(
                     savedFilters = uiState.savedFilters,
-                    onApplyFilter = viewModel::applySavedFilter,
-                    onDeleteFilter = viewModel::deleteSavedFilter
+                    activeFilterName = uiState.activeFilterName,
+                    isDirty = uiState.isFilterDirty,
+                    onSaveNew = viewModel::saveAsNewFilter,
+                    onOverwrite = viewModel::overwriteActiveFilter,
+                    onApply = viewModel::applySavedFilter,
+                    onDelete = viewModel::deleteSavedFilter
                 )
             }
 
@@ -430,19 +437,6 @@ fun OperationsReportScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
                     Box(modifier = Modifier.weight(1f)) {
                         OperationMultiSelector(
                             operationTypes = uiState.operationTypes,
@@ -454,6 +448,19 @@ fun OperationsReportScreen(
                             categoryColor = categoryColor,
                             chartColors = chartColors,
                             sortedSelectedIds = sortedSelectedIds
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -506,11 +513,19 @@ fun OperationsReportScreen(
                     onDateRangeSelected = viewModel::setDateRange,
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh,
-                    onSaveFilter = viewModel::saveCurrentFilter,
+                    onRefresh = viewModel::refresh
+                )
+            }
+
+            item {
+                FilterManagementRow(
                     savedFilters = uiState.savedFilters,
-                    onApplyFilter = viewModel::applySavedFilter,
-                    onDeleteFilter = viewModel::deleteSavedFilter
+                    activeFilterName = uiState.activeFilterName,
+                    isDirty = uiState.isFilterDirty,
+                    onSaveNew = viewModel::saveAsNewFilter,
+                    onOverwrite = viewModel::overwriteActiveFilter,
+                    onApply = viewModel::applySavedFilter,
+                    onDelete = viewModel::deleteSavedFilter
                 )
             }
 
@@ -623,19 +638,6 @@ fun EquipmentsFreqReportScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
                     Box(modifier = Modifier.weight(1f)) {
                         EquipmentMultiSelector(
                             equipments = uiState.equipments,
@@ -647,6 +649,19 @@ fun EquipmentsFreqReportScreen(
                             categoryColor = categoryColor,
                             chartColors = chartColors,
                             sortedSelectedIds = sortedSelectedIds
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -699,11 +714,19 @@ fun EquipmentsFreqReportScreen(
                     onDateRangeSelected = viewModel::setDateRange,
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh,
-                    onSaveFilter = viewModel::saveCurrentFilter,
+                    onRefresh = viewModel::refresh
+                )
+            }
+
+            item {
+                FilterManagementRow(
                     savedFilters = uiState.savedFilters,
-                    onApplyFilter = viewModel::applySavedFilter,
-                    onDeleteFilter = viewModel::deleteSavedFilter
+                    activeFilterName = uiState.activeFilterName,
+                    isDirty = uiState.isFilterDirty,
+                    onSaveNew = viewModel::saveAsNewFilter,
+                    onOverwrite = viewModel::overwriteActiveFilter,
+                    onApply = viewModel::applySavedFilter,
+                    onDelete = viewModel::deleteSavedFilter
                 )
             }
 
@@ -758,19 +781,6 @@ fun OperationsFreqReportScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
                     Box(modifier = Modifier.weight(1f)) {
                         OperationMultiSelector(
                             operationTypes = uiState.operationTypes,
@@ -782,6 +792,19 @@ fun OperationsFreqReportScreen(
                             categoryColor = categoryColor,
                             chartColors = chartColors,
                             sortedSelectedIds = sortedSelectedIds
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.toggleShowDismissed() },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -834,11 +857,19 @@ fun OperationsFreqReportScreen(
                     onDateRangeSelected = viewModel::setDateRange,
                     onGranularitySelected = viewModel::setTimeGranularity,
                     onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh,
-                    onSaveFilter = viewModel::saveCurrentFilter,
+                    onRefresh = viewModel::refresh
+                )
+            }
+
+            item {
+                FilterManagementRow(
                     savedFilters = uiState.savedFilters,
-                    onApplyFilter = viewModel::applySavedFilter,
-                    onDeleteFilter = viewModel::deleteSavedFilter
+                    activeFilterName = uiState.activeFilterName,
+                    isDirty = uiState.isFilterDirty,
+                    onSaveNew = viewModel::saveAsNewFilter,
+                    onOverwrite = viewModel::overwriteActiveFilter,
+                    onApply = viewModel::applySavedFilter,
+                    onDelete = viewModel::deleteSavedFilter
                 )
             }
 
@@ -849,6 +880,139 @@ fun OperationsFreqReportScreen(
                     baseColor = categoryColor
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun FilterManagementRow(
+    savedFilters: List<ReportFilter>,
+    activeFilterName: String?,
+    isDirty: Boolean,
+    onSaveNew: (String) -> Unit,
+    onOverwrite: () -> Unit,
+    onApply: (ReportFilter) -> Unit,
+    onDelete: (Int) -> Unit
+) {
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var filterName by remember { mutableStateOf("") }
+    var showLoadMenu by remember { mutableStateOf(false) }
+
+    if (showSaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveDialog = false },
+            title = { Text(stringResource(R.string.save_filter)) },
+            text = {
+                OutlinedTextField(
+                    value = filterName,
+                    onValueChange = { filterName = it },
+                    label = { Text(stringResource(R.string.filter_name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (filterName.isNotBlank()) {
+                            onSaveNew(filterName)
+                            filterName = ""
+                            showSaveDialog = false
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.button_add))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveDialog = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            }
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icona Filter (senza sbarra) per identificare la riga preset
+        Icon(
+            imageVector = Icons.Default.FilterAlt,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+        )
+        
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Etichetta del filtro attivo con stato dirty
+        Text(
+            text = activeFilterName ?: stringResource(R.string.custom_filter),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isDirty) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary,
+            fontStyle = if (isDirty) FontStyle.Italic else FontStyle.Normal,
+            fontWeight = if (activeFilterName != null) FontWeight.Bold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Pulsante Carica (Cartella)
+        Box {
+            IconButton(
+                onClick = { showLoadMenu = true },
+                enabled = savedFilters.isNotEmpty()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FolderOpen,
+                    contentDescription = stringResource(R.string.load_filter),
+                    tint = if (savedFilters.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                )
+            }
+            
+            DropdownMenu(
+                expanded = showLoadMenu,
+                onDismissRequest = { showLoadMenu = false }
+            ) {
+                savedFilters.forEach { filter ->
+                    DropdownMenuItem(
+                        text = { Text(filter.name ?: "", style = MaterialTheme.typography.bodyMedium) },
+                        onClick = {
+                            onApply(filter)
+                            showLoadMenu = false
+                        },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { onDelete(filter.id) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        // Pulsante Sovrascrivi (Floppy) - visibile solo se dirty
+        if (activeFilterName != null && isDirty) {
+            IconButton(onClick = onOverwrite) {
+                Icon(
+                    imageVector = Icons.Default.Save,
+                    contentDescription = stringResource(R.string.overwrite_filter),
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+
+        // Pulsante Salva Nuovo (PostAdd)
+        IconButton(onClick = { showSaveDialog = true }) {
+            Icon(
+                imageVector = Icons.Default.PostAdd,
+                contentDescription = stringResource(R.string.save_new_filter),
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -1290,16 +1454,10 @@ fun StandardFilterSection(
     onDateRangeSelected: (Long?, Long?) -> Unit,
     onGranularitySelected: (TimeGranularity) -> Unit,
     onReset: () -> Unit,
-    onRefresh: () -> Unit,
-    onSaveFilter: (String) -> Unit,
-    savedFilters: List<ReportFilter>,
-    onApplyFilter: (ReportFilter) -> Unit,
-    onDeleteFilter: (Int) -> Unit
+    onRefresh: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     var showDatePickerRange by remember { mutableStateOf(false) }
-    var showSaveDialog by remember { mutableStateOf(false) }
-    var filterName by remember { mutableStateOf("") }
 
     if (showDatePickerRange) {
         val dateRangePickerState = rememberDateRangePickerState(
@@ -1335,39 +1493,6 @@ fun StandardFilterSection(
         }
     }
 
-    if (showSaveDialog) {
-        AlertDialog(
-            onDismissRequest = { showSaveDialog = false },
-            title = { Text(stringResource(R.string.save_filter)) },
-            text = {
-                OutlinedTextField(
-                    value = filterName,
-                    onValueChange = { filterName = it },
-                    label = { Text(stringResource(R.string.filter_name)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (filterName.isNotBlank()) {
-                            onSaveFilter(filterName)
-                            filterName = ""
-                            showSaveDialog = false
-                        }
-                    }
-                ) {
-                    Text(stringResource(R.string.button_add))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSaveDialog = false }) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            }
-        )
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -1394,17 +1519,6 @@ fun StandardFilterSection(
                             stringResource(R.string.date)
                         },
                         style = MaterialTheme.typography.labelMedium
-                    )
-                }
-
-                IconButton(
-                    onClick = { showSaveDialog = true },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Save,
-                        contentDescription = stringResource(R.string.save_filter),
-                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -1452,34 +1566,6 @@ fun StandardFilterSection(
                         },
                         modifier = Modifier.weight(1f)
                     )
-                }
-            }
-
-            if (savedFilters.isNotEmpty()) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                Text(
-                    text = stringResource(R.string.saved_filters),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(savedFilters) { filter ->
-                        FilterChip(
-                            selected = false,
-                            onClick = { onApplyFilter(filter) },
-                            label = { Text(filter.name ?: "", style = MaterialTheme.typography.labelSmall) },
-                            trailingIcon = {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp).clickable { onDeleteFilter(filter.id) }
-                                )
-                            }
-                        )
-                    }
                 }
             }
         }

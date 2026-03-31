@@ -67,7 +67,9 @@ data class ReportsUiState(
     val colorMode: String = UiConstants.DEFAULT_REPORTS_COLOR_MODE,
     val customColors: List<String> = emptyList(),
     
-    val savedFilters: List<ReportFilter> = emptyList()
+    val savedFilters: List<ReportFilter> = emptyList(),
+    val activeFilterName: String? = null,
+    val isFilterDirty: Boolean = false
 )
 
 private data class SelectionState(
@@ -95,18 +97,42 @@ class ReportsViewModel(
 
     private val _selectedEquipmentIds = MutableStateFlow<Set<Int>>(emptySet())
     private val _selectedOperationTypeIds = MutableStateFlow<Set<Int>>(emptySet())
-    
-    private var initializedEquipments = false
-    private var initializedOperations = false
-    
     private val _startDate = MutableStateFlow<Long?>(null)
     private val _endDate = MutableStateFlow<Long?>(null)
     private val _timeGranularity = MutableStateFlow(TimeGranularity.HOURS)
     private val _refreshTrigger = MutableStateFlow(0)
     private val _showDismissed = MutableStateFlow(false)
+    private val _activeFilter = MutableStateFlow<ReportFilter?>(null)
+
+    private var initializedEquipments = false
+    private var initializedOperations = false
+
+    // Grouping classes to solve combine parameter limit
+    private data class FilterBase(val ids: Set<Int>, val ops: Set<Int>, val start: Long?, val end: Long?, val gran: TimeGranularity)
+    private data class CoreData(val equips: List<Equipment>, val ops: List<OperationType>, val logs: List<MaintenanceLogDetails>, val units: List<MeasurementUnit>)
+    private data class StyleData(val ec: String?, val oc: String?, val selections: SelectionState)
+    private data class PersistData(val saved: List<ReportFilter>, val active: ReportFilter?, val current: ReportFilterState)
+
+    private val filterBaseFlow = combine(_selectedEquipmentIds, _selectedOperationTypeIds, _startDate, _endDate, _timeGranularity) { ids, ops, s, e, g ->
+        FilterBase(ids, ops, s, e, g)
+    }
+
+    private val currentState: Flow<ReportFilterState> = combine(filterBaseFlow, _showDismissed) { base, dismissed ->
+        ReportFilterState(base.ids, base.ops, base.start, base.end, base.gran, dismissed)
+    }
+
+    private val selectionState: Flow<SelectionState> = combine(
+        currentState,
+        _refreshTrigger,
+        appSettingsManager.reportsColorMode,
+        combine(appSettingsManager.reportsCustomColors, imageRepository.allColorsForReports) { custom, dbColors ->
+            custom ?: dbColors.filter { !it.reportHidden }.map { it.hexValue }
+        }
+    ) { state, refresh, mode, colors ->
+        SelectionState(state.selectedEquipmentIds, state.selectedOperationTypeIds, state.startDate, state.endDate, state.timeGranularity, refresh, state.showDismissed, mode, colors)
+    }
 
     init {
-        // Load last session
         viewModelScope.launch {
             val lastSession = reportFilterDao.getLastSession("ALL_REPORTS").firstOrNull()
             lastSession?.let { session ->
@@ -120,13 +146,10 @@ class ReportsViewModel(
                     _showDismissed.value = state.showDismissed
                     initializedEquipments = true
                     initializedOperations = true
-                } catch (e: Exception) {
-                    // Fallback to default if JSON is invalid
-                }
+                } catch (e: Exception) { }
             }
         }
 
-        // Initialize selections if not loaded from session
         viewModelScope.launch {
             _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() }
                 .collect { list ->
@@ -146,105 +169,54 @@ class ReportsViewModel(
                 }
         }
 
-        // Auto-save session on changes (debounced)
-        combine(
-            _selectedEquipmentIds,
-            _selectedOperationTypeIds,
-            _startDate,
-            _endDate,
-            _timeGranularity,
-            _showDismissed
-        ) { args ->
-            ReportFilterState(
-                selectedEquipmentIds = args[0] as Set<Int>,
-                selectedOperationTypeIds = args[1] as Set<Int>,
-                startDate = args[2] as Long?,
-                endDate = args[3] as Long?,
-                timeGranularity = args[4] as TimeGranularity,
-                showDismissed = args[5] as Boolean
-            )
-        }
-        .debounce(1000)
-        .onEach { state ->
+        currentState.debounce(1500).onEach { state ->
             val json = Json.encodeToString(state)
-            reportFilterDao.updateLastSession(
-                ReportFilter(reportType = "ALL_REPORTS", filterJson = json, name = null)
-            )
-        }
-        .launchIn(viewModelScope)
+            reportFilterDao.updateLastSession(ReportFilter(reportType = "ALL_REPORTS", filterJson = json, name = null))
+        }.launchIn(viewModelScope)
     }
-
-    private val selectionState = combine(
-        _selectedEquipmentIds,
-        _selectedOperationTypeIds,
-        _startDate,
-        _endDate,
-        combine(
-            _timeGranularity, 
-            _refreshTrigger, 
-            _showDismissed,
-            appSettingsManager.reportsColorMode,
-            imageRepository.allColorsForReports.map { list -> 
-                list.filter { !it.reportHidden }.map { it.hexValue } 
-            }
-        ) { gran, refresh, dismissed, mode, colors -> 
-            Quintet(gran, refresh, dismissed, mode, colors) 
-        }
-    ) { selEquips, selOps, start, end, quintet ->
-        SelectionState(
-            selEquips, 
-            selOps, 
-            start, 
-            end, 
-            quintet.first, 
-            quintet.second, 
-            quintet.third, 
-            quintet.fourth, 
-            quintet.fifth
-        )
-    }
-
-    private data class Quintet<A, B, C, D, E>(val first: A, val second: B, val third: C, val fourth: D, val fifth: E)
 
     val uiState: StateFlow<ReportsUiState> = combine(
-        _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() },
-        _showDismissed.flatMapLatest { if (it) operationTypeDao.getAllOperationTypes() else operationTypeDao.getActiveOperationTypes() },
-        maintenanceLogDao.getLogsWithDetails(androidx.sqlite.db.SimpleSQLiteQuery("SELECT l.*, e.description as equipmentDescription, ot.description as operationTypeDescription, e.photoUri as equipmentPhotoUri, e.iconIdentifier as equipmentIconIdentifier, ot.photoUri as operationTypePhotoUri, ot.iconIdentifier as operationTypeIconIdentifier, e.dismissed as equipmentDismissed, ot.dismissed as operationTypeDismissed FROM maintenance_logs as l JOIN equipments as e ON l.equipmentId = e.id JOIN operation_types as ot ON l.operationTypeId = ot.id ORDER BY l.date ASC")),
-        measurementUnitDao.getAllUnits(),
+        combine(
+            _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() },
+            _showDismissed.flatMapLatest { if (it) operationTypeDao.getAllOperationTypes() else operationTypeDao.getActiveOperationTypes() },
+            maintenanceLogDao.getLogsWithDetails(androidx.sqlite.db.SimpleSQLiteQuery("SELECT l.*, e.description as equipmentDescription, ot.description as operationTypeDescription, e.photoUri as equipmentPhotoUri, e.iconIdentifier as equipmentIconIdentifier, ot.photoUri as operationTypePhotoUri, ot.iconIdentifier as operationTypeIconIdentifier, e.dismissed as equipmentDismissed, ot.dismissed as operationTypeDismissed FROM maintenance_logs as l JOIN equipments as e ON l.equipmentId = e.id JOIN operation_types as ot ON l.operationTypeId = ot.id ORDER BY l.date ASC")),
+            measurementUnitDao.getAllUnits()
+        ) { e, o, l, u -> CoreData(e, o, l, u) },
         combine(
             imageRepository.getCategoryColor(Category.EQUIPMENT),
             imageRepository.getCategoryColor(Category.OPERATION),
-            selectionState,
-            reportFilterDao.getSavedFilters("ALL_REPORTS")
-        ) { eColor, oColor, selections, saved -> Quadruple(eColor, oColor, selections, saved) }
-    ) { equipments, operationTypes, logs, units, quadruple ->
-        val (eColor, oColor, selections, savedFilters) = quadruple
-        
-        val filteredLogs = logs.filter { logDetail ->
+            selectionState
+        ) { ec, oc, s -> StyleData(ec, oc, s) },
+        combine(
+            reportFilterDao.getSavedFilters("ALL_REPORTS"),
+            _activeFilter,
+            currentState
+        ) { saved, active, current -> PersistData(saved, active, current) }
+    ) { core, style, persist ->
+        val filteredLogs = core.logs.filter { logDetail ->
             val date = logDetail.log.date
-            val matchesDate = (selections.startDate == null || date >= selections.startDate) && 
-                              (selections.endDate == null || date <= selections.endDate)
-            val matchesVisibility = selections.showDismissed || !logDetail.log.dismissed
+            val matchesDate = (style.selections.startDate == null || date >= style.selections.startDate) && 
+                              (selectionsMatchesDate(date, style.selections))
+            val matchesVisibility = style.selections.showDismissed || !logDetail.log.dismissed
             matchesDate && matchesVisibility
         }
 
-        // Use stable order based on the master lists
-        val sortedSelectedEquipIds = equipments.map { it.id }.filter { it in selections.selectedEquipmentIds }
-        val sortedSelectedOpIds = operationTypes.map { it.id }.filter { it in selections.selectedOperationTypeIds }
+        val sortedSelectedEquipIds = core.equips.map { it.id }.filter { it in style.selections.selectedEquipmentIds }
+        val sortedSelectedOpIds = core.ops.map { it.id }.filter { it in style.selections.selectedOperationTypeIds }
 
         val equipDist = filteredLogs
-            .filter { it.log.equipmentId in selections.selectedEquipmentIds }
+            .filter { it.log.equipmentId in style.selections.selectedEquipmentIds }
             .groupBy { it.log.equipmentId }
             .map { (id, logs) ->
-                val label = equipments.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+                val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
                 PieChartPoint(label, logs.size.toFloat())
             }.sortedByDescending { it.value }
 
         val opDist = filteredLogs
-            .filter { it.log.operationTypeId in selections.selectedOperationTypeIds }
+            .filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds }
             .groupBy { it.log.operationTypeId }
             .map { (id, logs) ->
-                val label = operationTypes.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+                val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
                 PieChartPoint(label, logs.size.toFloat())
             }.sortedByDescending { it.value }
 
@@ -252,64 +224,67 @@ class ReportsViewModel(
             val points = filteredLogs
                 .filter { it.log.equipmentId == id && it.log.kilometers != null }
                 .map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
-            aggregateData(points, selections.timeGranularity)
+            aggregateData(points, style.selections.timeGranularity)
         }
 
         val opChartData = sortedSelectedOpIds.associateWith { id ->
             val points = filteredLogs
                 .filter { it.log.operationTypeId == id && it.log.kilometers != null }
                 .map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat(), it.equipmentDescription) }
-            aggregateData(points, selections.timeGranularity)
+            aggregateData(points, style.selections.timeGranularity)
         }
         
         val selectedUnits = sortedSelectedEquipIds.mapNotNull { id ->
-            val equip = equipments.find { it.id == id }
-            units.find { it.id == equip?.unitId }?.label
+            core.equips.find { it.id == id }?.unitId?.let { unitId ->
+                core.units.find { it.id == unitId }?.label
+            }
         }.distinct()
-        
         val equipUnit = selectedUnits.joinToString(", ")
         val hasMixedUnits = selectedUnits.size > 1
 
         val opSelectedUnits = sortedSelectedOpIds.flatMap { opId ->
             filteredLogs.filter { it.log.operationTypeId == opId }
                 .mapNotNull { logDetail ->
-                    equipments.find { it.id == logDetail.log.equipmentId }?.unitId
-                        ?.let { unitId -> units.find { it.id == unitId }?.label }
+                    core.equips.find { it.id == logDetail.log.equipmentId }?.unitId
+                        ?.let { unitId -> core.units.find { it.id == unitId }?.label }
                 }
         }.distinct()
         val opUnitLabel = opSelectedUnits.joinToString(", ")
         val opHasMixedUnits = opSelectedUnits.size > 1
 
+        val isDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current)
+
         ReportsUiState(
-            equipments = equipments,
-            selectedEquipmentIds = selections.selectedEquipmentIds,
+            equipments = core.equips,
+            selectedEquipmentIds = style.selections.selectedEquipmentIds,
             equipmentChartData = equipChartData,
             equipmentDistribution = equipDist,
-            equipmentCategoryColor = eColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+            equipmentCategoryColor = style.ec ?: UiConstants.DEFAULT_FALLBACK_COLOR,
             equipmentUnitLabel = equipUnit,
             hasMixedUnits = hasMixedUnits,
-            operationTypes = operationTypes,
-            selectedOperationTypeIds = selections.selectedOperationTypeIds,
+            operationTypes = core.ops,
+            selectedOperationTypeIds = style.selections.selectedOperationTypeIds,
             operationChartData = opChartData,
             operationDistribution = opDist,
-            operationCategoryColor = oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+            operationCategoryColor = style.oc ?: UiConstants.DEFAULT_FALLBACK_COLOR,
             operationUnitLabel = opUnitLabel,
             opHasMixedUnits = opHasMixedUnits,
-            startDate = selections.startDate,
-            endDate = selections.endDate,
-            timeGranularity = selections.timeGranularity,
-            showDismissed = selections.showDismissed,
-            colorMode = selections.colorMode,
-            customColors = selections.customColors,
-            savedFilters = savedFilters
+            startDate = style.selections.startDate,
+            endDate = style.selections.endDate,
+            timeGranularity = style.selections.timeGranularity,
+            showDismissed = style.selections.showDismissed,
+            colorMode = style.selections.colorMode,
+            customColors = style.selections.customColors,
+            savedFilters = persist.saved,
+            activeFilterName = persist.active?.name,
+            isFilterDirty = isDirty
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = ReportsUiState()
-    )
+    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = ReportsUiState())
 
-    private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+    private fun selectionsMatchesDate(date: Long, selections: SelectionState): Boolean {
+        return (selections.startDate == null || date >= selections.startDate) && 
+               (selections.endDate == null || date <= selections.endDate)
+    }
 
     private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity): List<ChartPoint> {
         if (points.isEmpty()) return emptyList()
@@ -330,91 +305,51 @@ class ReportsViewModel(
     }
 
     fun toggleEquipmentSelection(id: Int) {
-        _selectedEquipmentIds.value = if (_selectedEquipmentIds.value.contains(id)) {
-            _selectedEquipmentIds.value - id
-        } else {
-            _selectedEquipmentIds.value + id
-        }
+        _selectedEquipmentIds.value = if (_selectedEquipmentIds.value.contains(id)) _selectedEquipmentIds.value - id else _selectedEquipmentIds.value + id
     }
 
     fun toggleOperationTypeSelection(id: Int) {
-        _selectedOperationTypeIds.value = if (_selectedOperationTypeIds.value.contains(id)) {
-            _selectedOperationTypeIds.value - id
-        } else {
-            _selectedOperationTypeIds.value + id
+        _selectedOperationTypeIds.value = if (_selectedOperationTypeIds.value.contains(id)) _selectedOperationTypeIds.value - id else _selectedOperationTypeIds.value + id
+    }
+
+    fun selectAllEquipment() { _selectedEquipmentIds.value = uiState.value.equipments.map { it.id }.toSet() }
+    fun invertEquipmentSelection() { _selectedEquipmentIds.value = uiState.value.equipments.map { it.id }.toSet() - _selectedEquipmentIds.value }
+    fun clearEquipmentSelection() { _selectedEquipmentIds.value = emptySet() }
+    fun selectAllOperationTypes() { _selectedOperationTypeIds.value = uiState.value.operationTypes.map { it.id }.toSet() }
+    fun invertOperationTypeSelection() { _selectedOperationTypeIds.value = uiState.value.operationTypes.map { it.id }.toSet() - _selectedOperationTypeIds.value }
+    fun clearOperationTypeSelection() { _selectedOperationTypeIds.value = emptySet() }
+    fun setDateRange(start: Long?, end: Long?) { _startDate.value = start; _endDate.value = end }
+    fun setTimeGranularity(granularity: TimeGranularity) { _timeGranularity.value = granularity }
+
+    fun resetFilters() {
+        _startDate.value = null; _endDate.value = null
+        _timeGranularity.value = TimeGranularity.HOURS; _showDismissed.value = false
+        selectAllEquipment(); selectAllOperationTypes()
+        _activeFilter.value = null
+    }
+    
+    fun toggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
+    fun refresh() { _refreshTrigger.value += 1 }
+
+    fun saveAsNewFilter(name: String) {
+        viewModelScope.launch {
+            val state = ReportFilterState(_selectedEquipmentIds.value, _selectedOperationTypeIds.value, _startDate.value, _endDate.value, _timeGranularity.value, _showDismissed.value)
+            val json = Json.encodeToString(state)
+            val existing = uiState.value.savedFilters.find { it.name?.equals(name, ignoreCase = true) == true }
+            val filterToSave = if (existing != null) existing.copy(filterJson = json, timestamp = System.currentTimeMillis())
+                               else ReportFilter(name = name, reportType = "ALL_REPORTS", filterJson = json, isLastSession = false)
+            reportFilterDao.insertFilter(filterToSave)
+            _activeFilter.value = filterToSave
         }
     }
 
-    fun selectAllEquipment() {
-        val currentEquipments = uiState.value.equipments
-        _selectedEquipmentIds.value = currentEquipments.map { it.id }.toSet()
-    }
-
-    fun invertEquipmentSelection() {
-        val currentEquipments = uiState.value.equipments
-        val currentSelected = _selectedEquipmentIds.value
-        _selectedEquipmentIds.value = currentEquipments.map { it.id }.toSet() - currentSelected
-    }
-
-    fun clearEquipmentSelection() {
-        _selectedEquipmentIds.value = emptySet()
-    }
-
-    fun selectAllOperationTypes() {
-        val currentOps = uiState.value.operationTypes
-        _selectedOperationTypeIds.value = currentOps.map { it.id }.toSet()
-    }
-
-    fun invertOperationTypeSelection() {
-        val currentOps = uiState.value.operationTypes
-        val currentSelected = _selectedOperationTypeIds.value
-        _selectedOperationTypeIds.value = currentOps.map { it.id }.toSet() - currentSelected
-    }
-
-    fun clearOperationTypeSelection() {
-        _selectedOperationTypeIds.value = emptySet()
-    }
-
-    fun setDateRange(start: Long?, end: Long?) {
-        _startDate.value = start
-        _endDate.value = end
-    }
-
-    fun setTimeGranularity(granularity: TimeGranularity) {
-        _timeGranularity.value = granularity
-    }
-
-    fun resetFilters() {
-        _startDate.value = null
-        _endDate.value = null
-        _timeGranularity.value = TimeGranularity.HOURS
-        _showDismissed.value = false
-        selectAllEquipment()
-        selectAllOperationTypes()
-    }
-    
-    fun toggleShowDismissed() {
-        _showDismissed.value = !_showDismissed.value
-    }
-    
-    fun refresh() {
-        _refreshTrigger.value += 1
-    }
-
-    fun saveCurrentFilter(name: String) {
+    fun overwriteActiveFilter() {
+        val active = _activeFilter.value ?: return
         viewModelScope.launch {
-            val state = ReportFilterState(
-                selectedEquipmentIds = _selectedEquipmentIds.value,
-                selectedOperationTypeIds = _selectedOperationTypeIds.value,
-                startDate = _startDate.value,
-                endDate = _endDate.value,
-                timeGranularity = _timeGranularity.value,
-                showDismissed = _showDismissed.value
-            )
-            val json = Json.encodeToString(state)
-            reportFilterDao.insertFilter(
-                ReportFilter(name = name, reportType = "ALL_REPORTS", filterJson = json, isLastSession = false)
-            )
+            val state = ReportFilterState(_selectedEquipmentIds.value, _selectedOperationTypeIds.value, _startDate.value, _endDate.value, _timeGranularity.value, _showDismissed.value)
+            val updated = active.copy(filterJson = Json.encodeToString(state), timestamp = System.currentTimeMillis())
+            reportFilterDao.insertFilter(updated)
+            _activeFilter.value = updated
         }
     }
 
@@ -427,14 +362,14 @@ class ReportsViewModel(
             _endDate.value = state.endDate
             _timeGranularity.value = state.timeGranularity
             _showDismissed.value = state.showDismissed
+            _activeFilter.value = filter
             refresh()
-        } catch (e: Exception) {
-            // Error applying filter
-        }
+        } catch (e: Exception) { }
     }
 
     fun deleteSavedFilter(id: Int) {
         viewModelScope.launch {
+            if (_activeFilter.value?.id == id) _activeFilter.value = null
             reportFilterDao.deleteFilter(id)
         }
     }

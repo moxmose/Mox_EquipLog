@@ -42,8 +42,8 @@ class AppSettingsManager(
     val reportsColorMode: Flow<String> = appPreferenceDao.getPreferenceFlow("reports_color_mode")
         .map { it ?: UiConstants.DEFAULT_REPORTS_COLOR_MODE }
 
-    val reportsCustomColors: Flow<List<String>> = appPreferenceDao.getPreferenceFlow("reports_custom_colors")
-        .map { it?.split(";") ?: UiConstants.DEFAULT_REPORTS_CUSTOM_COLORS.split(";") }
+    val reportsCustomColors: Flow<List<String>?> = appPreferenceDao.getPreferenceFlow("reports_custom_colors")
+        .map { it?.split(";") }
 
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
@@ -105,7 +105,11 @@ class AppSettingsManager(
         appPreferenceDao.insertPreference(AppPreference("reports_color_mode", mode))
     }
 
-    suspend fun setReportsCustomColors(colors: List<String>) {
-        appPreferenceDao.insertPreference(AppPreference("reports_custom_colors", colors.joinToString(";")))
+    suspend fun setReportsCustomColors(colors: List<String>?) {
+        if (colors == null) {
+            appPreferenceDao.deletePreference("reports_custom_colors")
+        } else {
+            appPreferenceDao.insertPreference(AppPreference("reports_custom_colors", colors.joinToString(";")))
+        }
     }
 }
