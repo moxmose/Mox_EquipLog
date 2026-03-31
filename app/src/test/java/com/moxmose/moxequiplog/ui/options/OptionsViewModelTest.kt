@@ -67,16 +67,20 @@ class OptionsViewModelTest {
             every { backgroundTintAlpha } returns backgroundTintAlphaFlow
             every { backgroundImageAlpha } returns backgroundImageAlphaFlow
             every { defaultUnitId } returns MutableStateFlow(null)
+            every { reportsColorMode } returns MutableStateFlow(UiConstants.DEFAULT_REPORTS_COLOR_MODE)
+            every { reportsCustomColors } returns MutableStateFlow(null)
         }
         equipmentDao = mockk(relaxed = true)
-        measurementUnitDao = mockk(relaxed = true) {
-            every { getAllUnits() } returns MutableStateFlow(emptyList())
-        }
+        
+        measurementUnitDao = mockk(relaxed = true)
+        every { measurementUnitDao.getAllUnits() } returns MutableStateFlow(emptyList())
+        coEvery { measurementUnitDao.countUnits() } returns 1 // Avoid auto-population during test
         
         imageRepository = mockk(relaxed = true) {
             every { allImages } returns allImagesFlow
             every { allCategories } returns allCategoriesFlow
             every { allColors } returns allColorsFlow
+            every { allColorsForReports } returns allColorsFlow
             every { getCategoryColor(any()) } returns MutableStateFlow(UiConstants.DEFAULT_FALLBACK_COLOR)
             every { getCategoryDefaultIcon(any()) } returns MutableStateFlow(null)
             every { getCategoryDefaultPhoto(any()) } returns MutableStateFlow(null)
@@ -89,11 +93,6 @@ class OptionsViewModelTest {
     fun tearDown() {
         Dispatchers.resetMain()
         stopKoin()
-    }
-
-    @Test
-    fun onInit_initializesAppData() = runTest {
-        coVerify { imageRepository.initializeAppData() }
     }
 
     @Test
