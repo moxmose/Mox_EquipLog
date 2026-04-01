@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -106,6 +107,545 @@ fun ReportsScreen(
     }
 }
 
+// --- REUSABLE COMPONENTS ---
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReportBaseScreen(
+    title: String,
+    onBack: () -> Unit,
+    uiState: ReportsUiState,
+    viewModel: ReportsViewModel,
+    selector: @Composable () -> Unit,
+    onSelectAll: () -> Unit,
+    onInvertSelection: () -> Unit,
+    onClearSelection: () -> Unit,
+    content: LazyListScope.() -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        containerColor = Color.Transparent
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
+        ) {
+            item {
+                ReportSelectionHeader(
+                    selector = selector,
+                    showDismissed = uiState.showDismissed,
+                    onToggleShowDismissed = { viewModel.toggleShowDismissed() },
+                    onSelectAll = {
+                        onSelectAll()
+                        viewModel.refresh()
+                    },
+                    onInvertSelection = {
+                        onInvertSelection()
+                        viewModel.refresh()
+                    },
+                    onClearSelection = {
+                        onClearSelection()
+                        viewModel.refresh()
+                    }
+                )
+            }
+
+            item {
+                StandardFilterSection(
+                    startDate = uiState.startDate,
+                    endDate = uiState.endDate,
+                    granularity = uiState.timeGranularity,
+                    onDateRangeSelected = viewModel::setDateRange,
+                    onGranularitySelected = viewModel::setTimeGranularity,
+                    onReset = viewModel::resetFilters,
+                    onRefresh = viewModel::refresh
+                )
+            }
+
+            item {
+                FilterManagementRow(
+                    savedFilters = uiState.savedFilters,
+                    activeFilterName = uiState.activeFilterName,
+                    isDirty = uiState.isFilterDirty,
+                    onSaveNew = viewModel::saveAsNewFilter,
+                    onOverwrite = viewModel::overwriteActiveFilter,
+                    onApply = viewModel::applySavedFilter,
+                    onDelete = viewModel::deleteSavedFilter
+                )
+            }
+
+            content()
+        }
+    }
+}
+
+@Composable
+fun ReportSelectionHeader(
+    selector: @Composable () -> Unit,
+    showDismissed: Boolean,
+    onToggleShowDismissed: () -> Unit,
+    onSelectAll: () -> Unit,
+    onInvertSelection: () -> Unit,
+    onClearSelection: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            selector()
+        }
+
+        IconButton(
+            onClick = onToggleShowDismissed,
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = if (showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+            )
+        ) {
+            Icon(
+                imageVector = if (showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                contentDescription = if (showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
+                tint = if (showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        IconButton(onClick = onSelectAll) {
+            Icon(
+                imageVector = Icons.Default.SelectAll,
+                contentDescription = stringResource(R.string.selection_all),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        IconButton(onClick = onInvertSelection) {
+            Icon(
+                imageVector = Icons.Default.SwapHoriz,
+                contentDescription = stringResource(R.string.selection_invert),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        IconButton(onClick = onClearSelection) {
+            Icon(
+                imageVector = Icons.Default.FilterAltOff,
+                contentDescription = stringResource(R.string.selection_clear),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun <T> GenericMultiSelector(
+    items: List<T>,
+    selectedIds: Set<Int>,
+    onToggleSelection: (Int) -> Unit,
+    categoryColor: Color,
+    chartColors: List<Color>,
+    sortedSelectedIds: List<Int>,
+    label: String,
+    placeholder: String,
+    getId: (T) -> Int,
+    getDescription: (T) -> String,
+    getIconIdentifier: (T) -> String?,
+    getPhotoUri: (T) -> String?
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displayText = if (selectedIds.isEmpty()) {
+        placeholder
+    } else {
+        val firstSelected = items.find { getId(it) == selectedIds.first() }?.let(getDescription)?.takeIf { it.isNotBlank() }
+        if (selectedIds.size > 1) {
+            "$firstSelected + ${selectedIds.size - 1}"
+        } else {
+            firstSelected ?: "ID: ${selectedIds.first()}"
+        }
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = displayText,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = categoryColor,
+                focusedLabelColor = categoryColor
+            ),
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryEditable, true)
+                .fillMaxWidth()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            items.forEach { item ->
+                val id = getId(item)
+                val isSelected = id in selectedIds
+                val colorIndex = if (isSelected) sortedSelectedIds.indexOf(id) else -1
+                
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Checkbox(checked = isSelected, onCheckedChange = null)
+                            
+                            if (isSelected && colorIndex != -1) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(chartColors[colorIndex % chartColors.size])
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.size(12.dp))
+                            }
+                            
+                            ImageIcon(
+                                iconIdentifier = getIconIdentifier(item),
+                                photoUri = getPhotoUri(item),
+                                modifier = Modifier.size(24.dp),
+                                tint = if (isSelected) categoryColor else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = getDescription(item),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    },
+                    onClick = { onToggleSelection(id) }
+                )
+            }
+        }
+    }
+}
+
+// --- SCREENS ---
+
+@Composable
+fun EquipmentsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) {
+        uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds }
+    }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_equipments_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            GenericMultiSelector(
+                items = uiState.equipments,
+                selectedIds = uiState.selectedEquipmentIds,
+                onToggleSelection = { 
+                    viewModel.toggleEquipmentSelection(it)
+                    viewModel.refresh()
+                },
+                categoryColor = categoryColor,
+                chartColors = chartColors,
+                sortedSelectedIds = sortedSelectedIds,
+                label = stringResource(R.string.navigation_equipments),
+                placeholder = stringResource(R.string.select_equipment),
+                getId = { it.id },
+                getDescription = { it.description },
+                getIconIdentifier = { it.iconIdentifier },
+                getPhotoUri = { it.photoUri }
+            )
+        },
+        onSelectAll = viewModel::selectAllEquipment,
+        onInvertSelection = viewModel::invertEquipmentSelection,
+        onClearSelection = viewModel::clearEquipmentSelection
+    ) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val unitsPart = if (uiState.equipmentUnitLabel.isNotBlank()) {
+                        uiState.equipmentUnitLabel.split(", ").joinToString("") { "[$it]" }
+                    } else ""
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "$unitsPart ${stringResource(R.string.report_value_over_time)}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (uiState.hasMixedUnits) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = MaterialTheme.shapes.extraSmall
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp).padding(2.dp),
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                    
+                    if (uiState.hasMixedUnits) {
+                        Text(
+                            text = stringResource(R.string.mixed_units_warning),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    MultiLineChart(
+                        chartDataMap = uiState.equipmentChartData,
+                        granularity = uiState.timeGranularity,
+                        finalColors = chartColors
+                    )
+                    
+                    if (uiState.equipmentChartData.any { it.value.isNotEmpty() }) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        ChartLegend(
+                            items = sortedSelectedIds.mapNotNull { id -> 
+                                uiState.equipments.find { it.id == id }?.description?.let { id to it }
+                            },
+                            colors = chartColors
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OperationsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = Color(uiState.operationCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) {
+        uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds }
+    }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_operations_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            GenericMultiSelector(
+                items = uiState.operationTypes,
+                selectedIds = uiState.selectedOperationTypeIds,
+                onToggleSelection = { 
+                    viewModel.toggleOperationTypeSelection(it)
+                    viewModel.refresh()
+                },
+                categoryColor = categoryColor,
+                chartColors = chartColors,
+                sortedSelectedIds = sortedSelectedIds,
+                label = stringResource(R.string.navigation_operations),
+                placeholder = stringResource(R.string.select_operation_type),
+                getId = { it.id },
+                getDescription = { it.description },
+                getIconIdentifier = { it.iconIdentifier },
+                getPhotoUri = { it.photoUri }
+            )
+        },
+        onSelectAll = viewModel::selectAllOperationTypes,
+        onInvertSelection = viewModel::invertOperationTypeSelection,
+        onClearSelection = viewModel::clearOperationTypeSelection
+    ) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val unitsPart = if (uiState.operationUnitLabel.isNotBlank()) {
+                        uiState.operationUnitLabel.split(", ").joinToString("") { "[$it]" }
+                    } else ""
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "$unitsPart ${stringResource(R.string.report_value_over_time)}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (uiState.opHasMixedUnits) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = MaterialTheme.shapes.extraSmall
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp).padding(2.dp),
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+
+                    if (uiState.opHasMixedUnits) {
+                        Text(
+                            text = stringResource(R.string.mixed_units_warning),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    MultiLineChart(
+                        chartDataMap = uiState.operationChartData,
+                        granularity = uiState.timeGranularity,
+                        finalColors = chartColors
+                    )
+                    
+                    if (uiState.operationChartData.any { it.value.isNotEmpty() }) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        ChartLegend(
+                            items = sortedSelectedIds.mapNotNull { id -> 
+                                uiState.operationTypes.find { it.id == id }?.description?.let { id to it }
+                            },
+                            colors = chartColors
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EquipmentsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) {
+        uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds }
+    }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_equipments_freq_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            GenericMultiSelector(
+                items = uiState.equipments,
+                selectedIds = uiState.selectedEquipmentIds,
+                onToggleSelection = { 
+                    viewModel.toggleEquipmentSelection(it)
+                    viewModel.refresh()
+                },
+                categoryColor = categoryColor,
+                chartColors = chartColors,
+                sortedSelectedIds = sortedSelectedIds,
+                label = stringResource(R.string.navigation_equipments),
+                placeholder = stringResource(R.string.select_equipment),
+                getId = { it.id },
+                getDescription = { it.description },
+                getIconIdentifier = { it.iconIdentifier },
+                getPhotoUri = { it.photoUri }
+            )
+        },
+        onSelectAll = viewModel::selectAllEquipment,
+        onInvertSelection = viewModel::invertEquipmentSelection,
+        onClearSelection = viewModel::clearEquipmentSelection
+    ) {
+        item {
+            PieChartCard(
+                title = stringResource(R.string.report_section_equipments_freq),
+                distribution = uiState.equipmentDistribution,
+                baseColor = categoryColor
+            )
+        }
+    }
+}
+
+@Composable
+fun OperationsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = Color(uiState.operationCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) {
+        uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds }
+    }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_operations_freq_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            GenericMultiSelector(
+                items = uiState.operationTypes,
+                selectedIds = uiState.selectedOperationTypeIds,
+                onToggleSelection = { 
+                    viewModel.toggleOperationTypeSelection(it)
+                    viewModel.refresh()
+                },
+                categoryColor = categoryColor,
+                chartColors = chartColors,
+                sortedSelectedIds = sortedSelectedIds,
+                label = stringResource(R.string.navigation_operations),
+                placeholder = stringResource(R.string.select_operation_type),
+                getId = { it.id },
+                getDescription = { it.description },
+                getIconIdentifier = { it.iconIdentifier },
+                getPhotoUri = { it.photoUri }
+            )
+        },
+        onSelectAll = viewModel::selectAllOperationTypes,
+        onInvertSelection = viewModel::invertOperationTypeSelection,
+        onClearSelection = viewModel::clearOperationTypeSelection
+    ) {
+        item {
+            PieChartCard(
+                title = stringResource(R.string.report_section_operations_freq),
+                distribution = uiState.operationDistribution,
+                baseColor = categoryColor
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsMenu(onNavigate: (ReportDestination) -> Unit, onBack: () -> Unit) {
@@ -196,694 +736,6 @@ fun ReportMenuCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EquipmentsReportScreen(
-    uiState: ReportsUiState,
-    viewModel: ReportsViewModel,
-    onBack: () -> Unit
-) {
-    val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
-    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
-    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) {
-        uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds }
-    }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.report_equipments_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
-        containerColor = Color.Transparent
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        EquipmentMultiSelector(
-                            equipments = uiState.equipments,
-                            selectedIds = uiState.selectedEquipmentIds,
-                            onToggleSelection = { 
-                                viewModel.toggleEquipmentSelection(it)
-                                viewModel.refresh()
-                            },
-                            categoryColor = categoryColor,
-                            chartColors = chartColors,
-                            sortedSelectedIds = sortedSelectedIds
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.selectAllEquipment()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SelectAll,
-                            contentDescription = stringResource(R.string.selection_all),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.invertEquipmentSelection()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapHoriz,
-                            contentDescription = stringResource(R.string.selection_invert),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.clearEquipmentSelection()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FilterAltOff,
-                            contentDescription = stringResource(R.string.selection_clear),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            item {
-                StandardFilterSection(
-                    startDate = uiState.startDate,
-                    endDate = uiState.endDate,
-                    granularity = uiState.timeGranularity,
-                    onDateRangeSelected = viewModel::setDateRange,
-                    onGranularitySelected = viewModel::setTimeGranularity,
-                    onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh
-                )
-            }
-
-            item {
-                FilterManagementRow(
-                    savedFilters = uiState.savedFilters,
-                    activeFilterName = uiState.activeFilterName,
-                    isDirty = uiState.isFilterDirty,
-                    onSaveNew = viewModel::saveAsNewFilter,
-                    onOverwrite = viewModel::overwriteActiveFilter,
-                    onApply = viewModel::applySavedFilter,
-                    onDelete = viewModel::deleteSavedFilter
-                )
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        val unitsPart = if (uiState.equipmentUnitLabel.isNotBlank()) {
-                            uiState.equipmentUnitLabel.split(", ").joinToString("") { "[$it]" }
-                        } else ""
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "$unitsPart ${stringResource(R.string.report_value_over_time)}",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            if (uiState.hasMixedUnits) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.errorContainer,
-                                    shape = MaterialTheme.shapes.extraSmall
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp).padding(2.dp),
-                                        tint = MaterialTheme.colorScheme.onErrorContainer
-                                    )
-                                }
-                            }
-                        }
-                        
-                        if (uiState.hasMixedUnits) {
-                            Text(
-                                text = stringResource(R.string.mixed_units_warning),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        MultiLineChart(
-                            chartDataMap = uiState.equipmentChartData,
-                            granularity = uiState.timeGranularity,
-                            finalColors = chartColors
-                        )
-                        
-                        if (uiState.equipmentChartData.any { it.value.isNotEmpty() }) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            ChartLegend(
-                                items = sortedSelectedIds.mapNotNull { id -> 
-                                    uiState.equipments.find { it.id == id }?.description?.let { id to it }
-                                },
-                                colors = chartColors
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OperationsReportScreen(
-    uiState: ReportsUiState,
-    viewModel: ReportsViewModel,
-    onBack: () -> Unit
-) {
-    val categoryColor = Color(uiState.operationCategoryColor.toColorInt())
-    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
-    val sortedSelectedIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) {
-        uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds }
-    }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.report_operations_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
-        containerColor = Color.Transparent
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        OperationMultiSelector(
-                            operationTypes = uiState.operationTypes,
-                            selectedIds = uiState.selectedOperationTypeIds,
-                            onToggleSelection = { 
-                                viewModel.toggleOperationTypeSelection(it)
-                                viewModel.refresh()
-                            },
-                            categoryColor = categoryColor,
-                            chartColors = chartColors,
-                            sortedSelectedIds = sortedSelectedIds
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.selectAllOperationTypes()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SelectAll,
-                            contentDescription = stringResource(R.string.selection_all),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.invertOperationTypeSelection()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapHoriz,
-                            contentDescription = stringResource(R.string.selection_invert),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.clearOperationTypeSelection()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FilterAltOff,
-                            contentDescription = stringResource(R.string.selection_clear),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            item {
-                StandardFilterSection(
-                    startDate = uiState.startDate,
-                    endDate = uiState.endDate,
-                    granularity = uiState.timeGranularity,
-                    onDateRangeSelected = viewModel::setDateRange,
-                    onGranularitySelected = viewModel::setTimeGranularity,
-                    onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh
-                )
-            }
-
-            item {
-                FilterManagementRow(
-                    savedFilters = uiState.savedFilters,
-                    activeFilterName = uiState.activeFilterName,
-                    isDirty = uiState.isFilterDirty,
-                    onSaveNew = viewModel::saveAsNewFilter,
-                    onOverwrite = viewModel::overwriteActiveFilter,
-                    onApply = viewModel::applySavedFilter,
-                    onDelete = viewModel::deleteSavedFilter
-                )
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        val unitsPart = if (uiState.operationUnitLabel.isNotBlank()) {
-                            uiState.operationUnitLabel.split(", ").joinToString("") { "[$it]" }
-                        } else ""
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "$unitsPart ${stringResource(R.string.report_value_over_time)}",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            if (uiState.opHasMixedUnits) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.errorContainer,
-                                    shape = MaterialTheme.shapes.extraSmall
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp).padding(2.dp),
-                                        tint = MaterialTheme.colorScheme.onErrorContainer
-                                    )
-                                }
-                            }
-                        }
-
-                        if (uiState.opHasMixedUnits) {
-                            Text(
-                                text = stringResource(R.string.mixed_units_warning),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        MultiLineChart(
-                            chartDataMap = uiState.operationChartData,
-                            granularity = uiState.timeGranularity,
-                            finalColors = chartColors
-                        )
-                        
-                        if (uiState.operationChartData.any { it.value.isNotEmpty() }) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            ChartLegend(
-                                items = sortedSelectedIds.mapNotNull { id -> 
-                                    uiState.operationTypes.find { it.id == id }?.description?.let { id to it }
-                                },
-                                colors = chartColors
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EquipmentsFreqReportScreen(
-    uiState: ReportsUiState,
-    viewModel: ReportsViewModel,
-    onBack: () -> Unit
-) {
-    val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
-    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
-    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) {
-        uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds }
-    }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.report_equipments_freq_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
-        containerColor = Color.Transparent
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        EquipmentMultiSelector(
-                            equipments = uiState.equipments,
-                            selectedIds = uiState.selectedEquipmentIds,
-                            onToggleSelection = { 
-                                viewModel.toggleEquipmentSelection(it)
-                                viewModel.refresh()
-                            },
-                            categoryColor = categoryColor,
-                            chartColors = chartColors,
-                            sortedSelectedIds = sortedSelectedIds
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.selectAllEquipment()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SelectAll,
-                            contentDescription = stringResource(R.string.selection_all),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.invertEquipmentSelection()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapHoriz,
-                            contentDescription = stringResource(R.string.selection_invert),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.clearEquipmentSelection()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FilterAltOff,
-                            contentDescription = stringResource(R.string.selection_clear),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            item {
-                StandardFilterSection(
-                    startDate = uiState.startDate,
-                    endDate = uiState.endDate,
-                    granularity = uiState.timeGranularity,
-                    onDateRangeSelected = viewModel::setDateRange,
-                    onGranularitySelected = viewModel::setTimeGranularity,
-                    onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh
-                )
-            }
-
-            item {
-                FilterManagementRow(
-                    savedFilters = uiState.savedFilters,
-                    activeFilterName = uiState.activeFilterName,
-                    isDirty = uiState.isFilterDirty,
-                    onSaveNew = viewModel::saveAsNewFilter,
-                    onOverwrite = viewModel::overwriteActiveFilter,
-                    onApply = viewModel::applySavedFilter,
-                    onDelete = viewModel::deleteSavedFilter
-                )
-            }
-
-            item {
-                PieChartCard(
-                    title = stringResource(R.string.report_section_equipments_freq),
-                    distribution = uiState.equipmentDistribution,
-                    baseColor = categoryColor
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OperationsFreqReportScreen(
-    uiState: ReportsUiState,
-    viewModel: ReportsViewModel,
-    onBack: () -> Unit
-) {
-    val categoryColor = Color(uiState.operationCategoryColor.toColorInt())
-    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
-    val sortedSelectedIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) {
-        uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds }
-    }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.report_operations_freq_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
-        containerColor = Color.Transparent
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        OperationMultiSelector(
-                            operationTypes = uiState.operationTypes,
-                            selectedIds = uiState.selectedOperationTypeIds,
-                            onToggleSelection = { 
-                                viewModel.toggleOperationTypeSelection(it)
-                                viewModel.refresh()
-                            },
-                            categoryColor = categoryColor,
-                            chartColors = chartColors,
-                            sortedSelectedIds = sortedSelectedIds
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { viewModel.toggleShowDismissed() },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (uiState.showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (uiState.showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed),
-                            tint = if (uiState.showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.selectAllOperationTypes()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SelectAll,
-                            contentDescription = stringResource(R.string.selection_all),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.invertOperationTypeSelection()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapHoriz,
-                            contentDescription = stringResource(R.string.selection_invert),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            viewModel.clearOperationTypeSelection()
-                            viewModel.refresh()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FilterAltOff,
-                            contentDescription = stringResource(R.string.selection_clear),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            item {
-                StandardFilterSection(
-                    startDate = uiState.startDate,
-                    endDate = uiState.endDate,
-                    granularity = uiState.timeGranularity,
-                    onDateRangeSelected = viewModel::setDateRange,
-                    onGranularitySelected = viewModel::setTimeGranularity,
-                    onReset = viewModel::resetFilters,
-                    onRefresh = viewModel::refresh
-                )
-            }
-
-            item {
-                FilterManagementRow(
-                    savedFilters = uiState.savedFilters,
-                    activeFilterName = uiState.activeFilterName,
-                    isDirty = uiState.isFilterDirty,
-                    onSaveNew = viewModel::saveAsNewFilter,
-                    onOverwrite = viewModel::overwriteActiveFilter,
-                    onApply = viewModel::applySavedFilter,
-                    onDelete = viewModel::deleteSavedFilter
-                )
-            }
-
-            item {
-                PieChartCard(
-                    title = stringResource(R.string.report_section_operations_freq),
-                    distribution = uiState.operationDistribution,
-                    baseColor = categoryColor
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun FilterManagementRow(
     savedFilters: List<ReportFilter>,
@@ -936,7 +788,6 @@ fun FilterManagementRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icona Filter (senza sbarra) per identificare la riga preset
         Icon(
             imageVector = Icons.Default.FilterAlt,
             contentDescription = null,
@@ -946,7 +797,6 @@ fun FilterManagementRow(
         
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Etichetta del filtro attivo con stato dirty
         Text(
             text = activeFilterName ?: stringResource(R.string.custom_filter),
             style = MaterialTheme.typography.labelSmall,
@@ -958,7 +808,6 @@ fun FilterManagementRow(
             modifier = Modifier.weight(1f)
         )
 
-        // Pulsante Carica (Cartella)
         Box {
             IconButton(
                 onClick = { showLoadMenu = true },
@@ -995,7 +844,6 @@ fun FilterManagementRow(
             }
         }
 
-        // Pulsante Sovrascrivi (Floppy) - visibile solo se dirty
         if (activeFilterName != null && isDirty) {
             IconButton(onClick = onOverwrite) {
                 Icon(
@@ -1006,7 +854,6 @@ fun FilterManagementRow(
             }
         }
 
-        // Pulsante Salva Nuovo (PostAdd)
         IconButton(onClick = { showSaveDialog = true }) {
             Icon(
                 imageVector = Icons.Default.PostAdd,
@@ -1137,190 +984,6 @@ fun NoDataPlaceholder() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EquipmentMultiSelector(
-    equipments: List<Equipment>,
-    selectedIds: Set<Int>,
-    onToggleSelection: (Int) -> Unit,
-    categoryColor: Color,
-    chartColors: List<Color>,
-    sortedSelectedIds: List<Int>
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val displayText = if (selectedIds.isEmpty()) {
-        stringResource(R.string.select_equipment)
-    } else {
-        val firstSelected = equipments.find { it.id == selectedIds.first() }?.description?.takeIf { it.isNotBlank() }
-        if (selectedIds.size > 1) {
-            "$firstSelected + ${selectedIds.size - 1}"
-        } else {
-            firstSelected ?: "ID: ${selectedIds.first()}"
-        }
-    }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
-    ) {
-        OutlinedTextField(
-            value = displayText,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.navigation_equipments)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = categoryColor,
-                focusedLabelColor = categoryColor
-            ),
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryEditable, true)
-                .fillMaxWidth()
-        )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            equipments.forEach { equipment ->
-                val isSelected = equipment.id in selectedIds
-                val colorIndex = if (isSelected) sortedSelectedIds.indexOf(equipment.id) else -1
-                
-                DropdownMenuItem(
-                    text = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = null
-                            )
-                            
-                            if (isSelected && colorIndex != -1) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(chartColors[colorIndex % chartColors.size])
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.size(12.dp))
-                            }
-                            
-                            ImageIcon(
-                                iconIdentifier = equipment.iconIdentifier,
-                                photoUri = equipment.photoUri,
-                                modifier = Modifier.size(24.dp),
-                                tint = if (isSelected) categoryColor else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = equipment.description,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    },
-                    onClick = { onToggleSelection(equipment.id) }
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OperationMultiSelector(
-    operationTypes: List<OperationType>,
-    selectedIds: Set<Int>,
-    onToggleSelection: (Int) -> Unit,
-    categoryColor: Color,
-    chartColors: List<Color>,
-    sortedSelectedIds: List<Int>
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val displayText = if (selectedIds.isEmpty()) {
-        stringResource(R.string.select_operation_type)
-    } else {
-        val firstSelected = operationTypes.find { it.id == selectedIds.first() }?.description?.takeIf { it.isNotBlank() }
-        if (selectedIds.size > 1) {
-            "$firstSelected + ${selectedIds.size - 1}"
-        } else {
-            firstSelected ?: "ID: ${selectedIds.first()}"
-        }
-    }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
-    ) {
-        OutlinedTextField(
-            value = displayText,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.navigation_operations)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = categoryColor,
-                focusedLabelColor = categoryColor
-            ),
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryEditable, true)
-                .fillMaxWidth()
-        )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            operationTypes.forEach { op ->
-                val isSelected = op.id in selectedIds
-                val colorIndex = if (isSelected) sortedSelectedIds.indexOf(op.id) else -1
-
-                DropdownMenuItem(
-                    text = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = null
-                            )
-
-                            if (isSelected && colorIndex != -1) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(chartColors[colorIndex % chartColors.size])
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.size(12.dp))
-                            }
-
-                            ImageIcon(
-                                iconIdentifier = op.iconIdentifier,
-                                photoUri = op.photoUri,
-                                modifier = Modifier.size(24.dp),
-                                tint = if (isSelected) categoryColor else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = op.description,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    },
-                    onClick = {
-                        onToggleSelection(op.id)
-                    }
-                )
-            }
-        }
     }
 }
 
