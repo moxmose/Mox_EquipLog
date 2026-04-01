@@ -11,9 +11,9 @@
     <!-- Reports -->
     <string name="reports_title">Reports</string>
     <string name="report_equipments_title">Equipments Trend</string>
-    <string name="report_equipments_desc">Kilometers trend by equipment</string>
+    <string name="report_equipments_desc">UI trend by equipment</string>
     <string name="report_operations_title">Operations Trend</string>
-    <string name="report_operations_desc">Kilometers trend by operation type</string>
+    <string name="report_operations_desc">UI trend by operation type</string>
     <string name="report_equipments_freq_title">Equipments Frequency</string>
     <string name="report_equipments_freq_desc">Maintenance frequency by equipment</string>
     <string name="report_operations_freq_title">Operations Frequency</string>
@@ -111,6 +111,8 @@
     <string name="button_about" translatable="false">About</string>
     <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>
     <string name="about_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!</string>
+    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!\n\nSpend some effort to customize the app in the Options Section to select backgrounds, images and colors, then:\n1) add equipments\n2) add operations, then\n3) start to record your maintenances</string>
+    <string name="dismiss_next_time">Don\'t show again</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Background Customization</string>
     <string name="background_image">Background Image</string>

@@ -5,30 +5,24 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.ui.components.AppBackground
 import com.moxmose.moxequiplog.ui.equipments.EquipmentsScreen
@@ -42,6 +36,7 @@ import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
     private val imageRepository: ImageRepository by inject()
+    private val appSettingsManager: AppSettingsManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,15 +48,70 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MoxEquipLogTheme {
-                MoxEquipLogApp()
+                val showWelcome by appSettingsManager.showWelcomeAlert.collectAsStateWithLifecycle(initialValue = false)
+                
+                MoxEquipLogApp(
+                    showWelcome = showWelcome,
+                    onDismissWelcome = { dontShowAgain ->
+                        lifecycleScope.launch {
+                            if (dontShowAgain) appSettingsManager.setShowWelcomeAlert(false)
+                        }
+                    }
+                )
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MoxEquipLogApp() {
+fun MoxEquipLogApp(
+    showWelcome: Boolean,
+    onDismissWelcome: (Boolean) -> Unit
+) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.LOGS) }
+    var welcomeVisible by remember(showWelcome) { mutableStateOf(showWelcome) }
+
+    if (welcomeVisible) {
+        var dontShowAgain by remember { mutableStateOf(false) }
+        
+        BasicAlertDialog(onDismissRequest = { 
+            onDismissWelcome(dontShowAgain)
+            welcomeVisible = false 
+        }) {
+            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text(text = stringResource(R.string.about_dialog_title), style = MaterialTheme.typography.headlineSmall)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = stringResource(R.string.welcome_dialog_content), style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Checkbox(checked = dontShowAgain, onCheckedChange = { dontShowAgain = it })
+                        Text(
+                            text = stringResource(R.string.dismiss_next_time),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    TextButton(
+                        onClick = { 
+                            onDismissWelcome(dontShowAgain)
+                            welcomeVisible = false 
+                        }, 
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(stringResource(R.string.button_ok))
+                    }
+                }
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AppBackground(currentDestination = currentDestination)

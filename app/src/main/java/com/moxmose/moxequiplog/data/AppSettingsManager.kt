@@ -45,6 +45,9 @@ class AppSettingsManager(
     val reportsCustomColors: Flow<List<String>?> = appPreferenceDao.getPreferenceFlow("reports_custom_colors")
         .map { it?.split(";") }
 
+    val showWelcomeAlert: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("show_welcome_alert")
+        .map { it?.toBoolean() ?: true }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -111,5 +114,9 @@ class AppSettingsManager(
         } else {
             appPreferenceDao.insertPreference(AppPreference("reports_custom_colors", colors.joinToString(";")))
         }
+    }
+
+    suspend fun setShowWelcomeAlert(show: Boolean) {
+        appPreferenceDao.insertPreference(AppPreference("show_welcome_alert", show.toString()))
     }
 }
