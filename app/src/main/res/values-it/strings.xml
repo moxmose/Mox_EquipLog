@@ -8,6 +8,22 @@
     <string name="navigation_options">Opzioni</string>
 
     <!-- Reports -->
+    <string name="reports_title">Report</string>
+    <string name="report_equipments_title">Andamento Mezzi</string>
+    <string name="report_equipments_desc">Andamento valori per mezzo</string>
+    <string name="report_operations_title">Andamento Attività</string>
+    <string name="report_operations_desc">Andamento valori per tipo attività</string>
+    <string name="report_equipments_freq_title">Frequenza Mezzi</string>
+    <string name="report_equipments_freq_desc">Frequenza manutenzioni per mezzo</string>
+    <string name="report_operations_freq_title">Frequenza Attività</string>
+    <string name="report_operations_freq_desc">Frequenza manutenzioni per attività</string>
+    <string name="report_intervals_title">Analisi Intervalli</string>
+    <string name="report_intervals_desc">Analisi del delta tra manutenzioni</string>
+    <string name="report_heatmap_title">Heatmap Attività</string>
+    <string name="report_heatmap_desc">Distribuzione temporale delle attività</string>
+    <string name="report_benchmarking_title">Benchmarking</string>
+    <string name="report_benchmarking_desc">Confronto diretto tra mezzi</string>
+
     <string name="report_section_equipments">Mezzi</string>
     <string name="report_section_operations">Attività</string>
     <string name="report_section_equipments_freq">Frequenza Mezzi</string>
@@ -23,6 +39,10 @@
     <string name="report_operation_subtitle">Frequenza e valori per singola attività</string>
     <string name="report_equipment_freq_subtitle">Frequenza di utilizzo dei mezzi</string>
     <string name="report_operation_freq_subtitle">Frequenza delle attività svolte</string>
+    <string name="report_delta_label">Delta (Differenza valore)</string>
+    <string name="report_heatmap_intensity">Intensità (conteggio)</string>
+    <string name="report_benchmark_total">Valore Totale</string>
+    <string name="report_benchmark_avg_interval">Intervallo Medio</string>
 
     <string name="filter_from">Da</string>
     <string name="filter_to">A</string>
@@ -96,6 +116,20 @@
     <string name="options_info_background_select">Seleziona un\'immagine per lo sfondo dell\'applicazione.</string>
     <string name="options_info_min_one_color">Almeno un colore deve rimanere visibile per i report.</string>
 
+    <string name="button_about" translatable="false">Informazioni</string>
+    <string name="about_dialog_title" translatable="false">Informazioni su Mox EquipLog</string>
+    <string name="about_dialog_content">Questa app aiuta a tracciare registrazioni di manutenzione per i vostri mezzi. Mantienili in forma perfetta!</string>
+    <string name="welcome_dialog_content">Questa app aiuta a tracciare le manutenzioni dei tuoi mezzi. Mantienili in perfetta forma!\n\nPrenditi un momento per personalizzare l\'app nella sezione Opzioni per scegliere sfondi, immagini e colori, quindi:\n1) aggiungi i mezzi\n2) aggiungi le attività, poi\n3) inizia a registrare le tue manutenzioni</string>
+    <string name="dismiss_next_time">Non mostrare più</string>
+    <string name="button_ok">OK</string>
+    <string name="background_customization">Personalizzazione Sfondo</string>
+    <string name="background_image">Immagine di Sfondo</string>
+    <string name="select_background_image">Seleziona immagine di sfondo</string>
+    <string name="blur_radius">Raggio Sfocatura: %1$.1f</string>
+    <string name="saturation">Saturazione: %1$.1f</string>
+    <string name="clear_background">Cancella Sfondo</string>
+
+    <!-- Equipments & Operations -->
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
     <string name="set_as_default_instruction">Tocca l\'icona per impostare il predefinito</string>
     <string name="add_equipment">Aggiungi Mezzo</string>
@@ -127,6 +161,7 @@
     <string name="id_no_description">id:%1$d - senza descrizione</string>
     <string name="measurement_unit">Unità di Misura</string>
 
+    <!-- Maintenance Logs -->
     <string name="search_logs">Cerca</string>
     <string name="add_log">Aggiungi registrazione</string>
     <string name="sort_by">Ordina per</string>
@@ -141,22 +176,14 @@
     <string name="dismissed_suffix">(dismesso)</string>
     <string name="selected_content_desc">Selezionato</string>
     <string name="date">Data</string>
-    <string name="about_dialog_content">Questa app aiuta a tracciare registrazioni di manutenzione per i vostri mezzi. Mantienili in forma perfetta!</string>
     <string name="select_date">Seleziona data</string>
     <string name="edit_log">Modifica registrazione</string>
     <string name="save_log">Salva registrazione</string>
     <string name="dismiss_log">Dismetti registrazione</string>
     <string name="restore_log">Ripristina registrazione</string>
-    <string name="button_ok">OK</string>
-    <string name="background_customization">Personalizzazione Sfondo</string>
-    <string name="background_image">Immagine di Sfondo</string>
-    <string name="select_background_image">Seleziona immagine di sfondo</string>
-    <string name="blur_radius">Raggio Sfocatura: %1$.1f</string>
-    <string name="saturation">Saturazione: %1$.1f</string>
-    <string name="clear_background">Cancella Sfondo</string>
     <string name="select_media">Seleziona media</string>
 
-    <!-- Gestione Errori -->
+    <!-- Error Handling -->
     <string name="error_unknown">Si è verificato un errore sconosciuto.</string>
     <string name="add_color_failed">Impossibile aggiungere il colore %1$s.</string>
     <string name="remove_image_failed">Impossibile rimuovere l\'immagine.</string>
@@ -193,6 +220,7 @@
     <string name="update_log_failed">Aggiornamento della registrazione fallito.</string>
     <string name="dismiss_log_failed">Dismissione della registrazione fallita.</string>
     <string name="restore_log_failed">Ripristino della registrazione fallito.</string>
+    <string name="set_default_failed">Impostazione predefinita fallita</string>
     <string name="refresh">Aggiorna</string>
     <string name="distribution_analysis">Analisi distribuzione</string>
 </resources>

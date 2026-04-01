@@ -1,14 +1,15 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.moxmose.moxequiplog.ui.reports
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,14 +42,18 @@ import com.moxmose.moxequiplog.utils.UiConstants
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
@@ -58,7 +64,10 @@ enum class ReportDestination {
     EQUIPMENTS,
     OPERATIONS,
     EQUIPMENTS_FREQ,
-    OPERATIONS_FREQ
+    OPERATIONS_FREQ,
+    INTERVALS,
+    HEATMAP,
+    BENCHMARKING
 }
 
 @Composable
@@ -103,13 +112,27 @@ fun ReportsScreen(
                 viewModel = viewModel,
                 onBack = { currentDestination = ReportDestination.MENU }
             )
+            ReportDestination.INTERVALS -> IntervalsReportScreen(
+                uiState = uiState,
+                viewModel = viewModel,
+                onBack = { currentDestination = ReportDestination.MENU }
+            )
+            ReportDestination.HEATMAP -> HeatmapReportScreen(
+                uiState = uiState,
+                viewModel = viewModel,
+                onBack = { currentDestination = ReportDestination.MENU }
+            )
+            ReportDestination.BENCHMARKING -> BenchmarkingReportScreen(
+                uiState = uiState,
+                viewModel = viewModel,
+                onBack = { currentDestination = ReportDestination.MENU }
+            )
         }
     }
 }
 
 // --- REUSABLE COMPONENTS ---
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportBaseScreen(
     title: String,
@@ -249,7 +272,6 @@ fun ReportSelectionHeader(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> GenericMultiSelector(
     items: List<T>,
@@ -383,69 +405,15 @@ fun EquipmentsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel,
         onClearSelection = viewModel::clearEquipmentSelection
     ) {
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    val unitsPart = if (uiState.equipmentUnitLabel.isNotBlank()) {
-                        uiState.equipmentUnitLabel.split(", ").joinToString("") { "[$it]" }
-                    } else ""
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "$unitsPart ${stringResource(R.string.report_value_over_time)}",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        if (uiState.hasMixedUnits) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.errorContainer,
-                                shape = MaterialTheme.shapes.extraSmall
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp).padding(2.dp),
-                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                            }
-                        }
-                    }
-                    
-                    if (uiState.hasMixedUnits) {
-                        Text(
-                            text = stringResource(R.string.mixed_units_warning),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    MultiLineChart(
-                        chartDataMap = uiState.equipmentChartData,
-                        granularity = uiState.timeGranularity,
-                        finalColors = chartColors
-                    )
-                    
-                    if (uiState.equipmentChartData.any { it.value.isNotEmpty() }) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        ChartLegend(
-                            items = sortedSelectedIds.mapNotNull { id -> 
-                                uiState.equipments.find { it.id == id }?.description?.let { id to it }
-                            },
-                            colors = chartColors
-                        )
-                    }
-                }
-            }
+            EquipmentChartCard(
+                chartData = uiState.equipmentChartData,
+                unitLabel = uiState.equipmentUnitLabel,
+                hasMixedUnits = uiState.hasMixedUnits,
+                granularity = uiState.timeGranularity,
+                colors = chartColors,
+                sortedSelectedIds = sortedSelectedIds,
+                equipments = uiState.equipments
+            )
         }
     }
 }
@@ -646,7 +614,138 @@ fun OperationsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMo
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun IntervalsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) {
+        uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds }
+    }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_intervals_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            GenericMultiSelector(
+                items = uiState.equipments,
+                selectedIds = uiState.selectedEquipmentIds,
+                onToggleSelection = { 
+                    viewModel.toggleEquipmentSelection(it)
+                    viewModel.refresh()
+                },
+                categoryColor = categoryColor,
+                chartColors = chartColors,
+                sortedSelectedIds = sortedSelectedIds,
+                label = stringResource(R.string.navigation_equipments),
+                placeholder = stringResource(R.string.select_equipment),
+                getId = { it.id },
+                getDescription = { it.description },
+                getIconIdentifier = { it.iconIdentifier },
+                getPhotoUri = { it.photoUri }
+            )
+        },
+        onSelectAll = viewModel::selectAllEquipment,
+        onInvertSelection = viewModel::invertEquipmentSelection,
+        onClearSelection = viewModel::clearEquipmentSelection
+    ) {
+        item {
+            EquipmentChartCard(
+                title = stringResource(R.string.report_delta_label),
+                chartData = uiState.intervalData,
+                unitLabel = uiState.equipmentUnitLabel,
+                hasMixedUnits = uiState.hasMixedUnits,
+                granularity = uiState.timeGranularity,
+                colors = chartColors,
+                sortedSelectedIds = sortedSelectedIds,
+                equipments = uiState.equipments
+            )
+        }
+    }
+}
+
+@Composable
+fun HeatmapReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.report_heatmap_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        containerColor = Color.Transparent
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
+        ) {
+            item {
+                HeatmapCard(
+                    title = stringResource(R.string.report_heatmap_title),
+                    data = uiState.heatmapData,
+                    baseColor = categoryColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun BenchmarkingReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) {
+        uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds }
+    }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_benchmarking_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            GenericMultiSelector(
+                items = uiState.equipments,
+                selectedIds = uiState.selectedEquipmentIds,
+                onToggleSelection = { 
+                    viewModel.toggleEquipmentSelection(it)
+                    viewModel.refresh()
+                },
+                categoryColor = categoryColor,
+                chartColors = chartColors,
+                sortedSelectedIds = sortedSelectedIds,
+                label = stringResource(R.string.navigation_equipments),
+                placeholder = stringResource(R.string.select_equipment),
+                getId = { it.id },
+                getDescription = { it.description },
+                getIconIdentifier = { it.iconIdentifier },
+                getPhotoUri = { it.photoUri }
+            )
+        },
+        onSelectAll = viewModel::selectAllEquipment,
+        onInvertSelection = viewModel::invertEquipmentSelection,
+        onClearSelection = viewModel::clearEquipmentSelection
+    ) {
+        item {
+            BenchmarkCard(
+                data = uiState.benchmarkData,
+                colors = chartColors
+            )
+        }
+    }
+}
+
 @Composable
 fun ReportsMenu(onNavigate: (ReportDestination) -> Unit, onBack: () -> Unit) {
     Scaffold(
@@ -662,37 +761,96 @@ fun ReportsMenu(onNavigate: (ReportDestination) -> Unit, onBack: () -> Unit) {
         },
         containerColor = Color.Transparent
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            ReportMenuCard(
-                title = stringResource(R.string.report_equipments_title),
-                description = stringResource(R.string.report_equipments_desc),
-                icon = Icons.Default.PrecisionManufacturing,
-                onClick = { onNavigate(ReportDestination.EQUIPMENTS) }
-            )
-            ReportMenuCard(
-                title = stringResource(R.string.report_operations_title),
-                description = stringResource(R.string.report_operations_desc),
-                icon = Icons.Default.Settings,
-                onClick = { onNavigate(ReportDestination.OPERATIONS) }
-            )
-            ReportMenuCard(
-                title = stringResource(R.string.report_equipments_freq_title),
-                description = stringResource(R.string.report_equipments_freq_desc),
-                icon = Icons.Default.PieChart,
-                onClick = { onNavigate(ReportDestination.EQUIPMENTS_FREQ) }
-            )
-            ReportMenuCard(
-                title = stringResource(R.string.report_operations_freq_title),
-                description = stringResource(R.string.report_operations_freq_desc),
-                icon = Icons.Default.BarChart,
-                onClick = { onNavigate(ReportDestination.OPERATIONS_FREQ) }
-            )
+            item {
+                Text(
+                    stringResource(R.string.km_trend),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            item {
+                ReportMenuCard(
+                    title = stringResource(R.string.report_equipments_title),
+                    description = stringResource(R.string.report_equipments_desc),
+                    icon = Icons.Default.PrecisionManufacturing,
+                    onClick = { onNavigate(ReportDestination.EQUIPMENTS) }
+                )
+            }
+            item {
+                ReportMenuCard(
+                    title = stringResource(R.string.report_operations_title),
+                    description = stringResource(R.string.report_operations_desc),
+                    icon = Icons.Default.Settings,
+                    onClick = { onNavigate(ReportDestination.OPERATIONS) }
+                )
+            }
+
+            item {
+                Text(
+                    stringResource(R.string.distribution_analysis),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            item {
+                ReportMenuCard(
+                    title = stringResource(R.string.report_equipments_freq_title),
+                    description = stringResource(R.string.report_equipments_freq_desc),
+                    icon = Icons.Default.PieChart,
+                    onClick = { onNavigate(ReportDestination.EQUIPMENTS_FREQ) }
+                )
+            }
+            item {
+                ReportMenuCard(
+                    title = stringResource(R.string.report_operations_freq_title),
+                    description = stringResource(R.string.report_operations_freq_desc),
+                    icon = Icons.Default.BarChart,
+                    onClick = { onNavigate(ReportDestination.OPERATIONS_FREQ) }
+                )
+            }
+
+            item {
+                Text(
+                    "Advanced Analytics",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            item {
+                ReportMenuCard(
+                    title = stringResource(R.string.report_intervals_title),
+                    description = stringResource(R.string.report_intervals_desc),
+                    icon = Icons.Default.TrendingUp,
+                    onClick = { onNavigate(ReportDestination.INTERVALS) }
+                )
+            }
+            item {
+                ReportMenuCard(
+                    title = stringResource(R.string.report_heatmap_title),
+                    description = stringResource(R.string.report_heatmap_desc),
+                    icon = Icons.Default.GridView,
+                    onClick = { onNavigate(ReportDestination.HEATMAP) }
+                )
+            }
+            item {
+                ReportMenuCard(
+                    title = stringResource(R.string.report_benchmarking_title),
+                    description = stringResource(R.string.report_benchmarking_desc),
+                    icon = Icons.Default.Compare,
+                    onClick = { onNavigate(ReportDestination.BENCHMARKING) }
+                )
+            }
         }
     }
 }
@@ -732,6 +890,216 @@ fun ReportMenuCard(
             }
             Spacer(modifier = Modifier.weight(1f))
             Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+// --- CHARTS & CARDS ---
+
+@Composable
+fun EquipmentChartCard(
+    title: String? = null,
+    chartData: Map<Int, List<ChartPoint>>,
+    unitLabel: String,
+    hasMixedUnits: Boolean,
+    granularity: TimeGranularity,
+    colors: List<Color>,
+    sortedSelectedIds: List<Int>,
+    equipments: List<Equipment>
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            val unitsPart = if (unitLabel.isNotBlank()) {
+                unitLabel.split(", ").joinToString("") { "[$it]" }
+            } else ""
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "$unitsPart ${title ?: stringResource(R.string.report_value_over_time)}",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                if (hasMixedUnits) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp).padding(2.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            
+            if (hasMixedUnits) {
+                Text(
+                    text = stringResource(R.string.mixed_units_warning),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            MultiLineChart(
+                chartDataMap = chartData,
+                granularity = granularity,
+                finalColors = colors
+            )
+            
+            if (chartData.any { it.value.isNotEmpty() }) {
+                Spacer(modifier = Modifier.height(16.dp))
+                ChartLegend(
+                    items = sortedSelectedIds.mapNotNull { id -> 
+                        equipments.find { it.id == id }?.description?.let { id to it }
+                    },
+                    colors = colors
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HeatmapCard(
+    title: String,
+    data: List<HeatmapPoint>,
+    baseColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            if (data.isEmpty()) {
+                NoDataPlaceholder()
+            } else {
+                val maxVal = data.maxOfOrNull { it.value } ?: 1
+                val days = listOf("S", "M", "T", "W", "T", "F", "S")
+                
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        days.forEach { day ->
+                            Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                                Text(day, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        for (month in 0..11) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                for (dow in 1..7) {
+                                    val point = data.find { it.x == dow && it.y == month }
+                                    val alpha = if (point != null) (point.value.toFloat() / maxVal).coerceAtLeast(0.1f) else 0.05f
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(baseColor.copy(alpha = alpha))
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BenchmarkCard(
+    data: List<BenchmarkData>,
+    colors: List<Color>
+) {
+    val modelProducer = remember { CartesianChartModelProducer() }
+    
+    LaunchedEffect(data) {
+        if (data.isNotEmpty()) {
+            modelProducer.runTransaction {
+                columnSeries {
+                    series(data.map { it.totalValue })
+                    series(data.map { it.avgInterval })
+                }
+            }
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        androidx.compose.foundation.layout.Column(modifier = Modifier.padding(16.dp)) {
+            Text(stringResource(R.string.report_benchmarking_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            if (data.isEmpty()) {
+                NoDataPlaceholder()
+            } else {
+                CartesianChartHost(
+                    chart = rememberCartesianChart(
+                        rememberColumnCartesianLayer(
+                            columnProvider = ColumnCartesianLayer.ColumnProvider.series(
+                                colors.take(2).map { color ->
+                                    rememberLineComponent(
+                                        color = color,
+    //                                    fill = fill(color),
+                                        thickness = 16.dp
+                                    )
+                                }
+                            )
+                        ),
+                        startAxis = VerticalAxis.rememberStart(),
+                        bottomAxis = HorizontalAxis.rememberBottom(
+                            valueFormatter = CartesianValueFormatter { _, value, _ ->
+                                data.getOrNull(value.toInt())?.equipmentName ?: ""
+                            }
+                        )
+                    ),
+                    modelProducer = modelProducer,
+                    modifier = Modifier.fillMaxWidth().height(250.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(12.dp).background(colors[0]))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.report_benchmark_total), style = MaterialTheme.typography.labelSmall)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(12.dp).background(colors[1]))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.report_benchmark_avg_interval), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
         }
     }
 }

@@ -15,6 +15,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.*
 import androidx.sqlite.db.SimpleSQLiteQuery
+import java.text.SimpleDateFormat
 
 @Serializable
 enum class TimeGranularity {
@@ -32,6 +33,20 @@ data class PieChartPoint(
     val label: String,
     val value: Float,
     val color: String? = null
+)
+
+data class HeatmapPoint(
+    val x: Int, // e.g. Day of week
+    val y: Int, // e.g. Hour or Month
+    val value: Int
+)
+
+data class BenchmarkData(
+    val equipmentName: String,
+    val totalValue: Float,
+    val avgInterval: Float,
+    val count: Int,
+    val periodLabel: String? = null
 )
 
 @Serializable
@@ -60,6 +75,12 @@ data class ReportsUiState(
     val operationCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
     val operationUnitLabel: String = "",
     val opHasMixedUnits: Boolean = false,
+
+    // New Analysis Data
+    val intervalData: Map<Int, List<ChartPoint>> = emptyMap(),
+    val heatmapData: List<HeatmapPoint> = emptyList(),
+    val benchmarkData: List<BenchmarkData> = emptyList(),
+    val benchmarkByPeriod: Map<String, List<BenchmarkData>> = emptyMap(),
 
     val startDate: Long? = null,
     val endDate: Long? = null,
@@ -205,16 +226,7 @@ class ReportsViewModel(
         val sortedSelectedEquipIds = core.equips.map { it.id }.filter { it in style.selections.selectedEquipmentIds }
         val sortedSelectedOpIds = core.ops.map { it.id }.filter { it in style.selections.selectedOperationTypeIds }
 
-        val equipDist = filteredLogs.filter { it.log.equipmentId in style.selections.selectedEquipmentIds }.groupBy { it.log.equipmentId }.map { (id, logs) ->
-            val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
-            PieChartPoint(label, logs.size.toFloat())
-        }.sortedByDescending { it.value }
-
-        val opDist = filteredLogs.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
-            val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
-            PieChartPoint(label, logs.size.toFloat())
-        }.sortedByDescending { it.value }
-
+        // Standard Trends
         val equipChartData = sortedSelectedEquipIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.equipmentId == id && it.log.kilometers != null }.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
             aggregateData(points, style.selections.timeGranularity)
@@ -224,41 +236,79 @@ class ReportsViewModel(
             val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.kilometers != null }.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat(), it.equipmentDescription) }
             aggregateData(points, style.selections.timeGranularity)
         }
+
+        // 1. Interval Analysis (KPI) - Delta calculated on aggregated data
+        val intervalData = sortedSelectedEquipIds.associateWith { id ->
+            val aggregatedPoints = equipChartData[id] ?: emptyList()
+            val deltas = mutableListOf<ChartPoint>()
+            for (i in 1 until aggregatedPoints.size) {
+                val current = aggregatedPoints[i].kilometers
+                val previous = aggregatedPoints[i-1].kilometers
+                val delta = (current - previous).coerceAtLeast(0f)
+                deltas.add(ChartPoint(aggregatedPoints[i].date, delta))
+            }
+            deltas
+        }
+
+        // 2. Heatmap Data
+        val cal = Calendar.getInstance()
+        val heatmapData = filteredLogs.groupBy { log ->
+            cal.timeInMillis = log.log.date
+            val dow = cal.get(Calendar.DAY_OF_WEEK)
+            val month = cal.get(Calendar.MONTH)
+            dow to month
+        }.map { (key, logs) -> HeatmapPoint(key.first, key.second, logs.size) }
+
+        // 3. Benchmarking
+        val benchmarkData = sortedSelectedEquipIds.map { id ->
+            val equipLogs = filteredLogs.filter { it.log.equipmentId == id && it.log.kilometers != null }.sortedBy { it.log.date }
+            val total = equipLogs.maxOfOrNull { it.log.kilometers!! }?.toFloat() ?: 0f
+            val intervals = mutableListOf<Int>()
+            for (i in 1 until equipLogs.size) {
+                intervals.add((equipLogs[i].log.kilometers!! - equipLogs[i-1].log.kilometers!!).coerceAtLeast(0))
+            }
+            val avg = if (intervals.isNotEmpty()) intervals.average().toFloat() else 0f
+            BenchmarkData(equipmentName = core.equips.find { it.id == id }?.description ?: "ID: $id", totalValue = total, avgInterval = avg, count = equipLogs.size)
+        }
+
+        // 3b. Benchmarking by Period (if granularity is set)
+        val benchmarkByPeriod = if (style.selections.timeGranularity != TimeGranularity.HOURS) {
+            val dateFormat = getPeriodFormat(style.selections.timeGranularity)
+            filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }.mapValues { (period, logsInPeriod) ->
+                sortedSelectedEquipIds.map { id ->
+                    val equipLogs = logsInPeriod.filter { it.log.equipmentId == id && it.log.kilometers != null }.sortedBy { it.log.date }
+                    val totalInPeriod = if (equipLogs.isNotEmpty()) (equipLogs.maxOf { it.log.kilometers!! } - equipLogs.minOf { it.log.kilometers!! }).toFloat() else 0f
+                    val intervals = mutableListOf<Int>()
+                    for (i in 1 until equipLogs.size) { intervals.add((equipLogs[i].log.kilometers!! - equipLogs[i-1].log.kilometers!!).coerceAtLeast(0)) }
+                    BenchmarkData(equipmentName = core.equips.find { it.id == id }?.description ?: "ID: $id", totalValue = totalInPeriod, avgInterval = if (intervals.isNotEmpty()) intervals.average().toFloat() else 0f, count = equipLogs.size, periodLabel = period)
+                }
+            }
+        } else emptyMap()
         
         val selectedUnits = sortedSelectedEquipIds.mapNotNull { id -> core.units.find { it.id == core.equips.find { e -> e.id == id }?.unitId }?.label }.distinct()
-        val equipUnit = selectedUnits.joinToString(", "); val hasMixedUnits = selectedUnits.size > 1
-
         val opSelectedUnits = sortedSelectedOpIds.flatMap { opId -> filteredLogs.filter { it.log.operationTypeId == opId }.mapNotNull { logDetail -> core.equips.find { it.id == logDetail.log.equipmentId }?.unitId?.let { unitId -> core.units.find { it.id == unitId }?.label } } }.distinct()
-        val opUnitLabel = opSelectedUnits.joinToString(", "); val opHasMixedUnits = opSelectedUnits.size > 1
-
-        val isDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current)
 
         ReportsUiState(
-            equipments = core.equips,
-            selectedEquipmentIds = style.selections.selectedEquipmentIds,
-            equipmentChartData = equipChartData,
-            equipmentDistribution = equipDist,
-            equipmentCategoryColor = style.eColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
-            equipmentUnitLabel = equipUnit,
-            hasMixedUnits = hasMixedUnits,
-            operationTypes = core.ops,
-            selectedOperationTypeIds = style.selections.selectedOperationTypeIds,
-            operationChartData = opChartData,
-            operationDistribution = opDist,
-            operationCategoryColor = style.oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
-            operationUnitLabel = opUnitLabel,
-            opHasMixedUnits = opHasMixedUnits,
-            startDate = style.selections.startDate,
-            endDate = style.selections.endDate,
-            timeGranularity = style.selections.timeGranularity,
-            showDismissed = style.selections.showDismissed,
-            colorMode = style.selections.colorMode,
-            customColors = style.selections.customColors,
-            savedFilters = persist.saved,
-            activeFilterName = persist.active?.name,
-            isFilterDirty = isDirty
+            equipments = core.equips, selectedEquipmentIds = style.selections.selectedEquipmentIds, equipmentChartData = equipChartData,
+            equipmentDistribution = emptyList(), equipmentCategoryColor = style.eColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+            equipmentUnitLabel = selectedUnits.joinToString(", "), hasMixedUnits = selectedUnits.size > 1,
+            operationTypes = core.ops, selectedOperationTypeIds = style.selections.selectedOperationTypeIds, operationChartData = opChartData,
+            operationDistribution = emptyList(), operationCategoryColor = style.oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+            operationUnitLabel = opSelectedUnits.joinToString(", "), opHasMixedUnits = opSelectedUnits.size > 1,
+            intervalData = intervalData, heatmapData = heatmapData, benchmarkData = benchmarkData, benchmarkByPeriod = benchmarkByPeriod,
+            startDate = style.selections.startDate, endDate = style.selections.endDate, timeGranularity = style.selections.timeGranularity,
+            showDismissed = style.selections.showDismissed, colorMode = style.selections.colorMode, customColors = style.selections.customColors,
+            savedFilters = persist.saved, activeFilterName = persist.active?.name, isFilterDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current)
         )
     }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = ReportsUiState())
+
+    private fun getPeriodFormat(granularity: TimeGranularity) = when (granularity) {
+        TimeGranularity.DAYS -> SimpleDateFormat("dd/MM/yy", Locale.getDefault())
+        TimeGranularity.WEEKS -> SimpleDateFormat("'W'ww/yy", Locale.getDefault())
+        TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
+        TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
+        else -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+    }
 
     private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity): List<ChartPoint> {
         if (points.isEmpty()) return emptyList()

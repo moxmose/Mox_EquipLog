@@ -11,13 +11,19 @@
     <!-- Reports -->
     <string name="reports_title">Reports</string>
     <string name="report_equipments_title">Equipments Trend</string>
-    <string name="report_equipments_desc">UI trend by equipment</string>
+    <string name="report_equipments_desc">UM trend by equipment</string>
     <string name="report_operations_title">Operations Trend</string>
-    <string name="report_operations_desc">UI trend by operation type</string>
+    <string name="report_operations_desc">UM trend by operation type</string>
     <string name="report_equipments_freq_title">Equipments Frequency</string>
     <string name="report_equipments_freq_desc">Maintenance frequency by equipment</string>
     <string name="report_operations_freq_title">Operations Frequency</string>
     <string name="report_operations_freq_desc">Maintenance frequency by operation type</string>
+    <string name="report_intervals_title">Interval Analysis</string>
+    <string name="report_intervals_desc">Delta analysis between maintenance tasks</string>
+    <string name="report_heatmap_title">Activity Heatmap</string>
+    <string name="report_heatmap_desc">Temporal distribution of activities</string>
+    <string name="report_benchmarking_title">Benchmarking</string>
+    <string name="report_benchmarking_desc">Direct comparison between equipments</string>
 
     <string name="report_section_equipments">Equipments</string>
     <string name="report_section_operations">Operations</string>
@@ -34,6 +40,10 @@
     <string name="report_operation_subtitle">Frequency and values for single operation</string>
     <string name="report_equipment_freq_subtitle">Usage frequency of equipments</string>
     <string name="report_operation_freq_subtitle">Frequency of performed operations</string>
+    <string name="report_delta_label">Delta (Value difference)</string>
+    <string name="report_heatmap_intensity">Intensity (count)</string>
+    <string name="report_benchmark_total">Total Value</string>
+    <string name="report_benchmark_avg_interval">Avg Interval</string>
 
     <string name="filter_from">From</string>
     <string name="filter_to">To</string>
