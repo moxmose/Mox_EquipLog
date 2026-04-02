@@ -64,6 +64,7 @@ data class ReportsUiState(
     val selectedEquipmentIds: Set<Int> = emptySet(),
     val equipmentChartData: Map<Int, List<ChartPoint>> = emptyMap(),
     val equipmentDistribution: List<PieChartPoint> = emptyList(),
+    val equipmentDistributionByPeriod: Map<String, List<PieChartPoint>> = emptyMap(),
     val equipmentCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
     val equipmentUnitLabel: String = "",
     val hasMixedUnits: Boolean = false,
@@ -72,6 +73,7 @@ data class ReportsUiState(
     val selectedOperationTypeIds: Set<Int> = emptySet(),
     val operationChartData: Map<Int, List<ChartPoint>> = emptyMap(),
     val operationDistribution: List<PieChartPoint> = emptyList(),
+    val operationDistributionByPeriod: Map<String, List<PieChartPoint>> = emptyMap(),
     val operationCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
     val operationUnitLabel: String = "",
     val opHasMixedUnits: Boolean = false,
@@ -237,7 +239,39 @@ class ReportsViewModel(
             aggregateData(points, style.selections.timeGranularity)
         }
 
-        // 1. Interval Analysis (KPI) - Delta calculated on aggregated data
+        // Global Distributions
+        val equipDist = filteredLogs.filter { it.log.equipmentId in style.selections.selectedEquipmentIds }.groupBy { it.log.equipmentId }.map { (id, logs) ->
+            val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+            PieChartPoint(label, logs.size.toFloat())
+        }.sortedByDescending { it.value }
+
+        val opDist = filteredLogs.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
+            val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+            PieChartPoint(label, logs.size.toFloat())
+        }.sortedByDescending { it.value }
+
+        // Period-based Distributions
+        val equipDistByPeriod = if (style.selections.timeGranularity != TimeGranularity.HOURS) {
+            val dateFormat = getPeriodFormat(style.selections.timeGranularity)
+            filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }.mapValues { (_, logsInPeriod) ->
+                logsInPeriod.filter { it.log.equipmentId in style.selections.selectedEquipmentIds }.groupBy { it.log.equipmentId }.map { (id, logs) ->
+                    val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+                    PieChartPoint(label, logs.size.toFloat())
+                }.sortedByDescending { it.value }
+            }
+        } else emptyMap()
+
+        val opDistByPeriod = if (style.selections.timeGranularity != TimeGranularity.HOURS) {
+            val dateFormat = getPeriodFormat(style.selections.timeGranularity)
+            filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }.mapValues { (_, logsInPeriod) ->
+                logsInPeriod.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
+                    val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+                    PieChartPoint(label, logs.size.toFloat())
+                }.sortedByDescending { it.value }
+            }
+        } else emptyMap()
+
+        // 1. Interval Analysis (KPI)
         val intervalData = sortedSelectedEquipIds.associateWith { id ->
             val aggregatedPoints = equipChartData[id] ?: emptyList()
             val deltas = mutableListOf<ChartPoint>()
@@ -271,7 +305,7 @@ class ReportsViewModel(
             BenchmarkData(equipmentName = core.equips.find { it.id == id }?.description ?: "ID: $id", totalValue = total, avgInterval = avg, count = equipLogs.size)
         }
 
-        // 3b. Benchmarking by Period (if granularity is set)
+        // 3b. Benchmarking by Period
         val benchmarkByPeriod = if (style.selections.timeGranularity != TimeGranularity.HOURS) {
             val dateFormat = getPeriodFormat(style.selections.timeGranularity)
             filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }.mapValues { (period, logsInPeriod) ->
@@ -290,10 +324,12 @@ class ReportsViewModel(
 
         ReportsUiState(
             equipments = core.equips, selectedEquipmentIds = style.selections.selectedEquipmentIds, equipmentChartData = equipChartData,
-            equipmentDistribution = emptyList(), equipmentCategoryColor = style.eColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+            equipmentDistribution = equipDist, equipmentDistributionByPeriod = equipDistByPeriod,
+            equipmentCategoryColor = style.eColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
             equipmentUnitLabel = selectedUnits.joinToString(", "), hasMixedUnits = selectedUnits.size > 1,
             operationTypes = core.ops, selectedOperationTypeIds = style.selections.selectedOperationTypeIds, operationChartData = opChartData,
-            operationDistribution = emptyList(), operationCategoryColor = style.oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
+            operationDistribution = opDist, operationDistributionByPeriod = opDistByPeriod,
+            operationCategoryColor = style.oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
             operationUnitLabel = opSelectedUnits.joinToString(", "), opHasMixedUnits = opSelectedUnits.size > 1,
             intervalData = intervalData, heatmapData = heatmapData, benchmarkData = benchmarkData, benchmarkByPeriod = benchmarkByPeriod,
             startDate = style.selections.startDate, endDate = style.selections.endDate, timeGranularity = style.selections.timeGranularity,
