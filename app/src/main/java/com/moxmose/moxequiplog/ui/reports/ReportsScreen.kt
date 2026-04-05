@@ -108,7 +108,7 @@ fun ReportSelectionHeader(selector: @Composable () -> Unit, showDismissed: Boole
 }
 
 @Composable
-fun <T> GenericMultiSelector(items: List<T>, selectedIds: Set<Int>, onToggleSelection: (Int) -> Unit, categoryColor: Color, chartColors: List<Color>, sortedSelectedIds: List<Int>, label: String, placeholder: String, category: String, getId: (T) -> Int, getDescription: (T) -> String, getIconIdentifier: (T) -> String?, getPhotoUri: (T) -> String?) {
+fun <T> GenericMultiSelector(items: List<T>, selectedIds: Set<Int>, onToggleSelection: (Int) -> Unit, categoryColor: Color, chartColors: List<Color>, label: String, placeholder: String, category: String, getId: (T) -> Int, getDescription: (T) -> String, getIconIdentifier: (T) -> String?, getPhotoUri: (T) -> String?) {
     var expanded by remember { mutableStateOf(false) }
     val displayText = if (selectedIds.isEmpty()) placeholder else {
         val firstSelected = items.find { getId(it) == selectedIds.first() }?.let(getDescription)?.takeIf { it.isNotBlank() }
@@ -117,12 +117,15 @@ fun <T> GenericMultiSelector(items: List<T>, selectedIds: Set<Int>, onToggleSele
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(value = displayText, onValueChange = {}, readOnly = true, label = { Text(label) }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }, colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = categoryColor, focusedLabelColor = categoryColor), modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable, true).fillMaxWidth())
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            items.forEach { item ->
-                val id = getId(item) ; val isSelected = id in selectedIds ; val colorIndex = if (isSelected) sortedSelectedIds.indexOf(id) else -1
+            items.forEachIndexed { index, item ->
+                val id = getId(item) ; val isSelected = id in selectedIds 
                 DropdownMenuItem(text = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         Checkbox(checked = isSelected, onCheckedChange = null)
-                        if (isSelected && colorIndex != -1) Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(chartColors[colorIndex % chartColors.size])) else Spacer(modifier = Modifier.size(12.dp))
+                        if (isSelected) {
+                            val dotColor = if (chartColors.isNotEmpty()) chartColors[index % chartColors.size] else categoryColor
+                            Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(dotColor))
+                        } else Spacer(modifier = Modifier.size(12.dp))
                         ImageIcon(iconIdentifier = getIconIdentifier(item), photoUri = getPhotoUri(item), modifier = Modifier.size(24.dp), category = category, tint = if (isSelected) categoryColor else MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(text = getDescription(item), style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     }
@@ -138,9 +141,11 @@ fun <T> GenericMultiSelector(items: List<T>, selectedIds: Set<Int>, onToggleSele
 fun EquipmentsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
     val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
     val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
-    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
-    ReportBaseScreen(title = stringResource(R.string.report_equipments_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, sortedSelectedIds = sortedSelectedIds, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection) {
-        item { EquipmentChartCard(chartData = uiState.equipmentChartData, unitLabel = uiState.equipmentUnitLabel, hasMixedUnits = uiState.hasMixedUnits, granularity = uiState.timeGranularity, colors = chartColors, sortedSelectedIds = sortedSelectedIds, equipments = uiState.equipments) }
+    val allIds = remember(uiState.equipments) { uiState.equipments.map { it.id } }
+    val selectedIdsOnly = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
+    
+    ReportBaseScreen(title = stringResource(R.string.report_equipments_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection) {
+        item { EquipmentChartCard(chartData = uiState.equipmentChartData, unitLabel = uiState.equipmentUnitLabel, hasMixedUnits = uiState.hasMixedUnits, granularity = uiState.timeGranularity, colors = chartColors, allStableIds = allIds, selectedIds = selectedIdsOnly, equipments = uiState.equipments) }
     }
 }
 
@@ -148,21 +153,24 @@ fun EquipmentsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel,
 fun OperationsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
     val categoryColor = Color(uiState.operationCategoryColor.toColorInt())
     val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
-    val sortedSelectedIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) { uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds } }
-    ReportBaseScreen(title = stringResource(R.string.report_operations_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, sortedSelectedIds = sortedSelectedIds, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllOperationTypes, onInvertSelection = viewModel::invertOperationTypeSelection, onClearSelection = viewModel::clearOperationTypeSelection) {
-        item { Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) { Column(modifier = Modifier.padding(16.dp)) { val unitsPart = if (uiState.operationUnitLabel.isNotBlank()) uiState.operationUnitLabel.split(", ").joinToString("") { "[$it]" } else "" ; Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Text(text = "$unitsPart ${stringResource(R.string.report_value_over_time)}", style = MaterialTheme.typography.titleMedium) ; if (uiState.opHasMixedUnits) Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.extraSmall) { Icon(imageVector = Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(14.dp).padding(2.dp), tint = MaterialTheme.colorScheme.onErrorContainer) } } ; if (uiState.opHasMixedUnits) Text(text = stringResource(R.string.mixed_units_warning), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) ; Spacer(modifier = Modifier.height(16.dp)); MultiLineChart(chartDataMap = uiState.operationChartData, granularity = uiState.timeGranularity, finalColors = chartColors) ; if (uiState.operationChartData.any { it.value.isNotEmpty() }) { Spacer(modifier = Modifier.height(16.dp)); ChartLegend(items = sortedSelectedIds.mapNotNull { id -> uiState.operationTypes.find { it.id == id }?.description?.let { id to it } }, colors = chartColors) } } } }
+    val allIds = remember(uiState.operationTypes) { uiState.operationTypes.map { it.id } }
+    val selectedIdsOnly = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) { uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds } }
+    
+    ReportBaseScreen(title = stringResource(R.string.report_operations_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllOperationTypes, onInvertSelection = viewModel::invertOperationTypeSelection, onClearSelection = viewModel::clearOperationTypeSelection) {
+        item { Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) { Column(modifier = Modifier.padding(16.dp)) { val unitsPart = if (uiState.operationUnitLabel.isNotBlank()) uiState.operationUnitLabel.split(", ").joinToString("") { "[$it]" } else "" ; Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Text(text = "$unitsPart ${stringResource(R.string.report_value_over_time)}", style = MaterialTheme.typography.titleMedium) ; if (uiState.opHasMixedUnits) Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.extraSmall) { Icon(imageVector = Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(14.dp).padding(2.dp), tint = MaterialTheme.colorScheme.onErrorContainer) } } ; if (uiState.opHasMixedUnits) Text(text = stringResource(R.string.mixed_units_warning), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp)) ; Spacer(modifier = Modifier.height(16.dp)); MultiLineChart(chartDataMap = uiState.operationChartData, granularity = uiState.timeGranularity, finalColors = chartColors, allStableIds = allIds) ; if (uiState.operationChartData.any { it.value.isNotEmpty() }) { Spacer(modifier = Modifier.height(16.dp)); ChartLegend(items = selectedIdsOnly.mapNotNull { id -> uiState.operationTypes.find { it.id == id }?.description?.let { id to it } }, colors = chartColors, allStableIds = allIds) } } } }
     }
 }
 
 @Composable
 fun EquipmentsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
     val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
-    ReportBaseScreen(title = stringResource(R.string.report_equipments_freq_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = emptyList(), sortedSelectedIds = emptyList(), label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection) {
-        if (uiState.timeGranularity == TimeGranularity.HOURS) {
-            item { PieChartCard(title = stringResource(R.string.report_section_equipments_freq), distribution = uiState.equipmentDistribution, baseColor = categoryColor) }
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    ReportBaseScreen(title = stringResource(R.string.report_equipments_freq_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection) {
+        if (uiState.timeGranularity == null || uiState.equipmentDistributionByPeriod.isEmpty()) {
+            item { PieChartCard(title = stringResource(R.string.report_section_equipments_freq), distribution = uiState.equipmentDistribution) }
         } else {
             items(uiState.equipmentDistributionByPeriod.keys.toList().sorted()) { period ->
-                PieChartCard(title = "${stringResource(R.string.report_section_equipments_freq)}: $period", distribution = uiState.equipmentDistributionByPeriod[period] ?: emptyList(), baseColor = categoryColor)
+                PieChartCard(title = "${stringResource(R.string.report_section_equipments_freq)}: $period", distribution = uiState.equipmentDistributionByPeriod[period] ?: emptyList())
             }
         }
     }
@@ -171,12 +179,13 @@ fun EquipmentsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMo
 @Composable
 fun OperationsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
     val categoryColor = Color(uiState.operationCategoryColor.toColorInt())
-    ReportBaseScreen(title = stringResource(R.string.report_operations_freq_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = emptyList(), sortedSelectedIds = emptyList(), label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllOperationTypes, onInvertSelection = viewModel::invertOperationTypeSelection, onClearSelection = viewModel::clearOperationTypeSelection) {
-        if (uiState.timeGranularity == TimeGranularity.HOURS) {
-            item { PieChartCard(title = stringResource(R.string.report_section_operations_freq), distribution = uiState.operationDistribution, baseColor = categoryColor) }
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    ReportBaseScreen(title = stringResource(R.string.report_operations_freq_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllOperationTypes, onInvertSelection = viewModel::invertOperationTypeSelection, onClearSelection = viewModel::clearOperationTypeSelection) {
+        if (uiState.timeGranularity == null || uiState.operationDistributionByPeriod.isEmpty()) {
+            item { PieChartCard(title = stringResource(R.string.report_section_operations_freq), distribution = uiState.operationDistribution) }
         } else {
             items(uiState.operationDistributionByPeriod.keys.toList().sorted()) { period ->
-                PieChartCard(title = "${stringResource(R.string.report_section_operations_freq)}: $period", distribution = uiState.operationDistributionByPeriod[period] ?: emptyList(), baseColor = categoryColor)
+                PieChartCard(title = "${stringResource(R.string.report_section_operations_freq)}: $period", distribution = uiState.operationDistributionByPeriod[period] ?: emptyList())
             }
         }
     }
@@ -186,16 +195,18 @@ fun OperationsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMo
 fun IntervalsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
     val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
     val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
-    val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
-    ReportBaseScreen(title = stringResource(R.string.report_intervals_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, sortedSelectedIds = sortedSelectedIds, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection) {
-        item { EquipmentChartCard(title = stringResource(R.string.report_delta_label), chartData = uiState.intervalData, unitLabel = uiState.equipmentUnitLabel, hasMixedUnits = uiState.hasMixedUnits, granularity = uiState.timeGranularity, colors = chartColors, sortedSelectedIds = sortedSelectedIds, equipments = uiState.equipments) }
+    val allIds = remember(uiState.equipments) { uiState.equipments.map { it.id } }
+    val selectedIdsOnly = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
+    
+    ReportBaseScreen(title = stringResource(R.string.report_intervals_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection) {
+        item { EquipmentChartCard(title = stringResource(R.string.report_delta_label), chartData = uiState.intervalData, unitLabel = uiState.equipmentUnitLabel, hasMixedUnits = uiState.hasMixedUnits, granularity = uiState.timeGranularity, colors = chartColors, allStableIds = allIds, selectedIds = selectedIdsOnly, equipments = uiState.equipments) }
     }
 }
 
 @Composable
 fun HeatmapReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
     val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
-    ReportBaseScreen(title = stringResource(R.string.report_heatmap_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = emptyList(), sortedSelectedIds = emptyList(), label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection, granularityEnabled = false) {
+    ReportBaseScreen(title = stringResource(R.string.report_heatmap_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = emptyList(), label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection, granularityEnabled = false) {
         item { HeatmapCard(title = stringResource(R.string.report_heatmap_title), data = uiState.heatmapData, baseColor = categoryColor) }
     }
 }
@@ -205,8 +216,8 @@ fun BenchmarkingReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
     val categoryColor = Color(uiState.equipmentCategoryColor.toColorInt())
     val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
     val sortedSelectedIds = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
-    ReportBaseScreen(title = stringResource(R.string.report_benchmarking_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, sortedSelectedIds = sortedSelectedIds, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection) {
-        if (uiState.timeGranularity == TimeGranularity.HOURS) {
+    ReportBaseScreen(title = stringResource(R.string.report_benchmarking_title), onBack = onBack, uiState = uiState, viewModel = viewModel, selector = { GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri }) }, onSelectAll = viewModel::selectAllEquipment, onInvertSelection = viewModel::invertEquipmentSelection, onClearSelection = viewModel::clearEquipmentSelection) {
+        if (uiState.timeGranularity == null || uiState.timeGranularity == TimeGranularity.HOURS) {
             item { BenchmarkCard(data = uiState.benchmarkData, colors = chartColors) }
         } else {
             items(uiState.benchmarkByPeriod.keys.toList().sorted()) { period ->
@@ -248,13 +259,13 @@ fun ReportMenuCard(title: String, description: String, icon: ImageVector, onClic
 }
 
 @Composable
-fun EquipmentChartCard(title: String? = null, chartData: Map<Int, List<ChartPoint>>, unitLabel: String, hasMixedUnits: Boolean, granularity: TimeGranularity, colors: List<Color>, sortedSelectedIds: List<Int>, equipments: List<Equipment>) {
+fun EquipmentChartCard(title: String? = null, chartData: Map<Int, List<ChartPoint>>, unitLabel: String, hasMixedUnits: Boolean, granularity: TimeGranularity?, colors: List<Color>, allStableIds: List<Int>, selectedIds: List<Int>, equipments: List<Equipment>) {
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
         Column(modifier = Modifier.padding(16.dp)) {
             val unitsPart = if (unitLabel.isNotBlank()) unitLabel.split(", ").joinToString("") { "[$it]" } else ""
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Text(text = "$unitsPart ${title ?: stringResource(R.string.report_value_over_time)}", style = MaterialTheme.typography.titleMedium) ; if (hasMixedUnits) Surface(color = MaterialTheme.colorScheme.errorContainer, shape = MaterialTheme.shapes.extraSmall) { Icon(imageVector = Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(14.dp).padding(2.dp), tint = MaterialTheme.colorScheme.onErrorContainer) } }
             if (hasMixedUnits) Text(text = stringResource(R.string.mixed_units_warning), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
-            Spacer(modifier = Modifier.height(16.dp)) ; MultiLineChart(chartDataMap = chartData, granularity = granularity, finalColors = colors) ; if (chartData.any { it.value.isNotEmpty() }) { Spacer(modifier = Modifier.height(16.dp)); ChartLegend(items = sortedSelectedIds.mapNotNull { id -> equipments.find { it.id == id }?.description?.let { id to it } }, colors = colors) }
+            Spacer(modifier = Modifier.height(16.dp)) ; MultiLineChart(chartDataMap = chartData, granularity = granularity, finalColors = colors, allStableIds = allStableIds) ; if (chartData.any { it.value.isNotEmpty() }) { Spacer(modifier = Modifier.height(16.dp)); ChartLegend(items = selectedIds.mapNotNull { id -> equipments.find { it.id == id }?.description?.let { id to it } }, colors = colors, allStableIds = allStableIds) }
         }
     }
 }
@@ -317,15 +328,15 @@ fun FilterManagementRow(savedFilters: List<ReportFilter>, activeFilterName: Stri
 }
 
 @Composable
-fun PieChartCard(title: String, distribution: List<PieChartPoint>, baseColor: Color) {
+fun PieChartCard(title: String, distribution: List<PieChartPoint>) {
     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 16.dp))
             if (distribution.isEmpty()) NoDataPlaceholder() else {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    PieChart(modifier = Modifier.size(140.dp), points = distribution, baseColor = baseColor)
+                    PieChart(modifier = Modifier.size(140.dp), points = distribution)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) { distribution.take(5).forEachIndexed { index, point -> Row(verticalAlignment = Alignment.Top) { Box(modifier = Modifier.padding(top = 4.dp).size(12.dp).clip(MaterialTheme.shapes.extraSmall).graphicsLayer(alpha = (1f - (index * 0.15f)).coerceAtLeast(0.2f)).background(baseColor)) ; Spacer(modifier = Modifier.width(8.dp)); Text(text = stringResource(R.string.occurrences_format, point.label, point.value.toInt()), style = MaterialTheme.typography.labelSmall) } } ; if (distribution.size > 5) Text(text = "...", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 20.dp)) }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) { distribution.take(5).forEach { point -> Row(verticalAlignment = Alignment.Top) { val color = point.color?.let { Color(it.toColorInt()) } ?: Color.Gray ; Box(modifier = Modifier.padding(top = 4.dp).size(12.dp).clip(MaterialTheme.shapes.extraSmall).background(color)) ; Spacer(modifier = Modifier.width(8.dp)); Text(text = stringResource(R.string.occurrences_format, point.label, point.value.toInt()), style = MaterialTheme.typography.labelSmall) } } ; if (distribution.size > 5) Text(text = "...", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 20.dp)) }
                 }
             }
         }
@@ -333,11 +344,17 @@ fun PieChartCard(title: String, distribution: List<PieChartPoint>, baseColor: Co
 }
 
 @Composable
-fun PieChart(modifier: Modifier = Modifier, points: List<PieChartPoint>, baseColor: Color) {
+fun PieChart(modifier: Modifier = Modifier, points: List<PieChartPoint>) {
     val total = points.sumOf { it.value.toDouble() }.toFloat()
     Canvas(modifier = modifier) {
         var startAngle = -90f
-        points.forEachIndexed { index, point -> val sweepAngle = (point.value / total) * 360f ; val colorAlpha = (1f - (index * 0.15f)).coerceAtMost(1f).coerceAtLeast(0.2f) ; drawArc(color = baseColor.copy(alpha = colorAlpha), startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true, size = Size(size.minDimension, size.minDimension), topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2)) ; drawArc(color = Color.White.copy(alpha = 0.3f), startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true, style = Stroke(width = 1.dp.toPx()), size = Size(size.minDimension, size.minDimension), topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2)) ; startAngle += sweepAngle }
+        points.forEach { point -> 
+            val sweepAngle = (point.value / total) * 360f ; 
+            val color = point.color?.let { Color(it.toColorInt()) } ?: Color.Gray
+            drawArc(color = color, startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true, size = Size(size.minDimension, size.minDimension), topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2)) ; 
+            drawArc(color = Color.White.copy(alpha = 0.3f), startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true, style = Stroke(width = 1.dp.toPx()), size = Size(size.minDimension, size.minDimension), topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2)) ; 
+            startAngle += sweepAngle 
+        }
     }
 }
 
@@ -345,23 +362,40 @@ fun PieChart(modifier: Modifier = Modifier, points: List<PieChartPoint>, baseCol
 fun NoDataPlaceholder() { Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { Text(text = stringResource(R.string.report_no_data), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
 
 @Composable
-fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, granularity: TimeGranularity, finalColors: List<Color>) {
+fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, granularity: TimeGranularity?, finalColors: List<Color>, allStableIds: List<Int>) {
     val modelProducer = remember { CartesianChartModelProducer() } ; val dataWithPoints = remember(chartDataMap) { chartDataMap.filter { it.value.isNotEmpty() } }
-    val lineStyles = remember(dataWithPoints, chartDataMap.keys, finalColors) { val allIds = chartDataMap.keys.toList() ; dataWithPoints.keys.map { id -> val colorIndex = allIds.indexOf(id) ; LineCartesianLayer.Line(fill = LineCartesianLayer.LineFill.single(fill = fill(finalColors[colorIndex % finalColors.size]))) } }
-    val dateFormat = remember(granularity) { when (granularity) { TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()) ; TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault()) ; TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault()) ; TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault()) } }
+    val lineStyles = remember(dataWithPoints, allStableIds, finalColors) { 
+        dataWithPoints.keys.map { id -> 
+            val colorIndex = allStableIds.indexOf(id) ; 
+            LineCartesianLayer.Line(fill = LineCartesianLayer.LineFill.single(fill = fill(finalColors[if (finalColors.isNotEmpty()) colorIndex % finalColors.size else 0]))) 
+        } 
+    }
+    val dateFormat = remember(granularity) { when (granularity) { null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()) ; TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()) ; TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault()) ; TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault()) ; TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault()) } }
     LaunchedEffect(dataWithPoints, granularity) { if (dataWithPoints.isNotEmpty()) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(x = points.map { it.date }, y = points.map { it.kilometers }) } } } } }
     if (dataWithPoints.isNotEmpty()) { key(granularity, dataWithPoints.keys, finalColors) { CartesianChartHost(chart = rememberCartesianChart(rememberLineCartesianLayer(lineProvider = LineCartesianLayer.LineProvider.series(lineStyles)), startAxis = VerticalAxis.rememberStart(), bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = CartesianValueFormatter { _, value, _ -> dateFormat.format(Date(value.toLong())) }),), modelProducer = modelProducer, modifier = Modifier.fillMaxWidth().height(250.dp)) } } else NoDataPlaceholder()
 }
 
 @Composable
-fun ChartLegend(items: List<Pair<Int, String>>, colors: List<Color>) { FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start), verticalArrangement = Arrangement.spacedBy(8.dp)) { items.forEachIndexed { index, pair -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) { Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(colors[index % colors.size])) ; Spacer(modifier = Modifier.width(6.dp)); Text(text = pair.second, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 10.sp) } } } }
+fun ChartLegend(items: List<Pair<Int, String>>, colors: List<Color>, allStableIds: List<Int>) { 
+    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start), verticalArrangement = Arrangement.spacedBy(8.dp)) { 
+        items.forEach { pair -> 
+            val colorIndex = allStableIds.indexOf(pair.first)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) { 
+                val boxColor = if (colors.isNotEmpty()) colors[colorIndex % colors.size] else Color.Gray
+                Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(boxColor)) ;
+                Spacer(modifier = Modifier.width(6.dp)); 
+                Text(text = pair.second, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 10.sp) 
+            } 
+        } 
+    } 
+}
 
 @Composable
 fun rememberChartColors(colorMode: String, customColors: List<String>): List<Color> { return remember(colorMode, customColors) { if (colorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM && customColors.isNotEmpty()) { customColors.map { Color(it.toColorInt()) } } else { listOf(Color(0xFF4285F4), Color(0xFF34A853), Color(0xFFFBBC05), Color(0xFFEA4335), Color(0xFF9C27B0), Color(0xFF00BCD4)) } } }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StandardFilterSection(startDate: Long?, endDate: Long?, granularity: TimeGranularity, onDateRangeSelected: (Long?, Long?) -> Unit, onGranularitySelected: (TimeGranularity) -> Unit, onReset: () -> Unit, onRefresh: () -> Unit, enabledGranularity: Boolean = true) {
+fun StandardFilterSection(startDate: Long?, endDate: Long?, granularity: TimeGranularity?, onDateRangeSelected: (Long?, Long?) -> Unit, onGranularitySelected: (TimeGranularity?) -> Unit, onReset: () -> Unit, onRefresh: () -> Unit, enabledGranularity: Boolean = true) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) } ; var showDatePickerRange by remember { mutableStateOf(false) }
     if (showDatePickerRange) { val dateRangePickerState = rememberDateRangePickerState(initialSelectedStartDateMillis = startDate, initialSelectedEndDateMillis = endDate) ; DatePickerDialog(onDismissRequest = { showDatePickerRange = false }, confirmButton = { TextButton(onClick = { onDateRangeSelected(dateRangePickerState.selectedStartDateMillis, dateRangePickerState.selectedEndDateMillis) ; showDatePickerRange = false ; onRefresh() }) { Text(stringResource(R.string.button_ok)) } }, dismissButton = { TextButton(onClick = { showDatePickerRange = false }) { Text(stringResource(R.string.button_cancel)) } }) { DateRangePicker(state = dateRangePickerState, title = { Text(stringResource(R.string.date), modifier = Modifier.padding(16.dp)) }, showModeToggle = false, modifier = Modifier.fillMaxWidth().height(400.dp) ) } }
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) { Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { OutlinedButton(onClick = { showDatePickerRange = true }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp)) { Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(4.dp)); Text(text = if (startDate != null && endDate != null) { "${dateFormat.format(Date(startDate))} - ${dateFormat.format(Date(endDate))}" } else { stringResource(R.string.date) }, style = MaterialTheme.typography.labelMedium) } ; IconButton(onClick = { onReset(); onRefresh() }, modifier = Modifier.size(40.dp)) { Icon(imageVector = Icons.Default.FilterAltOff, contentDescription = stringResource(R.string.filter_reset), tint = MaterialTheme.colorScheme.primary) } } ; if (enabledGranularity) { Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) { TimeGranularity.entries.forEach { entry -> val isSelected = entry == granularity ; FilterChip(selected = isSelected, onClick = { onGranularitySelected(entry); onRefresh() }, label = { Text(text = when (entry) { TimeGranularity.HOURS -> stringResource(R.string.granularity_hours) ; TimeGranularity.DAYS -> stringResource(R.string.granularity_days) ; TimeGranularity.WEEKS -> stringResource(R.string.granularity_weeks) ; TimeGranularity.MONTHS -> stringResource(R.string.granularity_months) ; TimeGranularity.YEARS -> stringResource(R.string.granularity_years) }, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.weight(1f)) } } } } }
