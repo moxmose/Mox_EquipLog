@@ -85,6 +85,11 @@ data class ReportsUiState(
     val benchmarkData: List<BenchmarkData> = emptyList(),
     val benchmarkByPeriod: Map<String, List<BenchmarkData>> = emptyMap(),
 
+    // Extra Reports (Volume & Combined)
+    val equipmentVolumeData: Map<Int, List<ChartPoint>> = emptyMap(),
+    val operationVolumeData: Map<Int, List<ChartPoint>> = emptyMap(),
+    val combinedLogsData: Map<String, List<ChartPoint>> = emptyMap(),
+
     val startDate: Long? = null,
     val endDate: Long? = null,
     val timeGranularity: TimeGranularity? = null,
@@ -357,6 +362,31 @@ class ReportsViewModel(
                 }
             }
         } else emptyMap()
+
+        // 4. NEW: Activity Volume (Count) over time
+        val equipmentVolumeData = sortedSelectedEquipIds.associateWith { id ->
+            val points = filteredLogs.filter { it.log.equipmentId == id }.map { ChartPoint(it.log.date, 1f) }
+            aggregateData(points, style.selections.timeGranularity, isCount = true)
+        }
+        val operationVolumeData = sortedSelectedOpIds.associateWith { id ->
+            val points = filteredLogs.filter { it.log.operationTypeId == id }.map { ChartPoint(it.log.date, 1f) }
+            aggregateData(points, style.selections.timeGranularity, isCount = true)
+        }
+
+        // 5. NEW: Combined Logs Trend (Value for specific Equipment + Operation pairs)
+        val combinedLogsData = mutableMapOf<String, List<ChartPoint>>()
+        sortedSelectedEquipIds.forEach { eId ->
+            sortedSelectedOpIds.forEach { oId ->
+                val logs = filteredLogs.filter { it.log.equipmentId == eId && it.log.operationTypeId == oId && it.log.kilometers != null }
+                if (logs.isNotEmpty()) {
+                    val eDesc = core.equips.find { it.id == eId }?.description ?: "E$eId"
+                    val oDesc = core.ops.find { it.id == oId }?.description ?: "O$oId"
+                    val key = "$eDesc - $oDesc"
+                    val points = logs.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
+                    combinedLogsData[key] = aggregateData(points, style.selections.timeGranularity)
+                }
+            }
+        }
         
         val selectedUnits = sortedSelectedEquipIds.mapNotNull { id -> core.units.find { it.id == core.equips.find { e -> e.id == id }?.unitId }?.label }.distinct()
         val opSelectedUnits = sortedSelectedOpIds.flatMap { opId -> filteredLogs.filter { it.log.operationTypeId == opId }.mapNotNull { logDetail -> core.equips.find { it.id == logDetail.log.equipmentId }?.unitId?.let { unitId -> core.units.find { it.id == unitId }?.label } } }.distinct()
@@ -371,6 +401,7 @@ class ReportsViewModel(
             operationCategoryColor = style.oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
             operationUnitLabel = opSelectedUnits.joinToString(", "), opHasMixedUnits = opSelectedUnits.size > 1,
             intervalData = intervalData, heatmapData = heatmapData, benchmarkData = benchmarkData, benchmarkByPeriod = benchmarkByPeriod,
+            equipmentVolumeData = equipmentVolumeData, operationVolumeData = operationVolumeData, combinedLogsData = combinedLogsData,
             startDate = style.selections.startDate, endDate = style.selections.endDate, timeGranularity = style.selections.timeGranularity,
             showDismissed = style.selections.showDismissed, colorMode = style.selections.colorMode, customColors = currentPalette,
             savedFilters = persist.saved, activeFilterName = persist.active?.name, isFilterDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current)
@@ -385,7 +416,7 @@ class ReportsViewModel(
         TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:00", Locale.getDefault())
     }
 
-    private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity?, isDelta: Boolean = false): List<ChartPoint> {
+    private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity?, isDelta: Boolean = false, isCount: Boolean = false): List<ChartPoint> {
         if (points.isEmpty()) return emptyList()
         if (granularity == null) return points.sortedBy { it.date }
         
@@ -405,13 +436,16 @@ class ReportsViewModel(
             calendar.timeInMillis
         }
 
-        if (grouped.size == 1 && points.size > 1 && !isDelta) {
+        if (grouped.size == 1 && points.size > 1 && !isDelta && !isCount) {
             return points.sortedBy { it.date }
         }
 
         return grouped.map { (timestamp, groupedPoints) -> 
-            val value = if (isDelta) groupedPoints.sumOf { it.kilometers.toDouble() }.toFloat() 
-                        else groupedPoints.maxOf { it.kilometers }
+            val value = when {
+                isCount -> groupedPoints.size.toFloat()
+                isDelta -> groupedPoints.sumOf { it.kilometers.toDouble() }.toFloat()
+                else -> groupedPoints.maxOf { it.kilometers }
+            }
             ChartPoint(timestamp, value) 
         }.sortedBy { it.date }
     }

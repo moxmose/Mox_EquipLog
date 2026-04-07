@@ -24,6 +24,15 @@
     <string name="report_benchmarking_title">Benchmarking</string>
     <string name="report_benchmarking_desc">Confronto diretto tra mezzi</string>
 
+    <!-- Nuovi Report -->
+    <string name="report_equipments_vol_title">Volume Mezzi</string>
+    <string name="report_equipments_vol_desc">Conteggio attività per mezzo nel tempo</string>
+    <string name="report_operations_vol_title">Volume Attività</string>
+    <string name="report_operations_vol_desc">Conteggio attività per tipo nel tempo</string>
+    <string name="report_combined_logs_title">Analisi Log Combinati</string>
+    <string name="report_combined_logs_desc">Andamento valori per specifiche coppie mezzo-attività</string>
+    <string name="report_volume_label">Conteggio Attività</string>
+
     <string name="report_section_equipments">Mezzi</string>
     <string name="report_section_operations">Attività</string>
     <string name="report_section_equipments_freq">Frequenza Mezzi</string>

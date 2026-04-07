@@ -25,6 +25,15 @@
     <string name="report_benchmarking_title">Benchmarking</string>
     <string name="report_benchmarking_desc">Direct comparison between equipments</string>
 
+    <!-- New Reports -->
+    <string name="report_equipments_vol_title">Equipments Volume</string>
+    <string name="report_equipments_vol_desc">Activity count per equipment over time</string>
+    <string name="report_operations_vol_title">Operations Volume</string>
+    <string name="report_operations_vol_desc">Activity count per operation over time</string>
+    <string name="report_combined_logs_title">Combined Logs Analysis</string>
+    <string name="report_combined_logs_desc">Value trends for specific equipment and operation pairs</string>
+    <string name="report_volume_label">Activity Count</string>
+
     <string name="report_section_equipments">Equipments</string>
     <string name="report_section_operations">Operations</string>
     <string name="report_section_equipments_freq">Equipments Frequency</string>
