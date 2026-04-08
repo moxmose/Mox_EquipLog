@@ -93,6 +93,7 @@ data class ReportsUiState(
     val startDate: Long? = null,
     val endDate: Long? = null,
     val timeGranularity: TimeGranularity? = null,
+    val effectiveGranularity: TimeGranularity? = null,
     val showDismissed: Boolean = false,
 
     val colorMode: String = UiConstants.DEFAULT_REPORTS_COLOR_MODE,
@@ -158,11 +159,16 @@ class ReportsViewModel(
         appSettingsManager.reportsCustomColors,
         imageRepository.allColorsForReports
     ) { state, refresh, mode, custom, dbColors ->
-        val palette = if (mode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
-            custom ?: dbColors.filter { !it.reportHidden }.map { it.hexValue }.takeIf { it.isNotEmpty() } 
+        // Usiamo i colori del database (caricati da default_data.xml) come base
+        val dbColorList = dbColors.filter { !it.reportHidden }.map { it.hexValue }.takeIf { it.isNotEmpty() } 
             ?: listOf("#4285F4", "#34A853", "#FBBC05", "#EA4335", "#9C27B0", "#00BCD4")
+
+        val palette = if (mode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
+            custom ?: dbColorList
         } else {
-            listOf("#4285F4", "#34A853", "#FBBC05", "#EA4335", "#9C27B0", "#00BCD4")
+            // In modalità M3 o default, usiamo comunque la palette dal database per coerenza
+            // Se in futuro vorrai colori dinamici da Material3, potrai cambiare qui.
+            dbColorList
         }
         SelectionState(state.selectedEquipmentIds, state.selectedOperationTypeIds, state.startDate, state.endDate, state.timeGranularity, refresh, state.showDismissed, mode, palette)
     }
@@ -236,6 +242,14 @@ class ReportsViewModel(
             matchesDate && matchesVisibility
         }
 
+        // Calcolo della granularità effettiva globale per questa vista
+        val allPoints = filteredLogs.map { ChartPoint(it.log.date, it.log.kilometers?.toFloat() ?: 0f) }
+        val effectiveGranularity = if (style.selections.timeGranularity != null) {
+            findBestGranularity(allPoints, style.selections.timeGranularity, false, false)
+        } else {
+            findAutoGranularity(allPoints, false, false)
+        }
+
         val sortedSelectedEquipIds = core.equips.map { it.id }.filter { it in style.selections.selectedEquipmentIds }
         val sortedSelectedOpIds = core.ops.map { it.id }.filter { it in style.selections.selectedOperationTypeIds }
         
@@ -244,12 +258,12 @@ class ReportsViewModel(
         // Standard Trends
         val equipChartData = sortedSelectedEquipIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.equipmentId == id && it.log.kilometers != null }.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
-            aggregateData(points, style.selections.timeGranularity)
+            aggregateData(points, effectiveGranularity)
         }
 
         val opChartData = sortedSelectedOpIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.kilometers != null }.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat(), it.equipmentDescription) }
-            aggregateData(points, style.selections.timeGranularity)
+            aggregateData(points, effectiveGranularity)
         }
 
         // Global Distributions (Pie Charts) with STABLE COLORS
@@ -268,10 +282,10 @@ class ReportsViewModel(
         }.sortedByDescending { it.value }
 
         // Period-based Distributions (Multiple Pie Charts)
-        val equipDistByPeriod = if (style.selections.timeGranularity != null) {
-            val dateFormat = getPeriodFormat(style.selections.timeGranularity)
+        val equipDistByPeriod = if (effectiveGranularity != null) {
+            val dateFormat = getPeriodFormat(effectiveGranularity)
             val periods = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
-            if (style.selections.timeGranularity == TimeGranularity.HOURS && periods.size > 60) emptyMap()
+            if (effectiveGranularity == TimeGranularity.HOURS && periods.size > 60) emptyMap()
             else {
                 periods.mapValues { (_, logsInPeriod) ->
                     logsInPeriod.filter { it.log.equipmentId in style.selections.selectedEquipmentIds }.groupBy { it.log.equipmentId }.map { (id, logs) ->
@@ -284,10 +298,10 @@ class ReportsViewModel(
             }
         } else emptyMap()
 
-        val opDistByPeriod = if (style.selections.timeGranularity != null) {
-            val dateFormat = getPeriodFormat(style.selections.timeGranularity)
+        val opDistByPeriod = if (effectiveGranularity != null) {
+            val dateFormat = getPeriodFormat(effectiveGranularity)
             val periods = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
-            if (style.selections.timeGranularity == TimeGranularity.HOURS && periods.size > 60) emptyMap()
+            if (effectiveGranularity == TimeGranularity.HOURS && periods.size > 60) emptyMap()
             else {
                 periods.mapValues { (_, logsInPeriod) ->
                     logsInPeriod.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
@@ -313,7 +327,7 @@ class ReportsViewModel(
                 val delta = (current - previous).coerceAtLeast(0f)
                 deltas.add(ChartPoint(rawPoints[i].date, delta))
             }
-            aggregateData(deltas, style.selections.timeGranularity, isDelta = true)
+            aggregateData(deltas, effectiveGranularity, isDelta = true)
         }
 
         // 2. Heatmap Data
@@ -339,8 +353,8 @@ class ReportsViewModel(
         }
 
         // 3b. Benchmarking by Period (Fixed for Granularity)
-        val benchmarkByPeriod = if (style.selections.timeGranularity != null && style.selections.timeGranularity != TimeGranularity.HOURS) {
-            val dateFormat = getPeriodFormat(style.selections.timeGranularity)
+        val benchmarkByPeriod = if (effectiveGranularity != null && effectiveGranularity != TimeGranularity.HOURS) {
+            val dateFormat = getPeriodFormat(effectiveGranularity)
             val logsByPeriod = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
             
             logsByPeriod.mapValues { (period, _) ->
@@ -366,11 +380,11 @@ class ReportsViewModel(
         // 4. NEW: Activity Volume (Count) over time
         val equipmentVolumeData = sortedSelectedEquipIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.equipmentId == id }.map { ChartPoint(it.log.date, 1f) }
-            aggregateData(points, style.selections.timeGranularity, isCount = true)
+            aggregateData(points, effectiveGranularity, isCount = true)
         }
         val operationVolumeData = sortedSelectedOpIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.operationTypeId == id }.map { ChartPoint(it.log.date, 1f) }
-            aggregateData(points, style.selections.timeGranularity, isCount = true)
+            aggregateData(points, effectiveGranularity, isCount = true)
         }
 
         // 5. NEW: Combined Logs Trend (Value for specific Equipment + Operation pairs)
@@ -383,7 +397,7 @@ class ReportsViewModel(
                     val oDesc = core.ops.find { it.id == oId }?.description ?: "O$oId"
                     val key = "$eDesc - $oDesc"
                     val points = logs.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
-                    combinedLogsData[key] = aggregateData(points, style.selections.timeGranularity)
+                    combinedLogsData[key] = aggregateData(points, effectiveGranularity)
                 }
             }
         }
@@ -403,6 +417,7 @@ class ReportsViewModel(
             intervalData = intervalData, heatmapData = heatmapData, benchmarkData = benchmarkData, benchmarkByPeriod = benchmarkByPeriod,
             equipmentVolumeData = equipmentVolumeData, operationVolumeData = operationVolumeData, combinedLogsData = combinedLogsData,
             startDate = style.selections.startDate, endDate = style.selections.endDate, timeGranularity = style.selections.timeGranularity,
+            effectiveGranularity = effectiveGranularity,
             showDismissed = style.selections.showDismissed, colorMode = style.selections.colorMode, customColors = currentPalette,
             savedFilters = persist.saved, activeFilterName = persist.active?.name, isFilterDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current)
         )
@@ -418,6 +433,53 @@ class ReportsViewModel(
 
     private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity?, isDelta: Boolean = false, isCount: Boolean = false): List<ChartPoint> {
         if (points.isEmpty()) return emptyList()
+        
+        // Esegui l'aggregazione con la granularità fornita (già calcolata o auto)
+        var result = performAggregation(points, granularity, isDelta, isCount)
+
+        // Data Capping & Smoothing sempre attivo per garantire leggibilità
+        if (result.size > UiConstants.MAX_CHART_POINTS) {
+            result = smoothData(result, UiConstants.MAX_CHART_POINTS)
+        }
+
+        return result
+    }
+
+    private fun findBestGranularity(points: List<ChartPoint>, requested: TimeGranularity, isDelta: Boolean, isCount: Boolean): TimeGranularity {
+        if (points.size < 2) return requested
+        
+        var current = requested
+        while (current != TimeGranularity.HOURS) {
+            // Prova a vedere quanti punti produce questa granularità
+            val testAggregation = performAggregation(points, current, isDelta, isCount)
+            if (testAggregation.size >= 2) {
+                return current
+            }
+            // Se produce meno di 2 punti, scendi di livello
+            current = when (current) {
+                TimeGranularity.YEARS -> TimeGranularity.MONTHS
+                TimeGranularity.MONTHS -> TimeGranularity.WEEKS
+                TimeGranularity.WEEKS -> TimeGranularity.DAYS
+                else -> TimeGranularity.HOURS
+            }
+        }
+        return current
+    }
+
+    private fun findAutoGranularity(points: List<ChartPoint>, isDelta: Boolean, isCount: Boolean): TimeGranularity? {
+        if (points.size <= 10) return null // Pochi dati: mostrali grezzi
+        
+        val granularities = listOf(TimeGranularity.YEARS, TimeGranularity.MONTHS, TimeGranularity.WEEKS, TimeGranularity.DAYS, TimeGranularity.HOURS)
+        
+        for (gran in granularities) {
+            val count = performAggregation(points, gran, isDelta, isCount).size
+            // Cerchiamo una granularità che ci dia tra i 5 e i 25 punti per una visione "compatta"
+            if (count in 5..25) return gran
+        }
+        return TimeGranularity.HOURS
+    }
+
+    private fun performAggregation(points: List<ChartPoint>, granularity: TimeGranularity?, isDelta: Boolean, isCount: Boolean): List<ChartPoint> {
         if (granularity == null) return points.sortedBy { it.date }
         
         val calendar = Calendar.getInstance()
@@ -436,10 +498,6 @@ class ReportsViewModel(
             calendar.timeInMillis
         }
 
-        if (grouped.size == 1 && points.size > 1 && !isDelta && !isCount) {
-            return points.sortedBy { it.date }
-        }
-
         return grouped.map { (timestamp, groupedPoints) -> 
             val value = when {
                 isCount -> groupedPoints.size.toFloat()
@@ -448,6 +506,16 @@ class ReportsViewModel(
             }
             ChartPoint(timestamp, value) 
         }.sortedBy { it.date }
+    }
+
+    private fun smoothData(points: List<ChartPoint>, maxPoints: Int): List<ChartPoint> {
+        if (points.size <= maxPoints) return points
+        val chunkSize = (points.size.toDouble() / maxPoints).toInt().coerceAtLeast(1)
+        return points.chunked(chunkSize).map { chunk ->
+            val avgDate = chunk.map { it.date }.average().toLong()
+            val avgValue = chunk.map { it.kilometers }.average().toFloat()
+            ChartPoint(avgDate, avgValue)
+        }
     }
 
     fun toggleEquipmentSelection(id: Int) { _selectedEquipmentIds.value = if (_selectedEquipmentIds.value.contains(id)) _selectedEquipmentIds.value - id else _selectedEquipmentIds.value + id }

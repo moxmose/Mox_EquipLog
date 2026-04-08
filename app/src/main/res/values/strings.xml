@@ -43,7 +43,7 @@
     <string name="report_no_data">No data available</string>
     <string name="select_equipment">Select Equipment</string>
     <string name="select_operation_type">Select Operation Type</string>
-    <string name="km_trend">Kilometers Trend</string>
+    <string name="um_trend">UM Trend</string>
     <string name="mixed_units_warning">Warning: selected equipments use different measurement units.</string>
     <string name="report_equipment_subtitle">Analysis of usage values</string>
     <string name="report_operation_subtitle">Frequency and values for single operation</string>

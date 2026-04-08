@@ -42,7 +42,7 @@
     <string name="report_no_data">Nessun dato disponibile</string>
     <string name="select_equipment">Seleziona Mezzo</string>
     <string name="select_operation_type">Seleziona Attività</string>
-    <string name="km_trend">Andamento Valori</string>
+    <string name="um_trend">Andamento Valori</string>
     <string name="mixed_units_warning">Attenzione: i mezzi selezionati usano unità di misura diverse.</string>
     <string name="report_equipment_subtitle">Analisi dei valori di utilizzo</string>
     <string name="report_operation_subtitle">Frequenza e valori per singola attività</string>

@@ -14,4 +14,7 @@ object UiConstants {
     const val REPORTS_COLOR_MODE_M3 = "M3"
     const val REPORTS_COLOR_MODE_CUSTOM = "CUSTOM"
     const val DEFAULT_REPORTS_COLOR_MODE = REPORTS_COLOR_MODE_M3
+
+    // Analisi e Grafici
+    const val MAX_CHART_POINTS = 50
 }
