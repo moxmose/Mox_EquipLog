@@ -42,6 +42,11 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
 import androidx.compose.ui.graphics.toArgb
+import android.content.Context
+import android.content.Intent
+import androidx.core.content.FileProvider
+import java.io.File
+import androidx.compose.ui.platform.LocalContext
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -123,7 +128,55 @@ fun ReportBaseScreen(
             item { StandardFilterSection(startDate = uiState.startDate, endDate = uiState.endDate, granularity = uiState.timeGranularity, onDateRangeSelected = viewModel::setDateRange, onGranularitySelected = viewModel::setTimeGranularity, onReset = viewModel::resetFilters, onRefresh = viewModel::refresh, enabledGranularity = granularityEnabled) }
             item { FilterManagementRow(savedFilters = uiState.savedFilters, activeFilterName = uiState.activeFilterName, isDirty = uiState.isFilterDirty, onSaveNew = viewModel::saveAsNewFilter, onOverwrite = viewModel::overwriteActiveFilter, onApply = { viewModel.applySavedFilter(it); viewModel.refresh() }, onDelete = viewModel::deleteSavedFilter) }
             content()
+
+            item {
+                val context = LocalContext.current
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 24.dp, bottom = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Button(
+                        onClick = {
+                            val csvData = viewModel.getCsvExportData(title)
+                            val fileName = "Export_${title.replace(" ", "_")}.csv"
+                            shareCsvFile(context, fileName, csvData)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.export_data_csv))
+                    }
+                }
+            }
         }
+    }
+}
+
+fun shareCsvFile(context: Context, fileName: String, content: String) {
+    try {
+        val file = File(context.cacheDir, fileName)
+        file.writeText(content)
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, fileName)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(sendIntent, "Esporta report"))
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }
 

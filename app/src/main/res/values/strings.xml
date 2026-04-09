@@ -234,4 +234,5 @@
     <string name="set_default_failed">Set default failed</string>
     <string name="refresh">Refresh</string>
     <string name="distribution_analysis">Distribution analysis</string>
+    <string name="export_data_csv">Export Data in CSV Format</string>
 </resources>

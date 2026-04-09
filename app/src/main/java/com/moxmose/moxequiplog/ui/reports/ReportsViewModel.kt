@@ -576,4 +576,57 @@ class ReportsViewModel(
             reportFilterDao.deleteFilter(id)
         }
     }
+
+    fun getCsvExportData(reportTitle: String): String {
+        val state = uiState.value
+        val sb = StringBuilder()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+
+        // Intestazione
+        sb.append("Report;${reportTitle}\n")
+        sb.append("Data Esportazione;${dateFormat.format(Date())}\n")
+        sb.append("Periodo;${state.startDate?.let { dateFormat.format(Date(it)) } ?: "Inizio"} - ${state.endDate?.let { dateFormat.format(Date(it)) } ?: "Fine"}\n\n")
+
+        // 1. Dati Trend (Equipments o Operations)
+        if (state.equipmentChartData.any { it.value.isNotEmpty() }) {
+            sb.append("Data;Attrezzatura;Valore;Unita\n")
+            state.equipmentChartData.forEach { (id, points) ->
+                val name = state.equipments.find { it.id == id }?.description ?: "ID $id"
+                points.forEach { p ->
+                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";${p.kilometers};${state.equipmentUnitLabel}\n")
+                }
+            }
+        } else if (state.operationChartData.any { it.value.isNotEmpty() }) {
+            sb.append("Data;Operazione;Valore;Unita\n")
+            state.operationChartData.forEach { (id, points) ->
+                val name = state.operationTypes.find { it.id == id }?.description ?: "ID $id"
+                points.forEach { p ->
+                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";${p.kilometers};${state.operationUnitLabel}\n")
+                }
+            }
+        }
+
+        // 2. Dati Benchmark
+        if (state.benchmarkData.isNotEmpty()) {
+            sb.append("\nAnalisi Benchmark\n")
+            sb.append("Attrezzatura;Utilizzo Totale;Media Intervallo;Conteggio Log\n")
+            state.benchmarkData.forEach { b ->
+                sb.append("\"${b.equipmentName}\";${b.totalValue};${b.avgInterval};${b.count}\n")
+            }
+        }
+
+        // 3. Distribuzioni (Pie Charts)
+        if (state.equipmentDistribution.isNotEmpty() && reportTitle.contains("Freq", ignoreCase = true)) {
+            sb.append("\nDistribuzione\n")
+            sb.append("Nome;Occorrenze;Percentuale\n")
+            val dist = if (reportTitle.contains("Equip", ignoreCase = true)) state.equipmentDistribution else state.operationDistribution
+            val total = dist.sumOf { it.value.toDouble() }.toFloat()
+            dist.forEach { p ->
+                val perc = if (total > 0) (p.value / total) * 100 else 0f
+                sb.append("\"${p.label}\";${p.value.toInt()};${String.format(Locale.US, "%.1f%%", perc)}\n")
+            }
+        }
+
+        return sb.toString()
+    }
 }
