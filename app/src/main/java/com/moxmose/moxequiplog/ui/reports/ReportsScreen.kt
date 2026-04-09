@@ -41,6 +41,7 @@ import com.moxmose.moxequiplog.data.local.ReportFilter
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
+import androidx.compose.ui.graphics.toArgb
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -49,7 +50,12 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
+import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.core.common.Fill
+import com.patrykandpatrick.vico.core.common.component.LineComponent
+import com.patrykandpatrick.vico.core.common.component.ShapeComponent
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -133,7 +139,7 @@ fun ReportSelectionHeader(
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(modifier = Modifier.weight(1f)) { selector() }
         
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.dp)) {
             IconButton(onClick = onToggleShowDismissed, colors = IconButtonDefaults.iconButtonColors(containerColor = if (showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)) { 
                 Icon(imageVector = if (showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = if (showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed), tint = if (showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) 
             }
@@ -437,7 +443,23 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                     val dataWithPoints = uiState.combinedLogsData.filter { it.value.isNotEmpty() }
                     if (dataWithPoints.isNotEmpty()) {
                         val modelProducer = remember { CartesianChartModelProducer() }
-                        val lineStyles = remember(dataWithPoints, chartColors) { dataWithPoints.keys.mapIndexed { index, _ -> LineCartesianLayer.Line(fill = LineCartesianLayer.LineFill.single(fill = fill(chartColors[if (chartColors.isNotEmpty()) index % chartColors.size else 0]))) } }
+                        val lineStyles = remember(dataWithPoints, chartColors) { 
+                            dataWithPoints.keys.mapIndexed { index, _ -> 
+                                val color = chartColors[if (chartColors.isNotEmpty()) index % chartColors.size else 0]
+                                LineCartesianLayer.Line(
+                                    fill = LineCartesianLayer.LineFill.single(fill = Fill(color.toArgb())),
+                                    pointProvider = LineCartesianLayer.PointProvider.single(
+                                        LineCartesianLayer.Point(
+                                            ShapeComponent(
+                                                shape = CorneredShape.Pill,
+                                                color = color.toArgb(),
+                                            ),
+                                            sizeDp = 4f
+                                        )
+                                    )
+                                )
+                            } 
+                        }
                         val effectiveGranularity = uiState.effectiveGranularity
                         val dateFormat = remember(effectiveGranularity) { when (effectiveGranularity) { null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()) ; TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()) ; TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault()) ; TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault()) ; TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault()) } }
                         LaunchedEffect(dataWithPoints, effectiveGranularity) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(x = points.map { it.date }, y = points.map { it.kilometers }) } } } }
@@ -548,7 +570,7 @@ fun BenchmarkCard(title: String? = null, data: List<BenchmarkData>, colors: List
             Text(title ?: stringResource(R.string.report_benchmarking_title), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
             if (data.isEmpty()) NoDataPlaceholder() else {
-                CartesianChartHost(chart = rememberCartesianChart(rememberColumnCartesianLayer(columnProvider = ColumnCartesianLayer.ColumnProvider.series(colors.take(2).map { color -> rememberLineComponent(color = color, thickness = 16.dp) })), startAxis = VerticalAxis.rememberStart(), bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = CartesianValueFormatter { _, value, _ -> data.getOrNull(value.toInt())?.equipmentName ?: "" })), modelProducer = modelProducer, modifier = Modifier.fillMaxWidth().height(250.dp) )
+                CartesianChartHost(chart = rememberCartesianChart(rememberColumnCartesianLayer(columnProvider = ColumnCartesianLayer.ColumnProvider.series(colors.take(2).map { color -> LineComponent(color = color.toArgb(), thicknessDp = 16f) })), startAxis = VerticalAxis.rememberStart(), bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = CartesianValueFormatter { _, value, _ -> data.getOrNull(value.toInt())?.equipmentName ?: "" })), modelProducer = modelProducer, modifier = Modifier.fillMaxWidth().height(250.dp) )
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) { Box(modifier = Modifier.size(12.dp).background(colors[0])); Spacer(modifier = Modifier.width(4.dp)); Text(stringResource(R.string.report_benchmark_total), style = MaterialTheme.typography.labelSmall) }
@@ -616,7 +638,19 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, requestedGranularit
     val lineStyles = remember(dataWithPoints, allStableIds, finalColors) { 
         dataWithPoints.keys.map { id -> 
             val colorIndex = allStableIds.indexOf(id) ; 
-            LineCartesianLayer.Line(fill = LineCartesianLayer.LineFill.single(fill = fill(finalColors[if (finalColors.isNotEmpty()) colorIndex % finalColors.size else 0]))) 
+            val color = finalColors[if (finalColors.isNotEmpty()) colorIndex % finalColors.size else 0]
+            LineCartesianLayer.Line(
+                fill = LineCartesianLayer.LineFill.single(fill = Fill(color.toArgb())),
+                pointProvider = LineCartesianLayer.PointProvider.single(
+                    LineCartesianLayer.Point(
+                        ShapeComponent(
+                            shape = CorneredShape.Pill,
+                            color = color.toArgb(),
+                        ),
+                        sizeDp = 4f
+                    )
+                )
+            )
         } 
     }
     val dateFormat = remember(effectiveGranularity) { when (effectiveGranularity) { null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()) ; TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()) ; TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault()) ; TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault()) ; TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault()) } }
