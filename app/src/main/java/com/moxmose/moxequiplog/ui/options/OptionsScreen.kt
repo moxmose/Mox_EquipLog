@@ -1,5 +1,7 @@
 package com.moxmose.moxequiplog.ui.options
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +39,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import android.net.Uri
+import kotlin.system.exitProcess
 
 enum class ColorManagerMode {
     CATEGORY_PICKER,
@@ -96,8 +100,14 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ToggleUnitVisibilityFailed -> context.getString(R.string.toggle_unit_visibility_failed)
                 is OptionsViewModel.OptionsUiEvent.SetDefaultFailed -> context.getString(R.string.set_default_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateReportsSettingsFailed -> context.getString(R.string.update_reports_settings_failed)
+                is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
+                is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
             }
             snackbarHostState.showSnackbar(message)
+            if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {
+                // Exit app after restore to force reload
+                exitProcess(0)
+            }
         }
     }
 
@@ -154,6 +164,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onUpdateReportColorsOrder = viewModel::updateReportColorsOrder,
         onToggleColorVisibility = viewModel::toggleColorVisibility,
         onToggleReportColorVisibility = viewModel::toggleReportColorVisibility,
+        onBackupDatabase = viewModel::backupDatabase,
+        onRestoreDatabase = viewModel::restoreDatabase,
+        getSuggestedBackupFileName = viewModel::getSuggestedBackupFileName,
         snackbarHostState = snackbarHostState
     )
 
@@ -236,15 +249,44 @@ fun OptionsScreenContent(
     onUpdateReportColorsOrder: (List<AppColor>) -> Unit,
     onToggleColorVisibility: (Long) -> Unit,
     onToggleReportColorVisibility: (Long) -> Unit,
+    onBackupDatabase: (Uri) -> Unit,
+    onRestoreDatabase: (Uri) -> Unit,
+    getSuggestedBackupFileName: () -> String,
     snackbarHostState: SnackbarHostState
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
     var showBackgroundPicker by remember { mutableStateOf(false) }
     var showUnitManagement by remember { mutableStateOf(false) }
+    var showRestoreConfirm by remember { mutableStateOf<Uri?>(null) }
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
     val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
+
+    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-sqlite3")) { uri ->
+        uri?.let { onBackupDatabase(it) }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { showRestoreConfirm = it }
+    }
+
+    if (showRestoreConfirm != null) {
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirm = null },
+            title = { Text(stringResource(R.string.restore_confirm_title)) },
+            text = { Text(stringResource(R.string.restore_confirm_msg)) },
+            confirmButton = {
+                TextButton(onClick = { 
+                    showRestoreConfirm?.let { onRestoreDatabase(it) }
+                    showRestoreConfirm = null
+                }) { Text(stringResource(R.string.button_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreConfirm = null }) { Text(stringResource(R.string.button_cancel)) }
+            }
+        )
+    }
 
     if (showAboutDialog) {
         BasicAlertDialog(onDismissRequest = { onShowAboutDialogChange(false) }) {
@@ -565,6 +607,32 @@ fun OptionsScreenContent(
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_reset_background_settings))
+                    }
+                }
+            }
+
+            // 7. DATA MANAGEMENT
+            OptionsSectionCard(
+                title = stringResource(R.string.options_data_management_title),
+                description = stringResource(R.string.options_data_management_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = { backupLauncher.launch(getSuggestedBackupFileName()) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Backup, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_backup_db))
+                    }
+                    OutlinedButton(
+                        onClick = { restoreLauncher.launch(arrayOf("application/octet-stream", "application/x-sqlite3", "*/*")) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Restore, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_restore_db))
                     }
                 }
             }

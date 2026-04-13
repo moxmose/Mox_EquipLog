@@ -232,4 +232,17 @@
     <string name="set_default_failed">Impostazione predefinita fallita</string>
     <string name="refresh">Aggiorna</string>
     <string name="distribution_analysis">Analisi distribuzione</string>
+    <string name="export_data_csv">Esporta Dati (CSV)</string>
+    <string name="export_report_pdf">Esporta Report (PDF)</string>
+    <string name="sharing_pdf_report">Condivisione report PDF…</string>
+    <string name="options_data_management_title">Gestione Dati</string>
+    <string name="options_data_management_desc">Esegui il backup del database su un file o ripristina da un backup precedente.</string>
+    <string name="options_backup_db">Backup Database</string>
+    <string name="options_restore_db">Ripristina Database</string>
+    <string name="backup_success">Backup creato con successo.</string>
+    <string name="backup_failed">Backup fallito: %1$s</string>
+    <string name="restore_success">Database ripristinato. Riavvia l\'app.</string>
+    <string name="restore_failed">Ripristino fallito: %1$s</string>
+    <string name="restore_confirm_title">Conferma Ripristino</string>
+    <string name="restore_confirm_msg">Questo sovrascriverà tutti i dati correnti. Sei sicuro? L\'app dovrà essere riavviata manualmente.</string>
 </resources>

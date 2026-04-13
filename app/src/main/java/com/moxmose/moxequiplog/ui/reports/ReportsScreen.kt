@@ -72,6 +72,13 @@ import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import android.graphics.Bitmap
+import android.graphics.Canvas as AndroidCanvas
+import android.graphics.pdf.PdfDocument
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.drawToBitmap
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 enum class ReportDestination {
     MENU, EQUIPMENTS, OPERATIONS, EQUIPMENTS_FREQ, OPERATIONS_FREQ, INTERVALS, HEATMAP, BENCHMARKING,
@@ -100,6 +107,7 @@ fun ReportsScreen(modifier: Modifier = Modifier, viewModel: ReportsViewModel = k
     }
 }
 
+
 @Composable
 fun ReportBaseScreen(
     title: String,
@@ -113,7 +121,23 @@ fun ReportBaseScreen(
     granularityEnabled: Boolean = true,
     content: LazyListScope.() -> Unit
 ) {
+    val context = LocalContext.current
+    val view = LocalView.current
+    val scope = rememberCoroutineScope()
+    var isSharingPdf by remember { mutableStateOf(false) }
+
     Scaffold(topBar = { TopAppBar(title = { Text(title) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }) }, containerColor = MaterialTheme.colorScheme.background) { padding ->
+        if (isSharingPdf) {
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
+                Card {
+                    Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Text(stringResource(R.string.sharing_pdf_report))
+                    }
+                }
+            }
+        }
+
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(16.dp)) {
             item { 
                 ReportSelectionHeader(
@@ -130,12 +154,12 @@ fun ReportBaseScreen(
             content()
 
             item {
-                val context = LocalContext.current
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 24.dp, bottom = 16.dp),
-                    contentAlignment = Alignment.Center
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Button(
                         onClick = {
@@ -152,6 +176,46 @@ fun ReportBaseScreen(
                         Icon(Icons.Default.Share, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.export_data_csv))
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                isSharingPdf = true
+                                delay(500) // Aspetta che la UI sia stabile
+                                try {
+                                    val bitmap = view.drawToBitmap(Bitmap.Config.ARGB_8888)
+                                    val fileName = "Report_${title.replace(" ", "_")}.pdf"
+                                    val pdfFile = File(context.cacheDir, fileName)
+                                    
+                                    val document = PdfDocument()
+                                    val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
+                                    val page = document.startPage(pageInfo)
+                                    page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                                    document.finishPage(page)
+                                    
+                                    pdfFile.outputStream().use { document.writeTo(it) }
+                                    document.close()
+                                    
+                                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", pdfFile)
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/pdf"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Condividi Report PDF"))
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    isSharingPdf = false
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.export_report_pdf))
                     }
                 }
             }

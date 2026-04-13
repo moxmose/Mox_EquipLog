@@ -10,6 +10,7 @@ import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.operations.OperationsTypeViewModel
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import com.moxmose.moxequiplog.ui.reports.ReportsViewModel
+import com.moxmose.moxequiplog.utils.BackupManager
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModelOf
 import org.koin.core.qualifier.named
@@ -27,7 +28,7 @@ val appModule = module {
         Room.databaseBuilder(
             androidContext(),
             AppDatabase::class.java,
-            "mox-maintenance-logs-db"
+            "mox_equiplog.db"
         )
         .addCallback(AppDatabase.CALLBACK)
         .fallbackToDestructiveMigration(true)
@@ -47,6 +48,7 @@ val appModule = module {
     // Repositories
     single { ImageRepository(get(), get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
     single { AppSettingsManager(get(), get(named("defaultUsername"))) }
+    single { BackupManager(androidContext()) }
 
     // ViewModels
     viewModelOf(::EquipmentsViewModel)

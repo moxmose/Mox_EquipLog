@@ -6,7 +6,9 @@ import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
+import android.net.Uri
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -24,7 +26,8 @@ class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
-    private val measurementUnitDao: MeasurementUnitDao
+    private val measurementUnitDao: MeasurementUnitDao,
+    private val backupManager: BackupManager
 ) : ViewModel() {
 
     sealed class OptionsUiEvent {
@@ -56,6 +59,8 @@ class OptionsViewModel(
         data object ToggleUnitVisibilityFailed : OptionsUiEvent()
         data object SetDefaultFailed : OptionsUiEvent()
         data object UpdateReportsSettingsFailed : OptionsUiEvent()
+        data class BackupResult(val success: Boolean, val message: String?) : OptionsUiEvent()
+        data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -503,6 +508,26 @@ class OptionsViewModel(
             }
         }
     }
+
+    fun backupDatabase(uri: Uri) {
+        viewModelScope.launch {
+            backupManager.backupDatabase(uri).fold(
+                onSuccess = { _uiEvents.send(OptionsUiEvent.BackupResult(true, null)) },
+                onFailure = { _uiEvents.send(OptionsUiEvent.BackupResult(false, it.message)) }
+            )
+        }
+    }
+
+    fun restoreDatabase(uri: Uri) {
+        viewModelScope.launch {
+            backupManager.restoreDatabase(uri).fold(
+                onSuccess = { _uiEvents.send(OptionsUiEvent.RestoreResult(true, null)) },
+                onFailure = { _uiEvents.send(OptionsUiEvent.RestoreResult(false, it.message)) }
+            )
+        }
+    }
+
+    fun getSuggestedBackupFileName(): String = backupManager.getSuggestedBackupFileName()
 
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {

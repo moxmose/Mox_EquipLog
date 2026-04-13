@@ -234,5 +234,17 @@
     <string name="set_default_failed">Set default failed</string>
     <string name="refresh">Refresh</string>
     <string name="distribution_analysis">Distribution analysis</string>
-    <string name="export_data_csv">Export Data in CSV Format</string>
+    <string name="export_data_csv">Export Data (CSV)</string>
+    <string name="export_report_pdf">Export Report (PDF)</string>
+    <string name="sharing_pdf_report">Sharing PDF report...</string>
+    <string name="options_data_management_title">Data Management</string>
+    <string name="options_data_management_desc">Backup your database to a file or restore from a previous backup.</string>
+    <string name="options_backup_db">Backup Database</string>
+    <string name="options_restore_db">Restore Database</string>
+    <string name="backup_success">Backup created successfully.</string>
+    <string name="backup_failed">Backup failed: %1$s</string>
+    <string name="restore_success">Database restored. Please restart the app.</string>
+    <string name="restore_failed">Restore failed: %1$s</string>
+    <string name="restore_confirm_title">Confirm Restore</string>
+    <string name="restore_confirm_msg">This will overwrite all current data. Are you sure? The app will need to be restarted manually.</string>
 </resources>
