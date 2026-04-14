@@ -76,9 +76,9 @@ class BackupManager(private val context: Context, private val database: AppDatab
             tempDir.mkdirs()
 
             val tables = listOf(
-                "equipment", "operation_type", "maintenance_log",
-                "image", "category", "app_color",
-                "app_preference", "measurement_unit", "report_filter"
+                "equipments", "operation_types", "maintenance_logs",
+                "images", "categories", "app_colors",
+                "app_preferences", "measurement_units", "report_filters"
             )
 
             tables.forEach { tableName ->

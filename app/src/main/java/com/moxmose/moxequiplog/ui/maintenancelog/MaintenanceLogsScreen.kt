@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -49,7 +50,6 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.ui.components.ImageIcon
-import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
@@ -57,7 +57,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
+fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
     val logs by viewModel.logs.collectAsState()
     val equipments by viewModel.allEquipments.collectAsState()
     val operationTypes by viewModel.allOperationTypes.collectAsState()
@@ -65,7 +65,6 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
     val sortProperty by viewModel.sortProperty.collectAsState()
     val sortDirection by viewModel.sortDirection.collectAsState()
     val showDismissed by viewModel.showDismissed.collectAsState()
-    val allCategories by viewModel.allCategories.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
@@ -121,7 +120,6 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel(), o
         },
         onDismissLog = viewModel::dismissLog,
         onRestoreLog = viewModel::restoreLog,
-        allCategories = allCategories,
         snackbarHostState = snackbarHostState,
         defaultEquipmentId = defaultEquipmentId,
         defaultOperationTypeId = defaultOperationTypeId,
@@ -155,7 +153,6 @@ fun MaintenanceLogScreenContent(
     onUpdateLog: (MaintenanceLog) -> Unit,
     onDismissLog: (MaintenanceLog) -> Unit,
     onRestoreLog: (MaintenanceLog) -> Unit,
-    allCategories: List<Category>,
     snackbarHostState: SnackbarHostState,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
@@ -195,7 +192,6 @@ fun MaintenanceLogScreenContent(
                     onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.kilometers, log.date, log.color)
                     onShowAddDialogChange(false)
                 },
-                allCategories = allCategories,
                 defaultEquipmentId = defaultEquipmentId,
                 defaultOperationTypeId = defaultOperationTypeId,
                 equipmentCategoryColor = equipmentCategoryColor,
@@ -275,7 +271,6 @@ fun MaintenanceLogScreenContent(
                         onSave = onUpdateLog,
                         onDismiss = { onDismissLog(logDetail.log) },
                         onRestore = { onRestoreLog(logDetail.log) },
-                        allCategories = allCategories,
                         equipmentCategoryColor = equipmentCategoryColor,
                         operationCategoryColor = operationCategoryColor
                     )
@@ -293,13 +288,13 @@ fun MaintenanceLogDialog(
     measurementUnits: List<MeasurementUnit>,
     onDismissRequest: () -> Unit,
     onConfirm: (MaintenanceLog) -> Unit,
-    allCategories: List<Category>,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
     equipmentCategoryColor: String?,
     operationCategoryColor: String?
 ) {
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     var notes by remember { mutableStateOf("") }
     var kilometers by remember { mutableStateOf("") }
@@ -320,6 +315,7 @@ fun MaintenanceLogDialog(
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
 
     val eColor = remember(equipmentCategoryColor) {
         try {
@@ -343,7 +339,14 @@ fun MaintenanceLogDialog(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        datePickerState.selectedDateMillis?.let { selectedDate = it }
+                        datePickerState.selectedDateMillis?.let { dateMillis ->
+                            val calendar = Calendar.getInstance()
+                            val currentCalendar = Calendar.getInstance().apply { timeInMillis = selectedDate }
+                            calendar.timeInMillis = dateMillis
+                            calendar.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY))
+                            calendar.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE))
+                            selectedDate = calendar.timeInMillis
+                        }
                         showDatePicker = false
                     }
                 ) {
@@ -358,6 +361,41 @@ fun MaintenanceLogDialog(
         ) {
             DatePicker(state = datePickerState)
         }
+    }
+
+    if (showTimePicker) {
+        val calendar = Calendar.getInstance().apply { timeInMillis = selectedDate }
+        val timePickerState = rememberTimePickerState(
+            initialHour = calendar.get(Calendar.HOUR_OF_DAY),
+            initialMinute = calendar.get(Calendar.MINUTE),
+            is24Hour = true
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val newCalendar = Calendar.getInstance().apply {
+                            timeInMillis = selectedDate
+                            set(Calendar.HOUR_OF_DAY, timePickerState.hour)
+                            set(Calendar.MINUTE, timePickerState.minute)
+                        }
+                        selectedDate = newCalendar.timeInMillis
+                        showTimePicker = false
+                    }
+                ) {
+                    Text(stringResource(R.string.button_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            },
+            text = {
+                TimePicker(state = timePickerState)
+            }
+        )
     }
 
     AlertDialog(
@@ -480,20 +518,35 @@ fun MaintenanceLogDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = dateFormat.format(Date(selectedDate)),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.date)) },
-                    trailingIcon = {
-                        IconButton(onClick = { showDatePicker = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date))
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = dayFormat.format(Date(selectedDate)),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.date)) },
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date))
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = timeFormat.format(Date(selectedDate)),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.time)) },
+                        trailingIcon = {
+                            IconButton(onClick = { showTimePicker = true }) {
+                                Icon(Icons.Default.AccessTime, contentDescription = stringResource(R.string.select_time))
+                            }
+                        },
+                        modifier = Modifier.weight(1f).clickable { showTimePicker = true }
+                    )
+                }
             }
         },
+
         confirmButton = {
             Button(
                 onClick = {
@@ -538,7 +591,6 @@ fun MaintenanceLogCard(
     onDismiss: () -> Unit,
     onRestore: () -> Unit,
     modifier: Modifier = Modifier,
-    allCategories: List<Category>,
     equipmentCategoryColor: String?,
     operationCategoryColor: String?
 ) {
@@ -546,6 +598,7 @@ fun MaintenanceLogCard(
     var editedKilometers by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.kilometers?.toString() ?: "") }
     var editedDate by remember(logDetail, isEditing) { mutableLongStateOf(logDetail.log.date) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var selectedEquipment by remember(logDetail, isEditing) { mutableStateOf(equipments.find { it.id == logDetail.log.equipmentId }) }
     var selectedOperationType by remember(logDetail, isEditing) { mutableStateOf(operationTypes.find { it.id == logDetail.log.operationTypeId }) }
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
@@ -557,7 +610,9 @@ fun MaintenanceLogCard(
     }
 
     val cardAlpha = if (logDetail.log.dismissed) 0.5f else 1f
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
+    val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     val eColor = remember(equipmentCategoryColor) {
         try {
@@ -581,7 +636,14 @@ fun MaintenanceLogCard(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        datePickerState.selectedDateMillis?.let { editedDate = it }
+                        datePickerState.selectedDateMillis?.let { dateMillis ->
+                            val calendar = Calendar.getInstance()
+                            val currentCalendar = Calendar.getInstance().apply { timeInMillis = editedDate }
+                            calendar.timeInMillis = dateMillis
+                            calendar.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY))
+                            calendar.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE))
+                            editedDate = calendar.timeInMillis
+                        }
                         showDatePicker = false
                     }
                 ) {
@@ -596,6 +658,41 @@ fun MaintenanceLogCard(
         ) {
             DatePicker(state = datePickerState)
         }
+    }
+
+    if (showTimePicker) {
+        val calendar = Calendar.getInstance().apply { timeInMillis = editedDate }
+        val timePickerState = rememberTimePickerState(
+            initialHour = calendar.get(Calendar.HOUR_OF_DAY),
+            initialMinute = calendar.get(Calendar.MINUTE),
+            is24Hour = true
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val newCalendar = Calendar.getInstance().apply {
+                            timeInMillis = editedDate
+                            set(Calendar.HOUR_OF_DAY, timePickerState.hour)
+                            set(Calendar.MINUTE, timePickerState.minute)
+                        }
+                        editedDate = newCalendar.timeInMillis
+                        showTimePicker = false
+                    }
+                ) {
+                    Text(stringResource(R.string.button_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            },
+            text = {
+                TimePicker(state = timePickerState)
+            }
+        )
     }
 
     Card(
@@ -724,8 +821,13 @@ fun MaintenanceLogCard(
                         label = { Text(stringResource(R.string.notes_optional)) },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Button(onClick = { showDatePicker = true }) {
-                        Text(text = stringResource(R.string.date) + ": " + dateFormat.format(Date(editedDate)))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { showDatePicker = true }, modifier = Modifier.weight(1f)) {
+                            Text(text = dayFormat.format(Date(editedDate)))
+                        }
+                        Button(onClick = { showTimePicker = true }, modifier = Modifier.weight(1f)) {
+                            Text(text = timeFormat.format(Date(editedDate)))
+                        }
                     }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {

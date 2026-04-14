@@ -467,16 +467,20 @@ class ReportsViewModel(
     }
 
     private fun findAutoGranularity(points: List<ChartPoint>, isDelta: Boolean, isCount: Boolean): TimeGranularity? {
-        if (points.size <= 10) return null // Pochi dati: mostrali grezzi
+        if (points.isEmpty()) return null
         
         val granularities = listOf(TimeGranularity.YEARS, TimeGranularity.MONTHS, TimeGranularity.WEEKS, TimeGranularity.DAYS, TimeGranularity.HOURS)
         
+        // Cerchiamo una granularità che ci dia un numero ragionevole di punti (tra 2 e 25)
+        // Iniziamo dalle granularità più ampie (YEARS) verso quelle più fini (HOURS)
         for (gran in granularities) {
-            val count = performAggregation(points, gran, isDelta, isCount).size
-            // Cerchiamo una granularità che ci dia tra i 5 e i 25 punti per una visione "compatta"
-            if (count in 5..25) return gran
+            val aggregated = performAggregation(points, gran, isDelta, isCount)
+            if (aggregated.size in 2..25) return gran
         }
-        return TimeGranularity.HOURS
+        
+        // Se abbiamo più di un punto ma nessuna granularità ha restituito un range ideale,
+        // forziamo almeno HOURS per evitare di usare i timestamp grezzi (ms) che mandano in crisi l'asse X
+        return if (points.size > 1) TimeGranularity.HOURS else null
     }
 
     private fun performAggregation(points: List<ChartPoint>, granularity: TimeGranularity?, isDelta: Boolean, isCount: Boolean): List<ChartPoint> {
