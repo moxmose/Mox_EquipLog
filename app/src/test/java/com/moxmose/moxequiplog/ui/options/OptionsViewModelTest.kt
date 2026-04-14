@@ -1,10 +1,12 @@
 package com.moxmose.moxequiplog.ui.options
 
+import android.net.Uri
 import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -42,6 +44,7 @@ class OptionsViewModelTest {
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var measurementUnitDao: MeasurementUnitDao
+    private lateinit var backupManager: BackupManager
     private lateinit var viewModel: OptionsViewModel
 
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
@@ -85,8 +88,10 @@ class OptionsViewModelTest {
             every { getCategoryDefaultIcon(any()) } returns MutableStateFlow(null)
             every { getCategoryDefaultPhoto(any()) } returns MutableStateFlow(null)
         }
-        
-        viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository, measurementUnitDao)
+
+        backupManager = mockk(relaxed = true)
+
+        viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository, measurementUnitDao, backupManager)
     }
 
     @After
@@ -337,6 +342,69 @@ class OptionsViewModelTest {
         coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 0
         val result = viewModel.isPhotoUsed(uri)
         assertFalse(result)
+    }
+
+    @Test
+    fun backupDatabase_onSuccess_emitsBackupResultTrue() = runTest {
+        val uri: Uri = mockk()
+        coEvery { backupManager.backupDatabase(uri) } returns Result.success(Unit)
+
+        viewModel.uiEvents.test {
+            viewModel.backupDatabase(uri)
+            val event = awaitItem()
+            assertTrue(event is OptionsViewModel.OptionsUiEvent.BackupResult)
+            assertTrue((event as OptionsViewModel.OptionsUiEvent.BackupResult).success)
+        }
+    }
+
+    @Test
+    fun backupDatabase_onFailure_emitsBackupResultFalse() = runTest {
+        val uri: Uri = mockk()
+        val errorMessage = "Backup failed"
+        coEvery { backupManager.backupDatabase(uri) } returns Result.failure(Exception(errorMessage))
+
+        viewModel.uiEvents.test {
+            viewModel.backupDatabase(uri)
+            val event = awaitItem()
+            assertTrue(event is OptionsViewModel.OptionsUiEvent.BackupResult)
+            assertFalse((event as OptionsViewModel.OptionsUiEvent.BackupResult).success)
+            assertEquals(errorMessage, (event as OptionsViewModel.OptionsUiEvent.BackupResult).message)
+        }
+    }
+
+    @Test
+    fun restoreDatabase_onSuccess_emitsRestoreResultTrue() = runTest {
+        val uri: Uri = mockk()
+        coEvery { backupManager.restoreDatabase(uri) } returns Result.success(Unit)
+
+        viewModel.uiEvents.test {
+            viewModel.restoreDatabase(uri)
+            val event = awaitItem()
+            assertTrue(event is OptionsViewModel.OptionsUiEvent.RestoreResult)
+            assertTrue((event as OptionsViewModel.OptionsUiEvent.RestoreResult).success)
+        }
+    }
+
+    @Test
+    fun restoreDatabase_onFailure_emitsRestoreResultFalse() = runTest {
+        val uri: Uri = mockk()
+        val errorMessage = "Restore failed"
+        coEvery { backupManager.restoreDatabase(uri) } returns Result.failure(Exception(errorMessage))
+
+        viewModel.uiEvents.test {
+            viewModel.restoreDatabase(uri)
+            val event = awaitItem()
+            assertTrue(event is OptionsViewModel.OptionsUiEvent.RestoreResult)
+            assertFalse((event as OptionsViewModel.OptionsUiEvent.RestoreResult).success)
+            assertEquals(errorMessage, (event as OptionsViewModel.OptionsUiEvent.RestoreResult).message)
+        }
+    }
+
+    @Test
+    fun getSuggestedBackupFileName_returnsValueFromManager() = runTest {
+        val suggestedName = "suggested_backup.db"
+        every { backupManager.getSuggestedBackupFileName() } returns suggestedName
+        assertEquals(suggestedName, viewModel.getSuggestedBackupFileName())
     }
 
     @Test

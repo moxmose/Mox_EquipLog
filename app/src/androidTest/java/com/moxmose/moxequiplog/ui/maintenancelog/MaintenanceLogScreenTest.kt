@@ -70,7 +70,8 @@ class MaintenanceLogScreenTest {
                 defaultEquipmentId = null,
                 defaultOperationTypeId = null,
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                measurementUnits = emptyList()
             )
         }
 
@@ -110,7 +111,8 @@ class MaintenanceLogScreenTest {
                 defaultEquipmentId = null,
                 defaultOperationTypeId = null,
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                measurementUnits = emptyList()
             )
         }
 
@@ -133,7 +135,8 @@ class MaintenanceLogScreenTest {
                 defaultEquipmentId = null,
                 defaultOperationTypeId = null,
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                measurementUnits = emptyList()
             )
         }
 
@@ -180,7 +183,8 @@ class MaintenanceLogScreenTest {
                 onRestore = {}, 
                 allCategories = emptyList(),
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                measurementUnits = emptyList()
             )
         }
 
@@ -218,7 +222,8 @@ class MaintenanceLogScreenTest {
                 onRestore = {}, 
                 allCategories = emptyList(),
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                measurementUnits = emptyList()
             )
         }
 

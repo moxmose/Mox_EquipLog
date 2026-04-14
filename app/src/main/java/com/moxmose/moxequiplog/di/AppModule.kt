@@ -48,7 +48,7 @@ val appModule = module {
     // Repositories
     single { ImageRepository(get(), get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
     single { AppSettingsManager(get(), get(named("defaultUsername"))) }
-    single { BackupManager(androidContext()) }
+    single { BackupManager(androidContext(), get()) }
 
     // ViewModels
     viewModelOf(::EquipmentsViewModel)

@@ -2,13 +2,14 @@ package com.moxmose.moxequiplog.utils
 
 import android.content.Context
 import android.net.Uri
+import com.moxmose.moxequiplog.data.local.AppDatabase
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
-class BackupManager(private val context: Context) {
+class BackupManager(private val context: Context, private val database: AppDatabase) {
 
     companion object {
         private const val DATABASE_NAME = "mox_equiplog.db"
@@ -16,15 +17,15 @@ class BackupManager(private val context: Context) {
 
     fun backupDatabase(destinationUri: Uri): Result<Unit> {
         return try {
+            // Force checkpoint to ensure all data is in the main .db file
+            database.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use { cursor ->
+                cursor.moveToFirst()
+            }
+
             val dbFile = context.getDatabasePath(DATABASE_NAME)
             if (!dbFile.exists()) {
                 return Result.failure(Exception("Database file not found"))
             }
-
-            // Close database before copying is recommended, 
-            // but for a simple copy of the file we might need to handle -wal and -shm files too.
-            val walFile = File(dbFile.path + "-wal")
-            val shmFile = File(dbFile.path + "-shm")
 
             context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
                 FileInputStream(dbFile).use { inputStream ->
@@ -42,6 +43,9 @@ class BackupManager(private val context: Context) {
         return try {
             val dbFile = context.getDatabasePath(DATABASE_NAME)
             
+            // Close database before replacing the file
+            database.close()
+
             context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
                 FileOutputStream(dbFile).use { outputStream ->
                     inputStream.copyTo(outputStream)

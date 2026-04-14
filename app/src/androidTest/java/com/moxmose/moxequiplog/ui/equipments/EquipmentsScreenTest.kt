@@ -43,7 +43,7 @@ class EquipmentsScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddEquipment = { _, _ -> },
+                onAddEquipment = { _, _, _ -> },
                 onUpdateEquipments = {},
                 onUpdateEquipment = {},
                 onDismissEquipment = {},
@@ -55,7 +55,9 @@ class EquipmentsScreenTest {
                 onToggleDefault = {},
                 categoryColors = emptyMap(),
                 categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap()
+                categoryDefaultPhotos = emptyMap(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null
             )
         }
 
@@ -79,7 +81,7 @@ class EquipmentsScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddEquipment = { _, _ -> },
+                onAddEquipment = { _, _, _ -> },
                 onUpdateEquipments = {},
                 onUpdateEquipment = {},
                 onDismissEquipment = {},
@@ -91,7 +93,9 @@ class EquipmentsScreenTest {
                 onToggleDefault = {},
                 categoryColors = emptyMap(),
                 categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap()
+                categoryDefaultPhotos = emptyMap(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null
             )
         }
 
@@ -103,16 +107,18 @@ class EquipmentsScreenTest {
     @Test
     fun addEquipmentDialog_onConfirm_callsOnAddEquipment() {
         val newEquipmentDescription = "New Gravel Equipment"
-        val addedEquipmentInfo = AtomicReference<Pair<String, ImageIdentifier?>>()
+        val addedEquipmentInfo = AtomicReference<Triple<String, ImageIdentifier?, Int>>()
 
         composeTestRule.setContent {
             AddEquipmentDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, identifier -> addedEquipmentInfo.set(Pair(desc, identifier)) },
+                onConfirm = { desc, identifier, unitId -> addedEquipmentInfo.set(Triple(desc, identifier, unitId)) },
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 imageLibrary = emptyList(),
                 categories = emptyList(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null,
                 equipmentCategoryColor = null,
                 categoryColors = emptyMap(),
                 categoryDefaultIcons = emptyMap(),
