@@ -102,6 +102,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.UpdateReportsSettingsFailed -> context.getString(R.string.update_reports_settings_failed)
                 is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
+                is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
             }
             snackbarHostState.showSnackbar(message)
             if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {
@@ -166,7 +167,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onToggleReportColorVisibility = viewModel::toggleReportColorVisibility,
         onBackupDatabase = viewModel::backupDatabase,
         onRestoreDatabase = viewModel::restoreDatabase,
+        onTotalExport = viewModel::totalExport,
         getSuggestedBackupFileName = viewModel::getSuggestedBackupFileName,
+        getSuggestedTotalExportFileName = viewModel::getSuggestedTotalExportFileName,
         snackbarHostState = snackbarHostState
     )
 
@@ -251,7 +254,9 @@ fun OptionsScreenContent(
     onToggleReportColorVisibility: (Long) -> Unit,
     onBackupDatabase: (Uri) -> Unit,
     onRestoreDatabase: (Uri) -> Unit,
+    onTotalExport: (Uri) -> Unit,
     getSuggestedBackupFileName: () -> String,
+    getSuggestedTotalExportFileName: () -> String,
     snackbarHostState: SnackbarHostState
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
@@ -265,6 +270,10 @@ fun OptionsScreenContent(
 
     val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-sqlite3")) { uri ->
         uri?.let { onBackupDatabase(it) }
+    }
+
+    val totalExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let { onTotalExport(it) }
     }
 
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -624,6 +633,14 @@ fun OptionsScreenContent(
                         Icon(Icons.Default.Backup, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_backup_db))
+                    }
+                    OutlinedButton(
+                        onClick = { totalExportLauncher.launch(getSuggestedTotalExportFileName()) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_total_export))
                     }
                     OutlinedButton(
                         onClick = { restoreLauncher.launch(arrayOf("application/octet-stream", "application/x-sqlite3", "*/*")) },

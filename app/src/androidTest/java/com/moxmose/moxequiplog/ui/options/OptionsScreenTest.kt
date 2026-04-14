@@ -1,5 +1,6 @@
 package com.moxmose.moxequiplog.ui.options
 
+import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.performTextInput
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.utils.UiConstants
 import org.junit.Rule
 import org.junit.Test
@@ -79,7 +81,9 @@ class OptionsScreenTest {
                 onToggleReportColorVisibility = {},
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
+                onTotalExport = {},
                 getSuggestedBackupFileName = { "" },
+                getSuggestedTotalExportFileName = { "" },
                 snackbarHostState = remember { SnackbarHostState() }
             )
         }
@@ -143,7 +147,9 @@ class OptionsScreenTest {
                 onToggleReportColorVisibility = {},
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
+                onTotalExport = {},
                 getSuggestedBackupFileName = { "" },
+                getSuggestedTotalExportFileName = { "" },
                 snackbarHostState = remember { SnackbarHostState() }
             )
         }
@@ -209,7 +215,9 @@ class OptionsScreenTest {
                 onToggleReportColorVisibility = {},
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
+                onTotalExport = {},
                 getSuggestedBackupFileName = { "" },
+                getSuggestedTotalExportFileName = { "" },
                 snackbarHostState = remember { SnackbarHostState() }
             )
         }
@@ -274,7 +282,9 @@ class OptionsScreenTest {
                 onToggleReportColorVisibility = {},
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
+                onTotalExport = {},
                 getSuggestedBackupFileName = { "" },
+                getSuggestedTotalExportFileName = { "" },
                 snackbarHostState = remember { SnackbarHostState() }
             )
         }

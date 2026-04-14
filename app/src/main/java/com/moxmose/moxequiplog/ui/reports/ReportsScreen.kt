@@ -125,8 +125,22 @@ fun ReportBaseScreen(
     val view = LocalView.current
     val scope = rememberCoroutineScope()
     var isSharingPdf by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(title) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } }) }, containerColor = MaterialTheme.colorScheme.background) { padding ->
+    Scaffold(
+        topBar = { 
+            TopAppBar(
+                title = { Text(title) }, 
+                navigationIcon = { 
+                    IconButton(onClick = onBack) { 
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") 
+                    } 
+                }
+            ) 
+        }, 
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
         if (isSharingPdf) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
                 Card {
@@ -164,7 +178,8 @@ fun ReportBaseScreen(
                     Button(
                         onClick = {
                             val csvData = viewModel.getCsvExportData(title)
-                            val fileName = "Export_${title.replace(" ", "_")}.csv"
+                            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                            val fileName = "Export_${title.replace(" ", "_")}_$timestamp.csv"
                             shareCsvFile(context, fileName, csvData)
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -181,16 +196,23 @@ fun ReportBaseScreen(
                     OutlinedButton(
                         onClick = {
                             scope.launch {
-                                isSharingPdf = true
-                                delay(500) // Aspetta che la UI sia stabile
                                 try {
+                                    // 1. Catturiamo la bitmap della vista corrente (viewport)
                                     val bitmap = view.drawToBitmap(Bitmap.Config.ARGB_8888)
-                                    val fileName = "Report_${title.replace(" ", "_")}.pdf"
+                                    
+                                    // 2. Mostriamo l'overlay di elaborazione
+                                    isSharingPdf = true
+                                    
+                                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                                    val fileName = "Snapshot_${title.replace(" ", "_")}_$timestamp.pdf"
                                     val pdfFile = File(context.cacheDir, fileName)
                                     
                                     val document = PdfDocument()
+                                    
+                                    // Creiamo una singola pagina della dimensione esatta dello screenshot
                                     val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
                                     val page = document.startPage(pageInfo)
+                                    
                                     page.canvas.drawBitmap(bitmap, 0f, 0f, null)
                                     document.finishPage(page)
                                     
@@ -203,9 +225,10 @@ fun ReportBaseScreen(
                                         putExtra(Intent.EXTRA_STREAM, uri)
                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
-                                    context.startActivity(Intent.createChooser(intent, "Condividi Report PDF"))
+                                    context.startActivity(Intent.createChooser(intent, "Condividi Snapshot PDF"))
                                 } catch (e: Exception) {
                                     e.printStackTrace()
+                                    snackbarHostState.showSnackbar("Errore durante la creazione dello snapshot")
                                 } finally {
                                     isSharingPdf = false
                                 }
@@ -213,9 +236,9 @@ fun ReportBaseScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                        Icon(Icons.Default.CameraAlt, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.export_report_pdf))
+                        Text(stringResource(R.string.export_report_pdf) + " (Snapshot)")
                     }
                 }
             }

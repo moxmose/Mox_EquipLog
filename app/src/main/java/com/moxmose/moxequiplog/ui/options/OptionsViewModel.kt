@@ -61,6 +61,7 @@ class OptionsViewModel(
         data object UpdateReportsSettingsFailed : OptionsUiEvent()
         data class BackupResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
+        data class TotalExportResult(val success: Boolean, val message: String?) : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -528,6 +529,17 @@ class OptionsViewModel(
     }
 
     fun getSuggestedBackupFileName(): String = backupManager.getSuggestedBackupFileName()
+
+    fun totalExport(uri: Uri) {
+        viewModelScope.launch {
+            backupManager.exportAllToZip(uri).fold(
+                onSuccess = { _uiEvents.send(OptionsUiEvent.TotalExportResult(true, null)) },
+                onFailure = { _uiEvents.send(OptionsUiEvent.TotalExportResult(false, it.message)) }
+            )
+        }
+    }
+
+    fun getSuggestedTotalExportFileName(): String = backupManager.getSuggestedTotalExportFileName()
 
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {
