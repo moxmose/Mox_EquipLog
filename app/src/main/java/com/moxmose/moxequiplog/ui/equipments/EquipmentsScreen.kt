@@ -128,7 +128,7 @@ fun EquipmentsScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?, Int) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int, Boolean) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
@@ -180,8 +180,8 @@ fun EquipmentsScreenContent(
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier, unitId ->
-                    onAddEquipment(desc, identifier, unitId)
+                onConfirm = { desc, identifier, unitId, isResettable ->
+                    onAddEquipment(desc, identifier, unitId, isResettable)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -248,7 +248,7 @@ fun EquipmentsScreenContent(
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int, Boolean) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     imageLibrary: List<Image>,
@@ -266,6 +266,7 @@ fun AddEquipmentDialog(
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
     var iconId by rememberSaveable { mutableStateOf<String?>(null) }
     var unitId by rememberSaveable(defaultUnitId) { mutableIntStateOf(defaultUnitId ?: 1) }
+    var isResettable by rememberSaveable { mutableStateOf(false) }
     var isPristine by rememberSaveable { mutableStateOf(true) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
@@ -360,6 +361,15 @@ fun AddEquipmentDialog(
                     selectedUnitId = unitId,
                     onUnitSelected = { unitId = it }
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { isResettable = !isResettable },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(checked = isResettable, onCheckedChange = { isResettable = it })
+                    Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                }
             }
         },
         confirmButton = {
@@ -370,7 +380,7 @@ fun AddEquipmentDialog(
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
-                    onConfirm(description, identifier, unitId) 
+                    onConfirm(description, identifier, unitId, isResettable) 
                 }
             ) { Text(stringResource(R.string.button_add)) }
         },
@@ -452,6 +462,7 @@ fun EquipmentCard(
     var isEditing by remember { mutableStateOf(false) }
     var editedDescription by remember(equipment.description) { mutableStateOf(equipment.description) }
     var editedUnitId by remember(equipment.unitId) { mutableIntStateOf(equipment.unitId) }
+    var editedIsResettable by remember(equipment.isResettable) { mutableStateOf(equipment.isResettable) }
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
@@ -581,7 +592,7 @@ fun EquipmentCard(
                             }
                         }
                         IconButton(onClick = {
-                            if (isEditing) onUpdateEquipment(equipment.copy(description = editedDescription, unitId = editedUnitId))
+                            if (isEditing) onUpdateEquipment(equipment.copy(description = editedDescription, unitId = editedUnitId, isResettable = editedIsResettable))
                             isEditing = !isEditing
                         }) {
                             Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null)
@@ -597,6 +608,14 @@ fun EquipmentCard(
                         selectedUnitId = editedUnitId,
                         onUnitSelected = { editedUnitId = it }
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { editedIsResettable = !editedIsResettable }.padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Checkbox(checked = editedIsResettable, onCheckedChange = { editedIsResettable = it })
+                        Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
         }

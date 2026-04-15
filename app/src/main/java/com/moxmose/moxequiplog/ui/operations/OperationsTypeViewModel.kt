@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 
 class OperationsTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
+    private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager
 ) : ViewModel() {
@@ -40,14 +42,25 @@ class OperationsTypeViewModel(
     private val _uiEvents = Channel<UiEvent>()
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
-    val activeOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getActiveOperationTypes()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-            initialValue = emptyList()
-        )
+    val allOperationTypes: StateFlow<List<OperationType>> = combine(
+        operationTypeDao.getAllOperationTypes(),
+        equipmentDao.countActiveResettableEquipments()
+    ) { types, resettableCount ->
+        types.map { type ->
+            if (type.isSystem && type.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                type.copy(dismissed = resettableCount == 0)
+            } else {
+                type
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
 
-    val allOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getAllOperationTypes()
+    val activeOperationTypes: StateFlow<List<OperationType>> = allOperationTypes
+        .map { types -> types.filter { !it.dismissed } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),

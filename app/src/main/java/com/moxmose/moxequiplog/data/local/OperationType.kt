@@ -14,5 +14,7 @@ data class OperationType(
     val color: String? = null,
     val iconIdentifier: String? = null,
     val photoUri: String? = null,
-    val displayOrder: Int = 0
+    val displayOrder: Int = 0,
+    @ColumnInfo(defaultValue = "false")
+    val isSystem: Boolean = false
 )

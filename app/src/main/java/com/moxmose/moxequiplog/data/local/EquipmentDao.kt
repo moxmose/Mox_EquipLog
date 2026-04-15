@@ -32,4 +32,7 @@ interface EquipmentDao {
 
     @Query("SELECT DISTINCT photoUri FROM equipments WHERE photoUri IS NOT NULL")
     fun getAllUsedPhotos(): Flow<List<String>>
+
+    @Query("SELECT COUNT(*) FROM equipments WHERE isResettable = 1 AND dismissed = 0")
+    fun countActiveResettableEquipments(): Flow<Int>
 }

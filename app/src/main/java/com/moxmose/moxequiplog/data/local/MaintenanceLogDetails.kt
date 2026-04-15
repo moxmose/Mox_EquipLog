@@ -11,5 +11,9 @@ data class MaintenanceLogDetails(
     val operationTypePhotoUri: String?,
     val operationTypeIconIdentifier: String?,
     val equipmentDismissed: Boolean,
-    val operationTypeDismissed: Boolean
+    val operationTypeDismissed: Boolean,
+    val equipmentIsResettable: Boolean = false,
+    val operationTypeIsSystem: Boolean = false,
+    val previousLogKilometers: Int? = null,
+    val previousLogIsSystem: Boolean = false
 )

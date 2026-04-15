@@ -28,5 +28,7 @@ data class Equipment(
     val dismissed: Boolean = false,
     val color: String? = null,
     @ColumnInfo(defaultValue = "1") // Assumiamo 1 come ID per "km"
-    val unitId: Int = 1
+    val unitId: Int = 1,
+    @ColumnInfo(defaultValue = "false")
+    val isResettable: Boolean = false
 )

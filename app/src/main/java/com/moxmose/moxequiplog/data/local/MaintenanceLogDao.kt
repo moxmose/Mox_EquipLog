@@ -3,6 +3,7 @@ package com.moxmose.moxequiplog.data.local
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Update
 import androidx.sqlite.db.SupportSQLiteQuery
@@ -18,4 +19,7 @@ interface MaintenanceLogDao {
 
     @RawQuery(observedEntities = [MaintenanceLog::class, Equipment::class, OperationType::class])
     fun getLogsWithDetails(query: SupportSQLiteQuery): Flow<List<MaintenanceLogDetails>>
+
+    @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId AND date < :date ORDER BY date DESC LIMIT 1")
+    suspend fun getLastLogBefore(equipmentId: Int, date: Long): MaintenanceLog?
 }

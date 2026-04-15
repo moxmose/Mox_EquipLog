@@ -108,7 +108,20 @@ class MaintenanceLogViewModel(
                 ot.photoUri as operationTypePhotoUri,
                 ot.iconIdentifier as operationTypeIconIdentifier,
                 e.dismissed as equipmentDismissed,
-                ot.dismissed as operationTypeDismissed
+                ot.dismissed as operationTypeDismissed,
+                e.isResettable as equipmentIsResettable,
+                ot.isSystem as operationTypeIsSystem,
+                (SELECT l2.kilometers FROM maintenance_logs l2 
+                 JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
+                 WHERE l2.equipmentId = l.equipmentId 
+                 AND (l2.date < l.date OR (l2.date = l.date AND l2.id < l.id)) 
+                 AND ot2.isSystem = 0
+                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogKilometers,
+                (SELECT ot2.isSystem FROM maintenance_logs l2 
+                 JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
+                 WHERE l2.equipmentId = l.equipmentId 
+                 AND (l2.date < l.date OR (l2.date = l.date AND l2.id < l.id))
+                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogIsSystem
             FROM maintenance_logs as l
             JOIN equipments as e ON l.equipmentId = e.id
             JOIN operation_types as ot ON l.operationTypeId = ot.id
@@ -182,6 +195,13 @@ class MaintenanceLogViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
+        )
+
+    val activeResettableEquipmentsCount = equipmentDao.countActiveResettableEquipments()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = 0
         )
 
     fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, kilometers: Int?, date: Long, color: String?) {

@@ -113,7 +113,7 @@ class EquipmentsViewModel(
         }
     }
 
-    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?, unitId: Int) {
+    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?, unitId: Int, isResettable: Boolean = false) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
             return
@@ -141,7 +141,8 @@ class EquipmentsViewModel(
                         photoUri = equipmentPhotoUri,
                         iconIdentifier = equipmentIconIdentifier,
                         displayOrder = nextOrder,
-                        unitId = unitId
+                        unitId = unitId,
+                        isResettable = isResettable
                     )
                 )
             } catch (e: Exception) {

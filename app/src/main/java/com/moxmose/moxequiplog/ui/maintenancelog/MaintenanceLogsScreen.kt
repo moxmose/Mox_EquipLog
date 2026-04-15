@@ -49,6 +49,7 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
@@ -447,6 +448,10 @@ fun MaintenanceLogDialog(
                                 onClick = {
                                     selectedEquipment = equipment
                                     isEquipmentDropdownExpanded = false
+                                    // Se l'operazione selezionata è di sistema (Reset) e l'equipment non è resettabile, resetta l'operazione
+                                    if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
+                                        selectedOperationType = null
+                                    }
                                 }
                             )
                         }
@@ -480,7 +485,7 @@ fun MaintenanceLogDialog(
                         expanded = isOperationDropdownExpanded,
                         onDismissRequest = { isOperationDropdownExpanded = false }
                     ) {
-                        operationTypes.forEach { operation ->
+                        operationTypes.filter { !it.isSystem || (selectedEquipment?.isResettable == true && it.id == AppConstants.SYSTEM_OPERATION_RESET_ID) }.forEach { operation ->
                             DropdownMenuItem(
                                 text = { Text(operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, operation.id)) },
                                 leadingIcon = {
@@ -753,6 +758,10 @@ fun MaintenanceLogCard(
                                     onClick = {
                                         selectedEquipment = equipment
                                         isEquipmentDropdownExpanded = false
+                                        // Se l'operazione selezionata è di sistema (Reset) e l'equipment non è resettabile, resetta l'operazione
+                                        if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
+                                            selectedOperationType = null
+                                        }
                                     }
                                 )
                             }
@@ -786,7 +795,7 @@ fun MaintenanceLogCard(
                             expanded = isOperationDropdownExpanded,
                             onDismissRequest = { isOperationDropdownExpanded = false }
                         ) {
-                            operationTypes.forEach { operation ->
+                            operationTypes.filter { !it.isSystem || (selectedEquipment?.isResettable == true && it.id == AppConstants.SYSTEM_OPERATION_RESET_ID) }.forEach { operation ->
                                 DropdownMenuItem(
                                     text = { Text(operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, operation.id)) },
                                     leadingIcon = {
@@ -874,9 +883,15 @@ fun MaintenanceLogCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val isKilometersIncongruent = remember(logDetail) {
+                            val currentKm = logDetail.log.kilometers ?: 0
+                            val prevKm = logDetail.previousLogKilometers ?: 0
+                            !logDetail.operationTypeIsSystem && !logDetail.previousLogIsSystem && currentKm < prevKm
+                        }
                         Text(
                             text = logDetail.log.kilometers?.let { "$it $unitLabel" } ?: "",
                             style = MaterialTheme.typography.bodyMedium,
+                            color = if (isKilometersIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

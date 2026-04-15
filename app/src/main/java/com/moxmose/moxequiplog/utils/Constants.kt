@@ -15,5 +15,7 @@ object AppConstants {
         MeasurementUnit(id = 3, label = "dy", description = "Days", isSystem = true, isHidden = false),
         MeasurementUnit(id = 4, label = "un", description = "Units", isSystem = true, isHidden = false),
     )
+
+    const val SYSTEM_OPERATION_RESET_ID = 1
 }
 
