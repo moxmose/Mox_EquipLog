@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 enum class SortProperty {
-    DATE, EQUIPMENT, OPERATION, KILOMETERS, NOTES
+    DATE, EQUIPMENT, OPERATION, VALUE, NOTES
 }
 
 enum class SortDirection {
@@ -111,12 +111,12 @@ class MaintenanceLogViewModel(
                 ot.dismissed as operationTypeDismissed,
                 e.isResettable as equipmentIsResettable,
                 ot.isSystem as operationTypeIsSystem,
-                (SELECT l2.kilometers FROM maintenance_logs l2 
+                (SELECT l2.value FROM maintenance_logs l2 
                  JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
                  WHERE l2.equipmentId = l.equipmentId 
                  AND (l2.date < l.date OR (l2.date = l.date AND l2.id < l.id)) 
                  AND ot2.isSystem = 0
-                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogKilometers,
+                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogValue,
                 (SELECT ot2.isSystem FROM maintenance_logs l2 
                  JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
                  WHERE l2.equipmentId = l.equipmentId 
@@ -149,13 +149,13 @@ class MaintenanceLogViewModel(
             SortProperty.DATE -> "l.date"
             SortProperty.EQUIPMENT -> computedEquipmentDesc
             SortProperty.OPERATION -> computedOpDesc
-            SortProperty.KILOMETERS -> "l.kilometers"
+            SortProperty.VALUE -> "l.value"
             SortProperty.NOTES -> "l.notes"
         }
 
         val sortOrder = if (sortDirection == SortDirection.ASCENDING) "ASC" else "DESC"
         val nullsOrder = when (sortProperty) {
-            SortProperty.KILOMETERS, SortProperty.NOTES -> if (sortDirection == SortDirection.ASCENDING) "NULLS FIRST" else "NULLS LAST"
+            SortProperty.VALUE, SortProperty.NOTES -> if (sortDirection == SortDirection.ASCENDING) "NULLS FIRST" else "NULLS LAST"
             else -> ""
         }
 
@@ -204,14 +204,14 @@ class MaintenanceLogViewModel(
             initialValue = 0
         )
 
-    fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, kilometers: Int?, date: Long, color: String?) {
+    fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, value: Double?, date: Long, color: String?) {
         viewModelScope.launch {
             try {
                 val newLog = MaintenanceLog(
                     equipmentId = equipmentId,
                     operationTypeId = operationTypeId,
                     notes = notes,
-                    kilometers = kilometers,
+                    value = value,
                     date = date,
                     color = color
                 )

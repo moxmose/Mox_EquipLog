@@ -146,7 +146,7 @@ fun MaintenanceLogScreenContent(
     onShowDismissedToggle: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddLog: (Int, Int, String?, Int?, Long, String?) -> Unit,
+    onAddLog: (Int, Int, String?, Double?, Long, String?) -> Unit,
     expandedCardId: Int?,
     onCardExpanded: (Int) -> Unit,
     editingCardId: Int?,
@@ -190,7 +190,7 @@ fun MaintenanceLogScreenContent(
                 measurementUnits = measurementUnits,
                 onDismissRequest = { onShowAddDialogChange(false) },
                 onConfirm = { log ->
-                    onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.kilometers, log.date, log.color)
+                    onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
                     onShowAddDialogChange(false)
                 },
                 defaultEquipmentId = defaultEquipmentId,
@@ -232,7 +232,7 @@ fun MaintenanceLogScreenContent(
                             DropdownMenuItem(
                                 text = { 
                                     val label = when (prop) {
-                                        SortProperty.KILOMETERS -> stringResource(R.string.measurement_unit)
+                                        SortProperty.VALUE -> stringResource(R.string.measurement_unit)
                                         else -> prop.name.lowercase().replaceFirstChar { it.titlecase() }
                                     }
                                     Text(label) 
@@ -298,7 +298,7 @@ fun MaintenanceLogDialog(
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     var notes by remember { mutableStateOf("") }
-    var kilometers by remember { mutableStateOf("") }
+    var valueStr by remember { mutableStateOf("") }
     
     var selectedEquipment by remember(defaultEquipmentId, equipments) { 
         mutableStateOf(equipments.find { it.id == defaultEquipmentId }) 
@@ -307,10 +307,11 @@ fun MaintenanceLogDialog(
         mutableStateOf(operationTypes.find { it.id == defaultOperationTypeId }) 
     }
 
-    val unitLabel = remember(selectedEquipment, measurementUnits) {
-        val unit = measurementUnits.find { it.id == selectedEquipment?.unitId }
-        unit?.label ?: "Km"
+    val unit = remember(selectedEquipment, measurementUnits) {
+        measurementUnits.find { it.id == selectedEquipment?.unitId }
     }
+    val unitLabel = unit?.label ?: "Km"
+    val decimalPlaces = unit?.decimalPlaces ?: 0
     
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
@@ -508,8 +509,18 @@ fun MaintenanceLogDialog(
                 }
 
                 OutlinedTextField(
-                    value = kilometers,
-                    onValueChange = { if (it.length <= 6 && it.all { char -> char.isDigit() }) kilometers = it },
+                    value = valueStr,
+                    onValueChange = { input ->
+                        if (input.length <= 10) {
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) {
+                                val dotIndex = filtered.indexOf('.')
+                                if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
+                                    valueStr = filtered
+                                }
+                            }
+                        }
+                    },
                     label = { Text("$unitLabel (optional)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
@@ -563,7 +574,7 @@ fun MaintenanceLogDialog(
                                 equipmentId = equipment.id,
                                 operationTypeId = op.id,
                                 notes = notes.takeIf { it.isNotBlank() },
-                                kilometers = kilometers.toIntOrNull(),
+                                value = valueStr.toDoubleOrNull(),
                                 date = selectedDate
                             )
                         )
@@ -600,7 +611,7 @@ fun MaintenanceLogCard(
     operationCategoryColor: String?
 ) {
     var editedNotes by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.notes ?: "") }
-    var editedKilometers by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.kilometers?.toString() ?: "") }
+    var editedValueStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.value?.toString() ?: "") }
     var editedDate by remember(logDetail, isEditing) { mutableLongStateOf(logDetail.log.date) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -609,10 +620,11 @@ fun MaintenanceLogCard(
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
 
-    val unitLabel = remember(selectedEquipment, measurementUnits) {
-        val unit = measurementUnits.find { it.id == selectedEquipment?.unitId }
-        unit?.label ?: "Km"
+    val unit = remember(selectedEquipment, measurementUnits) {
+        measurementUnits.find { it.id == selectedEquipment?.unitId }
     }
+    val unitLabel = unit?.label ?: "Km"
+    val decimalPlaces = unit?.decimalPlaces ?: 0
 
     val cardAlpha = if (logDetail.log.dismissed) 0.5f else 1f
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
@@ -817,8 +829,18 @@ fun MaintenanceLogCard(
                         }
                     }
                     OutlinedTextField(
-                        value = editedKilometers,
-                        onValueChange = { if (it.length <= 6 && it.all { char -> char.isDigit() }) editedKilometers = it },
+                        value = editedValueStr,
+                        onValueChange = { input ->
+                            if (input.length <= 10) {
+                                val filtered = input.replace(',', '.')
+                                if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) {
+                                    val dotIndex = filtered.indexOf('.')
+                                    if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
+                                        editedValueStr = filtered
+                                    }
+                                }
+                            }
+                        },
                         label = { Text("$unitLabel (optional)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
@@ -883,15 +905,15 @@ fun MaintenanceLogCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val isKilometersIncongruent = remember(logDetail) {
-                            val currentKm = logDetail.log.kilometers ?: 0
-                            val prevKm = logDetail.previousLogKilometers ?: 0
-                            !logDetail.operationTypeIsSystem && !logDetail.previousLogIsSystem && currentKm < prevKm
+                        val isValueIncongruent = remember(logDetail) {
+                            val currentVal = logDetail.log.value ?: 0.0
+                            val prevVal = logDetail.previousLogValue ?: 0.0
+                            !logDetail.operationTypeIsSystem && !logDetail.previousLogIsSystem && currentVal < prevVal
                         }
                         Text(
-                            text = logDetail.log.kilometers?.let { "$it $unitLabel" } ?: "",
+                            text = logDetail.log.value?.let { String.format(Locale.US, "%.${decimalPlaces}f %s", it, unitLabel) } ?: "",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (isKilometersIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isValueIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -916,7 +938,7 @@ fun MaintenanceLogCard(
                     if (isEditing) {
                         val updatedLog = logDetail.log.copy(
                             notes = editedNotes,
-                            kilometers = editedKilometers.toIntOrNull(),
+                            value = editedValueStr.toDoubleOrNull(),
                             date = editedDate,
                             equipmentId = selectedEquipment?.id ?: logDetail.log.equipmentId,
                             operationTypeId = selectedOperationType?.id ?: logDetail.log.operationTypeId

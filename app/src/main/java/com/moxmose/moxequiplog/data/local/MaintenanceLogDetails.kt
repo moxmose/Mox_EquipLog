@@ -14,6 +14,6 @@ data class MaintenanceLogDetails(
     val operationTypeDismissed: Boolean,
     val equipmentIsResettable: Boolean = false,
     val operationTypeIsSystem: Boolean = false,
-    val previousLogKilometers: Int? = null,
+    val previousLogValue: Double? = null,
     val previousLogIsSystem: Boolean = false
 )

@@ -11,5 +11,6 @@ data class MeasurementUnit(
     val description: String, // es. "Kilometers", "Hours", "Liters"
     val isSystem: Boolean = false, // Se true, non può essere eliminata
     val isHidden: Boolean = false, // Se true, non viene visualizzata nella UI
-    val displayOrder: Int = 0
+    val displayOrder: Int = 0,
+    val decimalPlaces: Int = 0 // 0 = intero, 1-3 = decimali
 )

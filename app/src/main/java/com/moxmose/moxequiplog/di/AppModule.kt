@@ -31,6 +31,7 @@ val appModule = module {
             "mox_equiplog.db"
         )
         .addCallback(AppDatabase.CALLBACK)
+        .addMigrations(AppDatabase.MIGRATION_37_38, AppDatabase.MIGRATION_38_39)
         .fallbackToDestructiveMigration(true)
         .build()
     }

@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
         MeasurementUnit::class,
         ReportFilter::class
     ], 
-    version = 38,
+    version = 39,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +36,39 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reportFilterDao(): ReportFilterDao
 
     companion object {
+        val MIGRATION_38_39 = object : Migration(38, 39) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Aggiunta decimalPlaces a measurement_units
+                db.execSQL("ALTER TABLE measurement_units ADD COLUMN decimalPlaces INTEGER NOT NULL DEFAULT 0")
+                
+                // Creiamo una tabella temporanea per maintenance_logs con value come REAL
+                db.execSQL("""
+                    CREATE TABLE maintenance_logs_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        equipmentId INTEGER NOT NULL,
+                        operationTypeId INTEGER NOT NULL,
+                        notes TEXT,
+                        value REAL,
+                        date INTEGER NOT NULL,
+                        dismissed INTEGER NOT NULL DEFAULT 0,
+                        color TEXT,
+                        timestamp INTEGER NOT NULL,
+                        FOREIGN KEY(equipmentId) REFERENCES equipments(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(operationTypeId) REFERENCES operation_types(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """)
+                db.execSQL("""
+                    INSERT INTO maintenance_logs_new (id, equipmentId, operationTypeId, notes, value, date, dismissed, color, timestamp)
+                    SELECT id, equipmentId, operationTypeId, notes, CAST(kilometers AS REAL), date, dismissed, color, timestamp FROM maintenance_logs
+                """)
+                db.execSQL("DROP TABLE maintenance_logs")
+                db.execSQL("ALTER TABLE maintenance_logs_new RENAME TO maintenance_logs")
+                
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_maintenance_logs_equipmentId` ON `maintenance_logs` (`equipmentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_maintenance_logs_operationTypeId` ON `maintenance_logs` (`operationTypeId`)")
+            }
+        }
+
         val MIGRATION_37_38 = object : Migration(37, 38) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE equipments ADD COLUMN isResettable INTEGER NOT NULL DEFAULT 0")

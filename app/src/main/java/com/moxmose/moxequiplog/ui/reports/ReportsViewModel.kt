@@ -25,7 +25,7 @@ enum class TimeGranularity {
 @Serializable
 data class ChartPoint(
     val date: Long,
-    val kilometers: Float,
+    val value: Float,
     val label: String? = null
 )
 
@@ -69,6 +69,7 @@ data class ReportsUiState(
     val equipmentCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
     val equipmentUnitLabel: String = "",
     val hasMixedUnits: Boolean = false,
+    val equipmentMaxDecimalPlaces: Int = 0,
     
     val operationTypes: List<OperationType> = emptyList(),
     val selectedOperationTypeIds: Set<Int> = emptySet(),
@@ -78,6 +79,7 @@ data class ReportsUiState(
     val operationCategoryColor: String = UiConstants.DEFAULT_FALLBACK_COLOR,
     val operationUnitLabel: String = "",
     val opHasMixedUnits: Boolean = false,
+    val operationMaxDecimalPlaces: Int = 0,
 
     // New Analysis Data
     val intervalData: Map<Int, List<ChartPoint>> = emptyMap(),
@@ -243,7 +245,7 @@ class ReportsViewModel(
         }
 
         // Calcolo della granularità effettiva globale per questa vista
-        val allPoints = filteredLogs.map { ChartPoint(it.log.date, it.log.kilometers?.toFloat() ?: 0f) }
+        val allPoints = filteredLogs.map { ChartPoint(it.log.date, it.log.value?.toFloat() ?: 0f) }
         val effectiveGranularity = if (style.selections.timeGranularity != null) {
             findBestGranularity(allPoints, style.selections.timeGranularity, false, false)
         } else {
@@ -257,12 +259,12 @@ class ReportsViewModel(
 
         // Standard Trends
         val equipChartData = sortedSelectedEquipIds.associateWith { id ->
-            val points = filteredLogs.filter { it.log.equipmentId == id && it.log.kilometers != null }.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
+            val points = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }.map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
             aggregateData(points, effectiveGranularity)
         }
 
         val opChartData = sortedSelectedOpIds.associateWith { id ->
-            val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.kilometers != null }.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat(), it.equipmentDescription) }
+            val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.value != null }.map { ChartPoint(it.log.date, it.log.value!!.toFloat(), it.equipmentDescription) }
             aggregateData(points, effectiveGranularity)
         }
 
@@ -316,14 +318,14 @@ class ReportsViewModel(
 
         // 1. Interval Analysis (KPI)
         val intervalData = sortedSelectedEquipIds.associateWith { id ->
-            val rawPoints = filteredLogs.filter { it.log.equipmentId == id && it.log.kilometers != null }
-                .map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
+            val rawPoints = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }
+                .map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
                 .sortedBy { it.date }
             
             val deltas = mutableListOf<ChartPoint>()
             for (i in 1 until rawPoints.size) {
-                val current = rawPoints[i].kilometers
-                val previous = rawPoints[i-1].kilometers
+                val current = rawPoints[i].value
+                val previous = rawPoints[i-1].value
                 val delta = (current - previous).coerceAtLeast(0f)
                 deltas.add(ChartPoint(rawPoints[i].date, delta))
             }
@@ -341,12 +343,12 @@ class ReportsViewModel(
 
         // 3. Benchmarking (Global Usage Analysis)
         val benchmarkData = sortedSelectedEquipIds.map { id ->
-            val equipLogs = filteredLogs.filter { it.log.equipmentId == id && it.log.kilometers != null }.sortedBy { it.log.date }
-            val totalUsage = if (equipLogs.size > 1) (equipLogs.last().log.kilometers!! - equipLogs.first().log.kilometers!!).toFloat() 
-                             else equipLogs.firstOrNull()?.log?.kilometers?.toFloat() ?: 0f
+            val equipLogs = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }.sortedBy { it.log.date }
+            val totalUsage = if (equipLogs.size > 1) (equipLogs.last().log.value!! - equipLogs.first().log.value!!).toFloat() 
+                             else equipLogs.firstOrNull()?.log?.value?.toFloat() ?: 0f
             
             val intervals = mutableListOf<Float>()
-            for (i in 1 until equipLogs.size) { intervals.add((equipLogs[i].log.kilometers!! - equipLogs[i-1].log.kilometers!!).toFloat()) }
+            for (i in 1 until equipLogs.size) { intervals.add((equipLogs[i].log.value!! - equipLogs[i-1].log.value!!).toFloat()) }
             val avg = if (intervals.isNotEmpty()) intervals.average().toFloat() else 0f
             
             BenchmarkData(equipmentName = core.equips.find { it.id == id }?.description ?: "ID: $id", totalValue = totalUsage, avgInterval = avg, count = equipLogs.size)
@@ -360,7 +362,7 @@ class ReportsViewModel(
             logsByPeriod.mapValues { (period, _) ->
                 sortedSelectedEquipIds.map { id ->
                     // Use correctly aggregated usage from intervalData for this period
-                    val usageInPeriod = intervalData[id]?.find { dateFormat.format(Date(it.date)) == period }?.kilometers ?: 0f
+                    val usageInPeriod = intervalData[id]?.find { dateFormat.format(Date(it.date)) == period }?.value ?: 0f
                     val countInPeriod = filteredLogs.count { it.log.equipmentId == id && dateFormat.format(Date(it.log.date)) == period }
                     
                     // KPI: Average km per log in this period
@@ -391,29 +393,36 @@ class ReportsViewModel(
         val combinedLogsData = mutableMapOf<String, List<ChartPoint>>()
         sortedSelectedEquipIds.forEach { eId ->
             sortedSelectedOpIds.forEach { oId ->
-                val logs = filteredLogs.filter { it.log.equipmentId == eId && it.log.operationTypeId == oId && it.log.kilometers != null }
+                val logs = filteredLogs.filter { it.log.equipmentId == eId && it.log.operationTypeId == oId && it.log.value != null }
                 if (logs.isNotEmpty()) {
                     val eDesc = core.equips.find { it.id == eId }?.description ?: "E$eId"
                     val oDesc = core.ops.find { it.id == oId }?.description ?: "O$oId"
                     val key = "$eDesc - $oDesc"
-                    val points = logs.map { ChartPoint(it.log.date, it.log.kilometers!!.toFloat()) }
+                    val points = logs.map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
                     combinedLogsData[key] = aggregateData(points, effectiveGranularity)
                 }
             }
         }
         
-        val selectedUnits = sortedSelectedEquipIds.mapNotNull { id -> core.units.find { it.id == core.equips.find { e -> e.id == id }?.unitId }?.label }.distinct()
-        val opSelectedUnits = sortedSelectedOpIds.flatMap { opId -> filteredLogs.filter { it.log.operationTypeId == opId }.mapNotNull { logDetail -> core.equips.find { it.id == logDetail.log.equipmentId }?.unitId?.let { unitId -> core.units.find { it.id == unitId }?.label } } }.distinct()
+        val selectedEquipUnits = sortedSelectedEquipIds.mapNotNull { id -> core.units.find { it.id == core.equips.find { e -> e.id == id }?.unitId } }
+        val selectedUnits = selectedEquipUnits.map { it.label }.distinct()
+        val equipMaxDecimals = selectedEquipUnits.maxOfOrNull { it.decimalPlaces } ?: 0
+
+        val selectedOpUnits = sortedSelectedOpIds.flatMap { opId -> filteredLogs.filter { it.log.operationTypeId == opId }.mapNotNull { logDetail -> core.equips.find { it.id == logDetail.log.equipmentId }?.unitId?.let { unitId -> core.units.find { it.id == unitId } } } }
+        val opSelectedUnitLabels = selectedOpUnits.map { it.label }.distinct()
+        val opMaxDecimals = selectedOpUnits.maxOfOrNull { it.decimalPlaces } ?: 0
 
         ReportsUiState(
             equipments = core.equips, selectedEquipmentIds = style.selections.selectedEquipmentIds, equipmentChartData = equipChartData,
             equipmentDistribution = equipDist, equipmentDistributionByPeriod = equipDistByPeriod,
             equipmentCategoryColor = style.eColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
             equipmentUnitLabel = selectedUnits.joinToString(", "), hasMixedUnits = selectedUnits.size > 1,
+            equipmentMaxDecimalPlaces = equipMaxDecimals,
             operationTypes = core.ops, selectedOperationTypeIds = style.selections.selectedOperationTypeIds, operationChartData = opChartData,
             operationDistribution = opDist, operationDistributionByPeriod = opDistByPeriod,
             operationCategoryColor = style.oColor ?: UiConstants.DEFAULT_FALLBACK_COLOR,
-            operationUnitLabel = opSelectedUnits.joinToString(", "), opHasMixedUnits = opSelectedUnits.size > 1,
+            operationUnitLabel = opSelectedUnitLabels.joinToString(", "), opHasMixedUnits = opSelectedUnitLabels.size > 1,
+            operationMaxDecimalPlaces = opMaxDecimals,
             intervalData = intervalData, heatmapData = heatmapData, benchmarkData = benchmarkData, benchmarkByPeriod = benchmarkByPeriod,
             equipmentVolumeData = equipmentVolumeData, operationVolumeData = operationVolumeData, combinedLogsData = combinedLogsData,
             startDate = style.selections.startDate, endDate = style.selections.endDate, timeGranularity = style.selections.timeGranularity,
@@ -505,8 +514,8 @@ class ReportsViewModel(
         return grouped.map { (timestamp, groupedPoints) -> 
             val value = when {
                 isCount -> groupedPoints.size.toFloat()
-                isDelta -> groupedPoints.sumOf { it.kilometers.toDouble() }.toFloat()
-                else -> groupedPoints.maxOf { it.kilometers }
+                isDelta -> groupedPoints.sumOf { it.value.toDouble() }.toFloat()
+                else -> groupedPoints.maxOf { it.value }
             }
             ChartPoint(timestamp, value) 
         }.sortedBy { it.date }
@@ -517,7 +526,7 @@ class ReportsViewModel(
         val chunkSize = (points.size.toDouble() / maxPoints).toInt().coerceAtLeast(1)
         return points.chunked(chunkSize).map { chunk ->
             val avgDate = chunk.map { it.date }.average().toLong()
-            val avgValue = chunk.map { it.kilometers }.average().toFloat()
+            val avgValue = chunk.map { it.value }.average().toFloat()
             ChartPoint(avgDate, avgValue)
         }
     }
@@ -597,7 +606,7 @@ class ReportsViewModel(
             state.equipmentChartData.forEach { (id, points) ->
                 val name = state.equipments.find { it.id == id }?.description ?: "ID $id"
                 points.forEach { p ->
-                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";${p.kilometers};${state.equipmentUnitLabel}\n")
+                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";${p.value};${state.equipmentUnitLabel}\n")
                 }
             }
         } else if (state.operationChartData.any { it.value.isNotEmpty() }) {
@@ -605,7 +614,7 @@ class ReportsViewModel(
             state.operationChartData.forEach { (id, points) ->
                 val name = state.operationTypes.find { it.id == id }?.description ?: "ID $id"
                 points.forEach { p ->
-                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";${p.kilometers};${state.operationUnitLabel}\n")
+                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";${p.value};${state.operationUnitLabel}\n")
                 }
             }
         }
