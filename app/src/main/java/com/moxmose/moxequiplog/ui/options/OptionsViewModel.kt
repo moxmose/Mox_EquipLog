@@ -53,6 +53,7 @@ class OptionsViewModel(
         data object DeleteColorFailed : OptionsUiEvent()
         data object UpdateBackgroundFailed : OptionsUiEvent()
         data object AddUnitFailed : OptionsUiEvent()
+        data object AddUnitFailedDuplicate : OptionsUiEvent()
         data object DeleteUnitFailed : OptionsUiEvent()
         data object UpdateUnitFailed : OptionsUiEvent()
         data object UpdateUnitsOrderFailed : OptionsUiEvent()
@@ -438,12 +439,24 @@ class OptionsViewModel(
         }
     }
 
-    fun addMeasurementUnit(label: String, description: String) {
+    fun addMeasurementUnit(label: String, description: String, decimalPlaces: Int = 0) {
         if (label.isBlank() || label.length > AppConstants.UNIT_LABEL_MAX_LENGTH) return
+        
+        val normalizedLabel = label.trim().lowercase()
+        if (measurementUnits.value.any { it.label.lowercase() == normalizedLabel }) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.AddUnitFailedDuplicate) }
+            return
+        }
+
         viewModelScope.launch {
             try {
                 val maxOrder = measurementUnits.value.maxOfOrNull { it.displayOrder } ?: -1
-                measurementUnitDao.insertUnit(MeasurementUnit(label = label, description = description, displayOrder = maxOrder + 1))
+                measurementUnitDao.insertUnit(MeasurementUnit(
+                    label = normalizedLabel,
+                    description = description, 
+                    displayOrder = maxOrder + 1,
+                    decimalPlaces = decimalPlaces.coerceIn(0, AppConstants.MAX_DECIMAL_PLACES)
+                ))
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.AddUnitFailed)
             }

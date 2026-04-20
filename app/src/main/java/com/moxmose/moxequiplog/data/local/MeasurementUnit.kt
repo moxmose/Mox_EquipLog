@@ -1,9 +1,13 @@
 package com.moxmose.moxequiplog.data.local
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "measurement_units")
+@Entity(
+    tableName = "measurement_units",
+    indices = [Index(value = ["label"], unique = true)]
+)
 data class MeasurementUnit(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

@@ -94,6 +94,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.DeleteColorFailed -> context.getString(R.string.delete_color_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateBackgroundFailed -> context.getString(R.string.update_background_failed)
                 is OptionsViewModel.OptionsUiEvent.AddUnitFailed -> context.getString(R.string.add_unit_failed)
+                is OptionsViewModel.OptionsUiEvent.AddUnitFailedDuplicate -> context.getString(R.string.add_unit_failed_duplicate)
                 is OptionsViewModel.OptionsUiEvent.DeleteUnitFailed -> context.getString(R.string.delete_unit_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateUnitFailed -> context.getString(R.string.update_unit_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateUnitsOrderFailed -> context.getString(R.string.update_units_order_failed)
@@ -234,7 +235,7 @@ fun OptionsScreenContent(
     onSetBackgroundImageAlpha: (Float) -> Unit,
     onResetBackgroundSettings: () -> Unit,
     onSetReportsColorMode: (String) -> Unit,
-    onAddUnit: (String, String) -> Unit,
+    onAddUnit: (String, String, Int) -> Unit,
     onUpdateUnit: (MeasurementUnit) -> Unit,
     onToggleUnitVisibility: (Int) -> Unit,
     onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
@@ -780,7 +781,7 @@ fun UnitManagementDialog(
     allUnits: List<MeasurementUnit>,
     defaultUnitId: Int?,
     onDismiss: () -> Unit,
-    onAddUnit: (String, String) -> Unit,
+    onAddUnit: (String, String, Int) -> Unit,
     onUpdateUnit: (MeasurementUnit) -> Unit,
     onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
     onToggleUnitVisibility: (Int) -> Unit,
@@ -797,30 +798,65 @@ fun UnitManagementDialog(
     if (showAddUnitDialog) {
         var label by remember { mutableStateOf("") }
         var description by remember { mutableStateOf("") }
+        var decimalPlaces by remember { mutableIntStateOf(0) }
+        val isDuplicate = remember(label, allUnits) {
+            val normalized = label.trim().lowercase()
+            normalized.isNotEmpty() && allUnits.any { it.label.lowercase() == normalized }
+        }
+
         AlertDialog(
             onDismissRequest = { showAddUnitDialog = false },
             title = { Text(stringResource(R.string.options_add_unit)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = label,
-                        onValueChange = { if (it.length <= AppConstants.UNIT_LABEL_MAX_LENGTH) label = it },
-                        label = { Text(stringResource(R.string.options_unit_label_placeholder)) },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = description,
-                        onValueChange = { if (it.length <= AppConstants.UNIT_DESCRIPTION_MAX_LENGTH) description = it },
-                        label = { Text(stringResource(R.string.options_unit_desc_placeholder)) },
-                        singleLine = true
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = label,
+                            onValueChange = { if (it.length <= AppConstants.UNIT_LABEL_MAX_LENGTH) label = it },
+                            label = { Text(stringResource(R.string.options_unit_label_placeholder)) },
+                            singleLine = true,
+                            isError = isDuplicate,
+                            supportingText = {
+                                if (isDuplicate) {
+                                    Text(
+                                        text = stringResource(R.string.add_unit_failed_duplicate),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        )
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { if (it.length <= AppConstants.UNIT_DESCRIPTION_MAX_LENGTH) description = it },
+                            label = { Text(stringResource(R.string.options_unit_desc_placeholder)) },
+                            singleLine = true
+                        )
+                    }
+                    
+                    Column {
+                        Text(
+                            text = stringResource(R.string.options_unit_decimals) + ": $decimalPlaces",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Slider(
+                            value = decimalPlaces.toFloat(),
+                            onValueChange = { decimalPlaces = it.toInt() },
+                            valueRange = 0f..AppConstants.MAX_DECIMAL_PLACES.toFloat(),
+                            steps = AppConstants.MAX_DECIMAL_PLACES - 1
+                        )
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    onAddUnit(label, description)
-                    showAddUnitDialog = false
-                }) { Text(stringResource(R.string.button_add)) }
+                TextButton(
+                    onClick = {
+                        if (!isDuplicate) {
+                            onAddUnit(label, description, decimalPlaces)
+                            showAddUnitDialog = false
+                        }
+                    },
+                    enabled = label.isNotBlank() && !isDuplicate
+                ) { Text(stringResource(R.string.button_add)) }
             },
             dismissButton = {
                 TextButton(onClick = { showAddUnitDialog = false }) { Text(stringResource(R.string.button_cancel)) }

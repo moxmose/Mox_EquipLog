@@ -59,6 +59,8 @@
     <string name="filter_granularity">Granularity</string>
     <string name="filter_reset">Reset</string>
     <string name="granularity_hours">Hours</string>
+    <string name="granularity_15min">15m</string>
+    <string name="granularity_5min">5m</string>
     <string name="granularity_days">Days</string>
     <string name="granularity_weeks">Weeks</string>
     <string name="granularity_months">Months</string>
@@ -111,7 +113,9 @@
     <string name="options_add_unit">Add Unit</string>
     <string name="options_unit_label_placeholder">Label (e.g., hh)</string>
     <string name="options_unit_desc_placeholder">Description (e.g., Hours)</string>
+    <string name="options_unit_decimals">Decimal places (0-3)</string>
     <string name="add_unit_failed">Failed to add unit.</string>
+    <string name="add_unit_failed_duplicate">A unit with this label already exists.</string>
     <string name="delete_unit_failed">Failed to delete unit.</string>
     <string name="update_unit_failed">Failed to update unit.</string>
     <string name="update_units_order_failed">Failed to update units order.</string>

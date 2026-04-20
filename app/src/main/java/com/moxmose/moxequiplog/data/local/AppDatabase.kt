@@ -90,8 +90,8 @@ abstract class AppDatabase : RoomDatabase() {
                     // Popolamento iniziale delle unità di misura
                     AppConstants.INITIAL_MEASUREMENT_UNITS.forEachIndexed { index, unit ->
                         db.execSQL(
-                            "INSERT INTO measurement_units (id, label, description, isSystem, isHidden, displayOrder) VALUES (?, ?, ?, ?, ?, ?)",
-                            arrayOf(unit.id, unit.label, unit.description, if (unit.isSystem) 1 else 0, if (unit.isHidden) 1 else 0, index)
+                            "INSERT INTO measurement_units (id, label, description, isSystem, isHidden, displayOrder, decimalPlaces) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            arrayOf(unit.id, unit.label, unit.description, if (unit.isSystem) 1 else 0, if (unit.isHidden) 1 else 0, index, unit.decimalPlaces)
                         )
                     }
                     

@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat
 
 @Serializable
 enum class TimeGranularity {
-    HOURS, DAYS, WEEKS, MONTHS, YEARS
+    MINUTES_5, MINUTES_15, HOURS, DAYS, WEEKS, MONTHS, YEARS
 }
 
 @Serializable
@@ -438,6 +438,7 @@ class ReportsViewModel(
         TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
         TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
         TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:00", Locale.getDefault())
+        TimeGranularity.MINUTES_15, TimeGranularity.MINUTES_5 -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
     }
 
     private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity?, isDelta: Boolean = false, isCount: Boolean = false): List<ChartPoint> {
@@ -469,7 +470,9 @@ class ReportsViewModel(
                 TimeGranularity.YEARS -> TimeGranularity.MONTHS
                 TimeGranularity.MONTHS -> TimeGranularity.WEEKS
                 TimeGranularity.WEEKS -> TimeGranularity.DAYS
-                else -> TimeGranularity.HOURS
+                TimeGranularity.DAYS -> TimeGranularity.HOURS
+                TimeGranularity.HOURS -> TimeGranularity.MINUTES_15
+                else -> TimeGranularity.MINUTES_5
             }
         }
         return current
@@ -478,7 +481,7 @@ class ReportsViewModel(
     private fun findAutoGranularity(points: List<ChartPoint>, isDelta: Boolean, isCount: Boolean): TimeGranularity? {
         if (points.isEmpty()) return null
         
-        val granularities = listOf(TimeGranularity.YEARS, TimeGranularity.MONTHS, TimeGranularity.WEEKS, TimeGranularity.DAYS, TimeGranularity.HOURS)
+        val granularities = listOf(TimeGranularity.YEARS, TimeGranularity.MONTHS, TimeGranularity.WEEKS, TimeGranularity.DAYS, TimeGranularity.HOURS, TimeGranularity.MINUTES_15, TimeGranularity.MINUTES_5)
         
         // Cerchiamo una granularità che ci dia un numero ragionevole di punti (tra 2 e 25)
         // Iniziamo dalle granularità più ampie (YEARS) verso quelle più fini (HOURS)
@@ -499,6 +502,18 @@ class ReportsViewModel(
         val grouped = points.groupBy { point ->
             calendar.timeInMillis = point.date
             when (granularity) {
+                TimeGranularity.MINUTES_5 -> {
+                    val min = calendar.get(Calendar.MINUTE)
+                    calendar.set(Calendar.MINUTE, (min / 5) * 5)
+                    calendar.set(Calendar.SECOND, 0)
+                    calendar.set(Calendar.MILLISECOND, 0)
+                }
+                TimeGranularity.MINUTES_15 -> {
+                    val min = calendar.get(Calendar.MINUTE)
+                    calendar.set(Calendar.MINUTE, (min / 15) * 15)
+                    calendar.set(Calendar.SECOND, 0)
+                    calendar.set(Calendar.MILLISECOND, 0)
+                }
                 TimeGranularity.HOURS -> { calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
                 TimeGranularity.DAYS -> { calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
                 TimeGranularity.WEEKS -> { 
@@ -606,7 +621,8 @@ class ReportsViewModel(
             state.equipmentChartData.forEach { (id, points) ->
                 val name = state.equipments.find { it.id == id }?.description ?: "ID $id"
                 points.forEach { p ->
-                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";${p.value};${state.equipmentUnitLabel}\n")
+                    val formattedValue = String.format(Locale.getDefault(), "%.${state.equipmentMaxDecimalPlaces}f", p.value)
+                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";$formattedValue;${state.equipmentUnitLabel}\n")
                 }
             }
         } else if (state.operationChartData.any { it.value.isNotEmpty() }) {
@@ -614,7 +630,8 @@ class ReportsViewModel(
             state.operationChartData.forEach { (id, points) ->
                 val name = state.operationTypes.find { it.id == id }?.description ?: "ID $id"
                 points.forEach { p ->
-                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";${p.value};${state.operationUnitLabel}\n")
+                    val formattedValue = String.format(Locale.getDefault(), "%.${state.operationMaxDecimalPlaces}f", p.value)
+                    sb.append("${dateFormat.format(Date(p.date))};\"$name\";$formattedValue;${state.operationUnitLabel}\n")
                 }
             }
         }
@@ -624,7 +641,9 @@ class ReportsViewModel(
             sb.append("\nAnalisi Benchmark\n")
             sb.append("Attrezzatura;Utilizzo Totale;Media Intervallo;Conteggio Log\n")
             state.benchmarkData.forEach { b ->
-                sb.append("\"${b.equipmentName}\";${b.totalValue};${b.avgInterval};${b.count}\n")
+                val total = String.format(Locale.getDefault(), "%.${state.equipmentMaxDecimalPlaces}f", b.totalValue)
+                val avg = String.format(Locale.getDefault(), "%.${state.equipmentMaxDecimalPlaces}f", b.avgInterval)
+                sb.append("\"${b.equipmentName}\";$total;$avg;${b.count}\n")
             }
         }
 

@@ -58,6 +58,8 @@
     <string name="filter_granularity">Granularità</string>
     <string name="filter_reset">Reset</string>
     <string name="granularity_hours">Ore</string>
+    <string name="granularity_15min">15m</string>
+    <string name="granularity_5min">5m</string>
     <string name="granularity_days">Giorni</string>
     <string name="granularity_weeks">Sett</string>
     <string name="granularity_months">Mesi</string>

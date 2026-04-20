@@ -11,7 +11,7 @@ object AppConstants {
     const val MAX_DECIMAL_PLACES = 3
 
     val INITIAL_MEASUREMENT_UNITS = listOf(
-        MeasurementUnit(id = 1, label = "km", description = "Measure Unit", isSystem = true, isHidden = false, decimalPlaces = 0),
+        MeasurementUnit(id = 1, label = "km", description = "Kilometers", isSystem = true, isHidden = false, decimalPlaces = 0),
         MeasurementUnit(id = 2, label = "hh", description = "Hours", isSystem = true, isHidden = false, decimalPlaces = 1),
         MeasurementUnit(id = 3, label = "dy", description = "Days", isSystem = true, isHidden = false, decimalPlaces = 0),
         MeasurementUnit(id = 4, label = "un", description = "Units", isSystem = true, isHidden = false, decimalPlaces = 0),

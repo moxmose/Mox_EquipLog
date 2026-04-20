@@ -601,7 +601,15 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                             } 
                         }
                         val effectiveGranularity = uiState.effectiveGranularity
-                        val dateFormat = remember(effectiveGranularity) { when (effectiveGranularity) { null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()) ; TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()) ; TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault()) ; TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault()) ; TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault()) } }
+                        val dateFormat = remember(effectiveGranularity) { 
+                            when (effectiveGranularity) { 
+                                null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
+                                TimeGranularity.MINUTES_5, TimeGranularity.MINUTES_15, TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+                                TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault())
+                                TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
+                                TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
+                            } 
+                        }
                         LaunchedEffect(dataWithPoints, effectiveGranularity) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(x = points.map { it.date }, y = points.map { it.value }) } } } }
                         key(uiState.timeGranularity, effectiveGranularity, dataWithPoints.keys) {
                             CartesianChartHost(
@@ -795,7 +803,15 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
             )
         } 
     }
-    val dateFormat = remember(effectiveGranularity) { when (effectiveGranularity) { null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()) ; TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()) ; TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault()) ; TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault()) ; TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault()) } }
+    val dateFormat = remember(effectiveGranularity) { 
+        when (effectiveGranularity) { 
+            null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
+            TimeGranularity.MINUTES_5, TimeGranularity.MINUTES_15, TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+            TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault())
+            TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
+            TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
+        } 
+    }
     LaunchedEffect(dataWithPoints, effectiveGranularity) { if (dataWithPoints.isNotEmpty()) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(x = points.map { it.date }, y = points.map { it.value }) } } } } }
     if (dataWithPoints.isNotEmpty()) { key(requestedGranularity, effectiveGranularity, dataWithPoints.keys, finalColors) { 
         CartesianChartHost(
@@ -847,5 +863,39 @@ fun rememberChartColors(colorMode: String, customColors: List<String>): List<Col
 fun StandardFilterSection(startDate: Long?, endDate: Long?, granularity: TimeGranularity?, onDateRangeSelected: (Long?, Long?) -> Unit, onGranularitySelected: (TimeGranularity?) -> Unit, onReset: () -> Unit, onRefresh: () -> Unit, enabledGranularity: Boolean = true) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) } ; var showDatePickerRange by remember { mutableStateOf(false) }
     if (showDatePickerRange) { val dateRangePickerState = rememberDateRangePickerState(initialSelectedStartDateMillis = startDate, initialSelectedEndDateMillis = endDate) ; DatePickerDialog(onDismissRequest = { showDatePickerRange = false }, confirmButton = { TextButton(onClick = { onDateRangeSelected(dateRangePickerState.selectedStartDateMillis, dateRangePickerState.selectedEndDateMillis) ; showDatePickerRange = false ; onRefresh() }) { Text(stringResource(R.string.button_ok)) } }, dismissButton = { TextButton(onClick = { showDatePickerRange = false }) { Text(stringResource(R.string.button_cancel)) } }) { DateRangePicker(state = dateRangePickerState, title = { Text(stringResource(R.string.date), modifier = Modifier.padding(16.dp)) }, showModeToggle = false, modifier = Modifier.fillMaxWidth().height(400.dp) ) } }
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) { Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { OutlinedButton(onClick = { showDatePickerRange = true }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp)) { Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(4.dp)); Text(text = if (startDate != null && endDate != null) { "${dateFormat.format(Date(startDate))} - ${dateFormat.format(Date(endDate))}" } else { stringResource(R.string.date) }, style = MaterialTheme.typography.labelMedium) } ; IconButton(onClick = { onReset(); onRefresh() }, modifier = Modifier.size(40.dp)) { Icon(imageVector = Icons.Default.FilterAltOff, contentDescription = stringResource(R.string.filter_reset), tint = MaterialTheme.colorScheme.primary) } } ; if (enabledGranularity) { Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) { TimeGranularity.entries.forEach { entry -> val isSelected = entry == granularity ; FilterChip(selected = isSelected, onClick = { onGranularitySelected(entry); onRefresh() }, label = { Text(text = when (entry) { TimeGranularity.HOURS -> stringResource(R.string.granularity_hours) ; TimeGranularity.DAYS -> stringResource(R.string.granularity_days) ; TimeGranularity.WEEKS -> stringResource(R.string.granularity_weeks) ; TimeGranularity.MONTHS -> stringResource(R.string.granularity_months) ; TimeGranularity.YEARS -> stringResource(R.string.granularity_years) }, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.weight(1f)) } } } } }
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) { 
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { 
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { 
+                OutlinedButton(onClick = { showDatePickerRange = true }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp)) { 
+                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp)); 
+                    Spacer(modifier = Modifier.width(4.dp)); 
+                    Text(text = if (startDate != null && endDate != null) { "${dateFormat.format(Date(startDate))} - ${dateFormat.format(Date(endDate))}" } else { stringResource(R.string.date) }, style = MaterialTheme.typography.labelMedium) 
+                } ; 
+                IconButton(onClick = { onReset(); onRefresh() }, modifier = Modifier.size(40.dp)) { 
+                    Icon(imageVector = Icons.Default.FilterAltOff, contentDescription = stringResource(R.string.filter_reset), tint = MaterialTheme.colorScheme.primary) 
+                } 
+            } ; 
+            if (enabledGranularity) { 
+                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { 
+                    TimeGranularity.entries.forEach { entry -> 
+                        val isSelected = entry == granularity ; 
+                        FilterChip(
+                            selected = isSelected, 
+                            onClick = { onGranularitySelected(entry); onRefresh() }, 
+                            label = { Text(text = when (entry) { 
+                                TimeGranularity.MINUTES_5 -> stringResource(R.string.granularity_5min)
+                                TimeGranularity.MINUTES_15 -> stringResource(R.string.granularity_15min)
+                                TimeGranularity.HOURS -> stringResource(R.string.granularity_hours) 
+                                TimeGranularity.DAYS -> stringResource(R.string.granularity_days) 
+                                TimeGranularity.WEEKS -> stringResource(R.string.granularity_weeks) 
+                                TimeGranularity.MONTHS -> stringResource(R.string.granularity_months) 
+                                TimeGranularity.YEARS -> stringResource(R.string.granularity_years) 
+                            }, style = MaterialTheme.typography.labelSmall) },
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) 
+                    } 
+                } 
+            } 
+        } 
+    }
 }
