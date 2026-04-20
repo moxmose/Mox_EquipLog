@@ -11,6 +11,7 @@ import com.moxmose.moxequiplog.ui.operations.OperationsTypeViewModel
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import com.moxmose.moxequiplog.ui.reports.ReportsViewModel
 import com.moxmose.moxequiplog.utils.BackupManager
+import com.moxmose.moxequiplog.utils.CalendarManager
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
@@ -31,7 +32,7 @@ val appModule = module {
             "mox_equiplog.db"
         )
         .addCallback(AppDatabase.CALLBACK)
-        .addMigrations(AppDatabase.MIGRATION_37_38, AppDatabase.MIGRATION_38_39)
+        .addMigrations(AppDatabase.MIGRATION_37_38, AppDatabase.MIGRATION_38_39, AppDatabase.MIGRATION_39_40)
         .fallbackToDestructiveMigration(true)
         .build()
     }
@@ -45,11 +46,13 @@ val appModule = module {
     single { get<AppDatabase>().appPreferenceDao() }
     single { get<AppDatabase>().measurementUnitDao() }
     single { get<AppDatabase>().reportFilterDao() }
+    single { get<AppDatabase>().maintenanceReminderDao() }
 
     // Repositories
     single { ImageRepository(get(), get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
     single { AppSettingsManager(get(), get(named("defaultUsername"))) }
     single { BackupManager(androidContext(), get()) }
+    single { CalendarManager(androidContext()) }
 
     // ViewModels
     viewModelOf(::EquipmentsViewModel)

@@ -22,6 +22,8 @@ class AppSettingsManager(
     val defaultUnitId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_unit_id")
         .map { it?.toIntOrNull() }
 
+    val googleAccountName: Flow<String?> = appPreferenceDao.getPreferenceFlow("google_account_name")
+
     val backgroundUri: Flow<String?> = appPreferenceDao.getPreferenceFlow("background_uri")
 
     val backgroundBlur: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_blur")
@@ -73,6 +75,14 @@ class AppSettingsManager(
             appPreferenceDao.deletePreference("default_unit_id")
         } else {
             appPreferenceDao.insertPreference(AppPreference("default_unit_id", id.toString()))
+        }
+    }
+
+    suspend fun setGoogleAccountName(name: String?) {
+        if (name == null) {
+            appPreferenceDao.deletePreference("google_account_name")
+        } else {
+            appPreferenceDao.insertPreference(AppPreference("google_account_name", name))
         }
     }
 

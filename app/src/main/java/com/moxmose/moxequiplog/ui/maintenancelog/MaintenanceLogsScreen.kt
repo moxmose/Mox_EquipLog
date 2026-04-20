@@ -50,6 +50,13 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.utils.AppConstants
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.Warning
+import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
@@ -60,6 +67,7 @@ import java.util.*
 @Composable
 fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
     val logs by viewModel.logs.collectAsState()
+    val activeReminders by viewModel.activeReminders.collectAsState()
     val equipments by viewModel.allEquipments.collectAsState()
     val operationTypes by viewModel.allOperationTypes.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -83,6 +91,7 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
                 is MaintenanceLogViewModel.UiEvent.UpdateLogFailed -> context.getString(R.string.update_log_failed)
                 is MaintenanceLogViewModel.UiEvent.DismissLogFailed -> context.getString(R.string.dismiss_log_failed)
                 is MaintenanceLogViewModel.UiEvent.RestoreLogFailed -> context.getString(R.string.restore_log_failed)
+                is MaintenanceLogViewModel.UiEvent.DeleteReminderFailed -> "Failed to delete reminder"
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -94,6 +103,25 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var expandedCardId by rememberSaveable { mutableStateOf<Int?>(null) }
     var editingCardId by rememberSaveable { mutableStateOf<Int?>(null) }
+
+    val (selectedReminder, setSelectedReminder) = remember { mutableStateOf<MaintenanceReminderDetails?>(null) }
+
+    if (selectedReminder != null) {
+        MaintenanceLogDialog(
+            equipments = activeEquipments,
+            operationTypes = activeOperationTypes,
+            measurementUnits = measurementUnits,
+            onDismissRequest = { setSelectedReminder(null) },
+            onConfirm = { log ->
+                viewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                setSelectedReminder(null)
+            },
+            defaultEquipmentId = selectedReminder.reminder.equipmentId,
+            defaultOperationTypeId = selectedReminder.reminder.operationTypeId,
+            equipmentCategoryColor = equipmentColor,
+            operationCategoryColor = operationColor
+        )
+    }
 
     MaintenanceLogScreenContent(
         logs = logs,
@@ -109,7 +137,9 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
         showDismissed = showDismissed,
         onShowDismissedToggle = viewModel::onShowDismissedToggled,
         showAddDialog = showAddDialog,
-        onShowAddDialogChange = { showAddDialog = it },
+        onShowAddDialogChange = { 
+            showAddDialog = it 
+        },
         onAddLog = viewModel::addLog,
         expandedCardId = expandedCardId,
         onCardExpanded = { id -> expandedCardId = if (expandedCardId == id) null else id },
@@ -121,12 +151,212 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
         },
         onDismissLog = viewModel::dismissLog,
         onRestoreLog = viewModel::restoreLog,
+        activeReminders = activeReminders,
         snackbarHostState = snackbarHostState,
         defaultEquipmentId = defaultEquipmentId,
         defaultOperationTypeId = defaultOperationTypeId,
         equipmentCategoryColor = equipmentColor,
-        operationCategoryColor = operationColor
+        operationCategoryColor = operationColor,
+        onCompleteReminder = { setSelectedReminder(it) },
+        onDeleteReminder = { viewModel.deleteReminder(it) }
     )
+}
+
+@Composable
+fun RemindersDashboard(
+    reminders: List<MaintenanceReminderDetails>,
+    measurementUnits: List<MeasurementUnit>,
+    equipmentCategoryColor: String?,
+    operationCategoryColor: String?,
+    onComplete: (MaintenanceReminderDetails) -> Unit,
+    onDelete: (MaintenanceReminderDetails) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    
+    if (reminders.isEmpty()) return
+
+    val eColor = remember(equipmentCategoryColor) {
+        try { equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
+    }
+    val oColor = remember(operationCategoryColor) {
+        try { operationCategoryColor?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .animateContentSize(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.9f)
+        )
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .clickable { expanded = !expanded }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Notifications,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.reminders_dashboard_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Text(
+                        text = reminders.size.toString(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null
+                )
+            }
+
+            if (expanded) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    reminders.forEach { reminderDetails ->
+                        ReminderItem(
+                            details = reminderDetails,
+                            measurementUnits = measurementUnits,
+                            eColor = eColor,
+                            oColor = oColor,
+                            onComplete = { onComplete(reminderDetails) },
+                            onDelete = { onDelete(reminderDetails) }
+                        )
+                    }
+                    Spacer(modifier = Modifier.padding(bottom = 4.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ReminderItem(
+    details: MaintenanceReminderDetails,
+    measurementUnits: List<MeasurementUnit>,
+    eColor: Color,
+    oColor: Color,
+    onComplete: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val unit = measurementUnits.find { it.id == details.unitId }
+    val unitLabel = unit?.label ?: "Km"
+    val decimalPlaces = unit?.decimalPlaces ?: 0
+
+    val isOverdue = remember(details.reminder.dueDate) {
+        details.reminder.dueDate?.let { it < System.currentTimeMillis() } ?: false
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ImageIcon(
+                        photoUri = details.equipmentPhotoUri,
+                        iconIdentifier = details.equipmentIconIdentifier,
+                        modifier = Modifier.size(20.dp),
+                        category = Category.EQUIPMENT,
+                        borderColor = eColor,
+                        contentPadding = 1.dp
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = details.equipmentDescription.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, details.reminder.equipmentId),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ImageIcon(
+                        photoUri = details.operationTypePhotoUri,
+                        iconIdentifier = details.operationTypeIconIdentifier,
+                        modifier = Modifier.size(20.dp),
+                        category = Category.OPERATION,
+                        borderColor = oColor,
+                        contentPadding = 1.dp
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = details.operationTypeDescription.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, details.reminder.operationTypeId),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                
+                if (details.reminder.dueDate != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (isOverdue) Icons.Default.PriorityHigh else Icons.Default.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.due_date_label, dateFormat.format(Date(details.reminder.dueDate))),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isOverdue) MaterialTheme.colorScheme.error else Color.Unspecified
+                        )
+                    }
+                }
+                
+                if (details.reminder.dueValue != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.due_value_label, String.format(Locale.US, "%.${decimalPlaces}f", details.reminder.dueValue), unitLabel),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+            
+            Row {
+                IconButton(onClick = onComplete) {
+                    Icon(Icons.Default.Done, contentDescription = stringResource(R.string.reminder_complete_log), tint = Color(0xFF4CAF50))
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_reminder), tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -154,11 +384,14 @@ fun MaintenanceLogScreenContent(
     onUpdateLog: (MaintenanceLog) -> Unit,
     onDismissLog: (MaintenanceLog) -> Unit,
     onRestoreLog: (MaintenanceLog) -> Unit,
+    activeReminders: List<MaintenanceReminderDetails> = emptyList(),
     snackbarHostState: SnackbarHostState,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
     equipmentCategoryColor: String?,
-    operationCategoryColor: String?
+    operationCategoryColor: String?,
+    onCompleteReminder: (MaintenanceReminderDetails) -> Unit,
+    onDeleteReminder: (MaintenanceReminderDetails) -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -201,6 +434,14 @@ fun MaintenanceLogScreenContent(
         }
 
         Column(Modifier.padding(paddingValues)) {
+            RemindersDashboard(
+                reminders = activeReminders,
+                measurementUnits = measurementUnits,
+                equipmentCategoryColor = equipmentCategoryColor,
+                operationCategoryColor = operationCategoryColor,
+                onComplete = onCompleteReminder,
+                onDelete = onDeleteReminder
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -280,6 +521,8 @@ fun MaintenanceLogScreenContent(
         }
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -591,6 +834,8 @@ fun MaintenanceLogDialog(
         }
     )
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

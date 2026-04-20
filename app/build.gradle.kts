@@ -49,6 +49,13 @@ android {
             isIncludeAndroidResources = true
         }
     }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/DEPENDENCIES"
+        }
+    }
 }
 
 jacoco {
@@ -126,6 +133,11 @@ dependencies {
     implementation(libs.vico.compose)
     implementation(libs.vico.compose.m3)
     implementation(libs.vico.core)
+
+    // Google Calendar & Auth
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+    implementation("com.google.api-client:google-api-client-android:2.7.0")
+    implementation("com.google.apis:google-api-services-calendar:v3-rev20220715-2.0.0")
 
     // Testing
     testImplementation(libs.junit)

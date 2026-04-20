@@ -197,6 +197,17 @@
     <string name="restore_log">Ripristina registrazione</string>
     <string name="select_media">Seleziona media</string>
 
+    <!-- Maintenance Reminders -->
+    <string name="reminders_dashboard_title">Scadenze Manutenzione</string>
+    <string name="no_active_reminders">Nessuna scadenza attiva</string>
+    <string name="due_date_label">Data Scadenza: %1$s</string>
+    <string name="due_value_label">Valore Scadenza: %1$s %2$s</string>
+    <string name="reminder_set_calendar">Imposta promemoria calendario</string>
+    <string name="reminder_complete_log">Completa Manutenzione</string>
+    <string name="delete_reminder">Elimina Promemoria</string>
+    <string name="reminder_overdue">SCADUTO</string>
+    <string name="reminder_approaching">IN SCADENZA</string>
+
     <!-- Error Handling -->
     <string name="error_unknown">Si è verificato un errore sconosciuto.</string>
     <string name="add_color_failed">Impossibile aggiungere il colore %1$s.</string>

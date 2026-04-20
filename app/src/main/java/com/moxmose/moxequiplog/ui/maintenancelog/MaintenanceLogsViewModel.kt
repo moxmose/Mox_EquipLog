@@ -7,6 +7,7 @@ import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.CalendarManager
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -24,12 +25,14 @@ enum class SortDirection {
 @OptIn(ExperimentalCoroutinesApi::class)
 class MaintenanceLogViewModel(
     private val maintenanceLogDao: MaintenanceLogDao,
+    private val maintenanceReminderDao: MaintenanceReminderDao,
     private val equipmentDao: EquipmentDao,
     private val operationTypeDao: OperationTypeDao,
     private val categoryDao: CategoryDao,
     private val appSettingsManager: AppSettingsManager,
     private val imageRepository: ImageRepository,
-    private val measurementUnitDao: MeasurementUnitDao
+    private val measurementUnitDao: MeasurementUnitDao,
+    private val calendarManager: CalendarManager
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -37,6 +40,7 @@ class MaintenanceLogViewModel(
         data object UpdateLogFailed : UiEvent()
         data object DismissLogFailed : UiEvent()
         data object RestoreLogFailed : UiEvent()
+        data object DeleteReminderFailed : UiEvent()
     }
 
     private val _uiEvents = Channel<UiEvent>(Channel.BUFFERED)
@@ -66,6 +70,13 @@ class MaintenanceLogViewModel(
         started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
         initialValue = emptyList()
     )
+
+    val activeReminders: StateFlow<List<MaintenanceReminderDetails>> = maintenanceReminderDao.getActiveRemindersWithDetails()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
 
     val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
         .stateIn(
@@ -216,6 +227,20 @@ class MaintenanceLogViewModel(
                     color = color
                 )
                 maintenanceLogDao.insertLog(newLog)
+                
+                // Mark reminder as completed if it exists for this equipment and operation type
+                maintenanceReminderDao.getReminderByEquipmentAndOperation(equipmentId, operationTypeId)?.let { reminder ->
+                    maintenanceReminderDao.updateReminder(reminder.copy(isCompleted = true))
+                    
+                    // Delete Google Calendar event if it exists
+                    reminder.calendarEventId?.let { eventId ->
+                        val accountName = appSettingsManager.googleAccountName.first()
+                        if (accountName != null) {
+                            val credential = calendarManager.getCredential(accountName)
+                            calendarManager.deleteEvent(credential, eventId)
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.AddLogFailed)
             }
@@ -248,6 +273,23 @@ class MaintenanceLogViewModel(
                 maintenanceLogDao.updateLog(log.copy(dismissed = false))
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.RestoreLogFailed)
+            }
+        }
+    }
+
+    fun deleteReminder(reminderDetails: MaintenanceReminderDetails) {
+        viewModelScope.launch {
+            try {
+                reminderDetails.reminder.calendarEventId?.let { eventId ->
+                    val accountName = appSettingsManager.googleAccountName.first()
+                    if (accountName != null) {
+                        val credential = calendarManager.getCredential(accountName)
+                        calendarManager.deleteEvent(credential, eventId)
+                    }
+                }
+                maintenanceReminderDao.deleteReminder(reminderDetails.reminder)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.DeleteReminderFailed)
             }
         }
     }

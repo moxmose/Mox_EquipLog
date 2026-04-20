@@ -201,6 +201,17 @@
     <string name="restore_log">Restore Log</string>
     <string name="select_media">Select media</string>
 
+    <!-- Maintenance Reminders -->
+    <string name="reminders_dashboard_title">Maintenance Deadlines</string>
+    <string name="no_active_reminders">No active deadlines</string>
+    <string name="due_date_label">Due Date: %1$s</string>
+    <string name="due_value_label">Due Value: %1$s %2$s</string>
+    <string name="reminder_set_calendar">Set calendar reminder</string>
+    <string name="reminder_complete_log">Complete Maintenance</string>
+    <string name="delete_reminder">Delete Reminder</string>
+    <string name="reminder_overdue">OVERDUE</string>
+    <string name="reminder_approaching">APPROACHING</string>
+
     <!-- Error Handling -->
     <string name="error_unknown">An unknown error occurred.</string>
     <string name="add_color_failed">Failed to add color %1$s.</string>

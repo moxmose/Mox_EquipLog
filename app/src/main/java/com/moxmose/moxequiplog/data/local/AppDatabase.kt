@@ -19,9 +19,10 @@ import kotlinx.coroutines.launch
         AppColor::class, 
         AppPreference::class,
         MeasurementUnit::class,
-        ReportFilter::class
+        ReportFilter::class,
+        MaintenanceReminder::class
     ], 
-    version = 39,
+    version = 40,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,8 +35,30 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun appPreferenceDao(): AppPreferenceDao
     abstract fun measurementUnitDao(): MeasurementUnitDao
     abstract fun reportFilterDao(): ReportFilterDao
+    abstract fun maintenanceReminderDao(): MaintenanceReminderDao
 
     companion object {
+        val MIGRATION_39_40 = object : Migration(39, 40) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `maintenance_reminders` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `equipmentId` INTEGER NOT NULL, 
+                        `operationTypeId` INTEGER NOT NULL, 
+                        `dueDate` INTEGER, 
+                        `dueValue` REAL, 
+                        `calendarEventId` TEXT, 
+                        `isCompleted` INTEGER NOT NULL DEFAULT 0, 
+                        `createdAt` INTEGER NOT NULL, 
+                        FOREIGN KEY(`equipmentId`) REFERENCES `equipments`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE, 
+                        FOREIGN KEY(`operationTypeId`) REFERENCES `operation_types`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """)
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_maintenance_reminders_equipmentId` ON `maintenance_reminders` (`equipmentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_maintenance_reminders_operationTypeId` ON `maintenance_reminders` (`operationTypeId`)")
+            }
+        }
+
         val MIGRATION_38_39 = object : Migration(38, 39) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Aggiunta decimalPlaces a measurement_units
