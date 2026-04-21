@@ -64,6 +64,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val backgroundTintAlpha by viewModel.backgroundTintAlpha.collectAsState()
     val backgroundImageAlpha by viewModel.backgroundImageAlpha.collectAsState()
 
+    val googleAccountName by viewModel.googleAccountName.collectAsState()
+    val syncCalendarByDefault by viewModel.syncCalendarByDefault.collectAsState()
+
     val reportsColorMode by viewModel.reportsColorMode.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -101,6 +104,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ToggleUnitVisibilityFailed -> context.getString(R.string.toggle_unit_visibility_failed)
                 is OptionsViewModel.OptionsUiEvent.SetDefaultFailed -> context.getString(R.string.set_default_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateReportsSettingsFailed -> context.getString(R.string.update_reports_settings_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateGoogleAccountFailed -> "Failed to update Google account"
                 is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
@@ -171,7 +175,11 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onTotalExport = viewModel::totalExport,
         getSuggestedBackupFileName = viewModel::getSuggestedBackupFileName,
         getSuggestedTotalExportFileName = viewModel::getSuggestedTotalExportFileName,
-        snackbarHostState = snackbarHostState
+        snackbarHostState = snackbarHostState,
+        googleAccountName = googleAccountName,
+        onGoogleAccountSelected = viewModel::setGoogleAccountName,
+        syncCalendarByDefault = syncCalendarByDefault,
+        onSyncCalendarByDefaultChange = viewModel::setSyncCalendarByDefault
     )
 
     colorMgmtState?.let { (mode, categoryId) ->
@@ -258,7 +266,11 @@ fun OptionsScreenContent(
     onTotalExport: (Uri) -> Unit,
     getSuggestedBackupFileName: () -> String,
     getSuggestedTotalExportFileName: () -> String,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    googleAccountName: String?,
+    onGoogleAccountSelected: (String?) -> Unit,
+    syncCalendarByDefault: Boolean,
+    onSyncCalendarByDefaultChange: (Boolean) -> Unit
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
     var showBackgroundPicker by remember { mutableStateOf(false) }
@@ -651,6 +663,44 @@ fun OptionsScreenContent(
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_restore_db))
+                    }
+                }
+            }
+
+            // 8. GOOGLE CALENDAR
+            OptionsSectionCard(
+                title = stringResource(R.string.options_google_calendar_section),
+                description = stringResource(R.string.options_google_calendar_desc)
+            ) {
+                GoogleAccountSelector(
+                    accountName = googleAccountName,
+                    onAccountSelected = onGoogleAccountSelected
+                )
+
+                if (googleAccountName != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.options_sync_calendar_default_label),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                text = stringResource(R.string.options_sync_calendar_default_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = syncCalendarByDefault,
+                            onCheckedChange = onSyncCalendarByDefaultChange
+                        )
                     }
                 }
             }

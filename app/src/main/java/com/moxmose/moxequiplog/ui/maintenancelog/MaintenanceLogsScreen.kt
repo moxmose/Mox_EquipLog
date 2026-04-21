@@ -32,6 +32,11 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,7 +70,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
+fun MaintenanceLogScreen(
+    viewModel: MaintenanceLogViewModel = koinViewModel(),
+    onNavigateToOptions: () -> Unit = {}
+) {
     val logs by viewModel.logs.collectAsState()
     val activeReminders by viewModel.activeReminders.collectAsState()
     val equipments by viewModel.allEquipments.collectAsState()
@@ -77,6 +85,8 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
+    val syncCalendarByDefault by viewModel.syncCalendarByDefault.collectAsState()
+    val googleAccountName by viewModel.googleAccountName.collectAsState()
     
     val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
     val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
@@ -116,10 +126,15 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
                 viewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
                 setSelectedReminder(null)
             },
+            onEstimateDueDate = viewModel::estimateDueDate,
+            onEstimateTargetValue = viewModel::estimateTargetValue,
             defaultEquipmentId = selectedReminder.reminder.equipmentId,
             defaultOperationTypeId = selectedReminder.reminder.operationTypeId,
             equipmentCategoryColor = equipmentColor,
-            operationCategoryColor = operationColor
+            operationCategoryColor = operationColor,
+            syncCalendarByDefault = syncCalendarByDefault,
+            googleAccountName = googleAccountName,
+            onNavigateToOptions = onNavigateToOptions
         )
     }
 
@@ -141,6 +156,9 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
             showAddDialog = it 
         },
         onAddLog = viewModel::addLog,
+        onAddReminder = viewModel::addReminder,
+        onEstimateDueDate = viewModel::estimateDueDate,
+        onEstimateTargetValue = viewModel::estimateTargetValue,
         expandedCardId = expandedCardId,
         onCardExpanded = { id -> expandedCardId = if (expandedCardId == id) null else id },
         editingCardId = editingCardId,
@@ -158,7 +176,10 @@ fun MaintenanceLogScreen(viewModel: MaintenanceLogViewModel = koinViewModel()) {
         equipmentCategoryColor = equipmentColor,
         operationCategoryColor = operationColor,
         onCompleteReminder = { setSelectedReminder(it) },
-        onDeleteReminder = { viewModel.deleteReminder(it) }
+        onDeleteReminder = { viewModel.deleteReminder(it) },
+        syncCalendarByDefault = syncCalendarByDefault,
+        googleAccountName = googleAccountName,
+        onNavigateToOptions = onNavigateToOptions
     )
 }
 
@@ -377,6 +398,9 @@ fun MaintenanceLogScreenContent(
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
     onAddLog: (Int, Int, String?, Double?, Long, String?) -> Unit,
+    onAddReminder: (Int, Int, Long?, Double?, Boolean) -> Unit,
+    onEstimateDueDate: suspend (Int, Double) -> Long?,
+    onEstimateTargetValue: suspend (Int, Long) -> Double?,
     expandedCardId: Int?,
     onCardExpanded: (Int) -> Unit,
     editingCardId: Int?,
@@ -391,7 +415,10 @@ fun MaintenanceLogScreenContent(
     equipmentCategoryColor: String?,
     operationCategoryColor: String?,
     onCompleteReminder: (MaintenanceReminderDetails) -> Unit,
-    onDeleteReminder: (MaintenanceReminderDetails) -> Unit
+    onDeleteReminder: (MaintenanceReminderDetails) -> Unit,
+    syncCalendarByDefault: Boolean,
+    googleAccountName: String?,
+    onNavigateToOptions: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -426,10 +453,19 @@ fun MaintenanceLogScreenContent(
                     onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
                     onShowAddDialogChange(false)
                 },
+                onSchedule = { equipmentId, opTypeId, date, value, sync ->
+                    onAddReminder(equipmentId, opTypeId, date, value, sync)
+                    onShowAddDialogChange(false)
+                },
+                onEstimateDueDate = onEstimateDueDate,
+                onEstimateTargetValue = onEstimateTargetValue,
                 defaultEquipmentId = defaultEquipmentId,
                 defaultOperationTypeId = defaultOperationTypeId,
                 equipmentCategoryColor = equipmentCategoryColor,
-                operationCategoryColor = operationCategoryColor
+                operationCategoryColor = operationCategoryColor,
+                syncCalendarByDefault = syncCalendarByDefault,
+                googleAccountName = googleAccountName,
+                onNavigateToOptions = onNavigateToOptions
             )
         }
 
@@ -532,16 +568,24 @@ fun MaintenanceLogDialog(
     measurementUnits: List<MeasurementUnit>,
     onDismissRequest: () -> Unit,
     onConfirm: (MaintenanceLog) -> Unit,
+    onSchedule: ((Int, Int, Long?, Double?, Boolean) -> Unit)? = null,
+    onEstimateDueDate: (suspend (Int, Double) -> Long?)? = null,
+    onEstimateTargetValue: (suspend (Int, Long) -> Double?)? = null,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
     equipmentCategoryColor: String?,
-    operationCategoryColor: String?
+    operationCategoryColor: String?,
+    syncCalendarByDefault: Boolean = false,
+    googleAccountName: String? = null,
+    onNavigateToOptions: () -> Unit = {}
 ) {
     val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: Completed, 1: Planned
     var notes by remember { mutableStateOf("") }
     var valueStr by remember { mutableStateOf("") }
+    var syncToCalendar by remember(syncCalendarByDefault) { mutableStateOf(syncCalendarByDefault) }
     
     var selectedEquipment by remember(defaultEquipmentId, equipments) { 
         mutableStateOf(equipments.find { it.id == defaultEquipmentId }) 
@@ -561,6 +605,9 @@ fun MaintenanceLogDialog(
     var selectedDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    var isEstimating by remember { mutableStateOf(false) }
 
     val eColor = remember(equipmentCategoryColor) {
         try {
@@ -645,9 +692,24 @@ fun MaintenanceLogDialog(
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text(stringResource(R.string.add_new_maintenance_log)) },
+        title = { Text(if (onSchedule != null) stringResource(R.string.add_new_maintenance_log) else stringResource(R.string.reminder_complete_log)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onSchedule != null) {
+                    TabRow(selectedTabIndex = selectedTab) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = { Text(stringResource(R.string.tab_log)) }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = { Text(stringResource(R.string.tab_reminder)) }
+                        )
+                    }
+                }
+
                 ExposedDropdownMenuBox(
                     expanded = isEquipmentDropdownExpanded,
                     onExpandedChange = { isEquipmentDropdownExpanded = it }
@@ -760,36 +822,56 @@ fun MaintenanceLogDialog(
                                 val dotIndex = filtered.indexOf('.')
                                 if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
                                     valueStr = filtered
+                                    if (selectedTab == 1 && filtered.isNotEmpty() && onEstimateDueDate != null) {
+                                        selectedEquipment?.id?.let { eqId ->
+                                            filtered.toDoubleOrNull()?.let { target ->
+                                                scope.launch {
+                                                    isEstimating = true
+                                                    onEstimateDueDate(eqId, target)?.let { estimated ->
+                                                        selectedDate = estimated
+                                                    }
+                                                    isEstimating = false
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     },
-                    label = { Text("$unitLabel (optional)") },
+                    label = { Text(if (selectedTab == 0) stringResource(R.string.value_optional, unitLabel) else stringResource(R.string.target_value, unitLabel)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { if (it.length <= 200) notes = it },
-                    label = { Text(stringResource(R.string.notes_optional)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (selectedTab == 0) {
+                    OutlinedTextField(
+                        value = notes,
+                        onValueChange = { if (it.length <= 200) notes = it },
+                        label = { Text(stringResource(R.string.notes_optional)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = dayFormat.format(Date(selectedDate)),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text(stringResource(R.string.date)) },
+                        label = { Text(if (selectedTab == 0) stringResource(R.string.date) else stringResource(R.string.due_date)) },
                         trailingIcon = {
                             IconButton(onClick = { showDatePicker = true }) {
                                 Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date))
                             }
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = if (isEstimating) OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.primary
+                        ) else OutlinedTextFieldDefaults.colors()
                     )
+
                     OutlinedTextField(
                         value = timeFormat.format(Date(selectedDate)),
                         onValueChange = {},
@@ -803,6 +885,45 @@ fun MaintenanceLogDialog(
                         modifier = Modifier.weight(1f).clickable { showTimePicker = true }
                     )
                 }
+
+                LaunchedEffect(selectedDate, selectedTab) {
+                    if (selectedTab == 1 && valueStr.isEmpty() && onEstimateTargetValue != null) {
+                        selectedEquipment?.id?.let { eqId ->
+                            scope.launch {
+                                isEstimating = true
+                                onEstimateTargetValue(eqId, selectedDate)?.let { estimated ->
+                                    valueStr = String.format(Locale.US, "%.${decimalPlaces}f", estimated)
+                                }
+                                isEstimating = false
+                            }
+                        }
+                    }
+                }
+
+                if (selectedTab == 1) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = syncToCalendar,
+                                onCheckedChange = { syncToCalendar = it }
+                            )
+                            Text(stringResource(R.string.sync_to_calendar))
+                        }
+                        if (syncToCalendar && googleAccountName == null) {
+                            Text(
+                                text = stringResource(R.string.calendar_no_account),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier
+                                    .padding(start = 12.dp)
+                                    .clickable { onNavigateToOptions() }
+                            )
+                        }
+                    }
+                }
             }
         },
 
@@ -812,19 +933,29 @@ fun MaintenanceLogDialog(
                     val equipment = selectedEquipment
                     val op = selectedOperationType
                     if (equipment != null && op != null) {
-                        onConfirm(
-                            MaintenanceLog(
-                                equipmentId = equipment.id,
-                                operationTypeId = op.id,
-                                notes = notes.takeIf { it.isNotBlank() },
-                                value = valueStr.toDoubleOrNull(),
-                                date = selectedDate
+                        if (selectedTab == 0) {
+                            onConfirm(
+                                MaintenanceLog(
+                                    equipmentId = equipment.id,
+                                    operationTypeId = op.id,
+                                    notes = notes.takeIf { it.isNotBlank() },
+                                    value = valueStr.toDoubleOrNull(),
+                                    date = selectedDate
+                                )
                             )
-                        )
+                        } else {
+                            onSchedule?.invoke(
+                                equipment.id,
+                                op.id,
+                                selectedDate,
+                                valueStr.toDoubleOrNull(),
+                                syncToCalendar
+                            )
+                        }
                     }
                 }
             ) {
-                Text(stringResource(R.string.button_add))
+                Text(if (selectedTab == 0) stringResource(R.string.button_add) else stringResource(R.string.schedule_maintenance))
             }
         },
         dismissButton = {
@@ -834,8 +965,6 @@ fun MaintenanceLogDialog(
         }
     )
 }
-
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

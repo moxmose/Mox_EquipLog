@@ -60,6 +60,7 @@ class OptionsViewModel(
         data object ToggleUnitVisibilityFailed : OptionsUiEvent()
         data object SetDefaultFailed : OptionsUiEvent()
         data object UpdateReportsSettingsFailed : OptionsUiEvent()
+        data object UpdateGoogleAccountFailed : OptionsUiEvent()
         data class BackupResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class TotalExportResult(val success: Boolean, val message: String?) : OptionsUiEvent()
@@ -143,6 +144,12 @@ class OptionsViewModel(
     val reportsCustomColors: StateFlow<List<String>> = appSettingsManager.reportsCustomColors
         .map { it ?: emptyList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+
+    val googleAccountName: StateFlow<String?> = appSettingsManager.googleAccountName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
 
     fun resetBackgroundSettings() {
         viewModelScope.launch {
@@ -248,6 +255,26 @@ class OptionsViewModel(
                 appSettingsManager.setUsername(newUsername)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateUsernameFailed)
+            }
+        }
+    }
+
+    fun setGoogleAccountName(name: String?) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setGoogleAccountName(name)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateGoogleAccountFailed)
+            }
+        }
+    }
+
+    fun setSyncCalendarByDefault(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setSyncCalendarByDefault(enabled)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
             }
         }
     }

@@ -113,7 +113,7 @@ class EquipmentsViewModel(
         }
     }
 
-    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?, unitId: Int, isResettable: Boolean = false) {
+    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?, unitId: Int, isResettable: Boolean = false, usageWindow: Int = 30, manualAverage: Double? = null) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
             return
@@ -142,7 +142,9 @@ class EquipmentsViewModel(
                         iconIdentifier = equipmentIconIdentifier,
                         displayOrder = nextOrder,
                         unitId = unitId,
-                        isResettable = isResettable
+                        isResettable = isResettable,
+                        usageWindow = usageWindow,
+                        manualAverage = manualAverage
                     )
                 )
             } catch (e: Exception) {

@@ -22,4 +22,7 @@ interface MaintenanceLogDao {
 
     @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId AND date < :date ORDER BY date DESC LIMIT 1")
     suspend fun getLastLogBefore(equipmentId: Int, date: Long): MaintenanceLog?
+
+    @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId AND date >= :sinceDate ORDER BY date ASC")
+    suspend fun getLogsSince(equipmentId: Int, sinceDate: Long): List<MaintenanceLog>
 }

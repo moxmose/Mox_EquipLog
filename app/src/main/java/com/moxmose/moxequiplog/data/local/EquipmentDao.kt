@@ -27,6 +27,9 @@ interface EquipmentDao {
     @Query("SELECT * FROM equipments WHERE id = :equipmentId")
     fun getEquipmentById(equipmentId: Int): Flow<Equipment?>
 
+    @Query("SELECT * FROM equipments WHERE id = :id")
+    suspend fun getEquipmentByIdOneShot(id: Int): Equipment?
+
     @Query("SELECT COUNT(*) FROM equipments WHERE photoUri = :uri")
     suspend fun countEquipmentsUsingPhoto(uri: String): Int
 

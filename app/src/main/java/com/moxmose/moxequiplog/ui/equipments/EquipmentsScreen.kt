@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -128,7 +130,7 @@ fun EquipmentsScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?, Int, Boolean) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int, Boolean, Int, Double?) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
@@ -180,8 +182,8 @@ fun EquipmentsScreenContent(
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier, unitId, isResettable ->
-                    onAddEquipment(desc, identifier, unitId, isResettable)
+                onConfirm = { desc, identifier, unitId, isResettable, window, avg ->
+                    onAddEquipment(desc, identifier, unitId, isResettable, window, avg)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -248,7 +250,7 @@ fun EquipmentsScreenContent(
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int, Boolean) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int, Boolean, Int, Double?) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     imageLibrary: List<Image>,
@@ -267,6 +269,9 @@ fun AddEquipmentDialog(
     var iconId by rememberSaveable { mutableStateOf<String?>(null) }
     var unitId by rememberSaveable(defaultUnitId) { mutableIntStateOf(defaultUnitId ?: 1) }
     var isResettable by rememberSaveable { mutableStateOf(false) }
+    var usageWindow by rememberSaveable { mutableIntStateOf(30) }
+    var manualAverage by rememberSaveable { mutableStateOf<Double?>(null) }
+    var manualAverageStr by rememberSaveable { mutableStateOf("") }
     var isPristine by rememberSaveable { mutableStateOf(true) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
@@ -370,6 +375,43 @@ fun AddEquipmentDialog(
                     Checkbox(checked = isResettable, onCheckedChange = { isResettable = it })
                     Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
                 }
+
+                HorizontalDivider()
+
+                Text(
+                    text = stringResource(R.string.predictive_maintenance_settings),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedTextField(
+                    value = usageWindow.toString(),
+                    onValueChange = { input ->
+                        input.toIntOrNull()?.let { if (it in 1..365) usageWindow = it }
+                    },
+                    label = { Text(stringResource(R.string.usage_trend_window)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = manualAverageStr,
+                    onValueChange = { input ->
+                        if (input.isEmpty()) {
+                            manualAverageStr = ""
+                            manualAverage = null
+                        } else {
+                            val filtered = input.replace(',', '.')
+                            if (filtered.toDoubleOrNull() != null) {
+                                manualAverageStr = filtered
+                                manualAverage = filtered.toDoubleOrNull()
+                            }
+                        }
+                    },
+                    label = { Text(stringResource(R.string.manual_average_usage)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
@@ -380,7 +422,7 @@ fun AddEquipmentDialog(
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
-                    onConfirm(description, identifier, unitId, isResettable) 
+                    onConfirm(description, identifier, unitId, isResettable, usageWindow, manualAverage)
                 }
             ) { Text(stringResource(R.string.button_add)) }
         },
@@ -439,6 +481,185 @@ fun UnitSelector(
         }
     }
 }
+
+    @Composable
+    fun EditEquipmentDialog(
+        equipment: Equipment,
+        onDismissRequest: () -> Unit,
+        onConfirm: (Equipment) -> Unit,
+        imageLibrary: List<Image>,
+        categories: List<Category>,
+        measurementUnits: List<MeasurementUnit>,
+        equipmentCategoryColor: String?,
+        categoryColors: Map<String, String>,
+        categoryDefaultIcons: Map<String, String?>,
+        categoryDefaultPhotos: Map<String, String?>,
+        onAddImage: (ImageIdentifier, String) -> Unit,
+        onToggleImageVisibility: (Image) -> Unit
+    ) {
+        var description by rememberSaveable { mutableStateOf(equipment.description) }
+        var photoUri by rememberSaveable { mutableStateOf(equipment.photoUri) }
+        var iconId by rememberSaveable { mutableStateOf(equipment.iconIdentifier) }
+        var unitId by rememberSaveable { mutableIntStateOf(equipment.unitId) }
+        var isResettable by rememberSaveable { mutableStateOf(equipment.isResettable) }
+        var usageWindow by rememberSaveable { mutableIntStateOf(equipment.usageWindow) }
+        var manualAverage by rememberSaveable { mutableStateOf(equipment.manualAverage) }
+        var manualAverageStr by rememberSaveable { mutableStateOf(equipment.manualAverage?.toString() ?: "") }
+        var showImageSelectorDialog by remember { mutableStateOf(false) }
+
+        if (showImageSelectorDialog) {
+            ImagePickerDialog(
+                onDismissRequest = { showImageSelectorDialog = false },
+                photoUri = photoUri,
+                iconIdentifier = iconId,
+                onImageSelected = { (newIconId, newPhotoUri) ->
+                    iconId = newIconId
+                    photoUri = newPhotoUri
+                    showImageSelectorDialog = false
+                },
+                imageLibrary = imageLibrary,
+                categories = categories,
+                categoryColors = categoryColors,
+                categoryDefaultIcons = categoryDefaultIcons,
+                categoryDefaultPhotos = categoryDefaultPhotos,
+                onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+                onRemoveImage = null,
+                onUpdateImageOrder = null,
+                onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+                onSetDefaultInCategory = null,
+                isPhotoUsed = null,
+                isPrefsMode = false,
+                forcedCategory = Category.EQUIPMENT
+            )
+        }
+
+        AlertDialog(
+            onDismissRequest = onDismissRequest,
+            title = { Text(text = stringResource(R.string.edit_equipment), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val primaryColor = MaterialTheme.colorScheme.primary
+                        val borderColor = remember(equipmentCategoryColor, primaryColor) {
+                            try {
+                                equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
+                            } catch (_: Exception) { primaryColor }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                                .border(2.dp, borderColor, CircleShape)
+                                .clickable { showImageSelectorDialog = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (photoUri != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(),
+                                    contentDescription = stringResource(R.string.equipment_photo),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                val icon = EquipmentIconProvider.getIcon(iconId)
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = stringResource(R.string.equipment_photo),
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { if (it.length <= 50) description = it },
+                            label = { Text(stringResource(R.string.equipment_description)) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    UnitSelector(
+                        measurementUnits = measurementUnits,
+                        selectedUnitId = unitId,
+                        onUnitSelected = { unitId = it }
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { isResettable = !isResettable },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Checkbox(checked = isResettable, onCheckedChange = { isResettable = it })
+                        Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                    }
+
+                    HorizontalDivider()
+
+                    Text(
+                        text = stringResource(R.string.predictive_maintenance_settings),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedTextField(
+                        value = usageWindow.toString(),
+                        onValueChange = { input ->
+                            input.toIntOrNull()?.let { if (it in 1..365) usageWindow = it }
+                        },
+                        label = { Text(stringResource(R.string.usage_trend_window)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = manualAverageStr,
+                        onValueChange = { input ->
+                            if (input.isEmpty()) {
+                                manualAverageStr = ""
+                                manualAverage = null
+                            } else {
+                                val filtered = input.replace(',', '.')
+                                if (filtered.toDoubleOrNull() != null) {
+                                    manualAverageStr = filtered
+                                    manualAverage = filtered.toDoubleOrNull()
+                                }
+                            }
+                        },
+                        label = { Text(stringResource(R.string.manual_average_usage)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onConfirm(
+                            equipment.copy(
+                                description = description,
+                                photoUri = photoUri,
+                                iconIdentifier = iconId,
+                                unitId = unitId,
+                                isResettable = isResettable,
+                                usageWindow = usageWindow,
+                                manualAverage = manualAverage
+                            )
+                        )
+                    }
+                ) { Text(stringResource(R.string.save_equipment)) }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) }
+            }
+        )
+    }
 
 @Composable
 fun EquipmentCard(

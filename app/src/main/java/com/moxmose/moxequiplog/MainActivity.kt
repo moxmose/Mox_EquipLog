@@ -137,7 +137,7 @@ fun MoxEquipLogApp(
                 color = Color.Transparent
             ) {
                 when (currentDestination) {
-                    AppDestinations.LOGS -> MaintenanceLogScreen()
+                    AppDestinations.LOGS -> MaintenanceLogScreen(onNavigateToOptions = { currentDestination = AppDestinations.OPTIONS })
                     AppDestinations.EQUIPMENTS -> EquipmentsScreen()
                     AppDestinations.OPERATIONS -> OperationTypeScreen()
                     AppDestinations.REPORTS -> ReportsScreen(onBack = { currentDestination = AppDestinations.LOGS })

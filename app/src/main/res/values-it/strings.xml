@@ -196,6 +196,16 @@
     <string name="dismiss_log">Dismetti registrazione</string>
     <string name="restore_log">Ripristina registrazione</string>
     <string name="select_media">Seleziona media</string>
+    <string name="schedule_maintenance">Pianifica Manutenzione</string>
+    <string name="tab_log">Completata</string>
+    <string name="tab_reminder">Pianificata</string>
+    <string name="sync_to_calendar">Sincronizza con Google Calendar</string>
+    <string name="calendar_no_account">Nessun account Google collegato. Tocca per collegarlo nelle Opzioni.</string>
+    <string name="predictive_maintenance_settings">Impostazioni Manutenzione Predittiva</string>
+    <string name="usage_trend_window">Finestra trend di utilizzo (giorni)</string>
+    <string name="manual_average_usage">Media utilizzo manuale (opzionale)</string>
+    <string name="due_date">Data di scadenza</string>
+    <string name="target_value">Valore target %1$s (opzionale)</string>
 
     <!-- Maintenance Reminders -->
     <string name="reminders_dashboard_title">Scadenze Manutenzione</string>

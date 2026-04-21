@@ -200,6 +200,16 @@
     <string name="dismiss_log">Dismiss Log</string>
     <string name="restore_log">Restore Log</string>
     <string name="select_media">Select media</string>
+    <string name="schedule_maintenance">Schedule Maintenance</string>
+    <string name="tab_log">Completed</string>
+    <string name="tab_reminder">Planned</string>
+    <string name="sync_to_calendar">Sync to Google Calendar</string>
+    <string name="calendar_no_account">No Google Account linked. Tap to link in Options.</string>
+    <string name="predictive_maintenance_settings">Predictive Maintenance Settings</string>
+    <string name="usage_trend_window">Usage Trend Window (days)</string>
+    <string name="manual_average_usage">Manual Average Usage (optional)</string>
+    <string name="due_date">Due Date</string>
+    <string name="target_value">Target %1$s (optional)</string>
 
     <!-- Maintenance Reminders -->
     <string name="reminders_dashboard_title">Maintenance Deadlines</string>
@@ -268,4 +278,12 @@
     <string name="options_total_export">Total Export (ZIP of CSVs)</string>
     <string name="export_success">Export completed successfully.</string>
     <string name="export_failed">Export failed: %1$s</string>
+    <string name="options_google_calendar_section">Google Calendar</string>
+    <string name="options_google_account_label">Google Account</string>
+    <string name="options_google_connect">Connect Account</string>
+    <string name="options_google_disconnect">Disconnect Account</string>
+    <string name="update_google_account_failed">Failed to update Google Account.</string>
+    <string name="options_google_calendar_desc">Configure Google Calendar integration for maintenance reminders.</string>
+    <string name="options_sync_calendar_default_label">Sync by default</string>
+    <string name="options_sync_calendar_default_desc">Automatically enable "Sync to Google Calendar" when adding new logs or reminders.</string>
 </resources>

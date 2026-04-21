@@ -98,6 +98,12 @@ class MaintenanceLogViewModel(
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
+    val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
+
+    val googleAccountName: StateFlow<String?> = appSettingsManager.googleAccountName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 
     private fun buildQuery(
@@ -247,6 +253,44 @@ class MaintenanceLogViewModel(
         }
     }
 
+    fun addReminder(equipmentId: Int, operationTypeId: Int, dueDate: Long?, dueValue: Double?, syncToCalendar: Boolean) {
+        viewModelScope.launch {
+            try {
+                var calendarEventId: String? = null
+                if (syncToCalendar && dueDate != null) {
+                    val accountName = appSettingsManager.googleAccountName.first()
+                    if (accountName != null) {
+                        val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId)
+                        val operation = operationTypeDao.getOperationTypeById(operationTypeId)
+                        val title = "Maintenance: ${equipment?.description} - ${operation?.description}"
+                        val description = "Maintenance reminder from Mox EquipLog"
+                        
+                        val credential = calendarManager.getCredential(accountName)
+                        calendarEventId = calendarManager.addEvent(
+                            credential = credential,
+                            title = title,
+                            description = description,
+                            startTimeMillis = dueDate,
+                            endTimeMillis = dueDate + 3600000 // +1 hour
+                        )
+                    }
+                }
+
+                val reminder = MaintenanceReminder(
+                    equipmentId = equipmentId,
+                    operationTypeId = operationTypeId,
+                    dueDate = dueDate,
+                    dueValue = dueValue,
+                    calendarEventId = calendarEventId
+                )
+                maintenanceReminderDao.insertReminder(reminder)
+            } catch (e: Exception) {
+                // We might want a specific error event for reminders
+                _uiEvents.send(UiEvent.AddLogFailed)
+            }
+        }
+    }
+
     fun updateLog(log: MaintenanceLog) {
         viewModelScope.launch {
             try {
@@ -292,5 +336,78 @@ class MaintenanceLogViewModel(
                 _uiEvents.send(UiEvent.DeleteReminderFailed)
             }
         }
+    }
+
+    suspend fun refreshTrends(equipmentId: Int): Double? {
+        val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId) ?: return null
+        val windowDays = equipment.usageWindow
+        val sinceDate = System.currentTimeMillis() - (windowDays.toLong() * 24 * 60 * 60 * 1000)
+        
+        val logs = maintenanceLogDao.getLogsSince(equipmentId, sinceDate)
+            .filter { it.value != null } // Only logs with values contribute to trends
+            .sortedBy { it.date }
+
+        if (logs.size < 2) return equipment.manualAverage
+
+        // If there's a reset operation in the window, we should only consider logs after the last reset
+        // to have a consistent trend for the current "cycle". 
+        // However, for a general daily average, we can look at the whole window but we must handle value drops.
+        
+        var totalValueDiff = 0.0
+        var totalTimeDiff = 0L
+        
+        for (i in 0 until logs.size - 1) {
+            val current = logs[i]
+            val next = logs[i+1]
+            
+            val diff = (next.value ?: 0.0) - (current.value ?: 0.0)
+            if (diff >= 0) {
+                totalValueDiff += diff
+                totalTimeDiff += (next.date - current.date)
+            }
+            // If diff < 0, it was likely a reset, so we skip this interval for trend calculation
+        }
+
+        if (totalTimeDiff <= 0) return equipment.manualAverage
+        
+        val msPerDay = 24 * 60 * 60 * 1000.0
+        val calculatedAverage = (totalValueDiff / totalTimeDiff) * msPerDay
+        
+        return if (calculatedAverage > 0) calculatedAverage else equipment.manualAverage
+    }
+
+    suspend fun estimateDueDate(equipmentId: Int, targetValue: Double): Long? {
+        val trend = refreshTrends(equipmentId) ?: return null
+        if (trend <= 0) return null
+
+        val lastLog = maintenanceLogDao.getLastLogBefore(equipmentId, Long.MAX_VALUE)
+        val lastValue = lastLog?.value ?: 0.0
+        val lastDate = lastLog?.date ?: System.currentTimeMillis()
+
+        if (targetValue <= lastValue) return null
+
+        val remainingValue = targetValue - lastValue
+        val daysRemaining = remainingValue / trend
+        
+        // Ensure we don't return a date in the past if trend was very high but last date was old
+        val estimatedDate = lastDate + (daysRemaining * 24 * 60 * 60 * 1000).toLong()
+        return if (estimatedDate > System.currentTimeMillis()) estimatedDate else System.currentTimeMillis() + (24 * 60 * 60 * 1000)
+    }
+
+    suspend fun estimateTargetValue(equipmentId: Int, dueDate: Long): Double? {
+        val trend = refreshTrends(equipmentId) ?: return null
+
+        val lastLog = maintenanceLogDao.getLastLogBefore(equipmentId, Long.MAX_VALUE)
+        val lastValue = lastLog?.value ?: 0.0
+        val lastDate = lastLog?.date ?: System.currentTimeMillis()
+
+        val referenceDate = if (dueDate > lastDate) lastDate else System.currentTimeMillis()
+        if (dueDate <= referenceDate) return lastValue
+
+        val timeDiff = dueDate - referenceDate
+        val msPerDay = 24 * 60 * 60 * 1000.0
+        val days = timeDiff / msPerDay
+
+        return lastValue + (days * trend)
     }
 }

@@ -50,6 +50,9 @@ class AppSettingsManager(
     val showWelcomeAlert: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("show_welcome_alert")
         .map { it?.toBoolean() ?: true }
 
+    val syncCalendarByDefault: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("sync_calendar_by_default")
+        .map { it?.toBoolean() ?: false }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -128,5 +131,9 @@ class AppSettingsManager(
 
     suspend fun setShowWelcomeAlert(show: Boolean) {
         appPreferenceDao.insertPreference(AppPreference("show_welcome_alert", show.toString()))
+    }
+
+    suspend fun setSyncCalendarByDefault(sync: Boolean) {
+        appPreferenceDao.insertPreference(AppPreference("sync_calendar_by_default", sync.toString()))
     }
 }
