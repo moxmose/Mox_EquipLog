@@ -34,6 +34,7 @@ data class MaintenanceReminder(
     val operationTypeId: Int,
     val dueDate: Long? = null,
     val dueValue: Double? = null,
+    val presumedDate: Long? = null,
     val calendarEventId: String? = null,
     val isCompleted: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()

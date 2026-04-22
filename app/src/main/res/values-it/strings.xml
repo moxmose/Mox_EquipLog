@@ -271,4 +271,5 @@
     <string name="restore_failed">Ripristino fallito: %1$s</string>
     <string name="restore_confirm_title">Conferma Ripristino</string>
     <string name="restore_confirm_msg">Questo sovrascriverà tutti i dati correnti. Sei sicuro? L\'app dovrà essere riavviata manualmente.</string>
+    <string name="google_auth_privacy_note">Questa app utilizza il metodo di accesso standard di Google per collegarsi al tuo Calendario. Verranno utilizzati solo i dati strettamente necessari alla sincronizzazione.</string>
 </resources>

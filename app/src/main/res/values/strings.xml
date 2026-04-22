@@ -286,4 +286,5 @@
     <string name="options_google_calendar_desc">Configure Google Calendar integration for maintenance reminders.</string>
     <string name="options_sync_calendar_default_label">Sync by default</string>
     <string name="options_sync_calendar_default_desc">Automatically enable "Sync to Google Calendar" when adding new logs or reminders.</string>
+    <string name="google_auth_privacy_note">This app uses the standard Google sign-in method to connect to your Calendar. Only the data strictly necessary for sync will be used.</string>
 </resources>

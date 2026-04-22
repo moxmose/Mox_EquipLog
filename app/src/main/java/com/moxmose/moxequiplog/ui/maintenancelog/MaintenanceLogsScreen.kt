@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -102,6 +103,8 @@ fun MaintenanceLogScreen(
                 is MaintenanceLogViewModel.UiEvent.DismissLogFailed -> context.getString(R.string.dismiss_log_failed)
                 is MaintenanceLogViewModel.UiEvent.RestoreLogFailed -> context.getString(R.string.restore_log_failed)
                 is MaintenanceLogViewModel.UiEvent.DeleteReminderFailed -> "Failed to delete reminder"
+                is MaintenanceLogViewModel.UiEvent.UpdateReminderFailed -> "Failed to update reminder"
+                is MaintenanceLogViewModel.UiEvent.RecalculateRemindersFailed -> "Failed to recalculate reminders"
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -114,22 +117,57 @@ fun MaintenanceLogScreen(
     var expandedCardId by rememberSaveable { mutableStateOf<Int?>(null) }
     var editingCardId by rememberSaveable { mutableStateOf<Int?>(null) }
 
-    val (selectedReminder, setSelectedReminder) = remember { mutableStateOf<MaintenanceReminderDetails?>(null) }
+    var selectedReminderForComplete by remember { mutableStateOf<MaintenanceReminderDetails?>(null) }
+    var selectedReminderForEdit by remember { mutableStateOf<MaintenanceReminderDetails?>(null) }
 
-    if (selectedReminder != null) {
+    if (selectedReminderForComplete != null) {
         MaintenanceLogDialog(
             equipments = activeEquipments,
             operationTypes = activeOperationTypes,
             measurementUnits = measurementUnits,
-            onDismissRequest = { setSelectedReminder(null) },
+            onDismissRequest = { selectedReminderForComplete = null },
             onConfirm = { log ->
                 viewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
-                setSelectedReminder(null)
+                selectedReminderForComplete = null
             },
             onEstimateDueDate = viewModel::estimateDueDate,
             onEstimateTargetValue = viewModel::estimateTargetValue,
-            defaultEquipmentId = selectedReminder.reminder.equipmentId,
-            defaultOperationTypeId = selectedReminder.reminder.operationTypeId,
+            defaultEquipmentId = selectedReminderForComplete?.reminder?.equipmentId,
+            defaultOperationTypeId = selectedReminderForComplete?.reminder?.operationTypeId,
+            equipmentCategoryColor = equipmentColor,
+            operationCategoryColor = operationColor,
+            syncCalendarByDefault = syncCalendarByDefault,
+            googleAccountName = googleAccountName,
+            onNavigateToOptions = onNavigateToOptions
+        )
+    }
+
+    if (selectedReminderForEdit != null) {
+        val reminderDetails = selectedReminderForEdit!!
+        val reminder = reminderDetails.reminder
+        MaintenanceLogDialog(
+            equipments = activeEquipments,
+            operationTypes = activeOperationTypes,
+            measurementUnits = measurementUnits,
+            onDismissRequest = { selectedReminderForEdit = null },
+            onConfirm = { /* Not used in edit mode */ },
+            onSchedule = { eqId, opId, date, value, sync ->
+                viewModel.updateReminder(eqId, opId, date, value, sync, reminder.id)
+                selectedReminderForEdit = null
+            },
+            onDeleteReminder = {
+                viewModel.deleteReminder(reminderDetails)
+                selectedReminderForEdit = null
+            },
+            onEstimateDueDate = viewModel::estimateDueDate,
+            onEstimateTargetValue = viewModel::estimateTargetValue,
+            defaultEquipmentId = reminder.equipmentId,
+            defaultOperationTypeId = reminder.operationTypeId,
+            initialDate = reminder.dueDate ?: System.currentTimeMillis(),
+            initialValue = reminder.dueValue?.toString() ?: "",
+            initialSyncToCalendar = reminder.calendarEventId != null,
+            initialHasFixedDate = reminder.dueDate != null,
+            isEditMode = true,
             equipmentCategoryColor = equipmentColor,
             operationCategoryColor = operationColor,
             syncCalendarByDefault = syncCalendarByDefault,
@@ -157,6 +195,7 @@ fun MaintenanceLogScreen(
         },
         onAddLog = viewModel::addLog,
         onAddReminder = viewModel::addReminder,
+        onRefreshReminders = viewModel::recalculateAllReminders,
         onEstimateDueDate = viewModel::estimateDueDate,
         onEstimateTargetValue = viewModel::estimateTargetValue,
         expandedCardId = expandedCardId,
@@ -175,7 +214,8 @@ fun MaintenanceLogScreen(
         defaultOperationTypeId = defaultOperationTypeId,
         equipmentCategoryColor = equipmentColor,
         operationCategoryColor = operationColor,
-        onCompleteReminder = { setSelectedReminder(it) },
+        onCompleteReminder = { selectedReminderForComplete = it },
+        onEditReminder = { selectedReminderForEdit = it },
         onDeleteReminder = { viewModel.deleteReminder(it) },
         syncCalendarByDefault = syncCalendarByDefault,
         googleAccountName = googleAccountName,
@@ -190,7 +230,9 @@ fun RemindersDashboard(
     equipmentCategoryColor: String?,
     operationCategoryColor: String?,
     onComplete: (MaintenanceReminderDetails) -> Unit,
+    onEdit: (MaintenanceReminderDetails) -> Unit,
     onDelete: (MaintenanceReminderDetails) -> Unit,
+    onRefresh: () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     
@@ -230,6 +272,14 @@ fun RemindersDashboard(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = onRefresh) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Refresh all predictions",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.primary,
@@ -259,7 +309,7 @@ fun RemindersDashboard(
                             eColor = eColor,
                             oColor = oColor,
                             onComplete = { onComplete(reminderDetails) },
-                            onDelete = { onDelete(reminderDetails) }
+                            onEdit = { onEdit(reminderDetails) }
                         )
                     }
                     Spacer(modifier = Modifier.padding(bottom = 4.dp))
@@ -276,16 +326,23 @@ fun ReminderItem(
     eColor: Color,
     oColor: Color,
     onComplete: () -> Unit,
-    onDelete: () -> Unit
+    onEdit: () -> Unit
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val unit = measurementUnits.find { it.id == details.unitId }
     val unitLabel = unit?.label ?: "Km"
     val decimalPlaces = unit?.decimalPlaces ?: 0
 
-    val isOverdue = remember(details.reminder.dueDate) {
-        details.reminder.dueDate?.let { it < System.currentTimeMillis() } ?: false
+    val fixedDate = details.reminder.dueDate
+    val presumedDate = details.reminder.presumedDate
+    val effectiveDate = fixedDate ?: presumedDate ?: System.currentTimeMillis()
+
+    val isOverdue = remember(effectiveDate) {
+        effectiveDate < System.currentTimeMillis()
     }
+    
+    // Warning if presumed date is before fixed date
+    val hasWarning = fixedDate != null && presumedDate != null && presumedDate < fixedDate
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -334,7 +391,8 @@ fun ReminderItem(
                     )
                 }
                 
-                if (details.reminder.dueDate != null) {
+                // Display FIXED Date
+                if (fixedDate != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = if (isOverdue) Icons.Default.PriorityHigh else Icons.Default.DateRange,
@@ -344,9 +402,29 @@ fun ReminderItem(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = stringResource(R.string.due_date_label, dateFormat.format(Date(details.reminder.dueDate))),
+                            text = stringResource(R.string.due_date_label, dateFormat.format(Date(fixedDate))),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isOverdue) MaterialTheme.colorScheme.error else Color.Unspecified
+                        )
+                    }
+                }
+                
+                // Display PRESUMED Date (only if fixed date is missing or if it adds info)
+                if (presumedDate != null && (fixedDate == null || hasWarning)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (hasWarning) Icons.Default.Warning else Icons.Default.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (hasWarning) Color(0xFFFF9800) else MaterialTheme.colorScheme.secondary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (fixedDate == null) 
+                                "Estimated: ${dateFormat.format(Date(presumedDate))}" 
+                                else "Likely needed by: ${dateFormat.format(Date(presumedDate))}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (hasWarning) Color(0xFFFF9800) else MaterialTheme.colorScheme.secondary
                         )
                     }
                 }
@@ -372,8 +450,8 @@ fun ReminderItem(
                 IconButton(onClick = onComplete) {
                     Icon(Icons.Default.Done, contentDescription = stringResource(R.string.reminder_complete_log), tint = Color(0xFF4CAF50))
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_reminder), tint = MaterialTheme.colorScheme.error)
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_log), tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -399,6 +477,7 @@ fun MaintenanceLogScreenContent(
     onShowAddDialogChange: (Boolean) -> Unit,
     onAddLog: (Int, Int, String?, Double?, Long, String?) -> Unit,
     onAddReminder: (Int, Int, Long?, Double?, Boolean) -> Unit,
+    onRefreshReminders: () -> Unit,
     onEstimateDueDate: suspend (Int, Double) -> Long?,
     onEstimateTargetValue: suspend (Int, Long) -> Double?,
     expandedCardId: Int?,
@@ -415,6 +494,7 @@ fun MaintenanceLogScreenContent(
     equipmentCategoryColor: String?,
     operationCategoryColor: String?,
     onCompleteReminder: (MaintenanceReminderDetails) -> Unit,
+    onEditReminder: (MaintenanceReminderDetails) -> Unit,
     onDeleteReminder: (MaintenanceReminderDetails) -> Unit,
     syncCalendarByDefault: Boolean,
     googleAccountName: String?,
@@ -476,7 +556,9 @@ fun MaintenanceLogScreenContent(
                 equipmentCategoryColor = equipmentCategoryColor,
                 operationCategoryColor = operationCategoryColor,
                 onComplete = onCompleteReminder,
-                onDelete = onDeleteReminder
+                onEdit = onEditReminder,
+                onDelete = onDeleteReminder,
+                onRefresh = onRefreshReminders
             )
             Row(
                 modifier = Modifier
@@ -569,10 +651,16 @@ fun MaintenanceLogDialog(
     onDismissRequest: () -> Unit,
     onConfirm: (MaintenanceLog) -> Unit,
     onSchedule: ((Int, Int, Long?, Double?, Boolean) -> Unit)? = null,
+    onDeleteReminder: (() -> Unit)? = null,
     onEstimateDueDate: (suspend (Int, Double) -> Long?)? = null,
     onEstimateTargetValue: (suspend (Int, Long) -> Double?)? = null,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
+    initialDate: Long = System.currentTimeMillis(),
+    initialValue: String = "",
+    initialSyncToCalendar: Boolean? = null,
+    initialHasFixedDate: Boolean = true,
+    isEditMode: Boolean = false,
     equipmentCategoryColor: String?,
     operationCategoryColor: String?,
     syncCalendarByDefault: Boolean = false,
@@ -582,10 +670,12 @@ fun MaintenanceLogDialog(
     val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: Completed, 1: Planned
+    var selectedTab by remember(isEditMode) { mutableIntStateOf(if (isEditMode) 1 else 0) } // 0: Completed, 1: Planned
     var notes by remember { mutableStateOf("") }
-    var valueStr by remember { mutableStateOf("") }
-    var syncToCalendar by remember(syncCalendarByDefault) { mutableStateOf(syncCalendarByDefault) }
+    var valueStr by remember { mutableStateOf(initialValue) }
+    var syncToCalendar by remember(syncCalendarByDefault, initialSyncToCalendar) { 
+        mutableStateOf(initialSyncToCalendar ?: syncCalendarByDefault) 
+    }
     
     var selectedEquipment by remember(defaultEquipmentId, equipments) { 
         mutableStateOf(equipments.find { it.id == defaultEquipmentId }) 
@@ -602,7 +692,11 @@ fun MaintenanceLogDialog(
     
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var selectedDate by remember { mutableLongStateOf(initialDate) }
+    var hasFixedDate by remember(isEditMode, initialHasFixedDate) { 
+        mutableStateOf(if (isEditMode) initialHasFixedDate else true) 
+    }
+    
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
@@ -692,10 +786,16 @@ fun MaintenanceLogDialog(
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text(if (onSchedule != null) stringResource(R.string.add_new_maintenance_log) else stringResource(R.string.reminder_complete_log)) },
+        title = { 
+            Text(
+                if (isEditMode) stringResource(R.string.edit_log) // Could be specialized string for reminder edit
+                else if (onSchedule != null) stringResource(R.string.add_new_maintenance_log) 
+                else stringResource(R.string.reminder_complete_log)
+            ) 
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (onSchedule != null) {
+                if (onSchedule != null && !isEditMode) {
                     TabRow(selectedTabIndex = selectedTab) {
                         Tab(
                             selected = selectedTab == 0,
@@ -822,19 +922,6 @@ fun MaintenanceLogDialog(
                                 val dotIndex = filtered.indexOf('.')
                                 if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
                                     valueStr = filtered
-                                    if (selectedTab == 1 && filtered.isNotEmpty() && onEstimateDueDate != null) {
-                                        selectedEquipment?.id?.let { eqId ->
-                                            filtered.toDoubleOrNull()?.let { target ->
-                                                scope.launch {
-                                                    isEstimating = true
-                                                    onEstimateDueDate(eqId, target)?.let { estimated ->
-                                                        selectedDate = estimated
-                                                    }
-                                                    isEstimating = false
-                                                }
-                                            }
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -842,6 +929,25 @@ fun MaintenanceLogDialog(
                     label = { Text(if (selectedTab == 0) stringResource(R.string.value_optional, unitLabel) else stringResource(R.string.target_value, unitLabel)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
+                    trailingIcon = {
+                        if (selectedTab == 1 && valueStr.isNotBlank() && onEstimateDueDate != null) {
+                            IconButton(onClick = {
+                                selectedEquipment?.id?.let { eqId ->
+                                    valueStr.toDoubleOrNull()?.let { target ->
+                                        scope.launch {
+                                            isEstimating = true
+                                            onEstimateDueDate(eqId, target)?.let { estimated ->
+                                                selectedDate = estimated
+                                            }
+                                            isEstimating = false
+                                        }
+                                    }
+                                }
+                            }) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Recalculate Date")
+                            }
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -854,36 +960,68 @@ fun MaintenanceLogDialog(
                     )
                 }
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = dayFormat.format(Date(selectedDate)),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(if (selectedTab == 0) stringResource(R.string.date) else stringResource(R.string.due_date)) },
-                        trailingIcon = {
-                            IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date))
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = if (isEstimating) OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.primary
-                        ) else OutlinedTextFieldDefaults.colors()
-                    )
+                if (selectedTab == 1) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = hasFixedDate,
+                            onCheckedChange = { hasFixedDate = it }
+                        )
+                        Text("Set fixed due date")
+                    }
+                }
 
-                    OutlinedTextField(
-                        value = timeFormat.format(Date(selectedDate)),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.time)) },
-                        trailingIcon = {
-                            IconButton(onClick = { showTimePicker = true }) {
-                                Icon(Icons.Default.AccessTime, contentDescription = stringResource(R.string.select_time))
-                            }
-                        },
-                        modifier = Modifier.weight(1f).clickable { showTimePicker = true }
-                    )
+                if (selectedTab == 0 || hasFixedDate) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = dayFormat.format(Date(selectedDate)),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(if (selectedTab == 0) stringResource(R.string.date) else stringResource(R.string.due_date)) },
+                            trailingIcon = {
+                                Row {
+                                    if (selectedTab == 1 && onEstimateTargetValue != null) {
+                                        IconButton(onClick = {
+                                            selectedEquipment?.id?.let { eqId ->
+                                                scope.launch {
+                                                    isEstimating = true
+                                                    onEstimateTargetValue(eqId, selectedDate)?.let { estimated ->
+                                                        valueStr = String.format(Locale.US, "%.${decimalPlaces}f", estimated)
+                                                    }
+                                                    isEstimating = false
+                                                }
+                                            }
+                                        }) {
+                                            Icon(Icons.Default.Refresh, contentDescription = "Recalculate Value")
+                                        }
+                                    }
+                                    IconButton(onClick = { showDatePicker = true }) {
+                                        Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date))
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = if (isEstimating) OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.primary
+                            ) else OutlinedTextFieldDefaults.colors()
+                        )
+
+                        OutlinedTextField(
+                            value = timeFormat.format(Date(selectedDate)),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.time)) },
+                            trailingIcon = {
+                                IconButton(onClick = { showTimePicker = true }) {
+                                    Icon(Icons.Default.AccessTime, contentDescription = stringResource(R.string.select_time))
+                                }
+                            },
+                            modifier = Modifier.weight(1f).clickable { showTimePicker = true }
+                        )
+                    }
                 }
 
                 LaunchedEffect(selectedDate, selectedTab) {
@@ -928,39 +1066,74 @@ fun MaintenanceLogDialog(
         },
 
         confirmButton = {
-            Button(
-                onClick = {
-                    val equipment = selectedEquipment
-                    val op = selectedOperationType
-                    if (equipment != null && op != null) {
-                        if (selectedTab == 0) {
-                            onConfirm(
-                                MaintenanceLog(
-                                    equipmentId = equipment.id,
-                                    operationTypeId = op.id,
-                                    notes = notes.takeIf { it.isNotBlank() },
-                                    value = valueStr.toDoubleOrNull(),
-                                    date = selectedDate
-                                )
-                            )
-                        } else {
-                            onSchedule?.invoke(
-                                equipment.id,
-                                op.id,
-                                selectedDate,
-                                valueStr.toDoubleOrNull(),
-                                syncToCalendar
-                            )
-                        }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = if (isEditMode && onDeleteReminder != null) Arrangement.SpaceBetween else Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isEditMode && onDeleteReminder != null) {
+                    TextButton(
+                        onClick = onDeleteReminder,
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.delete_reminder))
                     }
                 }
-            ) {
-                Text(if (selectedTab == 0) stringResource(R.string.button_add) else stringResource(R.string.schedule_maintenance))
+                
+                Button(
+                    onClick = {
+                        val equipment = selectedEquipment
+                        val op = selectedOperationType
+                        val targetValue = valueStr.toDoubleOrNull()
+                        val fixedDate = if (hasFixedDate) selectedDate else null
+                        
+                        // Validation: at least one must be present for reminders
+                        if (equipment != null && op != null && (selectedTab == 0 || fixedDate != null || targetValue != null)) {
+                            if (selectedTab == 0) {
+                                onConfirm(
+                                    MaintenanceLog(
+                                        equipmentId = equipment.id,
+                                        operationTypeId = op.id,
+                                        notes = notes.takeIf { it.isNotBlank() },
+                                        value = valueStr.toDoubleOrNull(),
+                                        date = selectedDate
+                                    )
+                                )
+                            } else {
+                                onSchedule?.invoke(
+                                    equipment.id,
+                                    op.id,
+                                    fixedDate,
+                                    targetValue,
+                                    syncToCalendar
+                                )
+                            }
+                        }
+                    },
+                    enabled = selectedEquipment != null && selectedOperationType != null && 
+                            (selectedTab == 0 || hasFixedDate || valueStr.isNotBlank())
+                ) {
+                    Text(
+                        if (isEditMode) stringResource(R.string.save_operation_type)
+                        else if (selectedTab == 0) stringResource(R.string.button_add) 
+                        else stringResource(R.string.schedule_maintenance)
+                    )
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text(stringResource(R.string.button_cancel))
+            if (!(isEditMode && onDeleteReminder != null)) {
+                TextButton(onClick = onDismissRequest) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            } else {
+                // In edit mode with delete, we might not need a cancel button if we have the system back/dismiss
+                // but let's keep it for clarity if space allows or just rely on onDismissRequest
+                TextButton(onClick = onDismissRequest) {
+                    Text(stringResource(R.string.button_cancel))
+                }
             }
         }
     )

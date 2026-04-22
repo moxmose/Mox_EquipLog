@@ -29,7 +29,7 @@ interface MaintenanceReminderDao {
         JOIN equipments e ON r.equipmentId = e.id
         JOIN operation_types ot ON r.operationTypeId = ot.id
         WHERE r.isCompleted = 0
-        ORDER BY r.dueDate ASC
+        ORDER BY COALESCE(r.dueDate, r.presumedDate) ASC
     """)
     fun getActiveRemindersWithDetails(): Flow<List<MaintenanceReminderDetails>>
 

@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
         ReportFilter::class,
         MaintenanceReminder::class
     ], 
-    version = 40,
+    version = 42,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,6 +38,19 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun maintenanceReminderDao(): MaintenanceReminderDao
 
     companion object {
+        val MIGRATION_41_42 = object : Migration(41, 42) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE maintenance_reminders ADD COLUMN presumedDate INTEGER")
+            }
+        }
+
+        val MIGRATION_40_41 = object : Migration(40, 41) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE equipments ADD COLUMN usageWindow INTEGER NOT NULL DEFAULT 30")
+                db.execSQL("ALTER TABLE equipments ADD COLUMN manualAverage REAL")
+            }
+        }
+
         val MIGRATION_39_40 = object : Migration(39, 40) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
