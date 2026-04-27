@@ -1364,7 +1364,7 @@ fun MaintenanceLogCard(
                                 }
                             }
                         },
-                        label = { Text("$unitLabel (optional)") },
+                        label = { Text(stringResource(R.string.value_optional, unitLabel)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()

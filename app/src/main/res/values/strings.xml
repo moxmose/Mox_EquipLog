@@ -188,7 +188,7 @@
     <string name="notes_label">Notes</string>
     <string name="notes_optional">Notes (optional)</string>
     <string name="value_label">Value: %1$d %2$s</string>
-    <string name="value_optional">Value (optional)</string>
+    <string name="value_optional">Value (%1$s) (optional)</string>
     <string name="dismissed_suffix">(dismissed)</string>
     <string name="selected_content_desc">Selected</string>
     <string name="date">Date</string>

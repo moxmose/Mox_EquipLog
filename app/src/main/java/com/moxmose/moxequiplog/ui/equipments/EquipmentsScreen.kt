@@ -33,14 +33,25 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
+import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogDialog
+import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
+import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.Date
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
-fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
+fun EquipmentsScreen(
+    viewModel: EquipmentsViewModel = koinViewModel(), 
+    optionsViewModel: OptionsViewModel = koinViewModel(),
+    logsViewModel: MaintenanceLogViewModel = koinViewModel()
+) {
     val activeEquipments by viewModel.activeEquipments.collectAsState()
     val allEquipments by viewModel.allEquipments.collectAsState()
     val equipmentImages by viewModel.equipmentImages.collectAsState()
@@ -48,6 +59,7 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
+    val equipmentStatuses by viewModel.equipmentStatuses.collectAsState()
     
     val categoryColor by viewModel.categoryColor.collectAsState()
     val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
@@ -57,6 +69,9 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
     val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
+
+    val syncCalendarByDefault by logsViewModel.syncCalendarByDefault.collectAsState()
+    val googleAccountName by logsViewModel.googleAccountName.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -85,6 +100,57 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
     var showDismissed by rememberSaveable { mutableStateOf(false) }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
 
+    // Dialog state for "Operation Shortcut"
+    var selectedPredictionForAdd by remember { mutableStateOf<Pair<Int, OperationStatus>?>(null) }
+    var selectedPlannedForEdit by remember { mutableStateOf<Pair<Int, OperationStatus>?>(null) }
+
+    if (selectedPredictionForAdd != null) {
+        val (eqId, opStatus) = selectedPredictionForAdd!!
+        val operationTypes by logsViewModel.allOperationTypes.collectAsState()
+        MaintenanceLogDialog(
+            equipments = activeEquipments,
+            operationTypes = operationTypes.filter { !it.dismissed },
+            measurementUnits = measurementUnits,
+            onDismissRequest = { selectedPredictionForAdd = null },
+            onConfirm = { log ->
+                logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                selectedPredictionForAdd = null
+            },
+            defaultEquipmentId = eqId,
+            defaultOperationTypeId = opStatus.operation.id,
+            initialDate = opStatus.nextPresumedDate ?: System.currentTimeMillis(),
+            equipmentCategoryColor = categoryColor,
+            operationCategoryColor = categoryColorsMap[Category.OPERATION],
+            syncCalendarByDefault = syncCalendarByDefault,
+            googleAccountName = googleAccountName
+        )
+    }
+
+    if (selectedPlannedForEdit != null) {
+        // Logic for opening MaintenanceLogDialog in edit mode for the specific reminder
+        // For now, simple add log shortcut if edit not fully available here
+        val (eqId, opStatus) = selectedPlannedForEdit!!
+        val operationTypes by logsViewModel.allOperationTypes.collectAsState()
+        MaintenanceLogDialog(
+            equipments = activeEquipments,
+            operationTypes = operationTypes.filter { !it.dismissed },
+            measurementUnits = measurementUnits,
+            onDismissRequest = { selectedPlannedForEdit = null },
+            onConfirm = { log ->
+                logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                selectedPlannedForEdit = null
+            },
+            defaultEquipmentId = eqId,
+            defaultOperationTypeId = opStatus.operation.id,
+            initialDate = opStatus.nextPresumedDate ?: System.currentTimeMillis(),
+            isEditMode = true, // Visual hint
+            equipmentCategoryColor = categoryColor,
+            operationCategoryColor = categoryColorsMap[Category.OPERATION],
+            syncCalendarByDefault = syncCalendarByDefault,
+            googleAccountName = googleAccountName
+        )
+    }
+
     val equipmentsToShow = if (showDismissed) allEquipments else activeEquipments
 
     EquipmentsScreenContent(
@@ -112,7 +178,10 @@ fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsVi
         onToggleDefault = viewModel::toggleDefaultEquipment,
         categoryColors = categoryColorsMap,
         categoryDefaultIcons = categoryDefaultIconsMap,
-        categoryDefaultPhotos = categoryDefaultPhotosMap
+        categoryDefaultPhotos = categoryDefaultPhotosMap,
+        equipmentStatuses = equipmentStatuses,
+        onPredictionAction = { eqId, status -> selectedPredictionForAdd = eqId to status },
+        onPlannedAction = { eqId, status -> selectedPlannedForEdit = eqId to status }
     )
 }
 
@@ -131,7 +200,7 @@ fun EquipmentsScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
@@ -144,6 +213,9 @@ fun EquipmentsScreenContent(
     categoryColors: Map<String, String>,
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
+    equipmentStatuses: Map<Int, EquipmentStatus> = emptyMap(),
+    onPredictionAction: (Int, OperationStatus) -> Unit,
+    onPlannedAction: (Int, OperationStatus) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
@@ -183,8 +255,8 @@ fun EquipmentsScreenContent(
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit ->
-                    onAddEquipment(desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit)
+                onConfirm = { desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit ->
+                    onAddEquipment(desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -237,6 +309,9 @@ fun EquipmentsScreenContent(
                         equipmentCategoryColor = equipmentCategoryColor,
                         isDefault = equipment.id == defaultEquipmentId,
                         onToggleDefault = { onToggleDefault(equipment.id) },
+                        status = equipmentStatuses[equipment.id],
+                        onPredictionAction = { onPredictionAction(equipment.id, it) },
+                        onPlannedAction = { onPlannedAction(equipment.id, it) },
                         categoryColors = categoryColors,
                         categoryDefaultIcons = categoryDefaultIcons,
                         categoryDefaultPhotos = categoryDefaultPhotos
@@ -251,7 +326,7 @@ fun EquipmentsScreenContent(
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     imageLibrary: List<Image>,
@@ -277,6 +352,8 @@ fun AddEquipmentDialog(
     var manualAverageValue by rememberSaveable { mutableStateOf<Double?>(null) }
     var manualAverageValueStr by rememberSaveable { mutableStateOf("") }
     var manualAverageUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+    var visibilityHorizon by rememberSaveable { mutableIntStateOf(30) }
+    var visibilityHorizonUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
 
     var isPristine by rememberSaveable { mutableStateOf(true) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
@@ -322,7 +399,7 @@ fun AddEquipmentDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(text = stringResource(R.string.add_a_new_equipment), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -395,55 +472,29 @@ fun AddEquipmentDialog(
 
                 // Trend Window Section
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = usageWindow.toString(),
-                            onValueChange = { input ->
-                                input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it }
-                            },
+                            onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it } },
                             label = { Text("Window Value") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f)
                         )
-                        
-                        TimeGranularitySelector(
-                            selected = usageWindowUnit,
-                            onSelected = { usageWindowUnit = it },
-                            label = "Of last",
-                            modifier = Modifier.weight(1.2f)
-                        )
+                        TimeGranularitySelector(selected = usageWindowUnit, onSelected = { usageWindowUnit = it }, label = "Of last", modifier = Modifier.weight(1.2f))
                     }
-                    Text(
-                        text = "Time window used to analyze history and calculate trends",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
+                    Text(text = "Time window used to analyze history and calculate trends", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 // Manual Average Section
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = manualAverageValueStr,
                             onValueChange = { input ->
-                                if (input.isEmpty()) {
-                                    manualAverageValueStr = ""
-                                    manualAverageValue = null
-                                } else {
-                                    val filtered = input.replace(',', '.')
-                                    if (filtered.toDoubleOrNull() != null) {
-                                        manualAverageValueStr = filtered
-                                        manualAverageValue = filtered.toDoubleOrNull()
-                                    }
+                                val filtered = input.replace(',', '.')
+                                if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) {
+                                    manualAverageValueStr = filtered
+                                    manualAverageValue = filtered.toDoubleOrNull()
                                 }
                             },
                             label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
@@ -451,20 +502,24 @@ fun AddEquipmentDialog(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f)
                         )
-                        
-                        TimeGranularitySelector(
-                            selected = manualAverageUnit,
-                            onSelected = { manualAverageUnit = it },
-                            label = "Every",
-                            modifier = Modifier.weight(1.2f)
-                        )
+                        TimeGranularitySelector(selected = manualAverageUnit, onSelected = { manualAverageUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
                     }
-                    Text(
-                        text = "Optional: expected usage when history is missing (fallback)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
+                    Text(text = "Optional: expected usage when history is missing (fallback)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                // Visibility Horizon Row
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = visibilityHorizon.toString(),
+                            onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } },
+                            label = { Text("Event Horizon") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                    }
+                    Text(text = "How far into the future to show upcoming maintenance items", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         },
@@ -476,7 +531,7 @@ fun AddEquipmentDialog(
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
-                    onConfirm(description, identifier, unitId, isResettable, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit)
+                    onConfirm(description, identifier, unitId, isResettable, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit, visibilityHorizon, visibilityHorizonUnit)
                 }
             ) { Text(stringResource(R.string.button_add)) }
         },
@@ -495,12 +550,7 @@ fun TimeGranularitySelector(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier
-    ) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
         OutlinedTextField(
             value = formatTimeGranularity(selected),
             onValueChange = {},
@@ -510,18 +560,9 @@ fun TimeGranularitySelector(
             modifier = Modifier.menuAnchor(type = MenuAnchorType.PrimaryNotEditable),
             textStyle = MaterialTheme.typography.bodyMedium
         )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             TimeGranularity.entries.forEach { entry ->
-                DropdownMenuItem(
-                    text = { Text(formatTimeGranularity(entry)) },
-                    onClick = {
-                        onSelected(entry)
-                        expanded = false
-                    }
-                )
+                DropdownMenuItem(text = { Text(formatTimeGranularity(entry)) }, onClick = { onSelected(entry); expanded = false })
             }
         }
     }
@@ -544,11 +585,7 @@ fun UnitSelector(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedUnit = measurementUnits.find { it.id == selectedUnitId }
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
-    ) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = if (selectedUnit != null) {
                 if (selectedUnit.description.isNotBlank()) "${selectedUnit.label} - ${selectedUnit.description}"
@@ -558,27 +595,13 @@ fun UnitSelector(
             readOnly = true,
             label = { Text(stringResource(R.string.measurement_unit)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable),
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+            modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
         )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             measurementUnits.forEach { unit ->
                 DropdownMenuItem(
-                    text = { 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(unit.label, fontWeight = FontWeight.Bold)
-                            if (unit.description.isNotBlank()) {
-                                Text(unit.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    },
-                    onClick = {
-                        onUnitSelected(unit.id)
-                        expanded = false
-                    }
+                    text = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Text(unit.label, fontWeight = FontWeight.Bold); if (unit.description.isNotBlank()) Text(unit.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                    onClick = { onUnitSelected(unit.id); expanded = false }
                 )
             }
         }
@@ -613,6 +636,8 @@ fun EditEquipmentDialog(
     var manualAverageValue by rememberSaveable { mutableStateOf(equipment.manualAverageValue) }
     var manualAverageValueStr by rememberSaveable { mutableStateOf(equipment.manualAverageValue?.toString() ?: "") }
     var manualAverageUnit by rememberSaveable { mutableStateOf(equipment.manualAverageUnit) }
+    var visibilityHorizon by rememberSaveable { mutableIntStateOf(equipment.visibilityHorizon) }
+    var visibilityHorizonUnit by rememberSaveable { mutableStateOf(equipment.visibilityHorizonUnit) }
     
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
@@ -649,7 +674,7 @@ fun EditEquipmentDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(text = stringResource(R.string.edit_equipment), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -793,6 +818,21 @@ fun EditEquipmentDialog(
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
+
+                // Visibility Horizon Section
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = visibilityHorizon.toString(),
+                            onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } },
+                            label = { Text("Event Horizon") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                    }
+                    Text(text = "How far into the future to show upcoming maintenance items", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+                }
             }
         },
         confirmButton = {
@@ -808,7 +848,9 @@ fun EditEquipmentDialog(
                             usageWindow = usageWindow,
                             usageWindowUnit = usageWindowUnit,
                             manualAverageValue = manualAverageValue,
-                            manualAverageUnit = manualAverageUnit
+                            manualAverageUnit = manualAverageUnit,
+                            visibilityHorizon = visibilityHorizon,
+                            visibilityHorizonUnit = visibilityHorizonUnit
                         )
                     )
                 }
@@ -835,12 +877,17 @@ fun EquipmentCard(
     equipmentCategoryColor: String?,
     isDefault: Boolean,
     onToggleDefault: () -> Unit,
+    status: EquipmentStatus? = null,
+    onPredictionAction: (OperationStatus) -> Unit,
+    onPlannedAction: (OperationStatus) -> Unit,
     categoryColors: Map<String, String>,
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     modifier: Modifier = Modifier
 ) {
     var isEditing by remember { mutableStateOf(false) }
+    var isExpanded by rememberSaveable { mutableStateOf(false) }
+    
     var editedDescription by remember(equipment.description) { mutableStateOf(equipment.description) }
     var editedUnitId by remember(equipment.unitId) { mutableIntStateOf(equipment.unitId) }
     var editedIsResettable by remember(equipment.isResettable) { mutableStateOf(equipment.isResettable) }
@@ -851,54 +898,17 @@ fun EquipmentCard(
     var editedManualAverageValue by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue) }
     var editedManualAverageValueStr by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue?.toString() ?: "") }
     var editedManualAverageUnit by remember(equipment.manualAverageUnit) { mutableStateOf(equipment.manualAverageUnit) }
+    var editedVisibilityHorizon by remember(equipment.visibilityHorizon) { mutableIntStateOf(equipment.visibilityHorizon) }
+    var editedVisibilityHorizonUnit by remember(equipment.visibilityHorizonUnit) { mutableStateOf(equipment.visibilityHorizonUnit) }
     
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
-    val unitLabel = measurementUnits.find { it.id == editedUnitId }?.label ?: ""
-
-    if (showNoPictureDialog) {
-        AlertDialog(
-            onDismissRequest = { showNoPictureDialog = false },
-            title = { Text(stringResource(R.string.no_image_title)) },
-            text = { Text(stringResource(R.string.no_image_message)) },
-            confirmButton = {
-                TextButton(onClick = { showNoPictureDialog = false }) {
-                    Text(stringResource(R.string.button_ok))
-                }
-            }
-        )
-    }
-
-    if (showImageSelectorDialog) {
-        ImagePickerDialog(
-            onDismissRequest = { showImageSelectorDialog = false },
-            photoUri = equipment.photoUri,
-            iconIdentifier = equipment.iconIdentifier,
-            onImageSelected = { (iconId, photoUri) ->
-                onUpdateEquipment(equipment.copy(iconIdentifier = iconId, photoUri = photoUri))
-                showImageSelectorDialog = false
-            },
-            imageLibrary = equipmentImages,
-            categories = allCategories,
-            categoryColors = categoryColors,
-            categoryDefaultIcons = categoryDefaultIcons,
-            categoryDefaultPhotos = categoryDefaultPhotos,
-            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
-            onUpdateImageOrder = null,
-            onToggleImageVisibility = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
-            onSetDefaultInCategory = null,
-            isPhotoUsed = null,
-            isPrefsMode = false,
-            forcedCategory = Category.EQUIPMENT
-        )
-    }
-
-    showFullImageDialog?.let { uri -> 
-        FullImageDialog(photoUri = uri, onDismiss = { showFullImageDialog = null }) 
-    }
+    val unit = measurementUnits.find { it.id == editedUnitId }
+    val unitLabel = unit?.label ?: ""
+    val decimalPlaces = unit?.decimalPlaces ?: 0
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val equipmentColor = remember(equipmentCategoryColor, primaryColor) {
@@ -912,7 +922,7 @@ fun EquipmentCard(
                 .animateContentSize()
                 .graphicsLayer(alpha = if (equipment.dismissed) 0.5f else 1f)
                 .then(if (isDefault) Modifier.border(3.dp, equipmentColor, MaterialTheme.shapes.medium) else Modifier)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { if (!isEditing) onToggleDefault() }),
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { if (!isEditing) isExpanded = !isExpanded }),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -931,9 +941,19 @@ fun EquipmentCard(
                         contentAlignment = Alignment.Center
                     ) {
                         if (equipment.photoUri != null) {
-                            AsyncImage(model = equipment.photoUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current).data(equipment.photoUri).crossfade(true).build(),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
                         } else {
-                            Icon(imageVector = EquipmentIconProvider.getIcon(equipment.iconIdentifier), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Icon(
+                                imageVector = EquipmentIconProvider.getIcon(equipment.iconIdentifier),
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
                         }
                     }
                     
@@ -971,6 +991,17 @@ fun EquipmentCard(
                                     }
                                 }
                             }
+                            if (status != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    status.health.lastRecordedValue?.let { valStr ->
+                                        Text(text = "Last: ${String.format(Locale.US, "%.${decimalPlaces}f", valStr)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    status.health.estimatedCurrentValue?.let { estStr ->
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(text = "Now (est): ${String.format(Locale.US, "%.${decimalPlaces}f", estStr)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = equipmentColor, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -990,13 +1021,19 @@ fun EquipmentCard(
                                         usageWindow = editedUsageWindow,
                                         usageWindowUnit = editedUsageWindowUnit,
                                         manualAverageValue = editedManualAverageValue,
-                                        manualAverageUnit = editedManualAverageUnit
+                                        manualAverageUnit = editedManualAverageUnit,
+                                        visibilityHorizon = editedVisibilityHorizon,
+                                        visibilityHorizonUnit = editedVisibilityHorizonUnit
                                     )
                                 )
                             }
                             isEditing = !isEditing
+                            if (isEditing) isExpanded = true
                         }) {
                             Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null)
+                        }
+                        IconButton(onClick = { onToggleDefault() }) {
+                            Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current)
                         }
                         IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
                     }
@@ -1100,6 +1137,79 @@ fun EquipmentCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 4.dp)
                         )
+                    }
+
+                    // Visibility Horizon Section
+                    Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = editedVisibilityHorizon.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) editedVisibilityHorizon = it } },
+                                label = { Text("Event Horizon") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                                textStyle = MaterialTheme.typography.bodySmall
+                            )
+                            TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                        }
+                        Text(text = "How far into the future to show upcoming maintenance items", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+                    }
+                }
+
+                if (!isEditing && isExpanded && status != null && status.operationStatuses.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Upcoming Maintenance",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = equipmentColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Column(
+                        modifier = Modifier.padding(top = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        status.operationStatuses.sortedBy { it.nextPresumedDate ?: Long.MAX_VALUE }.take(5).forEach { opStatus ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Icon(
+                                        imageVector = if (opStatus.isOverdue) Icons.Default.Warning else if (opStatus.isPlanned) Icons.Default.EventNote else Icons.Default.Schedule,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = if (opStatus.isOverdue) MaterialTheme.colorScheme.error else if (opStatus.isPlanned) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = opStatus.operation.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = opStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (opStatus.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    IconButton(
+                                        onClick = { if (opStatus.isPlanned) onPlannedAction(opStatus) else onPredictionAction(opStatus) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (opStatus.isPlanned) Icons.Default.Edit else Icons.Default.Build,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = equipmentColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

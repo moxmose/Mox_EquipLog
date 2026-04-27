@@ -37,7 +37,7 @@ class OperationTypeScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddOperationType = { _, _ -> },
+                onAddOperationType = { _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = {},
                 onUpdateOperationType = {},
                 onDismissOperationType = {},
@@ -73,7 +73,7 @@ class OperationTypeScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddOperationType = { _, _ -> },
+                onAddOperationType = { _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = {},
                 onUpdateOperationType = {},
                 onDismissOperationType = {},
@@ -107,7 +107,7 @@ class OperationTypeScreenTest {
         composeTestRule.setContent {
             AddOperationTypeDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, identifier -> addedOperationInfo.set(Pair(desc, identifier)) },
+                onConfirm = { desc, identifier, _, _, _, _ -> addedOperationInfo.set(Pair(desc, identifier)) },
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 onAddImage = { _, _ -> },

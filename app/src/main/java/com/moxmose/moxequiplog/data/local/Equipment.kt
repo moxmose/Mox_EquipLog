@@ -33,7 +33,7 @@ data class Equipment(
     @ColumnInfo(defaultValue = "false")
     val dismissed: Boolean = false,
     val color: String? = null,
-    @ColumnInfo(defaultValue = "1") // Assumiamo 1 come ID per "km"
+    @ColumnInfo(defaultValue = "1")
     val unitId: Int = 1,
     @ColumnInfo(defaultValue = "false")
     val isResettable: Boolean = false,
@@ -43,5 +43,9 @@ data class Equipment(
     val usageWindowUnit: TimeGranularity = TimeGranularity.DAYS,
     val manualAverageValue: Double? = null,
     @ColumnInfo(defaultValue = "DAYS")
-    val manualAverageUnit: TimeGranularity = TimeGranularity.DAYS
+    val manualAverageUnit: TimeGranularity = TimeGranularity.DAYS,
+    @ColumnInfo(defaultValue = "30")
+    val visibilityHorizon: Int = 30,
+    @ColumnInfo(defaultValue = "DAYS")
+    val visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS
 )
