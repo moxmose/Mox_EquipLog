@@ -37,6 +37,7 @@ import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
+import java.util.Locale
 
 @Composable
 fun EquipmentsScreen(viewModel: EquipmentsViewModel = koinViewModel(), optionsViewModel: OptionsViewModel = koinViewModel()) {
@@ -130,7 +131,7 @@ fun EquipmentsScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?, Int, Boolean, Int, Double?) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
@@ -182,8 +183,8 @@ fun EquipmentsScreenContent(
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier, unitId, isResettable, window, avg ->
-                    onAddEquipment(desc, identifier, unitId, isResettable, window, avg)
+                onConfirm = { desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit ->
+                    onAddEquipment(desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -250,7 +251,7 @@ fun EquipmentsScreenContent(
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int, Boolean, Int, Double?) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     imageLibrary: List<Image>,
@@ -269,11 +270,19 @@ fun AddEquipmentDialog(
     var iconId by rememberSaveable { mutableStateOf<String?>(null) }
     var unitId by rememberSaveable(defaultUnitId) { mutableIntStateOf(defaultUnitId ?: 1) }
     var isResettable by rememberSaveable { mutableStateOf(false) }
+    
+    // Predictive Settings
     var usageWindow by rememberSaveable { mutableIntStateOf(30) }
-    var manualAverage by rememberSaveable { mutableStateOf<Double?>(null) }
-    var manualAverageStr by rememberSaveable { mutableStateOf("") }
+    var usageWindowUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+    var manualAverageValue by rememberSaveable { mutableStateOf<Double?>(null) }
+    var manualAverageValueStr by rememberSaveable { mutableStateOf("") }
+    var manualAverageUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+
     var isPristine by rememberSaveable { mutableStateOf(true) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
+
+    val selectedUnit = measurementUnits.find { it.id == unitId }
+    val unitLabel = selectedUnit?.label ?: ""
 
     if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
         LaunchedEffect(defaultIcon, defaultPhotoUri) {
@@ -384,34 +393,79 @@ fun AddEquipmentDialog(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                OutlinedTextField(
-                    value = usageWindow.toString(),
-                    onValueChange = { input ->
-                        input.toIntOrNull()?.let { if (it in 1..365) usageWindow = it }
-                    },
-                    label = { Text(stringResource(R.string.usage_trend_window)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Trend Window Section
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = usageWindow.toString(),
+                            onValueChange = { input ->
+                                input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it }
+                            },
+                            label = { Text("Window Value") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        TimeGranularitySelector(
+                            selected = usageWindowUnit,
+                            onSelected = { usageWindowUnit = it },
+                            label = "Of last",
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
+                    Text(
+                        text = "Time window used to analyze history and calculate trends",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
 
-                OutlinedTextField(
-                    value = manualAverageStr,
-                    onValueChange = { input ->
-                        if (input.isEmpty()) {
-                            manualAverageStr = ""
-                            manualAverage = null
-                        } else {
-                            val filtered = input.replace(',', '.')
-                            if (filtered.toDoubleOrNull() != null) {
-                                manualAverageStr = filtered
-                                manualAverage = filtered.toDoubleOrNull()
-                            }
-                        }
-                    },
-                    label = { Text(stringResource(R.string.manual_average_usage)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Manual Average Section
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = manualAverageValueStr,
+                            onValueChange = { input ->
+                                if (input.isEmpty()) {
+                                    manualAverageValueStr = ""
+                                    manualAverageValue = null
+                                } else {
+                                    val filtered = input.replace(',', '.')
+                                    if (filtered.toDoubleOrNull() != null) {
+                                        manualAverageValueStr = filtered
+                                        manualAverageValue = filtered.toDoubleOrNull()
+                                    }
+                                }
+                            },
+                            label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
+                            placeholder = { Text("Fallback") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        TimeGranularitySelector(
+                            selected = manualAverageUnit,
+                            onSelected = { manualAverageUnit = it },
+                            label = "Every",
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
+                    Text(
+                        text = "Optional: expected usage when history is missing (fallback)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
             }
         },
         confirmButton = {
@@ -422,7 +476,7 @@ fun AddEquipmentDialog(
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
-                    onConfirm(description, identifier, unitId, isResettable, usageWindow, manualAverage)
+                    onConfirm(description, identifier, unitId, isResettable, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit)
                 }
             ) { Text(stringResource(R.string.button_add)) }
         },
@@ -430,6 +484,55 @@ fun AddEquipmentDialog(
             TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TimeGranularitySelector(
+    selected: TimeGranularity,
+    onSelected: (TimeGranularity) -> Unit,
+    label: String? = null,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = formatTimeGranularity(selected),
+            onValueChange = {},
+            readOnly = true,
+            label = label?.let { { Text(it) } },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor(type = MenuAnchorType.PrimaryNotEditable),
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            TimeGranularity.entries.forEach { entry ->
+                DropdownMenuItem(
+                    text = { Text(formatTimeGranularity(entry)) },
+                    onClick = {
+                        onSelected(entry)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+fun formatTimeGranularity(granularity: TimeGranularity): String {
+    return when (granularity) {
+        TimeGranularity.MINUTES_5 -> "5 Minutes"
+        TimeGranularity.MINUTES_15 -> "15 Minutes"
+        else -> granularity.name.lowercase().replaceFirstChar { it.titlecase() }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -482,185 +585,242 @@ fun UnitSelector(
     }
 }
 
-    @Composable
-    fun EditEquipmentDialog(
-        equipment: Equipment,
-        onDismissRequest: () -> Unit,
-        onConfirm: (Equipment) -> Unit,
-        imageLibrary: List<Image>,
-        categories: List<Category>,
-        measurementUnits: List<MeasurementUnit>,
-        equipmentCategoryColor: String?,
-        categoryColors: Map<String, String>,
-        categoryDefaultIcons: Map<String, String?>,
-        categoryDefaultPhotos: Map<String, String?>,
-        onAddImage: (ImageIdentifier, String) -> Unit,
-        onToggleImageVisibility: (Image) -> Unit
-    ) {
-        var description by rememberSaveable { mutableStateOf(equipment.description) }
-        var photoUri by rememberSaveable { mutableStateOf(equipment.photoUri) }
-        var iconId by rememberSaveable { mutableStateOf(equipment.iconIdentifier) }
-        var unitId by rememberSaveable { mutableIntStateOf(equipment.unitId) }
-        var isResettable by rememberSaveable { mutableStateOf(equipment.isResettable) }
-        var usageWindow by rememberSaveable { mutableIntStateOf(equipment.usageWindow) }
-        var manualAverage by rememberSaveable { mutableStateOf(equipment.manualAverage) }
-        var manualAverageStr by rememberSaveable { mutableStateOf(equipment.manualAverage?.toString() ?: "") }
-        var showImageSelectorDialog by remember { mutableStateOf(false) }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditEquipmentDialog(
+    equipment: Equipment,
+    onDismissRequest: () -> Unit,
+    onConfirm: (Equipment) -> Unit,
+    imageLibrary: List<Image>,
+    categories: List<Category>,
+    measurementUnits: List<MeasurementUnit>,
+    equipmentCategoryColor: String?,
+    categoryColors: Map<String, String>,
+    categoryDefaultIcons: Map<String, String?>,
+    categoryDefaultPhotos: Map<String, String?>,
+    onAddImage: (ImageIdentifier, String) -> Unit,
+    onToggleImageVisibility: (Image) -> Unit
+) {
+    var description by rememberSaveable { mutableStateOf(equipment.description) }
+    var photoUri by rememberSaveable { mutableStateOf(equipment.photoUri) }
+    var iconId by rememberSaveable { mutableStateOf(equipment.iconIdentifier) }
+    var unitId by rememberSaveable { mutableIntStateOf(equipment.unitId) }
+    var isResettable by rememberSaveable { mutableStateOf(equipment.isResettable) }
+    
+    // Predictive Settings
+    var usageWindow by rememberSaveable { mutableIntStateOf(equipment.usageWindow) }
+    var usageWindowUnit by rememberSaveable { mutableStateOf(equipment.usageWindowUnit) }
+    var manualAverageValue by rememberSaveable { mutableStateOf(equipment.manualAverageValue) }
+    var manualAverageValueStr by rememberSaveable { mutableStateOf(equipment.manualAverageValue?.toString() ?: "") }
+    var manualAverageUnit by rememberSaveable { mutableStateOf(equipment.manualAverageUnit) }
+    
+    var showImageSelectorDialog by remember { mutableStateOf(false) }
 
-        if (showImageSelectorDialog) {
-            ImagePickerDialog(
-                onDismissRequest = { showImageSelectorDialog = false },
-                photoUri = photoUri,
-                iconIdentifier = iconId,
-                onImageSelected = { (newIconId, newPhotoUri) ->
-                    iconId = newIconId
-                    photoUri = newPhotoUri
-                    showImageSelectorDialog = false
-                },
-                imageLibrary = imageLibrary,
-                categories = categories,
-                categoryColors = categoryColors,
-                categoryDefaultIcons = categoryDefaultIcons,
-                categoryDefaultPhotos = categoryDefaultPhotos,
-                onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-                onRemoveImage = null,
-                onUpdateImageOrder = null,
-                onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
-                onSetDefaultInCategory = null,
-                isPhotoUsed = null,
-                isPrefsMode = false,
-                forcedCategory = Category.EQUIPMENT
-            )
-        }
+    val selectedUnit = measurementUnits.find { it.id == unitId }
+    val unitLabel = selectedUnit?.label ?: ""
 
-        AlertDialog(
-            onDismissRequest = onDismissRequest,
-            title = { Text(text = stringResource(R.string.edit_equipment), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val primaryColor = MaterialTheme.colorScheme.primary
-                        val borderColor = remember(equipmentCategoryColor, primaryColor) {
-                            try {
-                                equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
-                            } catch (_: Exception) { primaryColor }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer)
-                                .border(2.dp, borderColor, CircleShape)
-                                .clickable { showImageSelectorDialog = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (photoUri != null) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(),
-                                    contentDescription = stringResource(R.string.equipment_photo),
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                val icon = EquipmentIconProvider.getIcon(iconId)
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = stringResource(R.string.equipment_photo),
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { if (it.length <= 50) description = it },
-                            label = { Text(stringResource(R.string.equipment_description)) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                    }
-
-                    UnitSelector(
-                        measurementUnits = measurementUnits,
-                        selectedUnitId = unitId,
-                        onUnitSelected = { unitId = it }
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { isResettable = !isResettable },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Checkbox(checked = isResettable, onCheckedChange = { isResettable = it })
-                        Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
-                    }
-
-                    HorizontalDivider()
-
-                    Text(
-                        text = stringResource(R.string.predictive_maintenance_settings),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    OutlinedTextField(
-                        value = usageWindow.toString(),
-                        onValueChange = { input ->
-                            input.toIntOrNull()?.let { if (it in 1..365) usageWindow = it }
-                        },
-                        label = { Text(stringResource(R.string.usage_trend_window)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = manualAverageStr,
-                        onValueChange = { input ->
-                            if (input.isEmpty()) {
-                                manualAverageStr = ""
-                                manualAverage = null
-                            } else {
-                                val filtered = input.replace(',', '.')
-                                if (filtered.toDoubleOrNull() != null) {
-                                    manualAverageStr = filtered
-                                    manualAverage = filtered.toDoubleOrNull()
-                                }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.manual_average_usage)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+    if (showImageSelectorDialog) {
+        ImagePickerDialog(
+            onDismissRequest = { showImageSelectorDialog = false },
+            photoUri = photoUri,
+            iconIdentifier = iconId,
+            onImageSelected = { (newIconId, newPhotoUri) ->
+                iconId = newIconId
+                photoUri = newPhotoUri
+                showImageSelectorDialog = false
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onConfirm(
-                            equipment.copy(
-                                description = description,
-                                photoUri = photoUri,
-                                iconIdentifier = iconId,
-                                unitId = unitId,
-                                isResettable = isResettable,
-                                usageWindow = usageWindow,
-                                manualAverage = manualAverage
-                            )
-                        )
-                    }
-                ) { Text(stringResource(R.string.save_equipment)) }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) }
-            }
+            imageLibrary = imageLibrary,
+            categories = categories,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+            onSetDefaultInCategory = null,
+            isPhotoUsed = null,
+            isPrefsMode = false,
+            forcedCategory = Category.EQUIPMENT
         )
     }
 
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text(text = stringResource(R.string.edit_equipment), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val primaryColor = MaterialTheme.colorScheme.primary
+                    val borderColor = remember(equipmentCategoryColor, primaryColor) {
+                        try {
+                            equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
+                        } catch (_: Exception) { primaryColor }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .border(2.dp, borderColor, CircleShape)
+                            .clickable { showImageSelectorDialog = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (photoUri != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(),
+                                contentDescription = stringResource(R.string.equipment_photo),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            val icon = EquipmentIconProvider.getIcon(iconId)
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = stringResource(R.string.equipment_photo),
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { if (it.length <= 50) description = it },
+                        label = { Text(stringResource(R.string.equipment_description)) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+
+                UnitSelector(
+                    measurementUnits = measurementUnits,
+                    selectedUnitId = unitId,
+                    onUnitSelected = { unitId = it }
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { isResettable = !isResettable },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(checked = isResettable, onCheckedChange = { isResettable = it })
+                    Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                }
+
+                HorizontalDivider()
+
+                Text(
+                    text = stringResource(R.string.predictive_maintenance_settings),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                // Trend Window Section
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = usageWindow.toString(),
+                            onValueChange = { input ->
+                                input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it }
+                            },
+                            label = { Text("Window Value") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        TimeGranularitySelector(
+                            selected = usageWindowUnit,
+                            onSelected = { usageWindowUnit = it },
+                            label = "Of last",
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
+                    Text(
+                        text = "Time window used to analyze history and calculate trends",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+
+                // Manual Average Section
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = manualAverageValueStr,
+                            onValueChange = { input ->
+                                if (input.isEmpty()) {
+                                    manualAverageValueStr = ""
+                                    manualAverageValue = null
+                                } else {
+                                    val filtered = input.replace(',', '.')
+                                    if (filtered.toDoubleOrNull() != null) {
+                                        manualAverageValueStr = filtered
+                                        manualAverageValue = filtered.toDoubleOrNull()
+                                    }
+                                }
+                            },
+                            label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
+                            placeholder = { Text("Fallback") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        
+                        TimeGranularitySelector(
+                            selected = manualAverageUnit,
+                            onSelected = { manualAverageUnit = it },
+                            label = "Every",
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
+                    Text(
+                        text = "Optional: expected usage when history is missing (fallback)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(
+                        equipment.copy(
+                            description = description,
+                            photoUri = photoUri,
+                            iconIdentifier = iconId,
+                            unitId = unitId,
+                            isResettable = isResettable,
+                            usageWindow = usageWindow,
+                            usageWindowUnit = usageWindowUnit,
+                            manualAverageValue = manualAverageValue,
+                            manualAverageUnit = manualAverageUnit
+                        )
+                    )
+                }
+            ) { Text(stringResource(R.string.save_equipment)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EquipmentCard(
     equipment: Equipment,
@@ -684,11 +844,19 @@ fun EquipmentCard(
     var editedDescription by remember(equipment.description) { mutableStateOf(equipment.description) }
     var editedUnitId by remember(equipment.unitId) { mutableIntStateOf(equipment.unitId) }
     var editedIsResettable by remember(equipment.isResettable) { mutableStateOf(equipment.isResettable) }
+    
+    // Predictive Settings
+    var editedUsageWindow by remember(equipment.usageWindow) { mutableIntStateOf(equipment.usageWindow) }
+    var editedUsageWindowUnit by remember(equipment.usageWindowUnit) { mutableStateOf(equipment.usageWindowUnit) }
+    var editedManualAverageValue by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue) }
+    var editedManualAverageValueStr by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue?.toString() ?: "") }
+    var editedManualAverageUnit by remember(equipment.manualAverageUnit) { mutableStateOf(equipment.manualAverageUnit) }
+    
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
-    val unitLabel = measurementUnits.find { it.id == equipment.unitId }?.label ?: ""
+    val unitLabel = measurementUnits.find { it.id == editedUnitId }?.label ?: ""
 
     if (showNoPictureDialog) {
         AlertDialog(
@@ -813,7 +981,19 @@ fun EquipmentCard(
                             }
                         }
                         IconButton(onClick = {
-                            if (isEditing) onUpdateEquipment(equipment.copy(description = editedDescription, unitId = editedUnitId, isResettable = editedIsResettable))
+                            if (isEditing) {
+                                onUpdateEquipment(
+                                    equipment.copy(
+                                        description = editedDescription, 
+                                        unitId = editedUnitId, 
+                                        isResettable = editedIsResettable,
+                                        usageWindow = editedUsageWindow,
+                                        usageWindowUnit = editedUsageWindowUnit,
+                                        manualAverageValue = editedManualAverageValue,
+                                        manualAverageUnit = editedManualAverageUnit
+                                    )
+                                )
+                            }
                             isEditing = !isEditing
                         }) {
                             Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null)
@@ -836,6 +1016,90 @@ fun EquipmentCard(
                     ) {
                         Checkbox(checked = editedIsResettable, onCheckedChange = { editedIsResettable = it })
                         Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Text(
+                        text = stringResource(R.string.predictive_maintenance_settings),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Trend Window Section
+                    Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = editedUsageWindow.toString(),
+                                onValueChange = { input ->
+                                    input.toIntOrNull()?.let { if (it in 1..999) editedUsageWindow = it }
+                                },
+                                label = { Text("Window Value") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                                textStyle = MaterialTheme.typography.bodySmall
+                            )
+                            
+                            TimeGranularitySelector(
+                                selected = editedUsageWindowUnit,
+                                onSelected = { editedUsageWindowUnit = it },
+                                label = "Of last",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                        Text(
+                            text = "Time window used to analyze history and calculate trends",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+
+                    // Manual Average Section
+                    Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = editedManualAverageValueStr,
+                                onValueChange = { input ->
+                                    if (input.isEmpty()) {
+                                        editedManualAverageValueStr = ""
+                                        editedManualAverageValue = null
+                                    } else {
+                                        val filtered = input.replace(',', '.')
+                                        if (filtered.toDoubleOrNull() != null) {
+                                            editedManualAverageValueStr = filtered
+                                            editedManualAverageValue = filtered.toDoubleOrNull()
+                                        }
+                                    }
+                                },
+                                label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
+                                placeholder = { Text("Fallback") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                                textStyle = MaterialTheme.typography.bodySmall
+                            )
+                            
+                            TimeGranularitySelector(
+                                selected = editedManualAverageUnit,
+                                onSelected = { editedManualAverageUnit = it },
+                                label = "Every",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                        Text(
+                            text = "Optional: expected usage when history is missing (fallback)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
                     }
                 }
             }

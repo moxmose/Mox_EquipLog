@@ -474,16 +474,39 @@ class MaintenanceLogViewModel(
         }
     }
 
+    private fun getDailyManualAverage(equipment: Equipment): Double? {
+        val value = equipment.manualAverageValue ?: return null
+        return when (equipment.manualAverageUnit) {
+            TimeGranularity.MINUTES_5 -> value * 12 * 24
+            TimeGranularity.MINUTES_15 -> value * 4 * 24
+            TimeGranularity.HOURS -> value * 24
+            TimeGranularity.DAYS -> value
+            TimeGranularity.WEEKS -> value / 7.0
+            TimeGranularity.MONTHS -> value / 30.0
+            TimeGranularity.YEARS -> value / 365.0
+        }
+    }
+
     suspend fun refreshTrends(equipmentId: Int): Double? {
         val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId) ?: return null
-        val windowDays = equipment.usageWindow
-        val sinceDate = System.currentTimeMillis() - (windowDays.toLong() * 24 * 60 * 60 * 1000)
+        val windowValue = equipment.usageWindow.toLong()
+        val windowMs = when (equipment.usageWindowUnit) {
+            TimeGranularity.MINUTES_5 -> windowValue * 5 * 60 * 1000L
+            TimeGranularity.MINUTES_15 -> windowValue * 15 * 60 * 1000L
+            TimeGranularity.HOURS -> windowValue * 60 * 60 * 1000L
+            TimeGranularity.DAYS -> windowValue * 24 * 60 * 60 * 1000L
+            TimeGranularity.WEEKS -> windowValue * 7 * 24 * 60 * 60 * 1000L
+            TimeGranularity.MONTHS -> windowValue * 30 * 24 * 60 * 60 * 1000L
+            TimeGranularity.YEARS -> windowValue * 365 * 24 * 60 * 60 * 1000L
+        }
+        val sinceDate = System.currentTimeMillis() - windowMs
         
         val logs = maintenanceLogDao.getLogsSince(equipmentId, sinceDate)
             .filter { it.value != null } // Only logs with values contribute to trends
             .sortedBy { it.date }
 
-        if (logs.size < 2) return equipment.manualAverage
+        val manualAvg = getDailyManualAverage(equipment)
+        if (logs.size < 2) return manualAvg
 
         // If there's a reset operation in the window, we should only consider logs after the last reset
         // to have a consistent trend for the current "cycle". 
@@ -504,12 +527,12 @@ class MaintenanceLogViewModel(
             // If diff < 0, it was likely a reset, so we skip this interval for trend calculation
         }
 
-        if (totalTimeDiff <= 0) return equipment.manualAverage
+        if (totalTimeDiff <= 0) return manualAvg
         
         val msPerDay = 24 * 60 * 60 * 1000.0
         val calculatedAverage = (totalValueDiff / totalTimeDiff) * msPerDay
         
-        return if (calculatedAverage > 0) calculatedAverage else equipment.manualAverage
+        return if (calculatedAverage > 0) calculatedAverage else manualAvg
     }
 
     suspend fun estimateDueDate(equipmentId: Int, targetValue: Double): Long? {

@@ -113,7 +113,16 @@ class EquipmentsViewModel(
         }
     }
 
-    fun addEquipment(description: String, imageIdentifier: ImageIdentifier?, unitId: Int, isResettable: Boolean = false, usageWindow: Int = 30, manualAverage: Double? = null) {
+    fun addEquipment(
+        description: String, 
+        imageIdentifier: ImageIdentifier?, 
+        unitId: Int, 
+        isResettable: Boolean = false, 
+        usageWindow: Int = 30, 
+        usageWindowUnit: TimeGranularity = TimeGranularity.DAYS,
+        manualAverageValue: Double? = null,
+        manualAverageUnit: TimeGranularity = TimeGranularity.DAYS
+    ) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
             return
@@ -144,7 +153,9 @@ class EquipmentsViewModel(
                         unitId = unitId,
                         isResettable = isResettable,
                         usageWindow = usageWindow,
-                        manualAverage = manualAverage
+                        usageWindowUnit = usageWindowUnit,
+                        manualAverageValue = manualAverageValue,
+                        manualAverageUnit = manualAverageUnit
                     )
                 )
             } catch (e: Exception) {

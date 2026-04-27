@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -16,11 +17,6 @@ import kotlinx.serialization.json.Json
 import java.util.*
 import androidx.sqlite.db.SimpleSQLiteQuery
 import java.text.SimpleDateFormat
-
-@Serializable
-enum class TimeGranularity {
-    MINUTES_5, MINUTES_15, HOURS, DAYS, WEEKS, MONTHS, YEARS
-}
 
 @Serializable
 data class ChartPoint(

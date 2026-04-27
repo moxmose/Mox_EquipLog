@@ -39,6 +39,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.ReportFilter
 import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
 import androidx.compose.ui.graphics.toArgb
@@ -603,11 +604,11 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                         val effectiveGranularity = uiState.effectiveGranularity
                         val dateFormat = remember(effectiveGranularity) { 
                             when (effectiveGranularity) { 
-                                null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
                                 TimeGranularity.MINUTES_5, TimeGranularity.MINUTES_15, TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
                                 TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault())
                                 TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
                                 TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
+                                null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
                             } 
                         }
                         LaunchedEffect(dataWithPoints, effectiveGranularity) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(x = points.map { it.date }, y = points.map { it.value }) } } } }
@@ -805,11 +806,11 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
     }
     val dateFormat = remember(effectiveGranularity) { 
         when (effectiveGranularity) { 
-            null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
             TimeGranularity.MINUTES_5, TimeGranularity.MINUTES_15, TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
             TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault())
             TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
             TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
+            null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
         } 
     }
     LaunchedEffect(dataWithPoints, effectiveGranularity) { if (dataWithPoints.isNotEmpty()) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(x = points.map { it.date }, y = points.map { it.value }) } } } } }

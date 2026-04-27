@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
         ReportFilter::class,
         MaintenanceReminder::class
     ], 
-    version = 42,
+    version = 44,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,6 +38,25 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun maintenanceReminderDao(): MaintenanceReminderDao
 
     companion object {
+        val MIGRATION_43_44 = object : Migration(43, 44) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE equipments ADD COLUMN manualAverageValue REAL")
+                db.execSQL("ALTER TABLE equipments ADD COLUMN manualAverageUnit TEXT NOT NULL DEFAULT 'DAYS'")
+                // Migrazione dati per manualAverage se presente
+                db.execSQL("UPDATE equipments SET manualAverageValue = manualAverage")
+                // Non possiamo rimuovere una colonna facilmente in SQLite senza ricreare la tabella, 
+                // ma siccome siamo in fase di sviluppo e abbiamo fallbackToDestructiveMigration(true), 
+                // potrei anche lasciarla o ignorarla. 
+                // Per pulizia dovrei ricreare la tabella se volessi rimuovere manualAverage.
+            }
+        }
+
+        val MIGRATION_42_43 = object : Migration(42, 43) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE equipments ADD COLUMN usageWindowUnit TEXT NOT NULL DEFAULT 'DAYS'")
+            }
+        }
+
         val MIGRATION_41_42 = object : Migration(41, 42) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE maintenance_reminders ADD COLUMN presumedDate INTEGER")

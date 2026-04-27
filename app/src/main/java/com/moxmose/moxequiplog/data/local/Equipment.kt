@@ -4,6 +4,12 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class TimeGranularity {
+    MINUTES_5, MINUTES_15, HOURS, DAYS, WEEKS, MONTHS, YEARS
+}
 
 @Entity(
     tableName = "equipments",
@@ -32,6 +38,10 @@ data class Equipment(
     @ColumnInfo(defaultValue = "false")
     val isResettable: Boolean = false,
     @ColumnInfo(defaultValue = "30")
-    val usageWindow: Int = 30, // Number of days to calculate average usage
-    val manualAverage: Double? = null // Manually set average usage if historical data is insufficient
+    val usageWindow: Int = 30,
+    @ColumnInfo(defaultValue = "DAYS")
+    val usageWindowUnit: TimeGranularity = TimeGranularity.DAYS,
+    val manualAverageValue: Double? = null,
+    @ColumnInfo(defaultValue = "DAYS")
+    val manualAverageUnit: TimeGranularity = TimeGranularity.DAYS
 )

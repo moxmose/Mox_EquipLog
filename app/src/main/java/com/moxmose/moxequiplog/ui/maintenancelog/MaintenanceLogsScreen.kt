@@ -788,7 +788,8 @@ fun MaintenanceLogDialog(
         onDismissRequest = onDismissRequest,
         title = { 
             Text(
-                if (isEditMode) stringResource(R.string.edit_log) // Could be specialized string for reminder edit
+                if (isEditMode && onSchedule != null) stringResource(R.string.edit_log) // Should ideally be a "Edit Deadline" string
+                else if (isEditMode) stringResource(R.string.edit_log)
                 else if (onSchedule != null) stringResource(R.string.add_new_maintenance_log) 
                 else stringResource(R.string.reminder_complete_log)
             ) 
@@ -981,25 +982,8 @@ fun MaintenanceLogDialog(
                             readOnly = true,
                             label = { Text(if (selectedTab == 0) stringResource(R.string.date) else stringResource(R.string.due_date)) },
                             trailingIcon = {
-                                Row {
-                                    if (selectedTab == 1 && onEstimateTargetValue != null) {
-                                        IconButton(onClick = {
-                                            selectedEquipment?.id?.let { eqId ->
-                                                scope.launch {
-                                                    isEstimating = true
-                                                    onEstimateTargetValue(eqId, selectedDate)?.let { estimated ->
-                                                        valueStr = String.format(Locale.US, "%.${decimalPlaces}f", estimated)
-                                                    }
-                                                    isEstimating = false
-                                                }
-                                            }
-                                        }) {
-                                            Icon(Icons.Default.Refresh, contentDescription = "Recalculate Value")
-                                        }
-                                    }
-                                    IconButton(onClick = { showDatePicker = true }) {
-                                        Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date))
-                                    }
+                                IconButton(onClick = { showDatePicker = true }) {
+                                    Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date))
                                 }
                             },
                             modifier = Modifier.weight(1f),
@@ -1124,16 +1108,8 @@ fun MaintenanceLogDialog(
             }
         },
         dismissButton = {
-            if (!(isEditMode && onDeleteReminder != null)) {
-                TextButton(onClick = onDismissRequest) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            } else {
-                // In edit mode with delete, we might not need a cancel button if we have the system back/dismiss
-                // but let's keep it for clarity if space allows or just rely on onDismissRequest
-                TextButton(onClick = onDismissRequest) {
-                    Text(stringResource(R.string.button_cancel))
-                }
+            OutlinedButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.button_cancel))
             }
         }
     )
