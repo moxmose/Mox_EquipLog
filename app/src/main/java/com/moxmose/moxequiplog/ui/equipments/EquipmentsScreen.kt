@@ -219,6 +219,8 @@ fun EquipmentsScreenContent(
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
+    var expandAllTrigger by remember { mutableIntStateOf(0) }
+    var collapseAllTrigger by remember { mutableIntStateOf(0) }
 
     Scaffold(
         modifier = modifier,
@@ -271,16 +273,26 @@ fun EquipmentsScreenContent(
                     .padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = stringResource(R.string.set_as_default_instruction),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(R.string.hold_and_drag_to_reorder),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    IconButton(onClick = { collapseAllTrigger++ }) {
+                        Icon(Icons.Default.UnfoldLess, contentDescription = "Collapse All", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = stringResource(R.string.set_as_default_and_expand_instruction),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.hold_and_drag_to_reorder),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    IconButton(onClick = { expandAllTrigger++ }) {
+                        Icon(Icons.Default.UnfoldMore, contentDescription = "Expand All", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
             DraggableLazyColumn(
                 items = equipmentsState,
@@ -314,7 +326,9 @@ fun EquipmentsScreenContent(
                         onPlannedAction = { onPlannedAction(equipment.id, it) },
                         categoryColors = categoryColors,
                         categoryDefaultIcons = categoryDefaultIcons,
-                        categoryDefaultPhotos = categoryDefaultPhotos
+                        categoryDefaultPhotos = categoryDefaultPhotos,
+                        expandAllTrigger = expandAllTrigger,
+                        collapseAllTrigger = collapseAllTrigger
                     )
                 }
             )
@@ -883,13 +897,20 @@ fun EquipmentCard(
     categoryColors: Map<String, String>,
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
+    expandAllTrigger: Int = 0,
+    collapseAllTrigger: Int = 0,
     modifier: Modifier = Modifier
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var isExpanded by rememberSaveable { mutableStateOf(false) }
     
+    LaunchedEffect(expandAllTrigger) { if (expandAllTrigger > 0) isExpanded = true }
+    LaunchedEffect(collapseAllTrigger) { if (collapseAllTrigger > 0) isExpanded = false }
+
     var editedDescription by remember(equipment.description) { mutableStateOf(equipment.description) }
     var editedUnitId by remember(equipment.unitId) { mutableIntStateOf(equipment.unitId) }
+    var editedIconId by remember(equipment.iconIdentifier) { mutableStateOf(equipment.iconIdentifier) }
+    var editedPhotoUri by remember(equipment.photoUri) { mutableStateOf(equipment.photoUri) }
     var editedIsResettable by remember(equipment.isResettable) { mutableStateOf(equipment.isResettable) }
     
     // Predictive Settings
@@ -904,6 +925,32 @@ fun EquipmentCard(
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
+
+    if (showImageSelectorDialog) {
+        ImagePickerDialog(
+            onDismissRequest = { showImageSelectorDialog = false },
+            photoUri = editedPhotoUri,
+            iconIdentifier = editedIconId,
+            onImageSelected = { (newIconId, newPhotoUri) ->
+                editedIconId = newIconId
+                editedPhotoUri = newPhotoUri
+                showImageSelectorDialog = false
+            },
+            imageLibrary = equipmentImages,
+            categories = allCategories,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+            onSetDefaultInCategory = null,
+            isPhotoUsed = null,
+            isPrefsMode = false,
+            forcedCategory = Category.EQUIPMENT
+        )
+    }
 
     val unit = measurementUnits.find { it.id == editedUnitId }
     val unitLabel = unit?.label ?: ""
@@ -935,24 +982,37 @@ fun EquipmentCard(
                             .border(2.dp, equipmentColor, CircleShape)
                             .clickable {
                                 if (isEditing) showImageSelectorDialog = true
-                                else if (equipment.photoUri != null) showFullImageDialog = equipment.photoUri
-                                else if (equipment.iconIdentifier == null) showNoPictureDialog = true
+                                else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
+                                else if (editedIconId == null) showNoPictureDialog = true
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (equipment.photoUri != null) {
+                        if (editedPhotoUri != null) {
                             AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current).data(equipment.photoUri).crossfade(true).build(),
+                                model = ImageRequest.Builder(LocalContext.current).data(editedPhotoUri).crossfade(true).build(),
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
                         } else {
                             Icon(
-                                imageVector = EquipmentIconProvider.getIcon(equipment.iconIdentifier),
+                                imageVector = EquipmentIconProvider.getIcon(editedIconId),
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        
+                        // HEALTH TAGGER (Badge)
+                        if (!isExpanded && status != null && status.operationStatuses.isNotEmpty()) {
+                            val hasOverdue = status.operationStatuses.any { it.isOverdue }
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(if (hasOverdue) MaterialTheme.colorScheme.error else Color(0xFFFFB300))
+                                    .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
                             )
                         }
                     }
@@ -1016,7 +1076,9 @@ fun EquipmentCard(
                                 onUpdateEquipment(
                                     equipment.copy(
                                         description = editedDescription, 
-                                        unitId = editedUnitId, 
+                                        unitId = editedUnitId,
+                                        iconIdentifier = editedIconId,
+                                        photoUri = editedPhotoUri,
                                         isResettable = editedIsResettable,
                                         usageWindow = editedUsageWindow,
                                         usageWindowUnit = editedUsageWindowUnit,
@@ -1220,6 +1282,19 @@ fun EquipmentCard(
                 contentAlignment = Alignment.Center
             ) { Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White) }
         }
+    }
+
+    if (showNoPictureDialog) {
+        AlertDialog(
+            onDismissRequest = { showNoPictureDialog = false },
+            title = { Text(stringResource(R.string.no_image_title)) },
+            text = { Text(stringResource(R.string.no_image_message)) },
+            confirmButton = { TextButton(onClick = { showNoPictureDialog = false }) { Text(stringResource(R.string.button_ok)) } }
+        )
+    }
+
+    showFullImageDialog?.let { uri ->
+        FullImageDialog(photoUri = uri, onDismiss = { showFullImageDialog = null })
     }
 }
 

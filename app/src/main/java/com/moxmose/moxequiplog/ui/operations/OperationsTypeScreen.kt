@@ -186,6 +186,8 @@ fun OperationTypeScreenContent(
     modifier: Modifier = Modifier
 ) {
     val operationTypesState = remember(operationTypes) { operationTypes.toMutableStateList() }
+    var expandAllTrigger by remember { mutableIntStateOf(0) }
+    var collapseAllTrigger by remember { mutableIntStateOf(0) }
 
     Scaffold(
         modifier = modifier,
@@ -234,8 +236,18 @@ fun OperationTypeScreenContent(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = stringResource(R.string.set_as_default_instruction), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                Text(text = stringResource(R.string.hold_and_drag_to_reorder), style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    IconButton(onClick = { collapseAllTrigger++ }) {
+                        Icon(Icons.Default.UnfoldLess, contentDescription = "Collapse All", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = stringResource(R.string.set_as_default_and_expand_instruction), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text(text = stringResource(R.string.hold_and_drag_to_reorder), style = MaterialTheme.typography.bodySmall)
+                    }
+                    IconButton(onClick = { expandAllTrigger++ }) {
+                        Icon(Icons.Default.UnfoldMore, contentDescription = "Expand All", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
             DraggableLazyColumn(
                 items = operationTypesState,
@@ -263,7 +275,9 @@ fun OperationTypeScreenContent(
                         isDefault = operationType.id == defaultOperationTypeId,
                         onToggleDefault = { onToggleDefault(operationType.id) },
                         status = operationStatuses[operationType.id],
-                        onAffectedAction = { onAffectedAction(operationType.id, it) }
+                        onAffectedAction = { onAffectedAction(operationType.id, it) },
+                        expandAllTrigger = expandAllTrigger,
+                        collapseAllTrigger = collapseAllTrigger
                     )
                 }
             )
@@ -368,11 +382,12 @@ fun AddOperationTypeDialog(
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(value = visibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
+                                OutlinedTextField(value = visibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f) )
                                 TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
                             }
                             Text("How far into the future to show upcoming maintenance items", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        Text("App will pick the earliest of the two triggers.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -401,12 +416,19 @@ fun OperationTypeCard(
     onToggleDefault: () -> Unit,
     status: OperationGlobalStatus? = null,
     onAffectedAction: (EquipmentOperationStatus) -> Unit,
+    expandAllTrigger: Int = 0,
+    collapseAllTrigger: Int = 0,
     modifier: Modifier = Modifier
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var isExpanded by rememberSaveable { mutableStateOf(false) }
     
+    LaunchedEffect(expandAllTrigger) { if (expandAllTrigger > 0) isExpanded = true }
+    LaunchedEffect(collapseAllTrigger) { if (collapseAllTrigger > 0) isExpanded = false }
+
     var editedDescription by remember(operationType.description) { mutableStateOf(operationType.description) }
+    var editedIconId by remember(operationType.iconIdentifier) { mutableStateOf(operationType.iconIdentifier) }
+    var editedPhotoUri by remember(operationType.photoUri) { mutableStateOf(operationType.photoUri) }
     var editedIsPredictable by remember(operationType.isPredictable) { mutableStateOf(operationType.isPredictable) }
     var editedIntervalValueStr by remember(operationType.intervalValue) { mutableStateOf(operationType.intervalValue?.toString() ?: "") }
     var editedTimeoutValueStr by remember(operationType.timeoutValue) { mutableStateOf(operationType.timeoutValue?.toString() ?: "") }
@@ -419,6 +441,32 @@ fun OperationTypeCard(
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
 
+    if (showImageSelectorDialog) {
+        ImagePickerDialog(
+            onDismissRequest = { showImageSelectorDialog = false },
+            photoUri = editedPhotoUri,
+            iconIdentifier = editedIconId,
+            onImageSelected = { (newIconId, newPhotoUri) ->
+                editedIconId = newIconId
+                editedPhotoUri = newPhotoUri
+                showImageSelectorDialog = false
+            },
+            imageLibrary = operationTypeImages,
+            categories = allCategories,
+            categoryColors = categoryColors,
+            categoryDefaultIcons = categoryDefaultIcons,
+            categoryDefaultPhotos = categoryDefaultPhotos,
+            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
+            onRemoveImage = null,
+            onUpdateImageOrder = null,
+            onToggleImageVisibility = { uri, category -> operationTypeImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
+            onSetDefaultInCategory = null,
+            isPhotoUsed = null,
+            isPrefsMode = false,
+            forcedCategory = Category.OPERATION
+        )
+    }
+
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val operationColor = remember(operationCategoryColor) { try { Color(operationCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray } }
 
@@ -429,9 +477,22 @@ fun OperationTypeCard(
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer).border(2.dp, operationColor, CircleShape).clickable { if (isEditing) showImageSelectorDialog = true else if (operationType.photoUri != null) showFullImageDialog = operationType.photoUri else if (operationType.iconIdentifier == null) showNoPictureDialog = true }, contentAlignment = Alignment.Center) {
-                        if (operationType.photoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(operationType.photoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                        else Icon(imageVector = EquipmentIconProvider.getIcon(operationType.iconIdentifier, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer).border(2.dp, operationColor, CircleShape).clickable { if (isEditing) showImageSelectorDialog = true else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri else if (editedIconId == null) showNoPictureDialog = true }, contentAlignment = Alignment.Center) {
+                        if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        
+                        // HEALTH TAGGER (Badge)
+                        if (!isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
+                            val hasOverdue = status.affectedEquipments.any { it.isOverdue }
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(if (hasOverdue) MaterialTheme.colorScheme.error else Color(0xFFFFB300))
+                                    .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -440,7 +501,7 @@ fun OperationTypeCard(
                     }
                     Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         if (isEditing) IconButton(onClick = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) }) { Icon(imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null) }
-                        IconButton(onClick = { if (isEditing) { onUpdateOperationType(operationType.copy(description = editedDescription, isPredictable = editedIsPredictable, intervalValue = editedIntervalValueStr.toDoubleOrNull(), timeoutValue = editedTimeoutValueStr.toIntOrNull(), timeoutUnit = editedTimeoutUnit, visibilityHorizon = editedVisibilityHorizon, visibilityHorizonUnit = editedVisibilityHorizonUnit)) } ; isEditing = !isEditing ; if (isEditing) isExpanded = true }) { Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null) }
+                        IconButton(onClick = { if (isEditing) { onUpdateOperationType(operationType.copy(description = editedDescription, iconIdentifier = editedIconId, photoUri = editedPhotoUri, isPredictable = editedIsPredictable, intervalValue = editedIntervalValueStr.toDoubleOrNull(), timeoutValue = editedTimeoutValueStr.toIntOrNull(), timeoutUnit = editedTimeoutUnit, visibilityHorizon = editedVisibilityHorizon, visibilityHorizonUnit = editedVisibilityHorizonUnit)) } ; isEditing = !isEditing ; if (isEditing) isExpanded = true }) { Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null) }
                         IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
                         IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
                     }

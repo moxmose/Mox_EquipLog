@@ -146,7 +146,7 @@
 
     <!-- Equipments & Operations -->
     <string name="hold_and_drag_to_reorder">Hold and drag items to change order</string>
-    <string name="set_as_default_instruction">Tap icon to set as default</string>
+    <string name="set_as_default_and_expand_instruction">Tap card to expand, Star to set default</string>
     <string name="add_equipment">Add Equipment</string>
     <string name="add_operation_type">Add Operation Type</string>
     <string name="hide_dismissed">Hide Dismissed</string>
