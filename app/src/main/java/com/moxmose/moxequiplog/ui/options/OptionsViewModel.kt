@@ -25,6 +25,7 @@ data class CategoryUiState(
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
+    private val maintenanceLogDao: MaintenanceLogDao,
     private val imageRepository: ImageRepository,
     private val measurementUnitDao: MeasurementUnitDao,
     private val backupManager: BackupManager
@@ -64,6 +65,7 @@ class OptionsViewModel(
         data class BackupResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class TotalExportResult(val success: Boolean, val message: String?) : OptionsUiEvent()
+        data object RecalculateSuccess : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -576,6 +578,38 @@ class OptionsViewModel(
                 onSuccess = { _uiEvents.send(OptionsUiEvent.TotalExportResult(true, null)) },
                 onFailure = { _uiEvents.send(OptionsUiEvent.TotalExportResult(false, it.message)) }
             )
+        }
+    }
+
+    fun recalculateAllAccumulatedValues() {
+        viewModelScope.launch {
+            try {
+                val equipments = equipmentDao.getAllEquipments().first()
+                equipments.forEach { equipment ->
+                    val allLogs = maintenanceLogDao.getAllLogsForEquipment(equipment.id)
+                    if (allLogs.isNotEmpty()) {
+                        val updatedLogs = mutableListOf<MaintenanceLog>()
+                        var currentAccumulated = 0.0
+                        var lastValue: Double? = null
+
+                        allLogs.forEach { log ->
+                            val delta = when {
+                                log.value == null -> 0.0
+                                lastValue == null -> log.value
+                                log.value >= lastValue -> log.value - lastValue
+                                else -> log.value
+                            }
+                            currentAccumulated += delta
+                            updatedLogs.add(log.copy(accumulatedValue = currentAccumulated))
+                            lastValue = if (log.resetAfter) null else log.value
+                        }
+                        maintenanceLogDao.updateLogs(updatedLogs)
+                    }
+                }
+                _uiEvents.send(OptionsUiEvent.RecalculateSuccess)
+            } catch (e: Exception) {
+                // Silently fail or handle
+            }
         }
     }
 

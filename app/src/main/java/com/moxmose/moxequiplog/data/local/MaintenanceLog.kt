@@ -40,5 +40,11 @@ data class MaintenanceLog(
     @ColumnInfo(defaultValue = "false")
     val dismissed: Boolean = false,
     val color: String? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    
+    // Nuovi campi per gestione UoM accumulata
+    @ColumnInfo(defaultValue = "0.0")
+    val accumulatedValue: Double = 0.0,
+    @ColumnInfo(defaultValue = "false")
+    val resetAfter: Boolean = false
 )

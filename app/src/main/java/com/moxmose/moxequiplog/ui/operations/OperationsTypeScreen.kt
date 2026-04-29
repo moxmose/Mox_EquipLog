@@ -1,6 +1,7 @@
 package com.moxmose.moxequiplog.ui.operations
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -477,21 +478,50 @@ fun OperationTypeCard(
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer).border(2.dp, operationColor, CircleShape).clickable { if (isEditing) showImageSelectorDialog = true else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri else if (editedIconId == null) showNoPictureDialog = true }, contentAlignment = Alignment.Center) {
-                        if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                        else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                        
-                        // HEALTH TAGGER (Badge)
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                                .border(2.dp, operationColor, CircleShape)
+                                .clickable {
+                                    if (isEditing) showImageSelectorDialog = true
+                                    else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
+                                    else if (editedIconId == null) showNoPictureDialog = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        }
+
+                        // HEALTH TAGGER (Badge) - Esterno al clip per essere visibile
                         if (!isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
-                            val hasOverdue = status.affectedEquipments.any { it.isOverdue }
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(if (hasOverdue) MaterialTheme.colorScheme.error else Color(0xFFFFB300))
-                                    .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                            )
+                            val overdueCount = status.affectedEquipments.count { it.isOverdue }
+                            val upcomingCount = status.affectedEquipments.count { !it.isOverdue } // Based on your current structure
+
+                            if (overdueCount > 0 || upcomingCount > 0) {
+                                val badgeColor = if (overdueCount > 0) MaterialTheme.colorScheme.error else Color(0xFFFFB300)
+                                val badgeIcon = if (overdueCount > 0) Icons.Default.Warning else Icons.Default.Schedule
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .offset(x = 4.dp, y = 4.dp)
+                                        .clip(CircleShape)
+                                        .background(badgeColor)
+                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = badgeIcon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = Color.White
+                                    )
+                                }
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
@@ -538,8 +568,21 @@ fun OperationTypeCard(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(text = eqStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never", style = MaterialTheme.typography.labelSmall, color = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    IconButton(onClick = { onAffectedAction(eqStatus) }, modifier = Modifier.size(24.dp)) {
-                                        Icon(imageVector = Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp), tint = operationColor)
+                                    Surface(
+                                        onClick = { onAffectedAction(eqStatus) },
+                                        shape = CircleShape,
+                                        color = operationColor.copy(alpha = 0.15f),
+                                        border = BorderStroke(1.dp, operationColor.copy(alpha = 0.5f)),
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Build,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = operationColor
+                                            )
+                                        }
                                     }
                                 }
                             }

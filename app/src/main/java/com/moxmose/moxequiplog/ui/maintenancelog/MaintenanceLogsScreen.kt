@@ -699,6 +699,7 @@ fun MaintenanceLogDialog(
     
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var resetAfter by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     var isEstimating by remember { mutableStateOf(false) }
@@ -953,6 +954,17 @@ fun MaintenanceLogDialog(
                 )
 
                 if (selectedTab == 0) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { resetAfter = !resetAfter },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = resetAfter,
+                            onCheckedChange = { resetAfter = it }
+                        )
+                        Text(stringResource(R.string.reset_counter_after))
+                    }
+
                     OutlinedTextField(
                         value = notes,
                         onValueChange = { if (it.length <= 200) notes = it },
@@ -1082,7 +1094,8 @@ fun MaintenanceLogDialog(
                                         operationTypeId = op.id,
                                         notes = notes.takeIf { it.isNotBlank() },
                                         value = valueStr.toDoubleOrNull(),
-                                        date = selectedDate
+                                        date = selectedDate,
+                                        resetAfter = resetAfter
                                     )
                                 )
                             } else {

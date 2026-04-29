@@ -31,4 +31,10 @@ interface MaintenanceLogDao {
 
     @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId AND value IS NOT NULL ORDER BY date DESC LIMIT 1")
     suspend fun getLastValueLogForEquipment(equipmentId: Int): MaintenanceLog?
+
+    @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId ORDER BY date ASC, timestamp ASC")
+    suspend fun getAllLogsForEquipment(equipmentId: Int): List<MaintenanceLog>
+
+    @Update
+    suspend fun updateLogs(logs: List<MaintenanceLog>)
 }

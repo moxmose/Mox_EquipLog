@@ -1,6 +1,7 @@
 package com.moxmose.moxequiplog.ui.equipments
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -974,46 +975,63 @@ fun EquipmentCard(
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.secondaryContainer)
-                            .border(2.dp, equipmentColor, CircleShape)
-                            .clickable {
-                                if (isEditing) showImageSelectorDialog = true
-                                else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
-                                else if (editedIconId == null) showNoPictureDialog = true
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (editedPhotoUri != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current).data(editedPhotoUri).crossfade(true).build(),
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = EquipmentIconProvider.getIcon(editedIconId),
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                                .border(2.dp, equipmentColor, CircleShape)
+                                .clickable {
+                                    if (isEditing) showImageSelectorDialog = true
+                                    else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
+                                    else if (editedIconId == null) showNoPictureDialog = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (editedPhotoUri != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current).data(editedPhotoUri).crossfade(true).build(),
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = EquipmentIconProvider.getIcon(editedIconId),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
                         }
                         
-                        // HEALTH TAGGER (Badge)
+                        // HEALTH TAGGER (Badge) - Esterno al clip per essere visibile
                         if (!isExpanded && status != null && status.operationStatuses.isNotEmpty()) {
-                            val hasOverdue = status.operationStatuses.any { it.isOverdue }
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(if (hasOverdue) MaterialTheme.colorScheme.error else Color(0xFFFFB300))
-                                    .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                            )
+                            val overdueCount = status.operationStatuses.count { it.isOverdue }
+                            val upcomingCount = status.operationStatuses.count { !it.isOverdue && (it.isPlanned || it.nextPresumedDate != null) }
+
+                            if (overdueCount > 0 || upcomingCount > 0) {
+                                val badgeColor = if (overdueCount > 0) MaterialTheme.colorScheme.error else Color(0xFFFFB300)
+                                val badgeIcon = if (overdueCount > 0) Icons.Default.Warning else Icons.Default.Schedule
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .offset(x = 4.dp, y = 4.dp)
+                                        .clip(CircleShape)
+                                        .background(badgeColor)
+                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = badgeIcon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = Color.White
+                                    )
+                                }
+                            }
                         }
                     }
                     
@@ -1258,16 +1276,21 @@ fun EquipmentCard(
                                         color = if (opStatus.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    IconButton(
+                                    Surface(
                                         onClick = { if (opStatus.isPlanned) onPlannedAction(opStatus) else onPredictionAction(opStatus) },
-                                        modifier = Modifier.size(24.dp)
+                                        shape = CircleShape,
+                                        color = equipmentColor.copy(alpha = 0.15f),
+                                        border = BorderStroke(1.dp, equipmentColor.copy(alpha = 0.5f)),
+                                        modifier = Modifier.size(28.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = if (opStatus.isPlanned) Icons.Default.Edit else Icons.Default.Build,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = equipmentColor
-                                        )
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = if (opStatus.isPlanned) Icons.Default.Edit else Icons.Default.Build,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = equipmentColor
+                                            )
+                                        }
                                     }
                                 }
                             }

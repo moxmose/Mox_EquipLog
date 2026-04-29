@@ -206,6 +206,7 @@
     <string name="manual_average_usage">Media utilizzo manuale (opzionale)</string>
     <string name="due_date">Data di scadenza</string>
     <string name="target_value">Valore target %1$s (opzionale)</string>
+    <string name="reset_counter_after">Azzera contatore dopo questa attività</string>
 
     <!-- Maintenance Reminders -->
     <string name="reminders_dashboard_title">Scadenze Manutenzione</string>
@@ -271,5 +272,8 @@
     <string name="restore_failed">Ripristino fallito: %1$s</string>
     <string name="restore_confirm_title">Conferma Ripristino</string>
     <string name="restore_confirm_msg">Questo sovrascriverà tutti i dati correnti. Sei sicuro? L\'app dovrà essere riavviata manualmente.</string>
+    <string name="options_recalculate_accumulated">Ricalcola Valori Accumulati</string>
+    <string name="options_recalculate_accumulated_desc">Ricalcola tutti i valori assoluti basandosi sullo storico dei log. Utile se sono state inserite registrazioni nel passato.</string>
+    <string name="recalculate_success">Ricalcolo completato con successo.</string>
     <string name="google_auth_privacy_note">Questa app utilizza il metodo di accesso standard di Google per collegarsi al tuo Calendario. Verranno utilizzati solo i dati strettamente necessari alla sincronizzazione.</string>
 </resources>

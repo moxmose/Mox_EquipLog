@@ -180,11 +180,11 @@ class EquipmentsViewModel(
         }
 
         val usagePrediction = if (opType.intervalValue != null && trend != null && trend > 0) {
-            val lastValue = lastLog.value ?: 0.0
-            val targetValue = lastValue + opType.intervalValue
+            val lastAccumulated = lastLog.accumulatedValue
+            val targetAccumulated = lastAccumulated + opType.intervalValue
             val lastEqLog = maintenanceLogDao.getLastValueLogForEquipment(equipment.id)
-            val currentUsage = lastEqLog?.value ?: 0.0
-            val remaining = targetValue - currentUsage
+            val currentAccumulated = lastEqLog?.accumulatedValue ?: 0.0
+            val remaining = targetAccumulated - currentAccumulated
             if (remaining > 0) {
                 val daysRemaining = remaining / trend
                 (System.currentTimeMillis() + (daysRemaining * 24 * 60 * 60 * 1000).toLong())
@@ -239,8 +239,8 @@ class EquipmentsViewModel(
         var totalValueDiff = 0.0
         var totalTimeDiff = 0L
         for (i in 0 until logs.size - 1) {
-            val diff = (logs[i+1].value ?: 0.0) - (logs[i].value ?: 0.0)
-            if (diff >= 0) {
+            val diff = logs[i+1].accumulatedValue - logs[i].accumulatedValue
+            if (diff > 0) {
                 totalValueDiff += diff
                 totalTimeDiff += (logs[i+1].date - logs[i].date)
             }

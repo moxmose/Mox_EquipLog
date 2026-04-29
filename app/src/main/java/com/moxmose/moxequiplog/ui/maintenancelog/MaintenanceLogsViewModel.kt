@@ -229,7 +229,34 @@ class MaintenanceLogViewModel(
             initialValue = 0
         )
 
-    fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, value: Double?, date: Long, color: String?) {
+    private suspend fun recalculateAccumulatedValues(equipmentId: Int) {
+        val allLogs = maintenanceLogDao.getAllLogsForEquipment(equipmentId)
+        if (allLogs.isEmpty()) return
+
+        val updatedLogs = mutableListOf<MaintenanceLog>()
+        var currentAccumulated = 0.0
+        var lastValue: Double? = null
+
+        allLogs.forEach { log ->
+            val delta = when {
+                log.value == null -> 0.0
+                lastValue == null -> log.value // Primo log con valore
+                log.value >= lastValue -> log.value - lastValue
+                else -> log.value // Reset rilevato (valore sceso)
+            }
+            
+            currentAccumulated += delta
+            val updatedLog = log.copy(accumulatedValue = currentAccumulated)
+            updatedLogs.add(updatedLog)
+            
+            // Se c'è un reset forzato, il prossimo log inizierà da 0 per il calcolo del delta
+            lastValue = if (log.resetAfter) null else log.value
+        }
+        
+        maintenanceLogDao.updateLogs(updatedLogs)
+    }
+
+    fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, value: Double?, date: Long, color: String?, resetAfter: Boolean = false) {
         viewModelScope.launch {
             try {
                 val newLog = MaintenanceLog(
@@ -238,9 +265,11 @@ class MaintenanceLogViewModel(
                     notes = notes,
                     value = value,
                     date = date,
-                    color = color
+                    color = color,
+                    resetAfter = resetAfter
                 )
                 maintenanceLogDao.insertLog(newLog)
+                recalculateAccumulatedValues(equipmentId)
                 
                 // Mark reminder as completed if it exists for this equipment and operation type
                 maintenanceReminderDao.getReminderByEquipmentAndOperation(equipmentId, operationTypeId)?.let { reminder ->
@@ -371,6 +400,7 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 maintenanceLogDao.updateLog(log)
+                recalculateAccumulatedValues(log.equipmentId)
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.UpdateLogFailed)
             }

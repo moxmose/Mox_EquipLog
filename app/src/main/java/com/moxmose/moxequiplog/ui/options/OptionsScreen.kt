@@ -108,6 +108,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
+                is OptionsViewModel.OptionsUiEvent.RecalculateSuccess -> context.getString(R.string.recalculate_success)
             }
             snackbarHostState.showSnackbar(message)
             if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {
@@ -179,7 +180,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         googleAccountName = googleAccountName,
         onGoogleAccountSelected = viewModel::setGoogleAccountName,
         syncCalendarByDefault = syncCalendarByDefault,
-        onSyncCalendarByDefaultChange = viewModel::setSyncCalendarByDefault
+        onSyncCalendarByDefaultChange = viewModel::setSyncCalendarByDefault,
+        onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues
     )
 
     colorMgmtState?.let { (mode, categoryId) ->
@@ -270,7 +272,8 @@ fun OptionsScreenContent(
     googleAccountName: String?,
     onGoogleAccountSelected: (String?) -> Unit,
     syncCalendarByDefault: Boolean,
-    onSyncCalendarByDefaultChange: (Boolean) -> Unit
+    onSyncCalendarByDefaultChange: (Boolean) -> Unit,
+    onRecalculateAccumulated: () -> Unit = {}
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
     var showBackgroundPicker by remember { mutableStateOf(false) }
@@ -655,6 +658,29 @@ fun OptionsScreenContent(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_total_export))
                     }
+
+                    HorizontalDivider()
+
+                    Text(
+                        text = stringResource(R.string.options_recalculate_accumulated),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.options_recalculate_accumulated_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = onRecalculateAccumulated,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Calculate, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.refresh))
+                    }
+
+                    HorizontalDivider()
                     OutlinedButton(
                         onClick = { restoreLauncher.launch(arrayOf("application/octet-stream", "application/x-sqlite3", "*/*")) },
                         modifier = Modifier.fillMaxWidth(),

@@ -210,6 +210,7 @@
     <string name="manual_average_usage">Manual Average Usage (optional)</string>
     <string name="due_date">Due Date</string>
     <string name="target_value">Target %1$s (optional)</string>
+    <string name="reset_counter_after">Reset counter after this activity</string>
 
     <!-- Maintenance Reminders -->
     <string name="reminders_dashboard_title">Maintenance Deadlines</string>
@@ -284,6 +285,9 @@
     <string name="options_google_disconnect">Disconnect Account</string>
     <string name="update_google_account_failed">Failed to update Google Account.</string>
     <string name="options_google_calendar_desc">Configure Google Calendar integration for maintenance reminders.</string>
+    <string name="options_recalculate_accumulated">Recalculate Accumulated Values</string>
+    <string name="options_recalculate_accumulated_desc">Ricalcola tutti i valori assoluti basandosi sullo storico dei log. Utile se sono state inserite registrazioni nel passato.</string>
+    <string name="recalculate_success">Ricalcolo completato con successo.</string>
     <string name="options_sync_calendar_default_label">Sync by default</string>
     <string name="options_sync_calendar_default_desc">Automatically enable "Sync to Google Calendar" when adding new logs or reminders.</string>
     <string name="google_auth_privacy_note">This app uses the standard Google sign-in method to connect to your Calendar. Only the data strictly necessary for sync will be used.</string>
