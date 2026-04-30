@@ -42,6 +42,7 @@ class MaintenanceLogsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var maintenanceLogDao: MaintenanceLogDao
+    private lateinit var maintenanceReminderDao: MaintenanceReminderDao
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var categoryDao: CategoryDao
@@ -62,8 +63,12 @@ class MaintenanceLogsViewModelTest {
         maintenanceLogDao = mockk(relaxed = true) {
             every { getLogsWithDetails(any()) } answers { flowOf(listOf(mockk())) }
         }
+        maintenanceReminderDao = mockk(relaxed = true) {
+            every { getActiveRemindersWithDetails() } returns flowOf(emptyList())
+        }
         equipmentDao = mockk(relaxed = true) {
             every { getAllEquipments() } returns allEquipmentsFlow
+            every { countActiveResettableEquipments() } returns flowOf(0)
         }
         operationTypeDao = mockk(relaxed = true) {
             every { getAllOperationTypes() } returns allOperationTypesFlow
@@ -74,21 +79,26 @@ class MaintenanceLogsViewModelTest {
         appSettingsManager = mockk(relaxed = true) {
             every { defaultEquipmentId } returns defaultEquipmentIdFlow
             every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
+            every { syncCalendarByDefault } returns flowOf(false)
+            every { googleAccountName } returns flowOf(null)
         }
         imageRepository = mockk(relaxed = true) {
              every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
+             every { allCategories } returns flowOf(emptyList())
         }
         measurementUnitDao = mockk(relaxed = true) {
             every { getAllUnits() } returns MutableStateFlow(emptyList())
         }
         viewModel = MaintenanceLogViewModel(
-            maintenanceLogDao, 
-            equipmentDao, 
-            operationTypeDao, 
-            categoryDao, 
+            maintenanceLogDao,
+            maintenanceReminderDao,
+            equipmentDao,
+            operationTypeDao,
+            categoryDao,
             appSettingsManager,
             imageRepository,
-            measurementUnitDao
+            measurementUnitDao,
+            mockk(relaxed = true) // calendarManager
         )
     }
 
@@ -223,7 +233,7 @@ class MaintenanceLogsViewModelTest {
         }
         val specificTime = calendar.timeInMillis
         
-        viewModel.addLog(1, 1, "Note", 100, specificTime, null)
+        viewModel.addLog(1, 1, "Note", 100.0, specificTime, null)
         testDispatcher.scheduler.advanceUntilIdle()
         
         coVerify { 

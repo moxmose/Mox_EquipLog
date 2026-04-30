@@ -61,7 +61,7 @@ class OptionsScreenTest {
                 onSetBackgroundImageAlpha = {},
                 onResetBackgroundSettings = {},
                 onSetReportsColorMode = {},
-                onAddUnit = { _, _ -> },
+                onAddUnit = { _, _, _ -> },
                 onUpdateUnit = {},
                 onToggleUnitVisibility = {},
                 onUpdateUnitsOrder = {},
@@ -84,7 +84,12 @@ class OptionsScreenTest {
                 onTotalExport = {},
                 getSuggestedBackupFileName = { "" },
                 getSuggestedTotalExportFileName = { "" },
-                snackbarHostState = remember { SnackbarHostState() }
+                snackbarHostState = remember { SnackbarHostState() },
+                googleAccountName = null,
+                onGoogleAccountSelected = {},
+                syncCalendarByDefault = false,
+                onSyncCalendarByDefaultChange = {},
+                onRecalculateAccumulated = {}
             )
         }
 
@@ -127,7 +132,7 @@ class OptionsScreenTest {
                 onSetBackgroundImageAlpha = {},
                 onResetBackgroundSettings = {},
                 onSetReportsColorMode = {},
-                onAddUnit = { _, _ -> },
+                onAddUnit = { _, _, _ -> },
                 onUpdateUnit = {},
                 onToggleUnitVisibility = {},
                 onUpdateUnitsOrder = {},
@@ -150,7 +155,12 @@ class OptionsScreenTest {
                 onTotalExport = {},
                 getSuggestedBackupFileName = { "" },
                 getSuggestedTotalExportFileName = { "" },
-                snackbarHostState = remember { SnackbarHostState() }
+                snackbarHostState = remember { SnackbarHostState() },
+                googleAccountName = null,
+                onGoogleAccountSelected = {},
+                syncCalendarByDefault = false,
+                onSyncCalendarByDefaultChange = {},
+                onRecalculateAccumulated = {}
             )
         }
 
@@ -195,7 +205,7 @@ class OptionsScreenTest {
                 onSetBackgroundImageAlpha = {},
                 onResetBackgroundSettings = {},
                 onSetReportsColorMode = {},
-                onAddUnit = { _, _ -> },
+                onAddUnit = { _, _, _ -> },
                 onUpdateUnit = {},
                 onToggleUnitVisibility = {},
                 onUpdateUnitsOrder = {},
@@ -218,7 +228,12 @@ class OptionsScreenTest {
                 onTotalExport = {},
                 getSuggestedBackupFileName = { "" },
                 getSuggestedTotalExportFileName = { "" },
-                snackbarHostState = remember { SnackbarHostState() }
+                snackbarHostState = remember { SnackbarHostState() },
+                googleAccountName = null,
+                onGoogleAccountSelected = {},
+                syncCalendarByDefault = false,
+                onSyncCalendarByDefaultChange = {},
+                onRecalculateAccumulated = {}
             )
         }
 
@@ -262,7 +277,7 @@ class OptionsScreenTest {
                 onSetBackgroundImageAlpha = {},
                 onResetBackgroundSettings = {},
                 onSetReportsColorMode = {},
-                onAddUnit = { _, _ -> },
+                onAddUnit = { _, _, _ -> },
                 onUpdateUnit = {},
                 onToggleUnitVisibility = {},
                 onUpdateUnitsOrder = {},
@@ -285,7 +300,12 @@ class OptionsScreenTest {
                 onTotalExport = {},
                 getSuggestedBackupFileName = { "" },
                 getSuggestedTotalExportFileName = { "" },
-                snackbarHostState = remember { SnackbarHostState() }
+                snackbarHostState = remember { SnackbarHostState() },
+                googleAccountName = null,
+                onGoogleAccountSelected = {},
+                syncCalendarByDefault = false,
+                onSyncCalendarByDefaultChange = {},
+                onRecalculateAccumulated = {}
             )
         }
 

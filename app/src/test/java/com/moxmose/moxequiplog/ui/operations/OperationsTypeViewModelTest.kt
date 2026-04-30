@@ -5,8 +5,10 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import io.mockk.coEvery
@@ -44,8 +46,10 @@ class OperationsTypeViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var operationTypeDao: OperationTypeDao
+    private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var viewModel: OperationsTypeViewModel
 
     private val activeOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
@@ -61,6 +65,9 @@ class OperationsTypeViewModelTest {
             every { getActiveOperationTypes() } returns activeOperationTypesFlow
             every { getAllOperationTypes() } returns allOperationTypesFlow
         }
+        equipmentDao = mockk(relaxed = true) {
+            every { countActiveResettableEquipments() } returns MutableStateFlow(0)
+        }
         imageRepository = mockk(relaxed = true) {
             every { getImagesByCategory("OPERATION") } returns operationImagesFlow
             every { allCategories } returns allCategoriesFlow
@@ -71,7 +78,14 @@ class OperationsTypeViewModelTest {
         appSettingsManager = mockk(relaxed = true) {
             every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
         }
-        viewModel = OperationsTypeViewModel(operationTypeDao, imageRepository, appSettingsManager)
+        maintenanceLogDao = mockk(relaxed = true)
+        viewModel = OperationsTypeViewModel(
+            operationTypeDao,
+            equipmentDao,
+            imageRepository,
+            appSettingsManager,
+            maintenanceLogDao
+        )
     }
 
     @After

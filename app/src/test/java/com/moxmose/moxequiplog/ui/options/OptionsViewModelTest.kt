@@ -42,6 +42,7 @@ class OptionsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var equipmentDao: EquipmentDao
+    private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var measurementUnitDao: MeasurementUnitDao
     private lateinit var backupManager: BackupManager
@@ -90,8 +91,16 @@ class OptionsViewModelTest {
         }
 
         backupManager = mockk(relaxed = true)
+        maintenanceLogDao = mockk(relaxed = true)
 
-        viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository, measurementUnitDao, backupManager)
+        viewModel = OptionsViewModel(
+            appSettingsManager,
+            equipmentDao,
+            maintenanceLogDao,
+            imageRepository,
+            measurementUnitDao,
+            backupManager
+        )
     }
 
     @After

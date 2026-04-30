@@ -44,6 +44,9 @@ class EquipmentsViewModelTest {
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var measurementUnitDao: MeasurementUnitDao
+    private lateinit var operationTypeDao: OperationTypeDao
+    private lateinit var maintenanceLogDao: MaintenanceLogDao
+    private lateinit var maintenanceReminderDao: MaintenanceReminderDao
     private lateinit var viewModel: EquipmentsViewModel
 
     private val activeEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
@@ -73,7 +76,22 @@ class EquipmentsViewModelTest {
         measurementUnitDao = mockk(relaxed = true) {
             every { getAllUnits() } returns MutableStateFlow(emptyList())
         }
-        viewModel = EquipmentsViewModel(equipmentDao, imageRepository, appSettingsManager, measurementUnitDao)
+        operationTypeDao = mockk(relaxed = true) {
+            every { getAllOperationTypes() } returns MutableStateFlow(emptyList())
+        }
+        maintenanceLogDao = mockk(relaxed = true)
+        maintenanceReminderDao = mockk(relaxed = true) {
+            every { getAllReminders() } returns MutableStateFlow(emptyList())
+        }
+        viewModel = EquipmentsViewModel(
+            equipmentDao,
+            imageRepository,
+            appSettingsManager,
+            measurementUnitDao,
+            operationTypeDao,
+            maintenanceLogDao,
+            maintenanceReminderDao
+        )
     }
 
     @After

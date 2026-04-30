@@ -37,7 +37,7 @@ class OperationTypeScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddOperationType = { _, _, _, _, _, _ -> },
+                onAddOperationType = { _, _, _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = {},
                 onUpdateOperationType = {},
                 onDismissOperationType = {},
@@ -54,7 +54,9 @@ class OperationTypeScreenTest {
                 onToggleDefault = {},
                 categoryColors = emptyMap(),
                 categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap()
+                categoryDefaultPhotos = emptyMap(),
+                operationStatuses = emptyMap(),
+                onAffectedAction = { _, _ -> }
             )
         }
 
@@ -73,7 +75,7 @@ class OperationTypeScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddOperationType = { _, _, _, _, _, _ -> },
+                onAddOperationType = { _, _, _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = {},
                 onUpdateOperationType = {},
                 onDismissOperationType = {},
@@ -90,7 +92,9 @@ class OperationTypeScreenTest {
                 onToggleDefault = {},
                 categoryColors = emptyMap(),
                 categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap()
+                categoryDefaultPhotos = emptyMap(),
+                operationStatuses = emptyMap(),
+                onAffectedAction = { _, _ -> }
             )
         }
 
@@ -107,7 +111,7 @@ class OperationTypeScreenTest {
         composeTestRule.setContent {
             AddOperationTypeDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, identifier, _, _, _, _ -> addedOperationInfo.set(Pair(desc, identifier)) },
+                onConfirm = { desc, identifier, _, _, _, _, _, _ -> addedOperationInfo.set(Pair(desc, identifier)) },
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 onAddImage = { _, _ -> },

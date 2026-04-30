@@ -475,7 +475,7 @@ fun MaintenanceLogScreenContent(
     onShowDismissedToggle: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddLog: (Int, Int, String?, Double?, Long, String?) -> Unit,
+    onAddLog: (Int, Int, String?, Double?, Long, String?, Boolean) -> Unit,
     onAddReminder: (Int, Int, Long?, Double?, Boolean) -> Unit,
     onRefreshReminders: () -> Unit,
     onEstimateDueDate: suspend (Int, Double) -> Long?,
@@ -525,15 +525,15 @@ fun MaintenanceLogScreenContent(
     ) { paddingValues ->
         if (showAddDialog) {
             MaintenanceLogDialog(
-                equipments = equipments,
-                operationTypes = operationTypes,
-                measurementUnits = measurementUnits,
-                onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { log ->
-                    onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
-                    onShowAddDialogChange(false)
-                },
-                onSchedule = { equipmentId, opTypeId, date, value, sync ->
+            equipments = equipments,
+            operationTypes = operationTypes,
+            measurementUnits = measurementUnits,
+            onDismissRequest = { onShowAddDialogChange(false) },
+            onConfirm = { log ->
+                onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color, log.resetAfter)
+                onShowAddDialogChange(false)
+            },
+            onSchedule = { equipmentId, opTypeId, date, value, sync ->
                     onAddReminder(equipmentId, opTypeId, date, value, sync)
                     onShowAddDialogChange(false)
                 },

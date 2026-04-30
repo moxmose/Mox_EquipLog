@@ -57,7 +57,7 @@ class MaintenanceLogScreenTest {
                 onShowDismissedToggle = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddLog = { _, _, _, _, _, _ -> },
+                onAddLog = { _, _, _, _, _, _, _ -> },
                 expandedCardId = null,
                 onCardExpanded = {},
                 editingCardId = null,
@@ -70,7 +70,18 @@ class MaintenanceLogScreenTest {
                 defaultOperationTypeId = null,
                 equipmentCategoryColor = null,
                 operationCategoryColor = null,
-                measurementUnits = emptyList()
+                measurementUnits = emptyList(),
+                activeReminders = emptyList(),
+                onAddReminder = { _, _, _, _, _ -> },
+                onRefreshReminders = {},
+                onEstimateDueDate = { _, _ -> null },
+                onEstimateTargetValue = { _, _ -> null },
+                onCompleteReminder = {},
+                onEditReminder = {},
+                onDeleteReminder = {},
+                syncCalendarByDefault = false,
+                googleAccountName = null,
+                onNavigateToOptions = {}
             )
         }
 
@@ -97,7 +108,7 @@ class MaintenanceLogScreenTest {
                 onShowDismissedToggle = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddLog = { _, _, _, _, _, _ -> },
+                onAddLog = { _, _, _, _, _, _, _ -> },
                 expandedCardId = null,
                 onCardExpanded = {},
                 editingCardId = null,
@@ -110,7 +121,18 @@ class MaintenanceLogScreenTest {
                 defaultOperationTypeId = null,
                 equipmentCategoryColor = null,
                 operationCategoryColor = null,
-                measurementUnits = emptyList()
+                measurementUnits = emptyList(),
+                activeReminders = emptyList(),
+                onAddReminder = { _, _, _, _, _ -> },
+                onRefreshReminders = {},
+                onEstimateDueDate = { _, _ -> null },
+                onEstimateTargetValue = { _, _ -> null },
+                onCompleteReminder = {},
+                onEditReminder = {},
+                onDeleteReminder = {},
+                syncCalendarByDefault = false,
+                googleAccountName = null,
+                onNavigateToOptions = {}
             )
         }
 
