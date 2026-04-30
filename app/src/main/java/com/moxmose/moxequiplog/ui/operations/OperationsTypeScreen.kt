@@ -112,12 +112,19 @@ fun OperationTypeScreen(
             measurementUnits = measurementUnits,
             onDismissRequest = { selectedAffectedEquipmentForAdd = null },
             onConfirm = { log ->
-                logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                val now = System.currentTimeMillis()
+                if (log.date > now + 60000) { // Se è nel futuro (> 1 min), diventa un reminder (pianificato)
+                    logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
+                } else {
+                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                }
                 selectedAffectedEquipmentForAdd = null
             },
+            onSchedule = null,
             defaultEquipmentId = status.equipment.id,
             defaultOperationTypeId = opId,
-            initialDate = status.nextPresumedDate ?: System.currentTimeMillis(),
+            initialDate = if ((status.nextPresumedDate ?: 0L) > System.currentTimeMillis()) status.nextPresumedDate!! else System.currentTimeMillis(),
+            initialValue = "",
             equipmentCategoryColor = categoryColorsMap[Category.EQUIPMENT],
             operationCategoryColor = categoryColor,
             syncCalendarByDefault = syncCalendarByDefault,

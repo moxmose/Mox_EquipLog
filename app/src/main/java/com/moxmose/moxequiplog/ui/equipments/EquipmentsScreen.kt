@@ -114,12 +114,19 @@ fun EquipmentsScreen(
             measurementUnits = measurementUnits,
             onDismissRequest = { selectedPredictionForAdd = null },
             onConfirm = { log ->
-                logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                val now = System.currentTimeMillis()
+                if (log.date > now + 60000) { // Se è nel futuro (> 1 min), diventa un reminder (pianificato)
+                    logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
+                } else {
+                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                }
                 selectedPredictionForAdd = null
             },
+            onSchedule = null,
             defaultEquipmentId = eqId,
             defaultOperationTypeId = opStatus.operation.id,
-            initialDate = opStatus.nextPresumedDate ?: System.currentTimeMillis(),
+            initialDate = if ((opStatus.nextPresumedDate ?: 0L) > System.currentTimeMillis()) opStatus.nextPresumedDate!! else System.currentTimeMillis(),
+            initialValue = equipmentStatuses[eqId]?.health?.estimatedCurrentValue?.let { String.format(java.util.Locale.US, "%.${measurementUnits.find { it.id == activeEquipments.find { e -> e.id == eqId }?.unitId }?.decimalPlaces ?: 0}f", it) } ?: "",
             equipmentCategoryColor = categoryColor,
             operationCategoryColor = categoryColorsMap[Category.OPERATION],
             syncCalendarByDefault = syncCalendarByDefault,
@@ -138,9 +145,19 @@ fun EquipmentsScreen(
             measurementUnits = measurementUnits,
             onDismissRequest = { selectedPlannedForEdit = null },
             onConfirm = { log ->
-                logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                val now = System.currentTimeMillis()
+                if (log.date > now + 60000) {
+                    // Se l'utente sposta un reminder esistente nel futuro dalla tab 'Completata',
+                    // aggiorniamo semplicemente il reminder esistente
+                    opStatus.reminderId?.let { id ->
+                        logsViewModel.updateReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault, id)
+                    }
+                } else {
+                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                }
                 selectedPlannedForEdit = null
             },
+            onSchedule = null,
             defaultEquipmentId = eqId,
             defaultOperationTypeId = opStatus.operation.id,
             initialDate = opStatus.nextPresumedDate ?: System.currentTimeMillis(),
