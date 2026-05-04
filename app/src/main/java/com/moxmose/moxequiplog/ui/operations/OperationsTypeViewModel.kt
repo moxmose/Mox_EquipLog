@@ -17,7 +17,10 @@ data class EquipmentOperationStatus(
     val lastLogDate: Long?,
     val lastLogValue: Double?,
     val nextPresumedDate: Long?,
-    val isOverdue: Boolean
+    val isOverdue: Boolean,
+    val isPlanned: Boolean = false,
+    val reminderId: Int? = null,
+    val plannedValue: Double? = null
 )
 
 data class OperationGlobalStatus(
@@ -30,7 +33,8 @@ class OperationsTypeViewModel(
     private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
-    private val maintenanceLogDao: MaintenanceLogDao
+    private val maintenanceLogDao: MaintenanceLogDao,
+    private val maintenanceReminderDao: MaintenanceReminderDao
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -79,17 +83,17 @@ class OperationsTypeViewModel(
 
     val operationStatuses: StateFlow<Map<Int, OperationGlobalStatus>> = combine(
         activeOperationTypes,
-        equipmentDao.getActiveEquipments()
-    ) { opTypes, equipments ->
+        equipmentDao.getActiveEquipments(),
+        maintenanceReminderDao.getAllReminders(),
+        maintenanceLogDao.getLogsCountFlow()
+    ) { opTypes, equipments, reminders, _ ->
         val statuses = mutableMapOf<Int, OperationGlobalStatus>()
         opTypes.filter { it.isPredictable }.forEach { opType ->
             val affected = equipments.mapNotNull { equipment ->
-                val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
-                if (lastLog == null) return@mapNotNull null
+                // Check for manual reminder first (Planned)
+                val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
                 
-                val status = calculateEquipmentStatusForOp(equipment, opType, lastLog)
-                
-                // Horizon check
+                val now = System.currentTimeMillis()
                 val horizonMs = when (opType.visibilityHorizonUnit) {
                     TimeGranularity.MINUTES_5 -> opType.visibilityHorizon * 5 * 60 * 1000L
                     TimeGranularity.MINUTES_15 -> opType.visibilityHorizon * 15 * 60 * 1000L
@@ -99,8 +103,32 @@ class OperationsTypeViewModel(
                     TimeGranularity.MONTHS -> opType.visibilityHorizon * 30 * 24 * 60 * 60 * 1000L
                     TimeGranularity.YEARS -> opType.visibilityHorizon * 365 * 24 * 60 * 60 * 1000L
                 }
-                val now = System.currentTimeMillis()
-                if (status.isOverdue || (status.nextPresumedDate != null && status.nextPresumedDate <= now + horizonMs)) {
+                val horizonLimit = now + horizonMs
+
+                if (manualReminder != null) {
+                    val effectiveDate = manualReminder.dueDate ?: manualReminder.presumedDate
+                    if (effectiveDate == null || effectiveDate <= horizonLimit || effectiveDate < now) {
+                        return@mapNotNull EquipmentOperationStatus(
+                            equipment = equipment,
+                            lastLogDate = null,
+                            lastLogValue = null,
+                            nextPresumedDate = effectiveDate,
+                            isOverdue = effectiveDate?.let { it < now } ?: false,
+                            isPlanned = true,
+                            reminderId = manualReminder.id,
+                            plannedValue = manualReminder.dueValue
+                        )
+                    }
+                    return@mapNotNull null
+                }
+
+                // If no manual reminder, check prediction from history
+                val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
+                if (lastLog == null) return@mapNotNull null
+                
+                val status = calculateEquipmentStatusForOp(equipment, opType, lastLog)
+                
+                if (status.isOverdue || (status.nextPresumedDate != null && status.nextPresumedDate <= horizonLimit)) {
                     status
                 } else null
             }
@@ -131,15 +159,10 @@ class OperationsTypeViewModel(
         }
 
         val usagePrediction = if (opType.intervalValue != null && trend != null && trend > 0) {
-            val lastValue = lastLog.value ?: 0.0
-            val targetValue = lastValue + opType.intervalValue
-            val lastEqLog = maintenanceLogDao.getLastValueLogForEquipment(equipment.id)
-            val currentUsage = lastEqLog?.value ?: 0.0
-            val remaining = targetValue - currentUsage
-            if (remaining > 0) {
-                val daysRemaining = remaining / trend
-                (System.currentTimeMillis() + (daysRemaining * 24 * 60 * 60 * 1000).toLong())
-            } else now
+            val lastAccumulated = lastLog.accumulatedValue
+            val targetAccumulated = lastAccumulated + opType.intervalValue
+            val daysToTarget = (targetAccumulated - lastAccumulated) / trend
+            (lastLog.date + (daysToTarget * 24 * 60 * 60 * 1000).toLong())
         } else null
 
         val nextDate = when {

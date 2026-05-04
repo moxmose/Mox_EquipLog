@@ -19,7 +19,8 @@ data class OperationStatus(
     val nextPresumedDate: Long?,
     val isOverdue: Boolean,
     val isPlanned: Boolean = false,
-    val reminderId: Int? = null
+    val reminderId: Int? = null,
+    val plannedValue: Double? = null
 )
 
 data class EquipmentHealth(
@@ -80,8 +81,9 @@ class EquipmentsViewModel(
     val equipmentStatuses: StateFlow<Map<Int, EquipmentStatus>> = combine(
         activeEquipments,
         operationTypeDao.getAllOperationTypes(),
-        maintenanceReminderDao.getAllReminders() // To distinguish planned vs predicted
-    ) { equipments, opTypes, reminders ->
+        maintenanceReminderDao.getAllReminders(),
+        maintenanceLogDao.getLogsCountFlow()
+    ) { equipments, opTypes, reminders, _ ->
         val statuses = mutableMapOf<Int, EquipmentStatus>()
         equipments.forEach { equipment ->
             statuses[equipment.id] = calculateEquipmentStatus(equipment, opTypes, reminders)
@@ -134,7 +136,8 @@ class EquipmentsViewModel(
                             nextPresumedDate = effectiveDate,
                             isOverdue = effectiveDate?.let { it < now } ?: false,
                             isPlanned = true,
-                            reminderId = manualReminder.id
+                            reminderId = manualReminder.id,
+                            plannedValue = manualReminder.dueValue
                         )
                     }
                     return@mapNotNull null
@@ -182,13 +185,8 @@ class EquipmentsViewModel(
         val usagePrediction = if (opType.intervalValue != null && trend != null && trend > 0) {
             val lastAccumulated = lastLog.accumulatedValue
             val targetAccumulated = lastAccumulated + opType.intervalValue
-            val lastEqLog = maintenanceLogDao.getLastValueLogForEquipment(equipment.id)
-            val currentAccumulated = lastEqLog?.accumulatedValue ?: 0.0
-            val remaining = targetAccumulated - currentAccumulated
-            if (remaining > 0) {
-                val daysRemaining = remaining / trend
-                (System.currentTimeMillis() + (daysRemaining * 24 * 60 * 60 * 1000).toLong())
-            } else now
+            val daysToTarget = (targetAccumulated - lastAccumulated) / trend
+            (lastLog.date + (daysToTarget * 24 * 60 * 60 * 1000).toLong())
         } else null
 
         val nextDate = when {

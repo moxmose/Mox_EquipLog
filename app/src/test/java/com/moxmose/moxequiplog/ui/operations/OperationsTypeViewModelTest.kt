@@ -9,6 +9,7 @@ import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
+import com.moxmose.moxequiplog.data.local.MaintenanceReminderDao
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import io.mockk.coEvery
@@ -50,6 +51,7 @@ class OperationsTypeViewModelTest {
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var maintenanceLogDao: MaintenanceLogDao
+    private lateinit var maintenanceReminderDao: MaintenanceReminderDao
     private lateinit var viewModel: OperationsTypeViewModel
 
     private val activeOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
@@ -66,6 +68,7 @@ class OperationsTypeViewModelTest {
             every { getAllOperationTypes() } returns allOperationTypesFlow
         }
         equipmentDao = mockk(relaxed = true) {
+            every { getActiveEquipments() } returns MutableStateFlow(emptyList())
             every { countActiveResettableEquipments() } returns MutableStateFlow(0)
         }
         imageRepository = mockk(relaxed = true) {
@@ -79,12 +82,16 @@ class OperationsTypeViewModelTest {
             every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
         }
         maintenanceLogDao = mockk(relaxed = true)
+        maintenanceReminderDao = mockk(relaxed = true) {
+            every { getAllReminders() } returns MutableStateFlow(emptyList())
+        }
         viewModel = OperationsTypeViewModel(
             operationTypeDao,
             equipmentDao,
             imageRepository,
             appSettingsManager,
-            maintenanceLogDao
+            maintenanceLogDao,
+            maintenanceReminderDao
         )
     }
 

@@ -35,6 +35,9 @@ interface MaintenanceLogDao {
     @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId ORDER BY date ASC, timestamp ASC")
     suspend fun getAllLogsForEquipment(equipmentId: Int): List<MaintenanceLog>
 
+    @Query("SELECT COUNT(*) FROM maintenance_logs")
+    fun getLogsCountFlow(): Flow<Int>
+
     @Update
     suspend fun updateLogs(logs: List<MaintenanceLog>)
 }

@@ -114,17 +114,29 @@ fun OperationTypeScreen(
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
                 if (log.date > now + 60000) { // Se è nel futuro (> 1 min), diventa un reminder (pianificato)
-                    logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
+                    if (status.isPlanned && status.reminderId != null) {
+                        logsViewModel.updateReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault, status.reminderId)
+                    } else {
+                        logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
+                    }
                 } else {
                     logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
                 }
                 selectedAffectedEquipmentForAdd = null
             },
-            onSchedule = null,
+            onSchedule = { eqId, opId, date, value, sync ->
+                if (status.isPlanned && status.reminderId != null) {
+                    logsViewModel.updateReminder(eqId, opId, date, value, sync, status.reminderId)
+                } else {
+                    logsViewModel.addReminder(eqId, opId, date, value, sync)
+                }
+                selectedAffectedEquipmentForAdd = null
+            },
             defaultEquipmentId = status.equipment.id,
             defaultOperationTypeId = opId,
             initialDate = if ((status.nextPresumedDate ?: 0L) > System.currentTimeMillis()) status.nextPresumedDate!! else System.currentTimeMillis(),
-            initialValue = "",
+            initialValue = if (status.isPlanned) status.plannedValue?.toString() ?: "" else "", 
+            isEditMode = status.isPlanned,
             equipmentCategoryColor = categoryColorsMap[Category.EQUIPMENT],
             operationCategoryColor = categoryColor,
             syncCalendarByDefault = syncCalendarByDefault,
@@ -568,7 +580,12 @@ fun OperationTypeCard(
                         status.affectedEquipments.sortedBy { it.nextPresumedDate ?: Long.MAX_VALUE }.forEach { eqStatus ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                    Icon(imageVector = if (eqStatus.isOverdue) Icons.Default.Warning else Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(14.dp), tint = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                                    Icon(
+                                        imageVector = if (eqStatus.isOverdue) Icons.Default.Warning else if (eqStatus.isPlanned) Icons.Default.EventNote else Icons.Default.Schedule,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error else if (eqStatus.isPlanned) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                    )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(text = eqStatus.equipment.description, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
@@ -584,7 +601,7 @@ fun OperationTypeCard(
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
-                                                imageVector = Icons.Default.Build,
+                                                imageVector = if (eqStatus.isPlanned) Icons.Default.Edit else Icons.Default.Build,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp),
                                                 tint = operationColor

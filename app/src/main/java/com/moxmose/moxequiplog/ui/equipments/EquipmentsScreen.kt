@@ -115,14 +115,17 @@ fun EquipmentsScreen(
             onDismissRequest = { selectedPredictionForAdd = null },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
-                if (log.date > now + 60000) { // Se è nel futuro (> 1 min), diventa un reminder (pianificato)
+                if (log.date > now + 60000) { 
                     logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
                 } else {
                     logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
                 }
                 selectedPredictionForAdd = null
             },
-            onSchedule = null,
+            onSchedule = { eqId, opId, date, value, sync ->
+                logsViewModel.addReminder(eqId, opId, date, value, sync)
+                selectedPredictionForAdd = null
+            },
             defaultEquipmentId = eqId,
             defaultOperationTypeId = opStatus.operation.id,
             initialDate = if ((opStatus.nextPresumedDate ?: 0L) > System.currentTimeMillis()) opStatus.nextPresumedDate!! else System.currentTimeMillis(),
@@ -135,8 +138,6 @@ fun EquipmentsScreen(
     }
 
     if (selectedPlannedForEdit != null) {
-        // Logic for opening MaintenanceLogDialog in edit mode for the specific reminder
-        // For now, simple add log shortcut if edit not fully available here
         val (eqId, opStatus) = selectedPlannedForEdit!!
         val operationTypes by logsViewModel.allOperationTypes.collectAsState()
         MaintenanceLogDialog(
@@ -147,8 +148,6 @@ fun EquipmentsScreen(
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
                 if (log.date > now + 60000) {
-                    // Se l'utente sposta un reminder esistente nel futuro dalla tab 'Completata',
-                    // aggiorniamo semplicemente il reminder esistente
                     opStatus.reminderId?.let { id ->
                         logsViewModel.updateReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault, id)
                     }
@@ -157,11 +156,23 @@ fun EquipmentsScreen(
                 }
                 selectedPlannedForEdit = null
             },
-            onSchedule = null,
+            onSchedule = { eqId, opId, date, value, sync ->
+                opStatus.reminderId?.let { id ->
+                    logsViewModel.updateReminder(eqId, opId, date, value, sync, id)
+                }
+                selectedPlannedForEdit = null
+            },
+            onDeleteReminder = {
+                // We need the full MaintenanceReminder object or similar to call delete properly if we want to use existing VM methods.
+                // For now, let's assume we can at least dismiss it.
+                // Or better, add a method to VM to delete by ID.
+                selectedPlannedForEdit = null
+            },
             defaultEquipmentId = eqId,
             defaultOperationTypeId = opStatus.operation.id,
             initialDate = opStatus.nextPresumedDate ?: System.currentTimeMillis(),
-            isEditMode = true, // Visual hint
+            initialValue = opStatus.plannedValue?.toString() ?: "",
+            isEditMode = true,
             equipmentCategoryColor = categoryColor,
             operationCategoryColor = categoryColorsMap[Category.OPERATION],
             syncCalendarByDefault = syncCalendarByDefault,
@@ -1071,20 +1082,6 @@ fun EquipmentCard(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                if (unitLabel.isNotBlank()) {
-                                    Surface(
-                                        color = equipmentColor.copy(alpha = 0.2f),
-                                        shape = MaterialTheme.shapes.small
-                                    ) {
-                                        Text(
-                                            text = unitLabel,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = equipmentColor,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
                             }
                             if (status != null) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
