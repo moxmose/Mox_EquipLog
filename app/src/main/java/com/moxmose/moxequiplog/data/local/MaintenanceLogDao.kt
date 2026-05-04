@@ -40,4 +40,7 @@ interface MaintenanceLogDao {
 
     @Update
     suspend fun updateLogs(logs: List<MaintenanceLog>)
+
+    @androidx.room.Delete
+    suspend fun deleteLog(log: MaintenanceLog)
 }

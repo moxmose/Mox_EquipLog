@@ -157,6 +157,7 @@
     <string name="operation_type_description">Operation type description</string>
     <string name="add_image">Add Image</string>
     <string name="button_add">Add</string>
+    <string name="button_delete">Delete</string>
     <string name="button_cancel">Cancel</string>
     <string name="no_image_title">No Image</string>
     <string name="no_image_message">No picture loaded, add one.</string>
@@ -199,6 +200,8 @@
     <string name="save_log">Save Log</string>
     <string name="dismiss_log">Dismiss Log</string>
     <string name="restore_log">Restore Log</string>
+    <string name="delete_log">Delete Log</string>
+    <string name="delete_log_confirm">Are you sure you want to permanently delete this log?</string>
     <string name="select_media">Select media</string>
     <string name="schedule_maintenance">Schedule Maintenance</string>
     <string name="tab_log">Completed</string>

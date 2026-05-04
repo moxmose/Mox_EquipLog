@@ -46,6 +46,7 @@ class MaintenanceLogViewModel(
         data object UpdateLogFailed : UiEvent()
         data object DismissLogFailed : UiEvent()
         data object RestoreLogFailed : UiEvent()
+        data object DeleteLogFailed : UiEvent()
         data object DeleteReminderFailed : UiEvent()
         data object UpdateReminderFailed : UiEvent()
         data object RecalculateRemindersFailed : UiEvent()
@@ -423,6 +424,17 @@ class MaintenanceLogViewModel(
                 maintenanceLogDao.updateLog(log.copy(dismissed = false))
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.RestoreLogFailed)
+            }
+        }
+    }
+
+    fun deleteLog(log: MaintenanceLog) {
+        viewModelScope.launch {
+            try {
+                maintenanceLogDao.deleteLog(log)
+                recalculateAccumulatedValues(log.equipmentId)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.DeleteLogFailed)
             }
         }
     }

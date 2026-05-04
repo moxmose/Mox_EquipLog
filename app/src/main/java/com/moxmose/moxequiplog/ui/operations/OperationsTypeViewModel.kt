@@ -20,7 +20,8 @@ data class EquipmentOperationStatus(
     val isOverdue: Boolean,
     val isPlanned: Boolean = false,
     val reminderId: Int? = null,
-    val plannedValue: Double? = null
+    val plannedValue: Double? = null,
+    val predictedDate: Long? = null
 )
 
 data class OperationGlobalStatus(
@@ -90,6 +91,9 @@ class OperationsTypeViewModel(
         val statuses = mutableMapOf<Int, OperationGlobalStatus>()
         opTypes.filter { it.isPredictable }.forEach { opType ->
             val affected = equipments.mapNotNull { equipment ->
+                val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
+                val prediction = if (lastLog != null) calculateEquipmentStatusForOp(equipment, opType, lastLog) else null
+                
                 // Check for manual reminder first (Planned)
                 val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
                 
@@ -107,30 +111,29 @@ class OperationsTypeViewModel(
 
                 if (manualReminder != null) {
                     val effectiveDate = manualReminder.dueDate ?: manualReminder.presumedDate
-                    if (effectiveDate == null || effectiveDate <= horizonLimit || effectiveDate < now) {
+                    val isWithinHorizon = effectiveDate == null || effectiveDate <= horizonLimit || effectiveDate < now
+                    
+                    if (isWithinHorizon) {
                         return@mapNotNull EquipmentOperationStatus(
                             equipment = equipment,
-                            lastLogDate = null,
-                            lastLogValue = null,
+                            lastLogDate = lastLog?.date,
+                            lastLogValue = lastLog?.value,
                             nextPresumedDate = effectiveDate,
                             isOverdue = effectiveDate?.let { it < now } ?: false,
                             isPlanned = true,
                             reminderId = manualReminder.id,
-                            plannedValue = manualReminder.dueValue
+                            plannedValue = manualReminder.dueValue,
+                            predictedDate = prediction?.nextPresumedDate
                         )
+                    } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= horizonLimit))) {
+                        // Planned is far, but prediction is near/overdue -> show prediction as a warning
+                        return@mapNotNull prediction
                     }
-                    return@mapNotNull null
+                } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= horizonLimit))) {
+                    // No manual reminder, show prediction if near/overdue
+                    return@mapNotNull prediction
                 }
-
-                // If no manual reminder, check prediction from history
-                val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
-                if (lastLog == null) return@mapNotNull null
-                
-                val status = calculateEquipmentStatusForOp(equipment, opType, lastLog)
-                
-                if (status.isOverdue || (status.nextPresumedDate != null && status.nextPresumedDate <= horizonLimit)) {
-                    status
-                } else null
+                null
             }
             statuses[opType.id] = OperationGlobalStatus(opType.id, affected)
         }

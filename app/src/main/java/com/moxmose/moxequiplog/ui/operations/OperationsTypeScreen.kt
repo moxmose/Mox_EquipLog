@@ -578,19 +578,49 @@ fun OperationTypeCard(
                     Text(text = "Upcoming for Equipments", style = MaterialTheme.typography.labelSmall, color = operationColor, fontWeight = FontWeight.Bold)
                     Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         status.affectedEquipments.sortedBy { it.nextPresumedDate ?: Long.MAX_VALUE }.forEach { eqStatus ->
+                            val hasInconsistency = eqStatus.isPlanned && eqStatus.predictedDate != null && 
+                                    eqStatus.predictedDate < (eqStatus.nextPresumedDate ?: Long.MAX_VALUE) - 86400000L // 1 day buffer
+
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                     Icon(
-                                        imageVector = if (eqStatus.isOverdue) Icons.Default.Warning else if (eqStatus.isPlanned) Icons.Default.EventNote else Icons.Default.Schedule,
+                                        imageVector = if (eqStatus.isOverdue || hasInconsistency) Icons.Default.Warning else if (eqStatus.isPlanned) Icons.Default.EventNote else Icons.Default.Schedule,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
-                                        tint = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error else if (eqStatus.isPlanned) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                        tint = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error 
+                                               else if (hasInconsistency) Color(0xFFFF9800)
+                                               else if (eqStatus.isPlanned) MaterialTheme.colorScheme.secondary 
+                                               else MaterialTheme.colorScheme.primary
                                     )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    
+                                    // Equipment Icon
+                                    val eqColor = remember(eqStatus.equipment.color, categoryColors) {
+                                        try { 
+                                            eqStatus.equipment.color?.toColorInt()?.let { Color(it) } 
+                                            ?: categoryColors[Category.EQUIPMENT]?.toColorInt()?.let { Color(it) } 
+                                            ?: Color.Gray 
+                                        } catch (_: Exception) { Color.Gray }
+                                    }
+                                    
+                                    com.moxmose.moxequiplog.ui.components.ImageIcon(
+                                        photoUri = eqStatus.equipment.photoUri,
+                                        iconIdentifier = eqStatus.equipment.iconIdentifier,
+                                        modifier = Modifier.size(18.dp),
+                                        category = Category.EQUIPMENT,
+                                        borderColor = eqColor,
+                                        contentPadding = 1.dp
+                                    )
+
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(text = eqStatus.equipment.description, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = eqStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never", style = MaterialTheme.typography.labelSmall, color = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(text = eqStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never", 
+                                        style = MaterialTheme.typography.labelSmall, 
+                                        color = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error 
+                                                else if (hasInconsistency) Color(0xFFFF9800)
+                                                else MaterialTheme.colorScheme.onSurfaceVariant)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Surface(
                                         onClick = { onAffectedAction(eqStatus) },

@@ -102,6 +102,7 @@ fun MaintenanceLogScreen(
                 is MaintenanceLogViewModel.UiEvent.UpdateLogFailed -> context.getString(R.string.update_log_failed)
                 is MaintenanceLogViewModel.UiEvent.DismissLogFailed -> context.getString(R.string.dismiss_log_failed)
                 is MaintenanceLogViewModel.UiEvent.RestoreLogFailed -> context.getString(R.string.restore_log_failed)
+                is MaintenanceLogViewModel.UiEvent.DeleteLogFailed -> "Failed to delete log"
                 is MaintenanceLogViewModel.UiEvent.DeleteReminderFailed -> "Failed to delete reminder"
                 is MaintenanceLogViewModel.UiEvent.UpdateReminderFailed -> "Failed to update reminder"
                 is MaintenanceLogViewModel.UiEvent.RecalculateRemindersFailed -> "Failed to recalculate reminders"
@@ -204,6 +205,10 @@ fun MaintenanceLogScreen(
         onEditLog = { log -> editingCardId = log.id },
         onUpdateLog = {
             viewModel.updateLog(it)
+            editingCardId = null
+        },
+        onDeleteLog = {
+            viewModel.deleteLog(it)
             editingCardId = null
         },
         onDismissLog = viewModel::dismissLog,
@@ -485,6 +490,7 @@ fun MaintenanceLogScreenContent(
     editingCardId: Int?,
     onEditLog: (MaintenanceLog) -> Unit,
     onUpdateLog: (MaintenanceLog) -> Unit,
+    onDeleteLog: (MaintenanceLog) -> Unit,
     onDismissLog: (MaintenanceLog) -> Unit,
     onRestoreLog: (MaintenanceLog) -> Unit,
     activeReminders: List<MaintenanceReminderDetails> = emptyList(),
@@ -629,6 +635,7 @@ fun MaintenanceLogScreenContent(
                         onExpand = { onCardExpanded(logDetail.log.id) },
                         onEdit = { onEditLog(logDetail.log) },
                         onSave = onUpdateLog,
+                        onDelete = onDeleteLog,
                         onDismiss = { onDismissLog(logDetail.log) },
                         onRestore = { onRestoreLog(logDetail.log) },
                         equipmentCategoryColor = equipmentCategoryColor,
@@ -1140,6 +1147,7 @@ fun MaintenanceLogCard(
     onExpand: () -> Unit,
     onEdit: () -> Unit,
     onSave: (MaintenanceLog) -> Unit,
+    onDelete: (MaintenanceLog) -> Unit,
     onDismiss: () -> Unit,
     onRestore: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1155,6 +1163,7 @@ fun MaintenanceLogCard(
     var selectedOperationType by remember(logDetail, isEditing) { mutableStateOf(operationTypes.find { it.id == logDetail.log.operationTypeId }) }
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     val unit = remember(selectedEquipment, measurementUnits) {
         measurementUnits.find { it.id == selectedEquipment?.unitId }
@@ -1244,6 +1253,30 @@ fun MaintenanceLogCard(
             },
             text = {
                 TimePicker(state = timePickerState)
+            }
+        )
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.delete_log)) },
+            text = { Text(stringResource(R.string.delete_log_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete(logDetail.log)
+                        showDeleteConfirmation = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.button_delete).ifEmpty { "Delete" })
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
             }
         )
     }
@@ -1490,6 +1523,13 @@ fun MaintenanceLogCard(
                     )
                 }
                 if (isEditing) {
+                    IconButton(onClick = { showDeleteConfirmation = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.delete_log),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                     IconButton(
                         onClick = {
                             if (logDetail.log.dismissed) {

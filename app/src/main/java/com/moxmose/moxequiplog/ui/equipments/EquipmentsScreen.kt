@@ -1263,6 +1263,9 @@ fun EquipmentCard(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         status.operationStatuses.sortedBy { it.nextPresumedDate ?: Long.MAX_VALUE }.take(5).forEach { opStatus ->
+                            val hasInconsistency = opStatus.isPlanned && opStatus.predictedDate != null && 
+                                    opStatus.predictedDate < (opStatus.nextPresumedDate ?: Long.MAX_VALUE) - 86400000L // 1 day buffer
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1270,11 +1273,34 @@ fun EquipmentCard(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                     Icon(
-                                        imageVector = if (opStatus.isOverdue) Icons.Default.Warning else if (opStatus.isPlanned) Icons.Default.EventNote else Icons.Default.Schedule,
+                                        imageVector = if (opStatus.isOverdue || hasInconsistency) Icons.Default.Warning else if (opStatus.isPlanned) Icons.Default.EventNote else Icons.Default.Schedule,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
-                                        tint = if (opStatus.isOverdue) MaterialTheme.colorScheme.error else if (opStatus.isPlanned) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                        tint = if (opStatus.isOverdue) MaterialTheme.colorScheme.error 
+                                               else if (hasInconsistency) Color(0xFFFF9800) // Warning Orange
+                                               else if (opStatus.isPlanned) MaterialTheme.colorScheme.secondary 
+                                               else MaterialTheme.colorScheme.primary
                                     )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    
+                                    // Operation Icon
+                                    val opColor = remember(opStatus.operation.color, categoryColors) {
+                                        try { 
+                                            opStatus.operation.color?.toColorInt()?.let { Color(it) } 
+                                            ?: categoryColors[Category.OPERATION]?.toColorInt()?.let { Color(it) } 
+                                            ?: Color.Gray 
+                                        } catch (_: Exception) { Color.Gray }
+                                    }
+                                    
+                                    com.moxmose.moxequiplog.ui.components.ImageIcon(
+                                        photoUri = opStatus.operation.photoUri,
+                                        iconIdentifier = opStatus.operation.iconIdentifier,
+                                        modifier = Modifier.size(18.dp),
+                                        category = Category.OPERATION,
+                                        borderColor = opColor,
+                                        contentPadding = 1.dp
+                                    )
+
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = opStatus.operation.description,
@@ -1287,7 +1313,9 @@ fun EquipmentCard(
                                     Text(
                                         text = opStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (opStatus.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (opStatus.isOverdue) MaterialTheme.colorScheme.error 
+                                                else if (hasInconsistency) Color(0xFFFF9800)
+                                                else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Surface(

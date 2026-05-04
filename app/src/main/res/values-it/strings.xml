@@ -153,6 +153,7 @@
     <string name="operation_type_description">Descrizione Tipo di Operazione</string>
     <string name="add_image">Aggiungi immagine</string>
     <string name="button_add">Aggiungi</string>
+    <string name="button_delete">Elimina</string>
     <string name="button_cancel">Cancella</string>
     <string name="no_image_title">Nessuna Immagine</string>
     <string name="no_image_message">Nessuna foto caricata, aggiungine una.</string>
@@ -195,6 +196,8 @@
     <string name="save_log">Salva registrazione</string>
     <string name="dismiss_log">Dismetti registrazione</string>
     <string name="restore_log">Ripristina registrazione</string>
+    <string name="delete_log">Elimina registrazione</string>
+    <string name="delete_log_confirm">Sei sicuro di voler eliminare permanentemente questa registrazione?</string>
     <string name="select_media">Seleziona media</string>
     <string name="schedule_maintenance">Pianifica Manutenzione</string>
     <string name="tab_log">Completata</string>
