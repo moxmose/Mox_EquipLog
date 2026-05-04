@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "616277911058",
+    "project_id": "moxequiplog",
+    "storage_bucket": "moxequiplog.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:616277911058:android:1d48b8f99cfa7fb7249acb",
+        "android_client_info": {
+          "package_name": "com.moxmose.moxequiplog"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUdHQJKrspRttClCRcolOKVJuorYdNQXw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
