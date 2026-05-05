@@ -113,7 +113,7 @@
     <string name="options_add_unit">Add Unit</string>
     <string name="options_unit_label_placeholder">Label (e.g., hh)</string>
     <string name="options_unit_desc_placeholder">Description (e.g., Hours)</string>
-    <string name="options_unit_decimals">Decimal places (0-3)</string>
+    <string name="options_unit_decimals">Decimal places (0&#8211;3)</string>
     <string name="add_unit_failed">Failed to add unit.</string>
     <string name="add_unit_failed_duplicate">A unit with this label already exists.</string>
     <string name="delete_unit_failed">Failed to delete unit.</string>
@@ -214,6 +214,8 @@
     <string name="due_date">Due Date</string>
     <string name="target_value">Target %1$s (optional)</string>
     <string name="reset_counter_after">Reset counter after this activity</string>
+    <string name="estimated_date_prefix">Estimated: %1$s</string>
+    <string name="likely_needed_by_prefix">Likely needed by: %1$s</string>
 
     <!-- Maintenance Reminders -->
     <string name="reminders_dashboard_title">Maintenance Deadlines</string>
@@ -268,7 +270,7 @@
     <string name="distribution_analysis">Distribution analysis</string>
     <string name="export_data_csv">Export Data (CSV)</string>
     <string name="export_report_pdf">Export Report (PDF)</string>
-    <string name="sharing_pdf_report">Sharing PDF report...</string>
+    <string name="sharing_pdf_report">Sharing PDF report&#8230;</string>
     <string name="options_data_management_title">Data Management</string>
     <string name="options_data_management_desc">Backup your database to a file or restore from a previous backup.</string>
     <string name="options_backup_db">Backup Database</string>
@@ -292,6 +294,7 @@
     <string name="options_recalculate_accumulated_desc">Ricalcola tutti i valori assoluti basandosi sullo storico dei log. Utile se sono state inserite registrazioni nel passato.</string>
     <string name="recalculate_success">Ricalcolo completato con successo.</string>
     <string name="options_sync_calendar_default_label">Sync by default</string>
-    <string name="options_sync_calendar_default_desc">Automatically enable "Sync to Google Calendar" when adding new logs or reminders.</string>
+    <string name="options_sync_calendar_default_desc">Automatically enable \"Sync to Google Calendar\" when adding new logs or reminders.</string>
     <string name="google_auth_privacy_note">This app uses the standard Google sign-in method to connect to your Calendar. Only the data strictly necessary for sync will be used.</string>
+    <string name="delete_reminder_confirm">Are you sure you want to permanently delete this reminder?</string>
 </resources>

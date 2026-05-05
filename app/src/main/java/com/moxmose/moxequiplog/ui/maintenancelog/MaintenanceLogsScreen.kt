@@ -88,6 +88,8 @@ fun MaintenanceLogScreen(
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val syncCalendarByDefault by viewModel.syncCalendarByDefault.collectAsState()
     val googleAccountName by viewModel.googleAccountName.collectAsState()
+    val allEquipments by viewModel.allEquipments.collectAsState()
+    val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     
     val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
     val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
@@ -111,8 +113,8 @@ fun MaintenanceLogScreen(
         }
     }
 
-    val activeEquipments = remember(equipments) { equipments.filter { !it.dismissed }.sortedBy { it.displayOrder } }
-    val activeOperationTypes = remember(operationTypes) { operationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
+    val activeEquipments = remember(allEquipments) { allEquipments.filter { !it.dismissed }.sortedBy { it.displayOrder } }
+    val activeOperationTypes = remember(allOperationTypes) { allOperationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
 
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var expandedCardId by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -236,7 +238,6 @@ fun RemindersDashboard(
     operationCategoryColor: String?,
     onComplete: (MaintenanceReminderDetails) -> Unit,
     onEdit: (MaintenanceReminderDetails) -> Unit,
-    onDelete: (MaintenanceReminderDetails) -> Unit,
     onRefresh: () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -426,8 +427,8 @@ fun ReminderItem(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (fixedDate == null) 
-                                "Estimated: ${dateFormat.format(Date(presumedDate))}" 
-                                else "Likely needed by: ${dateFormat.format(Date(presumedDate))}",
+                                stringResource(R.string.estimated_date_prefix, dateFormat.format(Date(presumedDate))) 
+                                else stringResource(R.string.likely_needed_by_prefix, dateFormat.format(Date(presumedDate))),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (hasWarning) Color(0xFFFF9800) else MaterialTheme.colorScheme.secondary
                         )
@@ -493,6 +494,7 @@ fun MaintenanceLogScreenContent(
     onDeleteLog: (MaintenanceLog) -> Unit,
     onDismissLog: (MaintenanceLog) -> Unit,
     onRestoreLog: (MaintenanceLog) -> Unit,
+    modifier: Modifier = Modifier,
     activeReminders: List<MaintenanceReminderDetails> = emptyList(),
     snackbarHostState: SnackbarHostState,
     defaultEquipmentId: Int?,
@@ -563,7 +565,6 @@ fun MaintenanceLogScreenContent(
                 operationCategoryColor = operationCategoryColor,
                 onComplete = onCompleteReminder,
                 onEdit = onEditReminder,
-                onDelete = onDeleteReminder,
                 onRefresh = onRefreshReminders
             )
             Row(
@@ -706,6 +707,7 @@ fun MaintenanceLogDialog(
     
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showDeleteReminderConfirmation by remember { mutableStateOf(false) }
     var resetAfter by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
@@ -788,6 +790,30 @@ fun MaintenanceLogDialog(
             },
             text = {
                 TimePicker(state = timePickerState)
+            }
+        )
+    }
+
+    if (showDeleteReminderConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteReminderConfirmation = false },
+            title = { Text(stringResource(R.string.delete_reminder)) },
+            text = { Text("Are you sure you want to permanently delete this reminder?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteReminder?.invoke()
+                        showDeleteReminderConfirmation = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.button_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteReminderConfirmation = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
             }
         )
     }
@@ -925,9 +951,13 @@ fun MaintenanceLogDialog(
                 OutlinedTextField(
                     value = valueStr,
                     onValueChange = { input ->
-                        if (input.length <= 10) {
-                            val filtered = input.replace(',', '.')
-                            if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) {
+                        val filtered = input.replace(',', '.')
+                        // Permettiamo la cancellazione e stringhe parziali (solo punto, solo meno, o vuoto)
+                        if (filtered.isEmpty() || filtered == "." || filtered == "-") {
+                            valueStr = filtered
+                        } else {
+                            val doubleVal = filtered.toDoubleOrNull()
+                            if (doubleVal != null && filtered.length <= 10) {
                                 val dotIndex = filtered.indexOf('.')
                                 if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
                                     valueStr = filtered
@@ -1076,7 +1106,7 @@ fun MaintenanceLogDialog(
             ) {
                 if (isEditMode && onDeleteReminder != null) {
                     TextButton(
-                        onClick = onDeleteReminder,
+                        onClick = { showDeleteReminderConfirmation = true },
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null)
@@ -1400,9 +1430,12 @@ fun MaintenanceLogCard(
                     OutlinedTextField(
                         value = editedValueStr,
                         onValueChange = { input ->
-                            if (input.length <= 10) {
-                                val filtered = input.replace(',', '.')
-                                if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) {
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered == "." || filtered == "-") {
+                                editedValueStr = filtered
+                            } else {
+                                val doubleVal = filtered.toDoubleOrNull()
+                                if (doubleVal != null && filtered.length <= 10) {
                                     val dotIndex = filtered.indexOf('.')
                                     if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
                                         editedValueStr = filtered

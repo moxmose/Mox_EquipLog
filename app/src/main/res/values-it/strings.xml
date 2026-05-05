@@ -111,7 +111,9 @@
     <string name="options_add_unit">Aggiungi Unità</string>
     <string name="options_unit_label_placeholder">Etichetta (es. hh)</string>
     <string name="options_unit_desc_placeholder">Descrizione (es. Ore)</string>
+    <string name="options_unit_decimals">Cifre decimali (0&#8211;3)</string>
     <string name="add_unit_failed">Aggiunta unità fallita.</string>
+    <string name="add_unit_failed_duplicate">Un\'unità con questa etichetta esiste già.</string>
     <string name="delete_unit_failed">Eliminazione unità fallita.</string>
     <string name="update_unit_failed">Aggiornamento unità fallito.</string>
     <string name="update_units_order_failed">Aggiornamento ordine unità fallito.</string>
@@ -142,7 +144,7 @@
 
     <!-- Equipments & Operations -->
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
-    <string name="set_as_default_instruction">Tocca l\'icona per impostare il predefinito</string>
+    <string name="set_as_default_and_expand_instruction">Tocca la card per espandere, la stella per il predefinito</string>
     <string name="add_equipment">Aggiungi Mezzo</string>
     <string name="add_operation_type">Aggiungi Tipo di Operazione</string>
     <string name="hide_dismissed">Nascondi Dismessi</string>
@@ -210,6 +212,8 @@
     <string name="due_date">Data di scadenza</string>
     <string name="target_value">Valore target %1$s (opzionale)</string>
     <string name="reset_counter_after">Azzera contatore dopo questa attività</string>
+    <string name="estimated_date_prefix">Stimata: %1$s</string>
+    <string name="likely_needed_by_prefix">Probabilmente entro il: %1$s</string>
 
     <!-- Maintenance Reminders -->
     <string name="reminders_dashboard_title">Scadenze Manutenzione</string>
@@ -264,7 +268,7 @@
     <string name="distribution_analysis">Analisi distribuzione</string>
     <string name="export_data_csv">Esporta Dati (CSV)</string>
     <string name="export_report_pdf">Esporta Report (PDF)</string>
-    <string name="sharing_pdf_report">Condivisione report PDF…</string>
+    <string name="sharing_pdf_report">Condivisione report PDF&#8230;</string>
     <string name="options_data_management_title">Gestione Dati</string>
     <string name="options_data_management_desc">Esegui il backup del database su un file o ripristina da un backup precedente.</string>
     <string name="options_backup_db">Backup Database</string>
@@ -275,8 +279,20 @@
     <string name="restore_failed">Ripristino fallito: %1$s</string>
     <string name="restore_confirm_title">Conferma Ripristino</string>
     <string name="restore_confirm_msg">Questo sovrascriverà tutti i dati correnti. Sei sicuro? L\'app dovrà essere riavviata manualmente.</string>
+    <string name="options_total_export">Esportazione Totale (ZIP di CSV)</string>
+    <string name="export_success">Esportazione completata con successo.</string>
+    <string name="export_failed">Esportazione fallita: %1$s</string>
+    <string name="options_google_calendar_section">Google Calendar</string>
+    <string name="options_google_account_label">Account Google</string>
+    <string name="options_google_connect">Collega Account</string>
+    <string name="options_google_disconnect">Disconnetti Account</string>
+    <string name="update_google_account_failed">Aggiornamento Account Google fallito.</string>
+    <string name="options_google_calendar_desc">Configura l\'integrazione con Google Calendar per i promemoria di manutenzione.</string>
     <string name="options_recalculate_accumulated">Ricalcola Valori Accumulati</string>
     <string name="options_recalculate_accumulated_desc">Ricalcola tutti i valori assoluti basandosi sullo storico dei log. Utile se sono state inserite registrazioni nel passato.</string>
     <string name="recalculate_success">Ricalcolo completato con successo.</string>
+    <string name="options_sync_calendar_default_label">Sincronizza di default</string>
+    <string name="options_sync_calendar_default_desc">Abilita automaticamente \"Sincronizza con Google Calendar\" quando aggiungi nuovi log o promemoria.</string>
     <string name="google_auth_privacy_note">Questa app utilizza il metodo di accesso standard di Google per collegarsi al tuo Calendario. Verranno utilizzati solo i dati strettamente necessari alla sincronizzazione.</string>
+    <string name="delete_reminder_confirm">Sei sicuro di voler eliminare permanentemente questo promemoria?</string>
 </resources>

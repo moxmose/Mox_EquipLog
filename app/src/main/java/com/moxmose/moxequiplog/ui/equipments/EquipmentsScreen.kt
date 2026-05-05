@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -61,6 +62,7 @@ fun EquipmentsScreen(
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
     val equipmentStatuses by viewModel.equipmentStatuses.collectAsState()
+    val allOperationTypes by logsViewModel.allOperationTypes.collectAsState()
     
     val categoryColor by viewModel.categoryColor.collectAsState()
     val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
@@ -107,10 +109,9 @@ fun EquipmentsScreen(
 
     if (selectedPredictionForAdd != null) {
         val (eqId, opStatus) = selectedPredictionForAdd!!
-        val operationTypes by logsViewModel.allOperationTypes.collectAsState()
         MaintenanceLogDialog(
             equipments = activeEquipments,
-            operationTypes = operationTypes.filter { !it.dismissed },
+            operationTypes = allOperationTypes.filter { !it.dismissed },
             measurementUnits = measurementUnits,
             onDismissRequest = { selectedPredictionForAdd = null },
             onConfirm = { log ->
@@ -122,14 +123,14 @@ fun EquipmentsScreen(
                 }
                 selectedPredictionForAdd = null
             },
-            onSchedule = { eqId, opId, date, value, sync ->
-                logsViewModel.addReminder(eqId, opId, date, value, sync)
+            onSchedule = { equipmentId, opId, date, value, sync ->
+                logsViewModel.addReminder(equipmentId, opId, date, value, sync)
                 selectedPredictionForAdd = null
             },
             defaultEquipmentId = eqId,
             defaultOperationTypeId = opStatus.operation.id,
             initialDate = if ((opStatus.nextPresumedDate ?: 0L) > System.currentTimeMillis()) opStatus.nextPresumedDate!! else System.currentTimeMillis(),
-            initialValue = equipmentStatuses[eqId]?.health?.estimatedCurrentValue?.let { String.format(java.util.Locale.US, "%.${measurementUnits.find { it.id == activeEquipments.find { e -> e.id == eqId }?.unitId }?.decimalPlaces ?: 0}f", it) } ?: "",
+            initialValue = equipmentStatuses[eqId]?.health?.estimatedCurrentValue?.let { String.format(Locale.US, "%.${measurementUnits.find { it.id == activeEquipments.find { e -> e.id == eqId }?.unitId }?.decimalPlaces ?: 0}f", it) } ?: "",
             equipmentCategoryColor = categoryColor,
             operationCategoryColor = categoryColorsMap[Category.OPERATION],
             syncCalendarByDefault = syncCalendarByDefault,
@@ -139,10 +140,9 @@ fun EquipmentsScreen(
 
     if (selectedPlannedForEdit != null) {
         val (eqId, opStatus) = selectedPlannedForEdit!!
-        val operationTypes by logsViewModel.allOperationTypes.collectAsState()
         MaintenanceLogDialog(
             equipments = activeEquipments,
-            operationTypes = operationTypes.filter { !it.dismissed },
+            operationTypes = allOperationTypes.filter { !it.dismissed },
             measurementUnits = measurementUnits,
             onDismissRequest = { selectedPlannedForEdit = null },
             onConfirm = { log ->
@@ -156,9 +156,9 @@ fun EquipmentsScreen(
                 }
                 selectedPlannedForEdit = null
             },
-            onSchedule = { eqId, opId, date, value, sync ->
+            onSchedule = { equipmentId, opId, date, value, sync ->
                 opStatus.reminderId?.let { id ->
-                    logsViewModel.updateReminder(eqId, opId, date, value, sync, id)
+                    logsViewModel.updateReminder(equipmentId, opId, date, value, sync, id)
                 }
                 selectedPlannedForEdit = null
             },
@@ -493,7 +493,8 @@ fun AddEquipmentDialog(
                 UnitSelector(
                     measurementUnits = measurementUnits,
                     selectedUnitId = unitId,
-                    onUnitSelected = { unitId = it }
+                    onUnitSelected = { unitId = it },
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Row(
@@ -535,9 +536,15 @@ fun AddEquipmentDialog(
                             value = manualAverageValueStr,
                             onValueChange = { input ->
                                 val filtered = input.replace(',', '.')
-                                if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) {
+                                if (filtered.isEmpty() || filtered == "." || filtered == "-") {
                                     manualAverageValueStr = filtered
-                                    manualAverageValue = filtered.toDoubleOrNull()
+                                    manualAverageValue = null
+                                } else {
+                                    val doubleVal = filtered.toDoubleOrNull()
+                                    if (doubleVal != null) {
+                                        manualAverageValueStr = filtered
+                                        manualAverageValue = doubleVal
+                                    }
                                 }
                             },
                             label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
@@ -589,8 +596,8 @@ fun AddEquipmentDialog(
 fun TimeGranularitySelector(
     selected: TimeGranularity,
     onSelected: (TimeGranularity) -> Unit,
-    label: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    label: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
@@ -624,11 +631,16 @@ fun formatTimeGranularity(granularity: TimeGranularity): String {
 fun UnitSelector(
     measurementUnits: List<MeasurementUnit>,
     selectedUnitId: Int,
-    onUnitSelected: (Int) -> Unit
+    onUnitSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedUnit = measurementUnits.find { it.id == selectedUnitId }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+    ExposedDropdownMenuBox(
+        expanded = expanded, 
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
         OutlinedTextField(
             value = if (selectedUnit != null) {
                 if (selectedUnit.description.isNotBlank()) "${selectedUnit.label} - ${selectedUnit.description}"
@@ -651,261 +663,8 @@ fun UnitSelector(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EditEquipmentDialog(
-    equipment: Equipment,
-    onDismissRequest: () -> Unit,
-    onConfirm: (Equipment) -> Unit,
-    imageLibrary: List<Image>,
-    categories: List<Category>,
-    measurementUnits: List<MeasurementUnit>,
-    equipmentCategoryColor: String?,
-    categoryColors: Map<String, String>,
-    categoryDefaultIcons: Map<String, String?>,
-    categoryDefaultPhotos: Map<String, String?>,
-    onAddImage: (ImageIdentifier, String) -> Unit,
-    onToggleImageVisibility: (Image) -> Unit
-) {
-    var description by rememberSaveable { mutableStateOf(equipment.description) }
-    var photoUri by rememberSaveable { mutableStateOf(equipment.photoUri) }
-    var iconId by rememberSaveable { mutableStateOf(equipment.iconIdentifier) }
-    var unitId by rememberSaveable { mutableIntStateOf(equipment.unitId) }
-    var isResettable by rememberSaveable { mutableStateOf(equipment.isResettable) }
-    
-    // Predictive Settings
-    var usageWindow by rememberSaveable { mutableIntStateOf(equipment.usageWindow) }
-    var usageWindowUnit by rememberSaveable { mutableStateOf(equipment.usageWindowUnit) }
-    var manualAverageValue by rememberSaveable { mutableStateOf(equipment.manualAverageValue) }
-    var manualAverageValueStr by rememberSaveable { mutableStateOf(equipment.manualAverageValue?.toString() ?: "") }
-    var manualAverageUnit by rememberSaveable { mutableStateOf(equipment.manualAverageUnit) }
-    var visibilityHorizon by rememberSaveable { mutableIntStateOf(equipment.visibilityHorizon) }
-    var visibilityHorizonUnit by rememberSaveable { mutableStateOf(equipment.visibilityHorizonUnit) }
-    
-    var showImageSelectorDialog by remember { mutableStateOf(false) }
 
-    val selectedUnit = measurementUnits.find { it.id == unitId }
-    val unitLabel = selectedUnit?.label ?: ""
 
-    if (showImageSelectorDialog) {
-        ImagePickerDialog(
-            onDismissRequest = { showImageSelectorDialog = false },
-            photoUri = photoUri,
-            iconIdentifier = iconId,
-            onImageSelected = { (newIconId, newPhotoUri) ->
-                iconId = newIconId
-                photoUri = newPhotoUri
-                showImageSelectorDialog = false
-            },
-            imageLibrary = imageLibrary,
-            categories = categories,
-            categoryColors = categoryColors,
-            categoryDefaultIcons = categoryDefaultIcons,
-            categoryDefaultPhotos = categoryDefaultPhotos,
-            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
-            onUpdateImageOrder = null,
-            onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
-            onSetDefaultInCategory = null,
-            isPhotoUsed = null,
-            isPrefsMode = false,
-            forcedCategory = Category.EQUIPMENT
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text(text = stringResource(R.string.edit_equipment), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val primaryColor = MaterialTheme.colorScheme.primary
-                    val borderColor = remember(equipmentCategoryColor, primaryColor) {
-                        try {
-                            equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
-                        } catch (_: Exception) { primaryColor }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.secondaryContainer)
-                            .border(2.dp, borderColor, CircleShape)
-                            .clickable { showImageSelectorDialog = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (photoUri != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(),
-                                contentDescription = stringResource(R.string.equipment_photo),
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            val icon = EquipmentIconProvider.getIcon(iconId)
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = stringResource(R.string.equipment_photo),
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
-                    OutlinedTextField(
-                        value = description,
-                        onValueChange = { if (it.length <= 50) description = it },
-                        label = { Text(stringResource(R.string.equipment_description)) },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-
-                UnitSelector(
-                    measurementUnits = measurementUnits,
-                    selectedUnitId = unitId,
-                    onUnitSelected = { unitId = it }
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { isResettable = !isResettable },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Checkbox(checked = isResettable, onCheckedChange = { isResettable = it })
-                    Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
-                }
-
-                HorizontalDivider()
-
-                Text(
-                    text = stringResource(R.string.predictive_maintenance_settings),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                // Trend Window Section
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = usageWindow.toString(),
-                            onValueChange = { input ->
-                                input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it }
-                            },
-                            label = { Text("Window Value") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        
-                        TimeGranularitySelector(
-                            selected = usageWindowUnit,
-                            onSelected = { usageWindowUnit = it },
-                            label = "Of last",
-                            modifier = Modifier.weight(1.2f)
-                        )
-                    }
-                    Text(
-                        text = "Time window used to analyze history and calculate trends",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                }
-
-                // Manual Average Section
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = manualAverageValueStr,
-                            onValueChange = { input ->
-                                if (input.isEmpty()) {
-                                    manualAverageValueStr = ""
-                                    manualAverageValue = null
-                                } else {
-                                    val filtered = input.replace(',', '.')
-                                    if (filtered.toDoubleOrNull() != null) {
-                                        manualAverageValueStr = filtered
-                                        manualAverageValue = filtered.toDoubleOrNull()
-                                    }
-                                }
-                            },
-                            label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
-                            placeholder = { Text("Fallback") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        
-                        TimeGranularitySelector(
-                            selected = manualAverageUnit,
-                            onSelected = { manualAverageUnit = it },
-                            label = "Every",
-                            modifier = Modifier.weight(1.2f)
-                        )
-                    }
-                    Text(
-                        text = "Optional: expected usage when history is missing (fallback)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                }
-
-                // Visibility Horizon Section
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = visibilityHorizon.toString(),
-                            onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } },
-                            label = { Text("Event Horizon") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
-                    }
-                    Text(text = "How far into the future to show upcoming maintenance items", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onConfirm(
-                        equipment.copy(
-                            description = description,
-                            photoUri = photoUri,
-                            iconIdentifier = iconId,
-                            unitId = unitId,
-                            isResettable = isResettable,
-                            usageWindow = usageWindow,
-                            usageWindowUnit = usageWindowUnit,
-                            manualAverageValue = manualAverageValue,
-                            manualAverageUnit = manualAverageUnit,
-                            visibilityHorizon = visibilityHorizon,
-                            visibilityHorizonUnit = visibilityHorizonUnit
-                        )
-                    )
-                }
-            ) { Text(stringResource(R.string.save_equipment)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) }
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EquipmentCard(
     equipment: Equipment,
@@ -920,6 +679,7 @@ fun EquipmentCard(
     equipmentCategoryColor: String?,
     isDefault: Boolean,
     onToggleDefault: () -> Unit,
+    modifier: Modifier = Modifier,
     status: EquipmentStatus? = null,
     onPredictionAction: (OperationStatus) -> Unit,
     onPlannedAction: (OperationStatus) -> Unit,
@@ -927,8 +687,7 @@ fun EquipmentCard(
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     expandAllTrigger: Int = 0,
-    collapseAllTrigger: Int = 0,
-    modifier: Modifier = Modifier
+    collapseAllTrigger: Int = 0
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var isExpanded by rememberSaveable { mutableStateOf(false) }
@@ -1138,7 +897,8 @@ fun EquipmentCard(
                     UnitSelector(
                         measurementUnits = measurementUnits,
                         selectedUnitId = editedUnitId,
-                        onUnitSelected = { editedUnitId = it }
+                        onUnitSelected = { editedUnitId = it },
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { editedIsResettable = !editedIsResettable }.padding(top = 8.dp),
@@ -1200,14 +960,15 @@ fun EquipmentCard(
                             OutlinedTextField(
                                 value = editedManualAverageValueStr,
                                 onValueChange = { input ->
-                                    if (input.isEmpty()) {
-                                        editedManualAverageValueStr = ""
+                                    val filtered = input.replace(',', '.')
+                                    if (filtered.isEmpty() || filtered == "." || filtered == "-") {
+                                        editedManualAverageValueStr = filtered
                                         editedManualAverageValue = null
                                     } else {
-                                        val filtered = input.replace(',', '.')
-                                        if (filtered.toDoubleOrNull() != null) {
+                                        val doubleVal = filtered.toDoubleOrNull()
+                                        if (doubleVal != null) {
                                             editedManualAverageValueStr = filtered
-                                            editedManualAverageValue = filtered.toDoubleOrNull()
+                                            editedManualAverageValue = doubleVal
                                         }
                                     }
                                 },
@@ -1273,7 +1034,7 @@ fun EquipmentCard(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                     Icon(
-                                        imageVector = if (opStatus.isOverdue || hasInconsistency) Icons.Default.Warning else if (opStatus.isPlanned) Icons.Default.EventNote else Icons.Default.Schedule,
+                                        imageVector = if (opStatus.isOverdue || hasInconsistency) Icons.Default.Warning else if (opStatus.isPlanned) Icons.AutoMirrored.Filled.EventNote else Icons.Default.Schedule,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
                                         tint = if (opStatus.isOverdue) MaterialTheme.colorScheme.error 
