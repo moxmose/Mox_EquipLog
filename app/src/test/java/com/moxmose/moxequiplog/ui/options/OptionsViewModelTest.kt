@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -46,6 +47,7 @@ class OptionsViewModelTest {
     private lateinit var imageRepository: ImageRepository
     private lateinit var measurementUnitDao: MeasurementUnitDao
     private lateinit var backupManager: BackupManager
+    private lateinit var maintenanceManager: MaintenanceManager
     private lateinit var viewModel: OptionsViewModel
 
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
@@ -92,6 +94,7 @@ class OptionsViewModelTest {
 
         backupManager = mockk(relaxed = true)
         maintenanceLogDao = mockk(relaxed = true)
+        maintenanceManager = mockk<MaintenanceManager>(relaxed = true)
 
         viewModel = OptionsViewModel(
             appSettingsManager,
@@ -99,7 +102,8 @@ class OptionsViewModelTest {
             maintenanceLogDao,
             imageRepository,
             measurementUnitDao,
-            backupManager
+            backupManager,
+            maintenanceManager
         )
     }
 
@@ -340,7 +344,7 @@ class OptionsViewModelTest {
     @Test
     fun isPhotoUsed_whenPhotoIsInUse_returnsTrue() = runTest {
         val uri = "test_uri"
-        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 1
+        coEvery { maintenanceManager.isPhotoUsed(uri) } returns true
         val result = viewModel.isPhotoUsed(uri)
         assertTrue(result)
     }
@@ -348,7 +352,7 @@ class OptionsViewModelTest {
     @Test
     fun isPhotoUsed_whenPhotoIsNotInUse_returnsFalse() = runTest {
         val uri = "test_uri"
-        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 0
+        coEvery { maintenanceManager.isPhotoUsed(uri) } returns false
         val result = viewModel.isPhotoUsed(uri)
         assertFalse(result)
     }

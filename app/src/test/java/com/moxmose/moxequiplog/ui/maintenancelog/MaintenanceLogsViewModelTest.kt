@@ -4,6 +4,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -49,6 +50,7 @@ class MaintenanceLogsViewModelTest {
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var imageRepository: ImageRepository
     private lateinit var measurementUnitDao: MeasurementUnitDao
+    private lateinit var maintenanceManager: MaintenanceManager
     private lateinit var viewModel: MaintenanceLogViewModel
 
     private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
@@ -89,6 +91,7 @@ class MaintenanceLogsViewModelTest {
         measurementUnitDao = mockk(relaxed = true) {
             every { getAllUnits() } returns MutableStateFlow(emptyList())
         }
+        maintenanceManager = mockk<MaintenanceManager>(relaxed = true)
         viewModel = MaintenanceLogViewModel(
             maintenanceLogDao,
             maintenanceReminderDao,
@@ -98,7 +101,8 @@ class MaintenanceLogsViewModelTest {
             appSettingsManager,
             imageRepository,
             measurementUnitDao,
-            mockk(relaxed = true) // calendarManager
+            mockk(relaxed = true), // calendarManager
+            maintenanceManager
         )
     }
 

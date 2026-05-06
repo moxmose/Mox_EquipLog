@@ -3,11 +3,10 @@ package com.moxmose.moxequiplog.ui.options
 import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
+import androidx.test.platform.app.InstrumentationRegistry
+import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
@@ -35,7 +34,6 @@ class OptionsScreenTest {
                 username = testUsername,
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
-                allColors = emptyList(),
                 reportsColors = emptyList(),
                 measurementUnits = emptyList(),
                 defaultUnitId = null,
@@ -52,7 +50,6 @@ class OptionsScreenTest {
                 onRemoveImage = {},
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
-                onUpdateCategoryColor = { _, _ -> },
                 onSetBackgroundUri = {},
                 onSetBackgroundBlur = {},
                 onSetBackgroundSaturation = {},
@@ -73,12 +70,6 @@ class OptionsScreenTest {
                 onShowColorManager = { _, _ -> },
                 showImageDialog = false,
                 onShowImageDialogChange = {},
-                onAddColor = { _, _ -> },
-                onUpdateColor = {},
-                onUpdateColorsOrder = {},
-                onUpdateReportColorsOrder = {},
-                onToggleColorVisibility = {},
-                onToggleReportColorVisibility = {},
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
                 onTotalExport = {},
@@ -106,7 +97,6 @@ class OptionsScreenTest {
                 username = "",
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
-                allColors = emptyList(),
                 reportsColors = emptyList(),
                 measurementUnits = emptyList(),
                 defaultUnitId = null,
@@ -123,7 +113,6 @@ class OptionsScreenTest {
                 onRemoveImage = {},
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
-                onUpdateCategoryColor = { _, _ -> },
                 onSetBackgroundUri = {},
                 onSetBackgroundBlur = {},
                 onSetBackgroundSaturation = {},
@@ -144,12 +133,6 @@ class OptionsScreenTest {
                 onShowColorManager = { _, _ -> },
                 showImageDialog = false,
                 onShowImageDialogChange = {},
-                onAddColor = { _, _ -> },
-                onUpdateColor = {},
-                onUpdateColorsOrder = {},
-                onUpdateReportColorsOrder = {},
-                onToggleColorVisibility = {},
-                onToggleReportColorVisibility = {},
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
                 onTotalExport = {},
@@ -164,8 +147,13 @@ class OptionsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Nome Utente").performTextInput(newUsername)
-        composeTestRule.onNodeWithText("Salva Nome Utente", substring = true, ignoreCase = true).performClick()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val label = context.getString(R.string.options_username_field_label)
+        val saveAction = context.getString(R.string.options_save_username)
+
+        composeTestRule.onNodeWithText(label, ignoreCase = true).performScrollTo().performTextInput(newUsername)
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription(saveAction, ignoreCase = true).performScrollTo().performClick()
 
         assertEquals(newUsername, changedUsername.get())
     }
@@ -179,7 +167,6 @@ class OptionsScreenTest {
                 username = "",
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
-                allColors = emptyList(),
                 reportsColors = emptyList(),
                 measurementUnits = emptyList(),
                 defaultUnitId = null,
@@ -196,7 +183,6 @@ class OptionsScreenTest {
                 onRemoveImage = {},
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
-                onUpdateCategoryColor = { _, _ -> },
                 onSetBackgroundUri = {},
                 onSetBackgroundBlur = {},
                 onSetBackgroundSaturation = {},
@@ -217,12 +203,6 @@ class OptionsScreenTest {
                 onShowColorManager = { _, _ -> },
                 showImageDialog = false,
                 onShowImageDialogChange = {},
-                onAddColor = { _, _ -> },
-                onUpdateColor = {},
-                onUpdateColorsOrder = {},
-                onUpdateReportColorsOrder = {},
-                onToggleColorVisibility = {},
-                onToggleReportColorVisibility = {},
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
                 onTotalExport = {},
@@ -237,8 +217,12 @@ class OptionsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("About", ignoreCase = true).performClick()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val aboutLabel = context.getString(R.string.button_about)
 
+        composeTestRule.onNodeWithText(aboutLabel, ignoreCase = true).performScrollTo().performClick()
+        
+        composeTestRule.waitForIdle()
         assertTrue(onShowAboutDialogChangeCalled.get())
     }
 
@@ -251,7 +235,6 @@ class OptionsScreenTest {
                 username = "",
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
-                allColors = emptyList(),
                 reportsColors = emptyList(),
                 measurementUnits = emptyList(),
                 defaultUnitId = null,
@@ -268,7 +251,6 @@ class OptionsScreenTest {
                 onRemoveImage = {},
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
-                onUpdateCategoryColor = { _, _ -> },
                 onSetBackgroundUri = {},
                 onSetBackgroundBlur = {},
                 onSetBackgroundSaturation = {},
@@ -289,12 +271,6 @@ class OptionsScreenTest {
                 onShowColorManager = { _, _ -> },
                 showImageDialog = false,
                 onShowImageDialogChange = {},
-                onAddColor = { _, _ -> },
-                onUpdateColor = {},
-                onUpdateColorsOrder = {},
-                onUpdateReportColorsOrder = {},
-                onToggleColorVisibility = {},
-                onToggleReportColorVisibility = {},
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
                 onTotalExport = {},

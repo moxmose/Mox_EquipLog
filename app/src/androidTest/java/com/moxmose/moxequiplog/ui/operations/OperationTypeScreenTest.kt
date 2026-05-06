@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.TimeGranularity
 import junit.framework.TestCase.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -33,6 +34,10 @@ class OperationTypeScreenTest {
         composeTestRule.setContent {
             OperationTypeScreenContent(
                 operationTypes = operationTypes,
+                operationTypeImages = emptyList(),
+                allCategories = emptyList(),
+                defaultIcon = null,
+                defaultPhotoUri = null,
                 showDismissed = false,
                 onToggleShowDismissed = {},
                 showAddDialog = false,
@@ -42,13 +47,9 @@ class OperationTypeScreenTest {
                 onUpdateOperationType = {},
                 onDismissOperationType = {},
                 onRestoreOperationType = {},
-                allCategories = emptyList(),
-                defaultIcon = null,
-                defaultPhotoUri = null,
                 onAddImage = { _, _ -> },
                 onToggleImageVisibility = { _ -> },
                 operationCategoryColor = "#808080",
-                operationTypeImages = emptyList(),
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultOperationTypeId = null,
                 onToggleDefault = {},
@@ -60,8 +61,8 @@ class OperationTypeScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Oil Change").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Brake Check").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Oil Change", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Brake Check", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -71,6 +72,10 @@ class OperationTypeScreenTest {
         composeTestRule.setContent {
             OperationTypeScreenContent(
                 operationTypes = emptyList(),
+                operationTypeImages = emptyList(),
+                allCategories = emptyList(),
+                defaultIcon = null,
+                defaultPhotoUri = null,
                 showDismissed = false,
                 onToggleShowDismissed = {},
                 showAddDialog = false,
@@ -80,13 +85,9 @@ class OperationTypeScreenTest {
                 onUpdateOperationType = {},
                 onDismissOperationType = {},
                 onRestoreOperationType = {},
-                allCategories = emptyList(),
-                defaultIcon = null,
-                defaultPhotoUri = null,
                 onAddImage = { _, _ -> },
                 onToggleImageVisibility = { _ -> },
                 operationCategoryColor = "#808080",
-                operationTypeImages = emptyList(),
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultOperationTypeId = null,
                 onToggleDefault = {},
@@ -98,7 +99,8 @@ class OperationTypeScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Add Operation Type").performClick()
+        // Cerco "Operation" per coprire "Add Operation Type" e "Aggiungi Tipo Operazione"
+        composeTestRule.onNodeWithContentDescription("Operation", substring = true, ignoreCase = true).performClick()
 
         assertTrue(onShowAddDialogChangeCalled.get())
     }
@@ -112,26 +114,25 @@ class OperationTypeScreenTest {
             AddOperationTypeDialog(
                 onDismissRequest = {},
                 onConfirm = { desc, identifier, _, _, _, _, _, _ -> addedOperationInfo.set(Pair(desc, identifier)) },
-                defaultIcon = null,
-                defaultPhotoUri = null,
-                onAddImage = { _, _ -> },
-                onToggleImageVisibility = { _ -> },
-                operationCategoryColor = "#808080",
                 imageLibrary = emptyList(),
                 categories = emptyList(),
                 categoryColors = emptyMap(),
                 categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap()
+                categoryDefaultPhotos = emptyMap(),
+                defaultIcon = null,
+                defaultPhotoUri = null,
+                onAddImage = { _, _ -> },
+                onToggleImageVisibility = { _ -> },
+                operationCategoryColor = "#808080"
             )
         }
 
-        // 1. Enter text into the description field
-        composeTestRule.onNodeWithText("Operation type description").performTextInput(newOperationDescription)
+        // Cerco "descrip" per Description/Descrizione
+        composeTestRule.onNodeWithText("descrip", substring = true, ignoreCase = true).performTextInput(newOperationDescription)
 
-        // 2. Click the confirm button
-        composeTestRule.onNodeWithText("Add").performClick()
+        // Cerco "Add" o "Aggiungi"
+        composeTestRule.onNodeWithText("Add", ignoreCase = true).performClick()
 
-        // 3. Verify the callback was invoked with the correct data
         assertEquals(newOperationDescription, addedOperationInfo.get().first)
         assertNull(addedOperationInfo.get().second)
     }

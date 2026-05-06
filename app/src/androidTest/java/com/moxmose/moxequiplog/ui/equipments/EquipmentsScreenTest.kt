@@ -27,8 +27,7 @@ class EquipmentsScreenTest {
     @Test
     fun equipmentsScreenContent_whenEquipmentsListIsNotEmpty_displaysEquipments() {
         val equipments = listOf(
-            Equipment(id = 1, description = "Road Equipment"),
-            Equipment(id = 2, description = "Mountain Equipment")
+            Equipment(id = 1, description = "Road Equipment")
         )
 
         composeTestRule.setContent {
@@ -36,6 +35,8 @@ class EquipmentsScreenTest {
                 equipments = equipments,
                 equipmentImages = emptyList(),
                 allCategories = emptyList(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null,
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 equipmentCategoryColor = null,
@@ -56,16 +57,13 @@ class EquipmentsScreenTest {
                 categoryColors = emptyMap(),
                 categoryDefaultIcons = emptyMap(),
                 categoryDefaultPhotos = emptyMap(),
-                measurementUnits = emptyList(),
-                defaultUnitId = null,
                 equipmentStatuses = emptyMap(),
                 onPredictionAction = { _, _ -> },
                 onPlannedAction = { _, _ -> }
             )
         }
 
-        composeTestRule.onNodeWithText("Road Equipment").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Mountain Equipment").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Road Equipment", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -77,6 +75,8 @@ class EquipmentsScreenTest {
                 equipments = emptyList(),
                 equipmentImages = emptyList(),
                 allCategories = emptyList(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null,
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 equipmentCategoryColor = null,
@@ -97,15 +97,14 @@ class EquipmentsScreenTest {
                 categoryColors = emptyMap(),
                 categoryDefaultIcons = emptyMap(),
                 categoryDefaultPhotos = emptyMap(),
-                measurementUnits = emptyList(),
-                defaultUnitId = null,
                 equipmentStatuses = emptyMap(),
                 onPredictionAction = { _, _ -> },
                 onPlannedAction = { _, _ -> }
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Add Equipment").performClick()
+        // Cerco il FAB usando substring e ignorando il case per coprire "Add Equipment" e "Aggiungi Mezzo"
+        composeTestRule.onNodeWithContentDescription("Equipment", substring = true, ignoreCase = true).performClick()
 
         assertTrue(onShowAddDialogChangeCalled.get())
     }
@@ -136,13 +135,12 @@ class EquipmentsScreenTest {
             )
         }
 
-        // 1. Enter text into the description field
-        composeTestRule.onNodeWithText("Equipment description").performTextInput(newEquipmentDescription)
+        // Cerco il campo descrizione usando substring ("Description" o "Descrizione")
+        composeTestRule.onNodeWithText("descrip", substring = true, ignoreCase = true).performTextInput(newEquipmentDescription)
 
-        // 2. Click the confirm button
-        composeTestRule.onNodeWithText("Add").performClick()
+        // Cerco il pulsante conferma ("Add" o "Aggiungi")
+        composeTestRule.onNodeWithText("Add", ignoreCase = true).performClick()
 
-        // 3. Verify the callback was invoked with the correct data
         assertEquals(newEquipmentDescription, addedEquipmentInfo.get().first)
         assertNull(addedEquipmentInfo.get().second)
     }

@@ -4,6 +4,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
@@ -47,6 +48,7 @@ class EquipmentsViewModelTest {
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var maintenanceReminderDao: MaintenanceReminderDao
+    private lateinit var maintenanceManager: MaintenanceManager
     private lateinit var viewModel: EquipmentsViewModel
 
     private val activeEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
@@ -79,10 +81,13 @@ class EquipmentsViewModelTest {
         operationTypeDao = mockk(relaxed = true) {
             every { getAllOperationTypes() } returns MutableStateFlow(emptyList())
         }
-        maintenanceLogDao = mockk(relaxed = true)
+        maintenanceLogDao = mockk(relaxed = true) {
+            every { getLogsCountFlow() } returns MutableStateFlow(0)
+        }
         maintenanceReminderDao = mockk(relaxed = true) {
             every { getAllReminders() } returns MutableStateFlow(emptyList())
         }
+        maintenanceManager = mockk<MaintenanceManager>(relaxed = true)
         viewModel = EquipmentsViewModel(
             equipmentDao,
             imageRepository,
@@ -90,7 +95,8 @@ class EquipmentsViewModelTest {
             measurementUnitDao,
             operationTypeDao,
             maintenanceLogDao,
-            maintenanceReminderDao
+            maintenanceReminderDao,
+            maintenanceManager
         )
     }
 
