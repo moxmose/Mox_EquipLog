@@ -94,6 +94,12 @@ fun MaintenanceLogScreen(
     val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
     val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
 
+    val showAddDialog by viewModel.showAddDialog.collectAsState()
+    val expandedCardId by viewModel.expandedCardId.collectAsState()
+    val editingCardId by viewModel.editingCardId.collectAsState()
+    val selectedReminderForComplete by viewModel.selectedReminderForComplete.collectAsState()
+    val selectedReminderForEdit by viewModel.selectedReminderForEdit.collectAsState()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -116,22 +122,15 @@ fun MaintenanceLogScreen(
     val activeEquipments = remember(allEquipments) { allEquipments.filter { !it.dismissed }.sortedBy { it.displayOrder } }
     val activeOperationTypes = remember(allOperationTypes) { allOperationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
 
-    var showAddDialog by rememberSaveable { mutableStateOf(false) }
-    var expandedCardId by rememberSaveable { mutableStateOf<Int?>(null) }
-    var editingCardId by rememberSaveable { mutableStateOf<Int?>(null) }
-
-    var selectedReminderForComplete by remember { mutableStateOf<MaintenanceReminderDetails?>(null) }
-    var selectedReminderForEdit by remember { mutableStateOf<MaintenanceReminderDetails?>(null) }
-
     if (selectedReminderForComplete != null) {
         MaintenanceLogDialog(
             equipments = activeEquipments,
             operationTypes = activeOperationTypes,
             measurementUnits = measurementUnits,
-            onDismissRequest = { selectedReminderForComplete = null },
+            onDismissRequest = { viewModel.onCompleteReminder(null) },
             onConfirm = { log ->
                 viewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
-                selectedReminderForComplete = null
+                viewModel.onCompleteReminder(null)
             },
             onEstimateDueDate = viewModel::estimateDueDate,
             onEstimateTargetValue = viewModel::estimateTargetValue,
@@ -152,15 +151,15 @@ fun MaintenanceLogScreen(
             equipments = activeEquipments,
             operationTypes = activeOperationTypes,
             measurementUnits = measurementUnits,
-            onDismissRequest = { selectedReminderForEdit = null },
+            onDismissRequest = { viewModel.onEditReminder(null) },
             onConfirm = { /* Not used in edit mode */ },
             onSchedule = { eqId, opId, date, value, sync ->
                 viewModel.updateReminder(eqId, opId, date, value, sync, reminder.id)
-                selectedReminderForEdit = null
+                viewModel.onEditReminder(null)
             },
             onDeleteReminder = {
                 viewModel.deleteReminder(reminderDetails)
-                selectedReminderForEdit = null
+                viewModel.onEditReminder(null)
             },
             onEstimateDueDate = viewModel::estimateDueDate,
             onEstimateTargetValue = viewModel::estimateTargetValue,
@@ -193,26 +192,18 @@ fun MaintenanceLogScreen(
         showDismissed = showDismissed,
         onShowDismissedToggle = viewModel::onShowDismissedToggled,
         showAddDialog = showAddDialog,
-        onShowAddDialogChange = { 
-            showAddDialog = it 
-        },
+        onShowAddDialogChange = viewModel::onShowAddDialogChange,
         onAddLog = viewModel::addLog,
         onAddReminder = viewModel::addReminder,
         onRefreshReminders = viewModel::recalculateAllReminders,
         onEstimateDueDate = viewModel::estimateDueDate,
         onEstimateTargetValue = viewModel::estimateTargetValue,
         expandedCardId = expandedCardId,
-        onCardExpanded = { id -> expandedCardId = if (expandedCardId == id) null else id },
+        onCardExpanded = viewModel::onCardExpanded,
         editingCardId = editingCardId,
-        onEditLog = { log -> editingCardId = log.id },
-        onUpdateLog = {
-            viewModel.updateLog(it)
-            editingCardId = null
-        },
-        onDeleteLog = {
-            viewModel.deleteLog(it)
-            editingCardId = null
-        },
+        onEditLog = viewModel::onEditLog,
+        onUpdateLog = viewModel::updateLog,
+        onDeleteLog = viewModel::deleteLog,
         onDismissLog = viewModel::dismissLog,
         onRestoreLog = viewModel::restoreLog,
         activeReminders = activeReminders,
@@ -221,9 +212,9 @@ fun MaintenanceLogScreen(
         defaultOperationTypeId = defaultOperationTypeId,
         equipmentCategoryColor = equipmentColor,
         operationCategoryColor = operationColor,
-        onCompleteReminder = { selectedReminderForComplete = it },
-        onEditReminder = { selectedReminderForEdit = it },
-        onDeleteReminder = { viewModel.deleteReminder(it) },
+        onCompleteReminder = viewModel::onCompleteReminder,
+        onEditReminder = viewModel::onEditReminder,
+        onDeleteReminder = viewModel::deleteReminder,
         syncCalendarByDefault = syncCalendarByDefault,
         googleAccountName = googleAccountName,
         onNavigateToOptions = onNavigateToOptions

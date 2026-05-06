@@ -68,6 +68,11 @@ fun EquipmentsScreen(
     val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
     val categoryDefaultPhoto by viewModel.categoryDefaultPhoto.collectAsState()
 
+    val showDismissed by viewModel.showDismissed.collectAsState()
+    val showAddDialog by viewModel.showAddDialog.collectAsState()
+    val selectedPredictionForAdd by viewModel.selectedPredictionForAdd.collectAsState()
+    val selectedPlannedForEdit by viewModel.selectedPlannedForEdit.collectAsState()
+
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
@@ -100,12 +105,7 @@ fun EquipmentsScreen(
         }
     }
 
-    var showDismissed by rememberSaveable { mutableStateOf(false) }
-    var showAddDialog by rememberSaveable { mutableStateOf(false) }
-
-    // Dialog state for "Operation Shortcut"
-    var selectedPredictionForAdd by remember { mutableStateOf<Pair<Int, OperationStatus>?>(null) }
-    var selectedPlannedForEdit by remember { mutableStateOf<Pair<Int, OperationStatus>?>(null) }
+    val equipmentsToShow = if (showDismissed) allEquipments else activeEquipments
 
     if (selectedPredictionForAdd != null) {
         val (eqId, opStatus) = selectedPredictionForAdd!!
@@ -113,7 +113,7 @@ fun EquipmentsScreen(
             equipments = activeEquipments,
             operationTypes = allOperationTypes.filter { !it.dismissed },
             measurementUnits = measurementUnits,
-            onDismissRequest = { selectedPredictionForAdd = null },
+            onDismissRequest = { viewModel.onPredictionAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
                 if (log.date > now + 60000) { 
@@ -121,11 +121,11 @@ fun EquipmentsScreen(
                 } else {
                     logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
                 }
-                selectedPredictionForAdd = null
+                viewModel.onPredictionAction(0, null)
             },
             onSchedule = { equipmentId, opId, date, value, sync ->
                 logsViewModel.addReminder(equipmentId, opId, date, value, sync)
-                selectedPredictionForAdd = null
+                viewModel.onPredictionAction(0, null)
             },
             defaultEquipmentId = eqId,
             defaultOperationTypeId = opStatus.operation.id,
@@ -144,7 +144,7 @@ fun EquipmentsScreen(
             equipments = activeEquipments,
             operationTypes = allOperationTypes.filter { !it.dismissed },
             measurementUnits = measurementUnits,
-            onDismissRequest = { selectedPlannedForEdit = null },
+            onDismissRequest = { viewModel.onPlannedAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
                 if (log.date > now + 60000) {
@@ -154,19 +154,17 @@ fun EquipmentsScreen(
                 } else {
                     logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
                 }
-                selectedPlannedForEdit = null
+                viewModel.onPlannedAction(0, null)
             },
             onSchedule = { equipmentId, opId, date, value, sync ->
                 opStatus.reminderId?.let { id ->
                     logsViewModel.updateReminder(equipmentId, opId, date, value, sync, id)
                 }
-                selectedPlannedForEdit = null
+                viewModel.onPlannedAction(0, null)
             },
             onDeleteReminder = {
-                // We need the full MaintenanceReminder object or similar to call delete properly if we want to use existing VM methods.
-                // For now, let's assume we can at least dismiss it.
-                // Or better, add a method to VM to delete by ID.
-                selectedPlannedForEdit = null
+                // Here we would need a way to delete the reminder by ID
+                viewModel.onPlannedAction(0, null)
             },
             defaultEquipmentId = eqId,
             defaultOperationTypeId = opStatus.operation.id,
@@ -179,8 +177,6 @@ fun EquipmentsScreen(
             googleAccountName = googleAccountName
         )
     }
-
-    val equipmentsToShow = if (showDismissed) allEquipments else activeEquipments
 
     EquipmentsScreenContent(
         equipments = equipmentsToShow,
@@ -197,9 +193,9 @@ fun EquipmentsScreen(
         onDismissEquipment = viewModel::dismissEquipment,
         onRestoreEquipment = viewModel::restoreEquipment,
         showDismissed = showDismissed,
-        onToggleShowDismissed = { showDismissed = !showDismissed },
+        onToggleShowDismissed = viewModel::onToggleShowDismissed,
         showAddDialog = showAddDialog,
-        onShowAddDialogChange = { showAddDialog = it },
+        onShowAddDialogChange = viewModel::onShowAddDialogChange,
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         snackbarHostState = snackbarHostState,
@@ -209,8 +205,8 @@ fun EquipmentsScreen(
         categoryDefaultIcons = categoryDefaultIconsMap,
         categoryDefaultPhotos = categoryDefaultPhotosMap,
         equipmentStatuses = equipmentStatuses,
-        onPredictionAction = { eqId, status -> selectedPredictionForAdd = eqId to status },
-        onPlannedAction = { eqId, status -> selectedPlannedForEdit = eqId to status }
+        onPredictionAction = viewModel::onPredictionAction,
+        onPlannedAction = viewModel::onPlannedAction
     )
 }
 

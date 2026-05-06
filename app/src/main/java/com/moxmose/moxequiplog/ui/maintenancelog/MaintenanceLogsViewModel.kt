@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.CalendarManager
@@ -38,7 +39,8 @@ class MaintenanceLogViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val imageRepository: ImageRepository,
     private val measurementUnitDao: MeasurementUnitDao,
-    private val calendarManager: CalendarManager
+    private val calendarManager: CalendarManager,
+    private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -64,6 +66,29 @@ class MaintenanceLogViewModel(
     val sortProperty: StateFlow<SortProperty> = _sortProperty.asStateFlow()
     val sortDirection: StateFlow<SortDirection> = _sortDirection.asStateFlow()
     val showDismissed: StateFlow<Boolean> = _showDismissed.asStateFlow()
+
+    // Hoisted UI State from Screen
+    private val _showAddDialog = MutableStateFlow(false)
+    val showAddDialog = _showAddDialog.asStateFlow()
+
+    private val _expandedCardId = MutableStateFlow<Int?>(null)
+    val expandedCardId = _expandedCardId.asStateFlow()
+
+    private val _editingCardId = MutableStateFlow<Int?>(null)
+    val editingCardId = _editingCardId.asStateFlow()
+
+    private val _selectedReminderForComplete = MutableStateFlow<MaintenanceReminderDetails?>(null)
+    val selectedReminderForComplete = _selectedReminderForComplete.asStateFlow()
+
+    private val _selectedReminderForEdit = MutableStateFlow<MaintenanceReminderDetails?>(null)
+    val selectedReminderForEdit = _selectedReminderForEdit.asStateFlow()
+
+    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
+    fun onCardExpanded(id: Int) { _expandedCardId.value = if (_expandedCardId.value == id) null else id }
+    fun onEditLog(log: MaintenanceLog) { _editingCardId.value = log.id }
+    fun onCancelEdit() { _editingCardId.value = null }
+    fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForComplete.value = reminder }
+    fun onEditReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForEdit.value = reminder }
 
     val logs: StateFlow<List<MaintenanceLogDetails>> = combine(
         _searchQuery,
@@ -270,7 +295,7 @@ class MaintenanceLogViewModel(
                     resetAfter = resetAfter
                 )
                 maintenanceLogDao.insertLog(newLog)
-                recalculateAccumulatedValues(equipmentId)
+                maintenanceManager.recalculateAccumulatedValues(equipmentId)
                 
                 // Mark reminder as completed if it exists for this equipment and operation type
                 maintenanceReminderDao.getReminderByEquipmentAndOperation(equipmentId, operationTypeId)?.let { reminder ->
@@ -295,7 +320,7 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 // Calculate presumed date if value is present
-                val presumedDate = if (dueValue != null) estimateDueDate(equipmentId, dueValue) else null
+                val presumedDate = if (dueValue != null) maintenanceManager.estimateDueDate(equipmentId, dueValue) else null
                 
                 // Use fixed dueDate if present, otherwise use presumedDate for calendar
                 val calendarDate = dueDate ?: presumedDate
@@ -341,7 +366,7 @@ class MaintenanceLogViewModel(
                 val existingReminder = maintenanceReminderDao.getReminderById(reminderId) ?: return@launch
                 
                 // Calculate presumed date if value is present
-                val presumedDate = if (dueValue != null) estimateDueDate(equipmentId, dueValue) else null
+                val presumedDate = if (dueValue != null) maintenanceManager.estimateDueDate(equipmentId, dueValue) else null
                 
                 // Effective date for calendar
                 val calendarDate = dueDate ?: presumedDate
@@ -401,7 +426,8 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 maintenanceLogDao.updateLog(log)
-                recalculateAccumulatedValues(log.equipmentId)
+                maintenanceManager.recalculateAccumulatedValues(log.equipmentId)
+                _editingCardId.value = null
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.UpdateLogFailed)
             }
@@ -412,6 +438,7 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 maintenanceLogDao.updateLog(log.copy(dismissed = true))
+                _editingCardId.value = null
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.DismissLogFailed)
             }
@@ -422,6 +449,7 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 maintenanceLogDao.updateLog(log.copy(dismissed = false))
+                _editingCardId.value = null
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.RestoreLogFailed)
             }
@@ -432,7 +460,8 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 maintenanceLogDao.deleteLog(log)
-                recalculateAccumulatedValues(log.equipmentId)
+                maintenanceManager.recalculateAccumulatedValues(log.equipmentId)
+                _editingCardId.value = null
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.DeleteLogFailed)
             }
@@ -450,6 +479,9 @@ class MaintenanceLogViewModel(
                     }
                 }
                 maintenanceReminderDao.deleteReminder(reminderDetails.reminder)
+                if (_selectedReminderForEdit.value?.reminder?.id == reminderDetails.reminder.id) {
+                    _selectedReminderForEdit.value = null
+                }
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.DeleteReminderFailed)
             }
@@ -470,7 +502,7 @@ class MaintenanceLogViewModel(
 
                     // Logic: Presumed date is always calculated if dueValue is present
                     if (reminder.dueValue != null) {
-                        val newPresumedDate = estimateDueDate(reminder.equipmentId, reminder.dueValue)
+                        val newPresumedDate = maintenanceManager.estimateDueDate(reminder.equipmentId, reminder.dueValue)
                         if (newPresumedDate != reminder.presumedDate) {
                             updatedReminder = updatedReminder.copy(presumedDate = newPresumedDate)
                             changed = true
@@ -483,15 +515,10 @@ class MaintenanceLogViewModel(
                         }
                     }
 
-                    // If no fixed dueDate, recalculate estimated target value for the presumed date (optional, but consistent)
-                    // Wait, user said if UdM present and data not present, presumed date is used for sorting.
-                    // If no fixed dueDate but target value is present, presumedDate will be used for sorting in DAO.
-
                     if (changed) {
                         maintenanceReminderDao.updateReminder(updatedReminder)
                         
                         // Update Google Calendar if event exists
-                        // Effective date used for calendar: fixed dueDate if present, otherwise presumedDate
                         val effectiveDate = updatedReminder.dueDate ?: updatedReminder.presumedDate
                         if (updatedReminder.calendarEventId != null && credential != null && effectiveDate != null) {
                             val equipment = equipmentDao.getEquipmentByIdOneShot(updatedReminder.equipmentId)
@@ -516,99 +543,6 @@ class MaintenanceLogViewModel(
         }
     }
 
-    private fun getDailyManualAverage(equipment: Equipment): Double? {
-        val value = equipment.manualAverageValue ?: return null
-        return when (equipment.manualAverageUnit) {
-            TimeGranularity.MINUTES_5 -> value * 12 * 24
-            TimeGranularity.MINUTES_15 -> value * 4 * 24
-            TimeGranularity.HOURS -> value * 24
-            TimeGranularity.DAYS -> value
-            TimeGranularity.WEEKS -> value / 7.0
-            TimeGranularity.MONTHS -> value / 30.0
-            TimeGranularity.YEARS -> value / 365.0
-        }
-    }
-
-    suspend fun refreshTrends(equipmentId: Int): Double? {
-        val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId) ?: return null
-        val windowValue = equipment.usageWindow.toLong()
-        val windowMs = when (equipment.usageWindowUnit) {
-            TimeGranularity.MINUTES_5 -> windowValue * 5 * 60 * 1000L
-            TimeGranularity.MINUTES_15 -> windowValue * 15 * 60 * 1000L
-            TimeGranularity.HOURS -> windowValue * 60 * 60 * 1000L
-            TimeGranularity.DAYS -> windowValue * 24 * 60 * 60 * 1000L
-            TimeGranularity.WEEKS -> windowValue * 7 * 24 * 60 * 60 * 1000L
-            TimeGranularity.MONTHS -> windowValue * 30 * 24 * 60 * 60 * 1000L
-            TimeGranularity.YEARS -> windowValue * 365 * 24 * 60 * 60 * 1000L
-        }
-        val sinceDate = System.currentTimeMillis() - windowMs
-        
-        val logs = maintenanceLogDao.getLogsSince(equipmentId, sinceDate)
-            .filter { it.value != null } // Only logs with values contribute to trends
-            .sortedBy { it.date }
-
-        val manualAvg = getDailyManualAverage(equipment)
-        if (logs.size < 2) return manualAvg
-
-        // If there's a reset operation in the window, we should only consider logs after the last reset
-        // to have a consistent trend for the current "cycle". 
-        // However, for a general daily average, we can look at the whole window but we must handle value drops.
-        
-        var totalValueDiff = 0.0
-        var totalTimeDiff = 0L
-        
-        for (i in 0 until logs.size - 1) {
-            val current = logs[i]
-            val next = logs[i+1]
-            
-            val diff = (next.value ?: 0.0) - (current.value ?: 0.0)
-            if (diff >= 0) {
-                totalValueDiff += diff
-                totalTimeDiff += (next.date - current.date)
-            }
-            // If diff < 0, it was likely a reset, so we skip this interval for trend calculation
-        }
-
-        if (totalTimeDiff <= 0) return manualAvg
-        
-        val msPerDay = 24 * 60 * 60 * 1000.0
-        val calculatedAverage = (totalValueDiff / totalTimeDiff) * msPerDay
-        
-        return if (calculatedAverage > 0) calculatedAverage else manualAvg
-    }
-
-    suspend fun estimateDueDate(equipmentId: Int, targetValue: Double): Long? {
-        val trend = refreshTrends(equipmentId) ?: return null
-        if (trend <= 0) return null
-
-        val lastLog = maintenanceLogDao.getLastLogBefore(equipmentId, Long.MAX_VALUE)
-        val lastValue = lastLog?.value ?: 0.0
-        val lastDate = lastLog?.date ?: System.currentTimeMillis()
-
-        if (targetValue <= lastValue) return null
-
-        val remainingValue = targetValue - lastValue
-        val daysRemaining = remainingValue / trend
-        
-        // Ensure we don't return a date in the past if trend was very high but last date was old
-        val estimatedDate = lastDate + (daysRemaining * 24 * 60 * 60 * 1000).toLong()
-        return if (estimatedDate > System.currentTimeMillis()) estimatedDate else System.currentTimeMillis() + (24 * 60 * 60 * 1000)
-    }
-
-    suspend fun estimateTargetValue(equipmentId: Int, dueDate: Long): Double? {
-        val trend = refreshTrends(equipmentId) ?: return null
-
-        val lastLog = maintenanceLogDao.getLastLogBefore(equipmentId, Long.MAX_VALUE)
-        val lastValue = lastLog?.value ?: 0.0
-        val lastDate = lastLog?.date ?: System.currentTimeMillis()
-
-        val referenceDate = if (dueDate > lastDate) lastDate else System.currentTimeMillis()
-        if (dueDate <= referenceDate) return lastValue
-
-        val timeDiff = dueDate - referenceDate
-        val msPerDay = 24 * 60 * 60 * 1000.0
-        val days = timeDiff / msPerDay
-
-        return lastValue + (days * trend)
-    }
+    suspend fun estimateDueDate(equipmentId: Int, targetValue: Double): Long? = maintenanceManager.estimateDueDate(equipmentId, targetValue)
+    suspend fun estimateTargetValue(equipmentId: Int, dueDate: Long): Double? = maintenanceManager.estimateTargetValue(equipmentId, dueDate)
 }

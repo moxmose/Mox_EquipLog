@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -35,7 +36,8 @@ class OperationsTypeViewModel(
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
     private val maintenanceLogDao: MaintenanceLogDao,
-    private val maintenanceReminderDao: MaintenanceReminderDao
+    private val maintenanceReminderDao: MaintenanceReminderDao,
+    private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -56,6 +58,20 @@ class OperationsTypeViewModel(
 
     private val _uiEvents = Channel<UiEvent>()
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
+
+    // Hoisted UI State from Screen
+    private val _showDismissed = MutableStateFlow(false)
+    val showDismissed = _showDismissed.asStateFlow()
+
+    private val _showAddDialog = MutableStateFlow(false)
+    val showAddDialog = _showAddDialog.asStateFlow()
+
+    private val _selectedAffectedEquipmentForAdd = MutableStateFlow<Pair<Int, EquipmentOperationStatus>?>(null)
+    val selectedAffectedEquipmentForAdd = _selectedAffectedEquipmentForAdd.asStateFlow()
+
+    fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
+    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
+    fun onAffectedAction(opId: Int, status: EquipmentOperationStatus?) { _selectedAffectedEquipmentForAdd.value = if (status != null) opId to status else null }
 
     val allOperationTypes: StateFlow<List<OperationType>> = combine(
         operationTypeDao.getAllOperationTypes(),
@@ -142,38 +158,8 @@ class OperationsTypeViewModel(
 
     private suspend fun calculateEquipmentStatusForOp(equipment: Equipment, opType: OperationType, lastLog: MaintenanceLog): EquipmentOperationStatus {
         val now = System.currentTimeMillis()
-        val trend = calculateTrend(equipment)
-
-        val datePrediction = opType.timeoutValue?.let { value ->
-            opType.timeoutUnit?.let { unit ->
-                val cal = Calendar.getInstance()
-                cal.timeInMillis = lastLog.date
-                when (unit) {
-                    TimeGranularity.MINUTES_5 -> cal.add(Calendar.MINUTE, value * 5)
-                    TimeGranularity.MINUTES_15 -> cal.add(Calendar.MINUTE, value * 15)
-                    TimeGranularity.HOURS -> cal.add(Calendar.HOUR_OF_DAY, value)
-                    TimeGranularity.DAYS -> cal.add(Calendar.DAY_OF_YEAR, value)
-                    TimeGranularity.WEEKS -> cal.add(Calendar.WEEK_OF_YEAR, value)
-                    TimeGranularity.MONTHS -> cal.add(Calendar.MONTH, value)
-                    TimeGranularity.YEARS -> cal.add(Calendar.YEAR, value)
-                }
-                cal.timeInMillis
-            }
-        }
-
-        val usagePrediction = if (opType.intervalValue != null && trend != null && trend > 0) {
-            val lastAccumulated = lastLog.accumulatedValue
-            val targetAccumulated = lastAccumulated + opType.intervalValue
-            val daysToTarget = (targetAccumulated - lastAccumulated) / trend
-            (lastLog.date + (daysToTarget * 24 * 60 * 60 * 1000).toLong())
-        } else null
-
-        val nextDate = when {
-            datePrediction != null && usagePrediction != null -> minOf(datePrediction, usagePrediction)
-            datePrediction != null -> datePrediction
-            usagePrediction != null -> usagePrediction
-            else -> null
-        }
+        val trend = maintenanceManager.calculateTrend(equipment)
+        val nextDate = maintenanceManager.getOperationPrediction(opType, lastLog, trend)
 
         return EquipmentOperationStatus(
             equipment = equipment,
@@ -182,47 +168,6 @@ class OperationsTypeViewModel(
             nextPresumedDate = nextDate,
             isOverdue = nextDate?.let { it < now } ?: false
         )
-    }
-
-    private suspend fun calculateTrend(equipment: Equipment): Double? {
-        val windowValue = equipment.usageWindow.toLong()
-        val windowMs = when (equipment.usageWindowUnit) {
-            TimeGranularity.MINUTES_5 -> windowValue * 5 * 60 * 1000L
-            TimeGranularity.MINUTES_15 -> windowValue * 15 * 60 * 1000L
-            TimeGranularity.HOURS -> windowValue * 60 * 60 * 1000L
-            TimeGranularity.DAYS -> windowValue * 24 * 60 * 60 * 1000L
-            TimeGranularity.WEEKS -> windowValue * 7 * 24 * 60 * 60 * 1000L
-            TimeGranularity.MONTHS -> windowValue * 30 * 24 * 60 * 60 * 1000L
-            TimeGranularity.YEARS -> windowValue * 365 * 24 * 60 * 60 * 1000L
-        }
-        val sinceDate = System.currentTimeMillis() - windowMs
-        val logs = maintenanceLogDao.getLogsSince(equipment.id, sinceDate).filter { it.value != null }.sortedBy { it.date }
-
-        val manualAvg = equipment.manualAverageValue?.let { value ->
-            when (equipment.manualAverageUnit) {
-                TimeGranularity.MINUTES_5 -> value * 12 * 24
-                TimeGranularity.MINUTES_15 -> value * 4 * 24
-                TimeGranularity.HOURS -> value * 24
-                TimeGranularity.DAYS -> value
-                TimeGranularity.WEEKS -> value / 7.0
-                TimeGranularity.MONTHS -> value / 30.0
-                TimeGranularity.YEARS -> value / 365.0
-            }
-        }
-
-        if (logs.size < 2) return manualAvg
-
-        var totalValueDiff = 0.0
-        var totalTimeDiff = 0L
-        for (i in 0 until logs.size - 1) {
-            val diff = (logs[i+1].value ?: 0.0) - (logs[i].value ?: 0.0)
-            if (diff >= 0) {
-                totalValueDiff += diff
-                totalTimeDiff += (logs[i+1].date - logs[i].date)
-            }
-        }
-        if (totalTimeDiff <= 0) return manualAvg
-        return (totalValueDiff / totalTimeDiff) * (24 * 60 * 60 * 1000.0)
     }
 
     val operationImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory(Category.OPERATION)

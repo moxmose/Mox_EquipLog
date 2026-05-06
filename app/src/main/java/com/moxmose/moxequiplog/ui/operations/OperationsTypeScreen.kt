@@ -66,6 +66,10 @@ fun OperationTypeScreen(
     val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
     val categoryDefaultPhoto by viewModel.categoryDefaultPhoto.collectAsState()
 
+    val showDismissed by viewModel.showDismissed.collectAsState()
+    val showAddDialog by viewModel.showAddDialog.collectAsState()
+    val selectedAffectedEquipmentForAdd by viewModel.selectedAffectedEquipmentForAdd.collectAsState()
+
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
@@ -100,18 +104,13 @@ fun OperationTypeScreen(
         }
     }
 
-    var showDismissed by rememberSaveable { mutableStateOf(false) }
-    var showAddDialog by rememberSaveable { mutableStateOf(false) }
-
-    var selectedAffectedEquipmentForAdd by remember { mutableStateOf<Pair<Int, EquipmentOperationStatus>?>(null) }
-
     if (selectedAffectedEquipmentForAdd != null) {
         val (opId, status) = selectedAffectedEquipmentForAdd!!
         MaintenanceLogDialog(
             equipments = activeEquipments.filter { !it.dismissed },
             operationTypes = allOperationTypes.filter { !it.dismissed },
             measurementUnits = measurementUnits,
-            onDismissRequest = { selectedAffectedEquipmentForAdd = null },
+            onDismissRequest = { viewModel.onAffectedAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
                 if (log.date > now + 60000) { // Se è nel futuro (> 1 min), diventa un reminder (pianificato)
@@ -123,7 +122,7 @@ fun OperationTypeScreen(
                 } else {
                     logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
                 }
-                selectedAffectedEquipmentForAdd = null
+                viewModel.onAffectedAction(0, null)
             },
             onSchedule = { eqId, opId, date, value, sync ->
                 if (status.isPlanned && status.reminderId != null) {
@@ -131,7 +130,7 @@ fun OperationTypeScreen(
                 } else {
                     logsViewModel.addReminder(eqId, opId, date, value, sync)
                 }
-                selectedAffectedEquipmentForAdd = null
+                viewModel.onAffectedAction(0, null)
             },
             defaultEquipmentId = status.equipment.id,
             defaultOperationTypeId = opId,
@@ -159,9 +158,9 @@ fun OperationTypeScreen(
         onDismissOperationType = viewModel::dismissOperationType,
         onRestoreOperationType = viewModel::restoreOperationType,
         showDismissed = showDismissed,
-        onToggleShowDismissed = { showDismissed = !showDismissed },
+        onToggleShowDismissed = viewModel::onToggleShowDismissed,
         showAddDialog = showAddDialog,
-        onShowAddDialogChange = { showAddDialog = it },
+        onShowAddDialogChange = viewModel::onShowAddDialogChange,
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         operationCategoryColor = categoryColor,
@@ -172,7 +171,7 @@ fun OperationTypeScreen(
         categoryDefaultIcons = categoryDefaultIconsMap,
         categoryDefaultPhotos = categoryDefaultPhotosMap,
         operationStatuses = operationStatuses,
-        onAffectedAction = { opId, status -> selectedAffectedEquipmentForAdd = opId to status }
+        onAffectedAction = viewModel::onAffectedAction
     )
 }
 

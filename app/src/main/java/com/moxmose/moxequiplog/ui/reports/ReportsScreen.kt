@@ -36,12 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.ReportFilter
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.ImageIcon
-import com.moxmose.moxequiplog.utils.UiConstants
 import androidx.compose.ui.graphics.toArgb
 import android.content.Context
 import android.content.Intent
@@ -87,13 +83,13 @@ enum class ReportDestination {
 }
 
 @Composable
-fun ReportsScreen(modifier: Modifier = Modifier, viewModel: ReportsViewModel = koinViewModel(), onBack: () -> Unit) {
+fun ReportsScreen(viewModel: ReportsViewModel = koinViewModel(), onBack: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     var currentDestination by remember { mutableStateOf(ReportDestination.MENU) }
     BackHandler(enabled = currentDestination != ReportDestination.MENU) { currentDestination = ReportDestination.MENU }
     AnimatedContent(targetState = currentDestination, label = "ReportsNavigation") { destination ->
         when (destination) {
-            ReportDestination.MENU -> ReportsMenu(onNavigate = { currentDestination = it }, onBack = onBack)
+            ReportDestination.MENU -> ReportsMenu(onNavigate = { dest -> currentDestination = dest }, onBack = onBack)
             ReportDestination.EQUIPMENTS -> EquipmentsReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
             ReportDestination.OPERATIONS -> OperationsReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
             ReportDestination.EQUIPMENTS_FREQ -> EquipmentsFreqReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
@@ -611,7 +607,7 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                                 null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
                             } 
                         }
-                        LaunchedEffect(dataWithPoints, effectiveGranularity) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(x = points.map { it.date }, y = points.map { it.value }) } } } }
+                        LaunchedEffect(dataWithPoints, effectiveGranularity) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(points.map { it.date }, points.map { it.value }) } } } }
                         key(uiState.timeGranularity, effectiveGranularity, dataWithPoints.keys) {
                             CartesianChartHost(
                                 chart = rememberCartesianChart(
@@ -813,7 +809,7 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
             null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
         } 
     }
-    LaunchedEffect(dataWithPoints, effectiveGranularity) { if (dataWithPoints.isNotEmpty()) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(x = points.map { it.date }, y = points.map { it.value }) } } } } }
+    LaunchedEffect(dataWithPoints, effectiveGranularity) { if (dataWithPoints.isNotEmpty()) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(points.map { it.date }, points.map { it.value }) } } } } }
     if (dataWithPoints.isNotEmpty()) { key(requestedGranularity, effectiveGranularity, dataWithPoints.keys, finalColors) { 
         CartesianChartHost(
             chart = rememberCartesianChart(

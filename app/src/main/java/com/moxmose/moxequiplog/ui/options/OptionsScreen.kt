@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -69,6 +68,13 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
 
     val reportsColorMode by viewModel.reportsColorMode.collectAsState()
 
+    val showAboutDialog by viewModel.showAboutDialog.collectAsState()
+    val colorMgmtState by viewModel.colorMgmtState.collectAsState()
+    val showImageDialog by viewModel.showImageDialog.collectAsState()
+    val showBackgroundPicker by viewModel.showBackgroundPicker.collectAsState()
+    val showUnitManagement by viewModel.showUnitManagement.collectAsState()
+    val showRestoreConfirm by viewModel.showRestoreConfirm.collectAsState()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -112,22 +118,16 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
             }
             snackbarHostState.showSnackbar(message)
             if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {
-                // Exit app after restore to force reload
                 exitProcess(0)
             }
         }
     }
-
-    var showAboutDialog by rememberSaveable { mutableStateOf(false) }
-    var colorMgmtState by rememberSaveable { mutableStateOf<Pair<ColorManagerMode, String?>?>(null) }
-    var showImageDialog by rememberSaveable { mutableStateOf(false) }
 
     OptionsScreenContent(
         modifier = modifier,
         username = username,
         allImages = allImages,
         categoriesUiState = categoriesUiState,
-        allColors = allColors,
         reportsColors = reportsColors,
         measurementUnits = measurementUnits,
         defaultUnitId = defaultUnitId,
@@ -144,7 +144,6 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onRemoveImage = viewModel::removeImage,
         onUpdateImageOrder = viewModel::updateImageOrder,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
-        onUpdateCategoryColor = viewModel::updateCategoryColor,
         onSetBackgroundUri = viewModel::setBackgroundUri,
         onSetBackgroundBlur = viewModel::setBackgroundBlur,
         onSetBackgroundSaturation = viewModel::setBackgroundSaturation,
@@ -161,16 +160,16 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onToggleDefaultUnit = viewModel::toggleDefaultUnit,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
-        onShowAboutDialogChange = { showAboutDialog = it },
-        onShowColorManager = { mode, catId -> colorMgmtState = Pair(mode, catId) },
+        onShowAboutDialogChange = viewModel::onShowAboutDialogChange,
+        onShowColorManager = viewModel::onShowColorManager,
         showImageDialog = showImageDialog,
-        onShowImageDialogChange = { showImageDialog = it },
-        onAddColor = viewModel::addColor,
-        onUpdateColor = viewModel::updateColor,
-        onUpdateColorsOrder = viewModel::updateColorsOrder,
-        onUpdateReportColorsOrder = viewModel::updateReportColorsOrder,
-        onToggleColorVisibility = viewModel::toggleColorVisibility,
-        onToggleReportColorVisibility = viewModel::toggleReportColorVisibility,
+        onShowImageDialogChange = viewModel::onShowImageDialogChange,
+        showBackgroundPicker = showBackgroundPicker,
+        onShowBackgroundPickerChange = viewModel::onShowBackgroundPickerChange,
+        showUnitManagement = showUnitManagement,
+        onShowUnitManagementChange = viewModel::onShowUnitManagementChange,
+        showRestoreConfirm = showRestoreConfirm,
+        onShowRestoreConfirmChange = viewModel::onShowRestoreConfirmChange,
         onBackupDatabase = viewModel::backupDatabase,
         onRestoreDatabase = viewModel::restoreDatabase,
         onTotalExport = viewModel::totalExport,
@@ -197,12 +196,12 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
             title = title,
             allColors = currentList,
             selectedHex = selectedHex,
-            onDismiss = { colorMgmtState = null },
+            onDismiss = { viewModel.onDismissColorManager() },
             onColorSelected = { hex ->
                 if (mode == ColorManagerMode.CATEGORY_PICKER && categoryId != null) {
                     viewModel.updateCategoryColor(categoryId, hex)
                 }
-                colorMgmtState = null
+                viewModel.onDismissColorManager()
             },
             onAddColor = viewModel::addColor,
             onUpdateColor = viewModel::updateColor,
@@ -219,7 +218,6 @@ fun OptionsScreenContent(
     username: String,
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
-    allColors: List<AppColor>,
     reportsColors: List<AppColor>,
     measurementUnits: List<MeasurementUnit>,
     defaultUnitId: Int?,
@@ -236,7 +234,6 @@ fun OptionsScreenContent(
     onRemoveImage: (Image) -> Unit,
     onUpdateImageOrder: (List<Image>) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
-    onUpdateCategoryColor: (String, String) -> Unit,
     onSetBackgroundUri: (String?) -> Unit,
     onSetBackgroundBlur: (Float) -> Unit,
     onSetBackgroundSaturation: (Float) -> Unit,
@@ -257,12 +254,6 @@ fun OptionsScreenContent(
     onShowColorManager: (ColorManagerMode, String?) -> Unit,
     showImageDialog: Boolean,
     onShowImageDialogChange: (Boolean) -> Unit,
-    onAddColor: (String, String) -> Unit,
-    onUpdateColor: (AppColor) -> Unit,
-    onUpdateColorsOrder: (List<AppColor>) -> Unit,
-    onUpdateReportColorsOrder: (List<AppColor>) -> Unit,
-    onToggleColorVisibility: (Long) -> Unit,
-    onToggleReportColorVisibility: (Long) -> Unit,
     onBackupDatabase: (Uri) -> Unit,
     onRestoreDatabase: (Uri) -> Unit,
     onTotalExport: (Uri) -> Unit,
@@ -273,12 +264,15 @@ fun OptionsScreenContent(
     onGoogleAccountSelected: (String?) -> Unit,
     syncCalendarByDefault: Boolean,
     onSyncCalendarByDefaultChange: (Boolean) -> Unit,
-    onRecalculateAccumulated: () -> Unit = {}
+    onRecalculateAccumulated: () -> Unit = {},
+    showBackgroundPicker: Boolean = false,
+    onShowBackgroundPickerChange: (Boolean) -> Unit = {},
+    showUnitManagement: Boolean = false,
+    onShowUnitManagementChange: (Boolean) -> Unit = {},
+    showRestoreConfirm: Uri? = null,
+    onShowRestoreConfirmChange: (Uri?) -> Unit = {}
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
-    var showBackgroundPicker by remember { mutableStateOf(false) }
-    var showUnitManagement by remember { mutableStateOf(false) }
-    var showRestoreConfirm by remember { mutableStateOf<Uri?>(null) }
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
@@ -293,22 +287,22 @@ fun OptionsScreenContent(
     }
 
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { showRestoreConfirm = it }
+        uri?.let { onShowRestoreConfirmChange(it) }
     }
 
     if (showRestoreConfirm != null) {
         AlertDialog(
-            onDismissRequest = { showRestoreConfirm = null },
+            onDismissRequest = { onShowRestoreConfirmChange(null) },
             title = { Text(stringResource(R.string.restore_confirm_title)) },
             text = { Text(stringResource(R.string.restore_confirm_msg)) },
             confirmButton = {
                 TextButton(onClick = { 
-                    showRestoreConfirm?.let { onRestoreDatabase(it) }
-                    showRestoreConfirm = null
+                    onRestoreDatabase(showRestoreConfirm)
+                    onShowRestoreConfirmChange(null)
                 }) { Text(stringResource(R.string.button_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showRestoreConfirm = null }) { Text(stringResource(R.string.button_cancel)) }
+                TextButton(onClick = { onShowRestoreConfirmChange(null) }) { Text(stringResource(R.string.button_cancel)) }
             }
         )
     }
@@ -333,7 +327,7 @@ fun OptionsScreenContent(
         UnitManagementDialog(
             allUnits = measurementUnits,
             defaultUnitId = defaultUnitId,
-            onDismiss = { showUnitManagement = false },
+            onDismiss = { onShowUnitManagementChange(false) },
             onAddUnit = onAddUnit,
             onUpdateUnit = onUpdateUnit,
             onUpdateUnitsOrder = onUpdateUnitsOrder,
@@ -375,12 +369,12 @@ fun OptionsScreenContent(
     if (showBackgroundPicker) {
         val allCategories = categoriesUiState.map { it.category }.filter { it.id != Category.LOGS }
         ImagePickerDialog(
-            onDismissRequest = { showBackgroundPicker = false },
+            onDismissRequest = { onShowBackgroundPickerChange(false) },
             photoUri = backgroundUri,
             iconIdentifier = null,
             onImageSelected = { (_, photoUri) ->
                 if (photoUri != null) onSetBackgroundUri(photoUri)
-                showBackgroundPicker = false
+                onShowBackgroundPickerChange(false)
             },
             imageLibrary = allImages,
             categories = allCategories,
@@ -425,7 +419,7 @@ fun OptionsScreenContent(
             OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
                 OutlinedTextField(
                     value = editedUsername,
-                    onValueChange = { if (it.length <= AppConstants.USERNAME_MAX_LENGTH) editedUsername = it },
+                    onValueChange = { name -> if (name.length <= AppConstants.USERNAME_MAX_LENGTH) editedUsername = name },
                     label = { Text(stringResource(R.string.options_username_field_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -450,8 +444,8 @@ fun OptionsScreenContent(
                             if (allImages.isEmpty()) {
                                 Text(stringResource(R.string.options_empty_library))
                             } else {
-                                allImages.filter { !it.hidden }.distinctBy { it.uri }.take(4).forEach { image ->
-                                    val allCategories = categoriesUiState.map { it.category }
+                                allImages.filter { img -> !img.hidden }.distinctBy { img -> img.uri }.take(4).forEach { image ->
+                                    val allCategories = categoriesUiState.map { state -> state.category }
                                     ImageSelector(
                                         photoUri = if (image.imageType == "IMAGE") image.uri else null,
                                         iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
@@ -517,7 +511,7 @@ fun OptionsScreenContent(
                 title = stringResource(R.string.options_units_title),
                 description = stringResource(R.string.options_units_desc)
             ) {
-                OutlinedButton(onClick = { showUnitManagement = true }, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { onShowUnitManagementChange(true) }, modifier = Modifier.fillMaxWidth()) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             val visibleUnits = measurementUnits.filter { !it.isHidden }.take(5)
@@ -607,7 +601,7 @@ fun OptionsScreenContent(
                     HorizontalDivider()
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { showBackgroundPicker = true }, modifier = Modifier.weight(1f)) {
+                            OutlinedButton(onClick = { onShowBackgroundPickerChange(true) }, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.Image, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.options_select_image))
@@ -769,7 +763,10 @@ fun ColorLibraryManagerDialog(
     }
 
     if (showAddColorDialog) { 
-        AddColorDialog(onDismiss = { showAddColorDialog = false }, onAddColor = { hex, name -> onAddColor(hex, name) }) 
+        AddColorDialog(onDismiss = { showAddColorDialog = false }, onAddColor = { hex, name -> 
+            onAddColor(hex, name)
+            showAddColorDialog = false 
+        })
     }
 
     BasicAlertDialog(onDismissRequest = onDismiss) {

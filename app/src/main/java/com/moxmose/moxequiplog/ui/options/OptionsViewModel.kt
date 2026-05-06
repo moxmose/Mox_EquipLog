@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.BackupManager
@@ -28,7 +29,8 @@ class OptionsViewModel(
     private val maintenanceLogDao: MaintenanceLogDao,
     private val imageRepository: ImageRepository,
     private val measurementUnitDao: MeasurementUnitDao,
-    private val backupManager: BackupManager
+    private val backupManager: BackupManager,
+    private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {
 
     sealed class OptionsUiEvent {
@@ -70,6 +72,33 @@ class OptionsViewModel(
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
     val uiEvents: Flow<OptionsUiEvent> = _uiEvents.receiveAsFlow()
+
+    // Hoisted UI State
+    private val _showAboutDialog = MutableStateFlow(false)
+    val showAboutDialog = _showAboutDialog.asStateFlow()
+
+    private val _colorMgmtState = MutableStateFlow<Pair<ColorManagerMode, String?>?>(null)
+    val colorMgmtState = _colorMgmtState.asStateFlow()
+
+    private val _showImageDialog = MutableStateFlow(false)
+    val showImageDialog = _showImageDialog.asStateFlow()
+
+    private val _showBackgroundPicker = MutableStateFlow(false)
+    val showBackgroundPicker = _showBackgroundPicker.asStateFlow()
+
+    private val _showUnitManagement = MutableStateFlow(false)
+    val showUnitManagement = _showUnitManagement.asStateFlow()
+
+    private val _showRestoreConfirm = MutableStateFlow<Uri?>(null)
+    val showRestoreConfirm = _showRestoreConfirm.asStateFlow()
+
+    fun onShowAboutDialogChange(show: Boolean) { _showAboutDialog.value = show }
+    fun onShowColorManager(mode: ColorManagerMode, categoryId: String?) { _colorMgmtState.value = mode to categoryId }
+    fun onDismissColorManager() { _colorMgmtState.value = null }
+    fun onShowImageDialogChange(show: Boolean) { _showImageDialog.value = show }
+    fun onShowBackgroundPickerChange(show: Boolean) { _showBackgroundPicker.value = show }
+    fun onShowUnitManagementChange(show: Boolean) { _showUnitManagement.value = show }
+    fun onShowRestoreConfirmChange(uri: Uri?) { _showRestoreConfirm.value = uri }
 
     init {
         viewModelScope.launch {
@@ -584,28 +613,7 @@ class OptionsViewModel(
     fun recalculateAllAccumulatedValues() {
         viewModelScope.launch {
             try {
-                val equipments = equipmentDao.getAllEquipments().first()
-                equipments.forEach { equipment ->
-                    val allLogs = maintenanceLogDao.getAllLogsForEquipment(equipment.id)
-                    if (allLogs.isNotEmpty()) {
-                        val updatedLogs = mutableListOf<MaintenanceLog>()
-                        var currentAccumulated = 0.0
-                        var lastValue: Double? = null
-
-                        allLogs.forEach { log ->
-                            val delta = when {
-                                log.value == null -> 0.0
-                                lastValue == null -> log.value
-                                log.value >= lastValue -> log.value - lastValue
-                                else -> log.value
-                            }
-                            currentAccumulated += delta
-                            updatedLogs.add(log.copy(accumulatedValue = currentAccumulated))
-                            lastValue = if (log.resetAfter) null else log.value
-                        }
-                        maintenanceLogDao.updateLogs(updatedLogs)
-                    }
-                }
+                maintenanceManager.recalculateAllAccumulatedValues()
                 _uiEvents.send(OptionsUiEvent.RecalculateSuccess)
             } catch (e: Exception) {
                 // Silently fail or handle
@@ -621,7 +629,7 @@ class OptionsViewModel(
             return true
         }
         return try {
-            equipmentDao.countEquipmentsUsingPhoto(uri) > 0
+            maintenanceManager.isPhotoUsed(uri)
         } catch (e: Exception) {
             _uiEvents.trySend(OptionsUiEvent.DatabaseCheckFailed)
             true

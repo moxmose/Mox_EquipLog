@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
-import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -17,34 +17,6 @@ import kotlinx.serialization.json.Json
 import java.util.*
 import androidx.sqlite.db.SimpleSQLiteQuery
 import java.text.SimpleDateFormat
-
-@Serializable
-data class ChartPoint(
-    val date: Long,
-    val value: Float,
-    val label: String? = null
-)
-
-data class PieChartPoint(
-    val label: String,
-    val value: Float,
-    val color: String? = null,
-    val id: Int = -1
-)
-
-data class HeatmapPoint(
-    val x: Int, // e.g. Day of week
-    val y: Int, // e.g. Hour or Month
-    val value: Int
-)
-
-data class BenchmarkData(
-    val equipmentName: String,
-    val totalValue: Float,
-    val avgInterval: Float,
-    val count: Int,
-    val periodLabel: String? = null
-)
 
 @Serializable
 data class ReportFilterState(
@@ -126,7 +98,8 @@ class ReportsViewModel(
     private val measurementUnitDao: MeasurementUnitDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
-    private val reportFilterDao: ReportFilterDao
+    private val reportFilterDao: ReportFilterDao,
+    private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {
 
     private val _selectedEquipmentIds = MutableStateFlow<Set<Int>>(emptySet())
@@ -157,15 +130,12 @@ class ReportsViewModel(
         appSettingsManager.reportsCustomColors,
         imageRepository.allColorsForReports
     ) { state, refresh, mode, custom, dbColors ->
-        // Usiamo i colori del database (caricati da default_data.xml) come base
         val dbColorList = dbColors.filter { !it.reportHidden }.map { it.hexValue }.takeIf { it.isNotEmpty() } 
             ?: listOf("#4285F4", "#34A853", "#FBBC05", "#EA4335", "#9C27B0", "#00BCD4")
 
         val palette = if (mode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
             custom ?: dbColorList
         } else {
-            // In modalità M3 o default, usiamo comunque la palette dal database per coerenza
-            // Se in futuro vorrai colori dinamici da Material3, potrai cambiare qui.
             dbColorList
         }
         SelectionState(state.selectedEquipmentIds, state.selectedOperationTypeIds, state.startDate, state.endDate, state.timeGranularity, refresh, state.showDismissed, mode, palette)
@@ -240,12 +210,11 @@ class ReportsViewModel(
             matchesDate && matchesVisibility
         }
 
-        // Calcolo della granularità effettiva globale per questa vista
         val allPoints = filteredLogs.map { ChartPoint(it.log.date, it.log.value?.toFloat() ?: 0f) }
         val effectiveGranularity = if (style.selections.timeGranularity != null) {
-            findBestGranularity(allPoints, style.selections.timeGranularity, false, false)
+            maintenanceManager.findBestGranularity(allPoints, style.selections.timeGranularity, false, false)
         } else {
-            findAutoGranularity(allPoints, false, false)
+            maintenanceManager.findAutoGranularity(allPoints, false, false)
         }
 
         val sortedSelectedEquipIds = core.equips.map { it.id }.filter { it in style.selections.selectedEquipmentIds }
@@ -256,15 +225,15 @@ class ReportsViewModel(
         // Standard Trends
         val equipChartData = sortedSelectedEquipIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }.map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
-            aggregateData(points, effectiveGranularity)
+            maintenanceManager.aggregateData(points, effectiveGranularity)
         }
 
         val opChartData = sortedSelectedOpIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.value != null }.map { ChartPoint(it.log.date, it.log.value!!.toFloat(), it.equipmentDescription) }
-            aggregateData(points, effectiveGranularity)
+            maintenanceManager.aggregateData(points, effectiveGranularity)
         }
 
-        // Global Distributions (Pie Charts) with STABLE COLORS
+        // Global Distributions
         val equipDist = filteredLogs.filter { it.log.equipmentId in style.selections.selectedEquipmentIds }.groupBy { it.log.equipmentId }.map { (id, logs) ->
             val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
             val index = core.equips.indexOfFirst { it.id == id }
@@ -279,9 +248,9 @@ class ReportsViewModel(
             PieChartPoint(label, logs.size.toFloat(), color, id)
         }.sortedByDescending { it.value }
 
-        // Period-based Distributions (Multiple Pie Charts)
+        // Period-based Distributions
         val equipDistByPeriod = if (effectiveGranularity != null) {
-            val dateFormat = getPeriodFormat(effectiveGranularity)
+            val dateFormat = maintenanceManager.getPeriodFormat(effectiveGranularity)
             val periods = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
             if (effectiveGranularity == TimeGranularity.HOURS && periods.size > 60) emptyMap()
             else {
@@ -297,7 +266,7 @@ class ReportsViewModel(
         } else emptyMap()
 
         val opDistByPeriod = if (effectiveGranularity != null) {
-            val dateFormat = getPeriodFormat(effectiveGranularity)
+            val dateFormat = maintenanceManager.getPeriodFormat(effectiveGranularity)
             val periods = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
             if (effectiveGranularity == TimeGranularity.HOURS && periods.size > 60) emptyMap()
             else {
@@ -312,7 +281,7 @@ class ReportsViewModel(
             }
         } else emptyMap()
 
-        // 1. Interval Analysis (KPI)
+        // KPI
         val intervalData = sortedSelectedEquipIds.associateWith { id ->
             val rawPoints = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }
                 .map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
@@ -320,72 +289,54 @@ class ReportsViewModel(
             
             val deltas = mutableListOf<ChartPoint>()
             for (i in 1 until rawPoints.size) {
-                val current = rawPoints[i].value
-                val previous = rawPoints[i-1].value
-                val delta = (current - previous).coerceAtLeast(0f)
+                val delta = (rawPoints[i].value - rawPoints[i-1].value).coerceAtLeast(0f)
                 deltas.add(ChartPoint(rawPoints[i].date, delta))
             }
-            aggregateData(deltas, effectiveGranularity, isDelta = true)
+            maintenanceManager.aggregateData(deltas, effectiveGranularity, isDelta = true)
         }
 
-        // 2. Heatmap Data
+        // Heatmap
         val cal = Calendar.getInstance()
         val heatmapData = filteredLogs.groupBy { log ->
             cal.timeInMillis = log.log.date
-            val dow = cal.get(Calendar.DAY_OF_WEEK)
-            val month = cal.get(Calendar.MONTH)
-            dow to month
+            cal.get(Calendar.DAY_OF_WEEK) to cal.get(Calendar.MONTH)
         }.map { (key, logs) -> HeatmapPoint(key.first, key.second, logs.size) }
 
-        // 3. Benchmarking (Global Usage Analysis)
+        // Benchmarking
         val benchmarkData = sortedSelectedEquipIds.map { id ->
             val equipLogs = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }.sortedBy { it.log.date }
             val totalUsage = if (equipLogs.size > 1) (equipLogs.last().log.value!! - equipLogs.first().log.value!!).toFloat() 
                              else equipLogs.firstOrNull()?.log?.value?.toFloat() ?: 0f
-            
             val intervals = mutableListOf<Float>()
             for (i in 1 until equipLogs.size) { intervals.add((equipLogs[i].log.value!! - equipLogs[i-1].log.value!!).toFloat()) }
             val avg = if (intervals.isNotEmpty()) intervals.average().toFloat() else 0f
-            
             BenchmarkData(equipmentName = core.equips.find { it.id == id }?.description ?: "ID: $id", totalValue = totalUsage, avgInterval = avg, count = equipLogs.size)
         }
 
-        // 3b. Benchmarking by Period (Fixed for Granularity)
         val benchmarkByPeriod = if (effectiveGranularity != null && effectiveGranularity != TimeGranularity.HOURS) {
-            val dateFormat = getPeriodFormat(effectiveGranularity)
+            val dateFormat = maintenanceManager.getPeriodFormat(effectiveGranularity)
             val logsByPeriod = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
-            
             logsByPeriod.mapValues { (period, _) ->
                 sortedSelectedEquipIds.map { id ->
-                    // Use correctly aggregated usage from intervalData for this period
                     val usageInPeriod = intervalData[id]?.find { dateFormat.format(Date(it.date)) == period }?.value ?: 0f
                     val countInPeriod = filteredLogs.count { it.log.equipmentId == id && dateFormat.format(Date(it.log.date)) == period }
-                    
-                    // KPI: Average km per log in this period
                     val avgInPeriod = if (countInPeriod > 0) usageInPeriod / countInPeriod else 0f
-                    
-                    BenchmarkData(
-                        equipmentName = core.equips.find { it.id == id }?.description ?: "ID: $id", 
-                        totalValue = usageInPeriod, 
-                        avgInterval = avgInPeriod, 
-                        count = countInPeriod, 
-                        periodLabel = period
-                    )
+                    BenchmarkData(equipmentName = core.equips.find { it.id == id }?.description ?: "ID: $id", totalValue = usageInPeriod, avgInterval = avgInPeriod, count = countInPeriod, periodLabel = period)
                 }
             }
         } else emptyMap()
 
-        // 4. NEW: Activity Volume (Count) over time
+        // Activity Volume
         val equipmentVolumeData = sortedSelectedEquipIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.equipmentId == id }.map { ChartPoint(it.log.date, 1f) }
-            aggregateData(points, effectiveGranularity, isCount = true)
+            maintenanceManager.aggregateData(points, effectiveGranularity, isCount = true)
         }
         val operationVolumeData = sortedSelectedOpIds.associateWith { id ->
             val points = filteredLogs.filter { it.log.operationTypeId == id }.map { ChartPoint(it.log.date, 1f) }
-            aggregateData(points, effectiveGranularity, isCount = true)
+            maintenanceManager.aggregateData(points, effectiveGranularity, isCount = true)
         }
 
-        // 5. NEW: Combined Logs Trend (Value for specific Equipment + Operation pairs)
+        // Combined Logs
         val combinedLogsData = mutableMapOf<String, List<ChartPoint>>()
         sortedSelectedEquipIds.forEach { eId ->
             sortedSelectedOpIds.forEach { oId ->
@@ -393,9 +344,8 @@ class ReportsViewModel(
                 if (logs.isNotEmpty()) {
                     val eDesc = core.equips.find { it.id == eId }?.description ?: "E$eId"
                     val oDesc = core.ops.find { it.id == oId }?.description ?: "O$oId"
-                    val key = "$eDesc - $oDesc"
                     val points = logs.map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
-                    combinedLogsData[key] = aggregateData(points, effectiveGranularity)
+                    combinedLogsData["$eDesc - $oDesc"] = maintenanceManager.aggregateData(points, effectiveGranularity)
                 }
             }
         }
@@ -403,7 +353,6 @@ class ReportsViewModel(
         val selectedEquipUnits = sortedSelectedEquipIds.mapNotNull { id -> core.units.find { it.id == core.equips.find { e -> e.id == id }?.unitId } }
         val selectedUnits = selectedEquipUnits.map { it.label }.distinct()
         val equipMaxDecimals = selectedEquipUnits.maxOfOrNull { it.decimalPlaces } ?: 0
-
         val selectedOpUnits = sortedSelectedOpIds.flatMap { opId -> filteredLogs.filter { it.log.operationTypeId == opId }.mapNotNull { logDetail -> core.equips.find { it.id == logDetail.log.equipmentId }?.unitId?.let { unitId -> core.units.find { it.id == unitId } } } }
         val opSelectedUnitLabels = selectedOpUnits.map { it.label }.distinct()
         val opMaxDecimals = selectedOpUnits.maxOfOrNull { it.decimalPlaces } ?: 0
@@ -428,120 +377,6 @@ class ReportsViewModel(
         )
     }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = ReportsUiState())
 
-    private fun getPeriodFormat(granularity: TimeGranularity) = when (granularity) {
-        TimeGranularity.DAYS -> SimpleDateFormat("dd/MM/yy", Locale.getDefault())
-        TimeGranularity.WEEKS -> SimpleDateFormat("'W'ww/yy", Locale.getDefault())
-        TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
-        TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
-        TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:00", Locale.getDefault())
-        TimeGranularity.MINUTES_15, TimeGranularity.MINUTES_5 -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
-    }
-
-    private fun aggregateData(points: List<ChartPoint>, granularity: TimeGranularity?, isDelta: Boolean = false, isCount: Boolean = false): List<ChartPoint> {
-        if (points.isEmpty()) return emptyList()
-        
-        // Esegui l'aggregazione con la granularità fornita (già calcolata o auto)
-        var result = performAggregation(points, granularity, isDelta, isCount)
-
-        // Data Capping & Smoothing sempre attivo per garantire leggibilità
-        if (result.size > UiConstants.MAX_CHART_POINTS) {
-            result = smoothData(result, UiConstants.MAX_CHART_POINTS)
-        }
-
-        return result
-    }
-
-    private fun findBestGranularity(points: List<ChartPoint>, requested: TimeGranularity, isDelta: Boolean, isCount: Boolean): TimeGranularity {
-        if (points.size < 2) return requested
-        
-        var current = requested
-        while (current != TimeGranularity.HOURS) {
-            // Prova a vedere quanti punti produce questa granularità
-            val testAggregation = performAggregation(points, current, isDelta, isCount)
-            if (testAggregation.size >= 2) {
-                return current
-            }
-            // Se produce meno di 2 punti, scendi di livello
-            current = when (current) {
-                TimeGranularity.YEARS -> TimeGranularity.MONTHS
-                TimeGranularity.MONTHS -> TimeGranularity.WEEKS
-                TimeGranularity.WEEKS -> TimeGranularity.DAYS
-                TimeGranularity.DAYS -> TimeGranularity.HOURS
-                TimeGranularity.HOURS -> TimeGranularity.MINUTES_15
-                else -> TimeGranularity.MINUTES_5
-            }
-        }
-        return current
-    }
-
-    private fun findAutoGranularity(points: List<ChartPoint>, isDelta: Boolean, isCount: Boolean): TimeGranularity? {
-        if (points.isEmpty()) return null
-        
-        val granularities = listOf(TimeGranularity.YEARS, TimeGranularity.MONTHS, TimeGranularity.WEEKS, TimeGranularity.DAYS, TimeGranularity.HOURS, TimeGranularity.MINUTES_15, TimeGranularity.MINUTES_5)
-        
-        // Cerchiamo una granularità che ci dia un numero ragionevole di punti (tra 2 e 25)
-        // Iniziamo dalle granularità più ampie (YEARS) verso quelle più fini (HOURS)
-        for (gran in granularities) {
-            val aggregated = performAggregation(points, gran, isDelta, isCount)
-            if (aggregated.size in 2..25) return gran
-        }
-        
-        // Se abbiamo più di un punto ma nessuna granularità ha restituito un range ideale,
-        // forziamo almeno HOURS per evitare di usare i timestamp grezzi (ms) che mandano in crisi l'asse X
-        return if (points.size > 1) TimeGranularity.HOURS else null
-    }
-
-    private fun performAggregation(points: List<ChartPoint>, granularity: TimeGranularity?, isDelta: Boolean, isCount: Boolean): List<ChartPoint> {
-        if (granularity == null) return points.sortedBy { it.date }
-        
-        val calendar = Calendar.getInstance()
-        val grouped = points.groupBy { point ->
-            calendar.timeInMillis = point.date
-            when (granularity) {
-                TimeGranularity.MINUTES_5 -> {
-                    val min = calendar.get(Calendar.MINUTE)
-                    calendar.set(Calendar.MINUTE, (min / 5) * 5)
-                    calendar.set(Calendar.SECOND, 0)
-                    calendar.set(Calendar.MILLISECOND, 0)
-                }
-                TimeGranularity.MINUTES_15 -> {
-                    val min = calendar.get(Calendar.MINUTE)
-                    calendar.set(Calendar.MINUTE, (min / 15) * 15)
-                    calendar.set(Calendar.SECOND, 0)
-                    calendar.set(Calendar.MILLISECOND, 0)
-                }
-                TimeGranularity.HOURS -> { calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
-                TimeGranularity.DAYS -> { calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
-                TimeGranularity.WEEKS -> { 
-                    calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-                    calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) 
-                }
-                TimeGranularity.MONTHS -> { calendar.set(Calendar.DAY_OF_MONTH, 1); calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
-                TimeGranularity.YEARS -> { calendar.set(Calendar.DAY_OF_YEAR, 1); calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
-            }
-            calendar.timeInMillis
-        }
-
-        return grouped.map { (timestamp, groupedPoints) -> 
-            val value = when {
-                isCount -> groupedPoints.size.toFloat()
-                isDelta -> groupedPoints.sumOf { it.value.toDouble() }.toFloat()
-                else -> groupedPoints.maxOf { it.value }
-            }
-            ChartPoint(timestamp, value) 
-        }.sortedBy { it.date }
-    }
-
-    private fun smoothData(points: List<ChartPoint>, maxPoints: Int): List<ChartPoint> {
-        if (points.size <= maxPoints) return points
-        val chunkSize = (points.size.toDouble() / maxPoints).toInt().coerceAtLeast(1)
-        return points.chunked(chunkSize).map { chunk ->
-            val avgDate = chunk.map { it.date }.average().toLong()
-            val avgValue = chunk.map { it.value }.average().toFloat()
-            ChartPoint(avgDate, avgValue)
-        }
-    }
-
     fun toggleEquipmentSelection(id: Int) { _selectedEquipmentIds.value = if (_selectedEquipmentIds.value.contains(id)) _selectedEquipmentIds.value - id else _selectedEquipmentIds.value + id }
     fun toggleOperationTypeSelection(id: Int) { _selectedOperationTypeIds.value = if (_selectedOperationTypeIds.value.contains(id)) _selectedOperationTypeIds.value - id else _selectedOperationTypeIds.value + id }
     fun selectAllEquipment() { _selectedEquipmentIds.value = uiState.value.equipments.map { it.id }.toSet() }
@@ -551,9 +386,7 @@ class ReportsViewModel(
     fun invertOperationTypeSelection() { _selectedOperationTypeIds.value = uiState.value.operationTypes.map { it.id }.toSet() - _selectedOperationTypeIds.value }
     fun clearOperationTypeSelection() { _selectedOperationTypeIds.value = emptySet() }
     fun setDateRange(start: Long?, end: Long?) { _startDate.value = start; _endDate.value = end }
-    fun setTimeGranularity(granularity: TimeGranularity?) {
-        _timeGranularity.value = if (_timeGranularity.value == granularity) null else granularity
-    }
+    fun setTimeGranularity(granularity: TimeGranularity?) { _timeGranularity.value = if (_timeGranularity.value == granularity) null else granularity }
     fun resetFilters() { _startDate.value = null; _endDate.value = null; _timeGranularity.value = null; _showDismissed.value = false; selectAllEquipment(); selectAllOperationTypes(); _activeFilter.value = null }
     fun toggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
     fun refresh() { _refreshTrigger.value += 1 }
@@ -605,13 +438,9 @@ class ReportsViewModel(
         val state = uiState.value
         val sb = StringBuilder()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-
-        // Intestazione
         sb.append("Report;${reportTitle}\n")
         sb.append("Data Esportazione;${dateFormat.format(Date())}\n")
         sb.append("Periodo;${state.startDate?.let { dateFormat.format(Date(it)) } ?: "Inizio"} - ${state.endDate?.let { dateFormat.format(Date(it)) } ?: "Fine"}\n\n")
-
-        // 1. Dati Trend (Equipments o Operations)
         if (state.equipmentChartData.any { it.value.isNotEmpty() }) {
             sb.append("Data;Attrezzatura;Valore;Unita\n")
             state.equipmentChartData.forEach { (id, points) ->
@@ -631,8 +460,6 @@ class ReportsViewModel(
                 }
             }
         }
-
-        // 2. Dati Benchmark
         if (state.benchmarkData.isNotEmpty()) {
             sb.append("\nAnalisi Benchmark\n")
             sb.append("Attrezzatura;Utilizzo Totale;Media Intervallo;Conteggio Log\n")
@@ -642,8 +469,6 @@ class ReportsViewModel(
                 sb.append("\"${b.equipmentName}\";$total;$avg;${b.count}\n")
             }
         }
-
-        // 3. Distribuzioni (Pie Charts)
         if (state.equipmentDistribution.isNotEmpty() && reportTitle.contains("Freq", ignoreCase = true)) {
             sb.append("\nDistribuzione\n")
             sb.append("Nome;Occorrenze;Percentuale\n")
@@ -654,7 +479,6 @@ class ReportsViewModel(
                 sb.append("\"${p.label}\";${p.value.toInt()};${String.format(Locale.US, "%.1f%%", perc)}\n")
             }
         }
-
         return sb.toString()
     }
 }

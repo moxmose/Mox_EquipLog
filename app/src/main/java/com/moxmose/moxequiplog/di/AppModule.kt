@@ -4,6 +4,7 @@ import androidx.room.Room
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.AppDatabase
 import com.moxmose.moxequiplog.ui.equipments.EquipmentsViewModel
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
@@ -50,6 +51,7 @@ val appModule = module {
     // Repositories
     single { ImageRepository(get(), get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
     single { AppSettingsManager(get(), get(named("defaultUsername"))) }
+    single { MaintenanceManager(get(), get(), get()) }
     single { BackupManager(androidContext(), get()) }
     single { CalendarManager(androidContext()) }
 
