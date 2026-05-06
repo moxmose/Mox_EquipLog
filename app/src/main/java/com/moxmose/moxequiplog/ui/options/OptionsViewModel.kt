@@ -4,12 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.AppColor
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
+import android.net.Uri
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -26,7 +26,11 @@ data class CategoryUiState(
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
-    private val imageRepository: ImageRepository
+    private val maintenanceLogDao: MaintenanceLogDao,
+    private val imageRepository: ImageRepository,
+    private val measurementUnitDao: MeasurementUnitDao,
+    private val backupManager: BackupManager,
+    private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {
 
     sealed class OptionsUiEvent {
@@ -51,22 +55,72 @@ class OptionsViewModel(
         data object ColorIdInvalid : OptionsUiEvent()
         data object DeleteColorFailed : OptionsUiEvent()
         data object UpdateBackgroundFailed : OptionsUiEvent()
+        data object AddUnitFailed : OptionsUiEvent()
+        data object AddUnitFailedDuplicate : OptionsUiEvent()
+        data object DeleteUnitFailed : OptionsUiEvent()
+        data object UpdateUnitFailed : OptionsUiEvent()
+        data object UpdateUnitsOrderFailed : OptionsUiEvent()
+        data object ToggleUnitVisibilityFailed : OptionsUiEvent()
+        data object SetDefaultFailed : OptionsUiEvent()
+        data object UpdateReportsSettingsFailed : OptionsUiEvent()
+        data object UpdateGoogleAccountFailed : OptionsUiEvent()
+        data class BackupResult(val success: Boolean, val message: String?) : OptionsUiEvent()
+        data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
+        data class TotalExportResult(val success: Boolean, val message: String?) : OptionsUiEvent()
+        data object RecalculateSuccess : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
     val uiEvents: Flow<OptionsUiEvent> = _uiEvents.receiveAsFlow()
 
+    // Hoisted UI State
+    private val _showAboutDialog = MutableStateFlow(false)
+    val showAboutDialog = _showAboutDialog.asStateFlow()
+
+    private val _colorMgmtState = MutableStateFlow<Pair<ColorManagerMode, String?>?>(null)
+    val colorMgmtState = _colorMgmtState.asStateFlow()
+
+    private val _showImageDialog = MutableStateFlow(false)
+    val showImageDialog = _showImageDialog.asStateFlow()
+
+    private val _showBackgroundPicker = MutableStateFlow(false)
+    val showBackgroundPicker = _showBackgroundPicker.asStateFlow()
+
+    private val _showUnitManagement = MutableStateFlow(false)
+    val showUnitManagement = _showUnitManagement.asStateFlow()
+
+    private val _showRestoreConfirm = MutableStateFlow<Uri?>(null)
+    val showRestoreConfirm = _showRestoreConfirm.asStateFlow()
+
+    fun onShowAboutDialogChange(show: Boolean) { _showAboutDialog.value = show }
+    fun onShowColorManager(mode: ColorManagerMode, categoryId: String?) { _colorMgmtState.value = mode to categoryId }
+    fun onDismissColorManager() { _colorMgmtState.value = null }
+    fun onShowImageDialogChange(show: Boolean) { _showImageDialog.value = show }
+    fun onShowBackgroundPickerChange(show: Boolean) { _showBackgroundPicker.value = show }
+    fun onShowUnitManagementChange(show: Boolean) { _showUnitManagement.value = show }
+    fun onShowRestoreConfirmChange(uri: Uri?) { _showRestoreConfirm.value = uri }
+
     init {
         viewModelScope.launch {
-            imageRepository.initializeAppData()
+            // L'inizializzazione dei dati dell'app viene gestita ora solo nella MainActivity
+            // per evitare race condition durante il primo avvio.
+            checkAndPopulateUnits()
+        }
+    }
+
+    private suspend fun checkAndPopulateUnits() {
+        if (measurementUnitDao.countUnits() == 0) {
+            AppConstants.INITIAL_MEASUREMENT_UNITS.forEachIndexed { index, unit ->
+                measurementUnitDao.insertUnit(unit.copy(displayOrder = index))
+            }
         }
     }
 
     val username: StateFlow<String> = appSettingsManager.username
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), "")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), "")
 
     val allImages: StateFlow<List<Image>> = imageRepository.allImages
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val categoriesUiState: StateFlow<List<CategoryUiState>> = imageRepository.allCategories
         .flatMapLatest { categories ->
@@ -83,28 +137,50 @@ class OptionsViewModel(
             }
             combine(flows) { it.toList() }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
     val allColors: StateFlow<List<AppColor>> = imageRepository.allColors
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+
+    val reportsColors: StateFlow<List<AppColor>> = imageRepository.allColorsForReports
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+
+    val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+        
+    val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val backgroundUri: StateFlow<String?> = appSettingsManager.backgroundUri
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val backgroundBlur: StateFlow<Float> = appSettingsManager.backgroundBlur
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_BLUR)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_BLUR)
 
     val backgroundSaturation: StateFlow<Float> = appSettingsManager.backgroundSaturation
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_SATURATION)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_SATURATION)
 
     val backgroundTintEnabled: StateFlow<Boolean> = appSettingsManager.backgroundTintEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED)
 
     val backgroundTintAlpha: StateFlow<Float> = appSettingsManager.backgroundTintAlpha
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA)
 
     val backgroundImageAlpha: StateFlow<Float> = appSettingsManager.backgroundImageAlpha
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA)
+
+    val reportsColorMode: StateFlow<String> = appSettingsManager.reportsColorMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_REPORTS_COLOR_MODE)
+
+    val reportsCustomColors: StateFlow<List<String>> = appSettingsManager.reportsCustomColors
+        .map { it ?: emptyList() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+
+    val googleAccountName: StateFlow<String?> = appSettingsManager.googleAccountName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
 
     fun resetBackgroundSettings() {
         viewModelScope.launch {
@@ -180,8 +256,28 @@ class OptionsViewModel(
         }
     }
 
+    fun setReportsColorMode(mode: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setReportsColorMode(mode)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
+    fun setReportsCustomColors(colors: List<String>) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setReportsCustomColors(colors)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
     fun setUsername(newUsername: String) {
-        if (newUsername.isBlank()) {
+        if (newUsername.isBlank() || newUsername.length > AppConstants.USERNAME_MAX_LENGTH) {
             _uiEvents.trySend(OptionsUiEvent.UsernameInvalid)
             return
         }
@@ -194,13 +290,29 @@ class OptionsViewModel(
         }
     }
 
+    fun setGoogleAccountName(name: String?) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setGoogleAccountName(name)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateGoogleAccountFailed)
+            }
+        }
+    }
+
+    fun setSyncCalendarByDefault(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setSyncCalendarByDefault(enabled)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
     fun setCategoryDefault(categoryId: String, imageIdentifier: ImageIdentifier?) {
         if (categoryId.isBlank()) {
             _uiEvents.trySend(OptionsUiEvent.CategoryIdInvalid)
-            return
-        }
-        if (imageIdentifier == null) {
-            _uiEvents.trySend(OptionsUiEvent.NoImageSelectedForDefault)
             return
         }
         viewModelScope.launch {
@@ -318,6 +430,21 @@ class OptionsViewModel(
         }
     }
 
+    fun updateReportColorsOrder(colors: List<AppColor>) {
+        if (colors.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                // Aggiorniamo l'ordine dei report mappando la lista sulla colonna reportOrder
+                val updatedColors = colors.mapIndexed { index, appColor ->
+                    appColor.copy(reportOrder = index)
+                }
+                imageRepository.updateColorsOrder(updatedColors)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateColorsOrderFailed)
+            }
+        }
+    }
+
     fun toggleColorVisibility(id: Long) {
         if (id == 0L) {
             _uiEvents.trySend(OptionsUiEvent.ColorIdInvalid)
@@ -326,6 +453,30 @@ class OptionsViewModel(
         viewModelScope.launch {
             try {
                 imageRepository.toggleColorVisibility(id)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.ToggleColorVisibilityFailed)
+            }
+        }
+    }
+
+    fun toggleReportColorVisibility(id: Long) {
+        if (id == 0L) {
+            _uiEvents.trySend(OptionsUiEvent.ColorIdInvalid)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                // Vincolo: Almeno un colore deve rimanere visibile per i report
+                val currentVisibleCount = reportsColors.value.count { !it.reportHidden }
+                val targetColor = reportsColors.value.find { it.id == id }
+                
+                if (currentVisibleCount <= 1 && targetColor != null && !targetColor.reportHidden) {
+                    // Stiamo cercando di nascondere l'ultimo visibile: lo impediamo
+                    _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+                    return@launch
+                }
+
+                imageRepository.toggleReportColorVisibility(id)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.ToggleColorVisibilityFailed)
             }
@@ -346,13 +497,139 @@ class OptionsViewModel(
         }
     }
 
+    fun addMeasurementUnit(label: String, description: String, decimalPlaces: Int = 0) {
+        if (label.isBlank() || label.length > AppConstants.UNIT_LABEL_MAX_LENGTH) return
+        
+        val normalizedLabel = label.trim().lowercase()
+        if (measurementUnits.value.any { it.label.lowercase() == normalizedLabel }) {
+            viewModelScope.launch { _uiEvents.send(OptionsUiEvent.AddUnitFailedDuplicate) }
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val maxOrder = measurementUnits.value.maxOfOrNull { it.displayOrder } ?: -1
+                measurementUnitDao.insertUnit(MeasurementUnit(
+                    label = normalizedLabel,
+                    description = description, 
+                    displayOrder = maxOrder + 1,
+                    decimalPlaces = decimalPlaces.coerceIn(0, AppConstants.MAX_DECIMAL_PLACES)
+                ))
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.AddUnitFailed)
+            }
+        }
+    }
+
+    fun updateMeasurementUnit(unit: MeasurementUnit) {
+        viewModelScope.launch {
+            try {
+                measurementUnitDao.updateUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateUnitFailed)
+            }
+        }
+    }
+
+    fun toggleMeasurementUnitVisibility(id: Int) {
+        viewModelScope.launch {
+            try {
+                measurementUnitDao.getUnitById(id)?.let { unit ->
+                    measurementUnitDao.updateUnit(unit.copy(isHidden = !unit.isHidden))
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.ToggleUnitVisibilityFailed)
+            }
+        }
+    }
+
+    fun updateMeasurementUnitsOrder(units: List<MeasurementUnit>) {
+        viewModelScope.launch {
+            try {
+                units.forEachIndexed { index, unit ->
+                    measurementUnitDao.updateUnit(unit.copy(displayOrder = index))
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateUnitsOrderFailed)
+            }
+        }
+    }
+
+    fun deleteMeasurementUnit(unit: MeasurementUnit) {
+        if (unit.isSystem) return
+        viewModelScope.launch {
+            try {
+                measurementUnitDao.deleteUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.DeleteUnitFailed)
+            }
+        }
+    }
+    
+    fun toggleDefaultUnit(id: Int) {
+        viewModelScope.launch {
+            try {
+                val currentDefault = defaultUnitId.value
+                if (currentDefault == id) {
+                    appSettingsManager.setDefaultUnitId(null)
+                } else {
+                    appSettingsManager.setDefaultUnitId(id)
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.SetDefaultFailed)
+            }
+        }
+    }
+
+    fun backupDatabase(uri: Uri) {
+        viewModelScope.launch {
+            backupManager.backupDatabase(uri).fold(
+                onSuccess = { _uiEvents.send(OptionsUiEvent.BackupResult(true, null)) },
+                onFailure = { _uiEvents.send(OptionsUiEvent.BackupResult(false, it.message)) }
+            )
+        }
+    }
+
+    fun restoreDatabase(uri: Uri) {
+        viewModelScope.launch {
+            backupManager.restoreDatabase(uri).fold(
+                onSuccess = { _uiEvents.send(OptionsUiEvent.RestoreResult(true, null)) },
+                onFailure = { _uiEvents.send(OptionsUiEvent.RestoreResult(false, it.message)) }
+            )
+        }
+    }
+
+    fun getSuggestedBackupFileName(): String = backupManager.getSuggestedBackupFileName()
+
+    fun totalExport(uri: Uri) {
+        viewModelScope.launch {
+            backupManager.exportAllToZip(uri).fold(
+                onSuccess = { _uiEvents.send(OptionsUiEvent.TotalExportResult(true, null)) },
+                onFailure = { _uiEvents.send(OptionsUiEvent.TotalExportResult(false, it.message)) }
+            )
+        }
+    }
+
+    fun recalculateAllAccumulatedValues() {
+        viewModelScope.launch {
+            try {
+                maintenanceManager.recalculateAllAccumulatedValues()
+                _uiEvents.send(OptionsUiEvent.RecalculateSuccess)
+            } catch (e: Exception) {
+                // Silently fail or handle
+            }
+        }
+    }
+
+    fun getSuggestedTotalExportFileName(): String = backupManager.getSuggestedTotalExportFileName()
+
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {
             _uiEvents.trySend(OptionsUiEvent.PhotoUriInvalid)
             return true
         }
         return try {
-            equipmentDao.countEquipmentsUsingPhoto(uri) > 0
+            maintenanceManager.isPhotoUsed(uri)
         } catch (e: Exception) {
             _uiEvents.trySend(OptionsUiEvent.DatabaseCheckFailed)
             true

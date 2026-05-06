@@ -26,4 +26,10 @@ interface OperationTypeDao {
 
     @Query("SELECT COUNT(*) FROM operation_types WHERE photoUri = :uri")
     suspend fun countOperationTypesUsingPhoto(uri: String): Int
+
+    @Query("SELECT * FROM operation_types WHERE isSystem = 1 LIMIT 1")
+    suspend fun getSystemOperation(): OperationType?
+
+    @Query("SELECT * FROM operation_types WHERE id = :id")
+    suspend fun getOperationTypeById(id: Int): OperationType?
 }

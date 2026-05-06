@@ -11,5 +11,8 @@ data class AppColor(
     val name: String,
     val isDefault: Boolean = false,
     val displayOrder: Int = 0,
-    val hidden: Boolean = false
+    val hidden: Boolean = false,
+    // Campi specifici per i report
+    val reportOrder: Int = 0,
+    val reportHidden: Boolean = false
 )

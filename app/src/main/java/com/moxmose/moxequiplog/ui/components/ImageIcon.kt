@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotInterested
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +30,8 @@ fun ImageIcon(
     modifier: Modifier = Modifier,
     category: String? = "",
     borderColor: Color? = null,
-    contentPadding: Dp = 0.dp // Padding variabile per non influenzare altri contesti
+    contentPadding: Dp = 0.dp,
+    tint: Color? = null
 ) {
     Box(
         modifier = modifier
@@ -57,7 +57,7 @@ fun ImageIcon(
                         imageVector = EquipmentIconProvider.getIcon(iconIdentifier, category ?: ""),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        tint = tint ?: MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
                 else -> {

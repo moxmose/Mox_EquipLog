@@ -14,5 +14,16 @@ data class OperationType(
     val color: String? = null,
     val iconIdentifier: String? = null,
     val photoUri: String? = null,
-    val displayOrder: Int = 0
+    val displayOrder: Int = 0,
+    @ColumnInfo(defaultValue = "false")
+    val isSystem: Boolean = false,
+    @ColumnInfo(defaultValue = "false")
+    val isPredictable: Boolean = false,
+    val intervalValue: Double? = null,
+    val timeoutValue: Int? = null,
+    val timeoutUnit: TimeGranularity? = null,
+    @ColumnInfo(defaultValue = "30")
+    val visibilityHorizon: Int = 30,
+    @ColumnInfo(defaultValue = "DAYS")
+    val visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS
 )

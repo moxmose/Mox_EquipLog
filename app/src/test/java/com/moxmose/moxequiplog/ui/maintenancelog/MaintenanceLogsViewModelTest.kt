@@ -4,17 +4,13 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.CategoryDao
-import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
-import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.local.*
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +31,7 @@ import org.junit.runner.RunWith
 import org.koin.core.context.stopKoin
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.Calendar
 
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
@@ -46,11 +43,14 @@ class MaintenanceLogsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var maintenanceLogDao: MaintenanceLogDao
+    private lateinit var maintenanceReminderDao: MaintenanceReminderDao
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var categoryDao: CategoryDao
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var imageRepository: ImageRepository
+    private lateinit var measurementUnitDao: MeasurementUnitDao
+    private lateinit var maintenanceManager: MaintenanceManager
     private lateinit var viewModel: MaintenanceLogViewModel
 
     private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
@@ -65,8 +65,12 @@ class MaintenanceLogsViewModelTest {
         maintenanceLogDao = mockk(relaxed = true) {
             every { getLogsWithDetails(any()) } answers { flowOf(listOf(mockk())) }
         }
+        maintenanceReminderDao = mockk(relaxed = true) {
+            every { getActiveRemindersWithDetails() } returns flowOf(emptyList())
+        }
         equipmentDao = mockk(relaxed = true) {
             every { getAllEquipments() } returns allEquipmentsFlow
+            every { countActiveResettableEquipments() } returns flowOf(0)
         }
         operationTypeDao = mockk(relaxed = true) {
             every { getAllOperationTypes() } returns allOperationTypesFlow
@@ -77,17 +81,28 @@ class MaintenanceLogsViewModelTest {
         appSettingsManager = mockk(relaxed = true) {
             every { defaultEquipmentId } returns defaultEquipmentIdFlow
             every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
+            every { syncCalendarByDefault } returns flowOf(false)
+            every { googleAccountName } returns flowOf(null)
         }
         imageRepository = mockk(relaxed = true) {
              every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
+             every { allCategories } returns flowOf(emptyList())
         }
+        measurementUnitDao = mockk(relaxed = true) {
+            every { getAllUnits() } returns MutableStateFlow(emptyList())
+        }
+        maintenanceManager = mockk<MaintenanceManager>(relaxed = true)
         viewModel = MaintenanceLogViewModel(
-            maintenanceLogDao, 
-            equipmentDao, 
-            operationTypeDao, 
-            categoryDao, 
+            maintenanceLogDao,
+            maintenanceReminderDao,
+            equipmentDao,
+            operationTypeDao,
+            categoryDao,
             appSettingsManager,
-            imageRepository
+            imageRepository,
+            measurementUnitDao,
+            mockk(relaxed = true), // calendarManager
+            maintenanceManager
         )
     }
 
@@ -215,11 +230,37 @@ class MaintenanceLogsViewModelTest {
     }
 
     @Test
-    fun restoreLog_error_branch() = runTest {
-        coEvery { maintenanceLogDao.updateLog(any()) } throws RuntimeException()
-        viewModel.uiEvents.test {
-            viewModel.restoreLog(mockk())
-            assertEquals(MaintenanceLogViewModel.UiEvent.RestoreLogFailed, awaitItem())
+    fun `addLog preserves time information from date timestamp`() = runTest {
+        val calendar = Calendar.getInstance().apply {
+            set(2023, Calendar.JANUARY, 1, 15, 30, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val specificTime = calendar.timeInMillis
+        
+        viewModel.addLog(1, 1, "Note", 100.0, specificTime, null)
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        coVerify { 
+            maintenanceLogDao.insertLog(match { 
+                it.date == specificTime && it.equipmentId == 1 && it.operationTypeId == 1
+            }) 
+        }
+    }
+
+    @Test
+    fun `updateLog preserves time information when editing`() = runTest {
+        val calendar = Calendar.getInstance().apply {
+            set(2023, Calendar.JANUARY, 1, 15, 30, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val specificTime = calendar.timeInMillis
+        val log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = specificTime)
+        
+        viewModel.updateLog(log)
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        coVerify { 
+            maintenanceLogDao.updateLog(match { it.date == specificTime })
         }
     }
 }

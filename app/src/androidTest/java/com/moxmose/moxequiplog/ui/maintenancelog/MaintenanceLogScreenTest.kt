@@ -47,6 +47,7 @@ class MaintenanceLogScreenTest {
                 logs = logs,
                 equipments = dummyEquipments,
                 operationTypes = dummyOps,
+                measurementUnits = emptyList(),
                 searchQuery = "",
                 onSearchQueryChange = {},
                 sortProperty = SortProperty.DATE,
@@ -57,25 +58,35 @@ class MaintenanceLogScreenTest {
                 onShowDismissedToggle = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddLog = { _, _, _, _, _, _ -> },
+                onAddLog = { _, _, _, _, _, _, _ -> },
+                onAddReminder = { _, _, _, _, _ -> },
+                onRefreshReminders = {},
+                onEstimateDueDate = { _, _ -> null },
+                onEstimateTargetValue = { _, _ -> null },
                 expandedCardId = null,
                 onCardExpanded = {},
                 editingCardId = null,
                 onEditLog = {},
                 onUpdateLog = {},
+                onDeleteLog = {},
                 onDismissLog = {},
                 onRestoreLog = {},
-                allCategories = emptyList(),
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultEquipmentId = null,
                 defaultOperationTypeId = null,
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                onCompleteReminder = {},
+                onEditReminder = {},
+                onDeleteReminder = {},
+                syncCalendarByDefault = false,
+                googleAccountName = null,
+                onNavigateToOptions = {}
             )
         }
 
-        composeTestRule.onNodeWithText("Road Equipment").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Oil Change").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Road Equipment", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Oil Change", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -87,6 +98,7 @@ class MaintenanceLogScreenTest {
                 logs = emptyList(),
                 equipments = dummyEquipments,
                 operationTypes = dummyOps,
+                measurementUnits = emptyList(),
                 searchQuery = "",
                 onSearchQueryChange = {},
                 sortProperty = SortProperty.DATE,
@@ -97,24 +109,35 @@ class MaintenanceLogScreenTest {
                 onShowDismissedToggle = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddLog = { _, _, _, _, _, _ -> },
+                onAddLog = { _, _, _, _, _, _, _ -> },
+                onAddReminder = { _, _, _, _, _ -> },
+                onRefreshReminders = {},
+                onEstimateDueDate = { _, _ -> null },
+                onEstimateTargetValue = { _, _ -> null },
                 expandedCardId = null,
                 onCardExpanded = {},
                 editingCardId = null,
                 onEditLog = {},
                 onUpdateLog = {},
+                onDeleteLog = {},
                 onDismissLog = {},
                 onRestoreLog = {},
-                allCategories = emptyList(),
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultEquipmentId = null,
                 defaultOperationTypeId = null,
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                onCompleteReminder = {},
+                onEditReminder = {},
+                onDeleteReminder = {},
+                syncCalendarByDefault = false,
+                googleAccountName = null,
+                onNavigateToOptions = {}
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Add Log").performClick()
+        // Cerco "Log" (Add Log / Aggiungi Log)
+        composeTestRule.onNodeWithContentDescription("Log", ignoreCase = true, substring = true).performClick()
 
         assertTrue(onShowAddDialogChangeCalled.get())
     }
@@ -129,24 +152,29 @@ class MaintenanceLogScreenTest {
                 operationTypes = dummyOps,
                 onDismissRequest = {},
                 onConfirm = { confirmedLog.set(it) },
-                allCategories = emptyList(),
+                measurementUnits = emptyList(),
                 defaultEquipmentId = null,
                 defaultOperationTypeId = null,
+                initialDate = System.currentTimeMillis(),
+                initialValue = "",
+                initialSyncToCalendar = null,
                 equipmentCategoryColor = null,
                 operationCategoryColor = null
             )
         }
 
-        // Simulate user selection
-        composeTestRule.onNodeWithText("Select an equipment").performClick()
+        // Selettori più generici per i placeholder del menu a tendina
+        // Cerco "equip" (Equipment / Mezzo)
+        composeTestRule.onNodeWithText("equip", ignoreCase = true, substring = true).performClick()
         composeTestRule.onNodeWithText("Road Equipment").performClick()
-        composeTestRule.onNodeWithText("Select an operation").performClick()
+        
+        // Cerco "operat" (Operation / Operazione)
+        composeTestRule.onNodeWithText("operat", ignoreCase = true, substring = true).performClick()
         composeTestRule.onNodeWithText("Oil Change").performClick()
 
-        // Click confirm
-        composeTestRule.onNodeWithText("Add").performClick()
+        // Click "Add" / "Aggiungi"
+        composeTestRule.onNodeWithText("Add", ignoreCase = true, substring = true).performClick()
 
-        // Verify callback
         assertEquals(1, confirmedLog.get().equipmentId)
         assertEquals(1, confirmedLog.get().operationTypeId)
     }
@@ -171,20 +199,21 @@ class MaintenanceLogScreenTest {
                 logDetail = log, 
                 equipments = dummyEquipments, 
                 operationTypes = dummyOps, 
+                measurementUnits = emptyList(),
                 isExpanded = false, 
                 isEditing = false, 
                 onExpand = { onCardExpandedCalled.set(true) }, 
                 onEdit = {}, 
                 onSave = {}, 
+                onDelete = {},
                 onDismiss = {}, 
-                onRestore = {}, 
-                allCategories = emptyList(),
+                onRestore = {},
                 equipmentCategoryColor = null,
                 operationCategoryColor = null
             )
         }
 
-        composeTestRule.onNodeWithText("Road Equipment").performClick()
+        composeTestRule.onNodeWithText("Road Equipment", substring = true).performClick()
 
         assertTrue(onCardExpandedCalled.get())
     }
@@ -209,20 +238,22 @@ class MaintenanceLogScreenTest {
                 logDetail = log, 
                 equipments = dummyEquipments, 
                 operationTypes = dummyOps, 
+                measurementUnits = emptyList(),
                 isExpanded = false, 
                 isEditing = false, 
                 onExpand = {}, 
                 onEdit = { onEditCalled.set(true) }, 
                 onSave = {}, 
+                onDelete = {},
                 onDismiss = {}, 
-                onRestore = {}, 
-                allCategories = emptyList(),
+                onRestore = {},
                 equipmentCategoryColor = null,
                 operationCategoryColor = null
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Edit Log").performClick()
+        // Cerco "Edit" / "Modifica"
+        composeTestRule.onNodeWithContentDescription("Edit", ignoreCase = true, substring = true).performClick()
 
         assertTrue(onEditCalled.get())
     }

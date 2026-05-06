@@ -1,15 +1,16 @@
 package com.moxmose.moxequiplog.ui.options
 
+import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
+import androidx.test.platform.app.InstrumentationRegistry
+import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.utils.UiConstants
 import org.junit.Rule
 import org.junit.Test
@@ -33,20 +34,22 @@ class OptionsScreenTest {
                 username = testUsername,
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
-                allColors = emptyList(),
+                reportsColors = emptyList(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null,
                 backgroundUri = null,
                 backgroundBlur = UiConstants.DEFAULT_BACKGROUND_BLUR,
                 backgroundSaturation = UiConstants.DEFAULT_BACKGROUND_SATURATION,
                 backgroundTintEnabled = UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED,
                 backgroundTintAlpha = UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA,
                 backgroundImageAlpha = UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA,
+                reportsColorMode = "NONE",
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
                 onAddImage = { _, _ -> },
                 onRemoveImage = {},
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
-                onUpdateCategoryColor = { _, _ -> },
                 onSetBackgroundUri = {},
                 onSetBackgroundBlur = {},
                 onSetBackgroundSaturation = {},
@@ -54,18 +57,30 @@ class OptionsScreenTest {
                 onSetBackgroundTintAlpha = {},
                 onSetBackgroundImageAlpha = {},
                 onResetBackgroundSettings = {},
+                onSetReportsColorMode = {},
+                onAddUnit = { _, _, _ -> },
+                onUpdateUnit = {},
+                onToggleUnitVisibility = {},
+                onUpdateUnitsOrder = {},
+                onDeleteUnit = {},
+                onToggleDefaultUnit = {},
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = {},
-                showColorPicker = null,
-                onShowColorPickerChange = {},
+                onShowColorManager = { _, _ -> },
                 showImageDialog = false,
                 onShowImageDialogChange = {},
-                onAddColor = { _, _ -> },
-                onUpdateColor = {},
-                onUpdateColorsOrder = {},
-                onToggleColorVisibility = {},
-                snackbarHostState = remember { SnackbarHostState() }
+                onBackupDatabase = {},
+                onRestoreDatabase = {},
+                onTotalExport = {},
+                getSuggestedBackupFileName = { "" },
+                getSuggestedTotalExportFileName = { "" },
+                snackbarHostState = remember { SnackbarHostState() },
+                googleAccountName = null,
+                onGoogleAccountSelected = {},
+                syncCalendarByDefault = false,
+                onSyncCalendarByDefaultChange = {},
+                onRecalculateAccumulated = {}
             )
         }
 
@@ -82,20 +97,22 @@ class OptionsScreenTest {
                 username = "",
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
-                allColors = emptyList(),
+                reportsColors = emptyList(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null,
                 backgroundUri = null,
                 backgroundBlur = UiConstants.DEFAULT_BACKGROUND_BLUR,
                 backgroundSaturation = UiConstants.DEFAULT_BACKGROUND_SATURATION,
                 backgroundTintEnabled = UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED,
                 backgroundTintAlpha = UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA,
                 backgroundImageAlpha = UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA,
+                reportsColorMode = "NONE",
                 onUsernameChange = { changedUsername.set(it) },
                 onSetCategoryDefault = { _, _ -> },
                 onAddImage = { _, _ -> },
                 onRemoveImage = {},
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
-                onUpdateCategoryColor = { _, _ -> },
                 onSetBackgroundUri = {},
                 onSetBackgroundBlur = {},
                 onSetBackgroundSaturation = {},
@@ -103,23 +120,40 @@ class OptionsScreenTest {
                 onSetBackgroundTintAlpha = {},
                 onSetBackgroundImageAlpha = {},
                 onResetBackgroundSettings = {},
+                onSetReportsColorMode = {},
+                onAddUnit = { _, _, _ -> },
+                onUpdateUnit = {},
+                onToggleUnitVisibility = {},
+                onUpdateUnitsOrder = {},
+                onDeleteUnit = {},
+                onToggleDefaultUnit = {},
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = {},
-                showColorPicker = null,
-                onShowColorPickerChange = {},
+                onShowColorManager = { _, _ -> },
                 showImageDialog = false,
                 onShowImageDialogChange = {},
-                onAddColor = { _, _ -> },
-                onUpdateColor = {},
-                onUpdateColorsOrder = {},
-                onToggleColorVisibility = {},
-                snackbarHostState = remember { SnackbarHostState() }
+                onBackupDatabase = {},
+                onRestoreDatabase = {},
+                onTotalExport = {},
+                getSuggestedBackupFileName = { "" },
+                getSuggestedTotalExportFileName = { "" },
+                snackbarHostState = remember { SnackbarHostState() },
+                googleAccountName = null,
+                onGoogleAccountSelected = {},
+                syncCalendarByDefault = false,
+                onSyncCalendarByDefaultChange = {},
+                onRecalculateAccumulated = {}
             )
         }
 
-        composeTestRule.onNodeWithText("Nome Utente").performTextInput(newUsername)
-        composeTestRule.onNodeWithText("Salva Nome Utente", substring = true, ignoreCase = true).performClick()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val label = context.getString(R.string.options_username_field_label)
+        val saveAction = context.getString(R.string.options_save_username)
+
+        composeTestRule.onNodeWithText(label, ignoreCase = true).performScrollTo().performTextInput(newUsername)
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription(saveAction, ignoreCase = true).performScrollTo().performClick()
 
         assertEquals(newUsername, changedUsername.get())
     }
@@ -133,20 +167,22 @@ class OptionsScreenTest {
                 username = "",
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
-                allColors = emptyList(),
+                reportsColors = emptyList(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null,
                 backgroundUri = null,
                 backgroundBlur = UiConstants.DEFAULT_BACKGROUND_BLUR,
                 backgroundSaturation = UiConstants.DEFAULT_BACKGROUND_SATURATION,
                 backgroundTintEnabled = UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED,
                 backgroundTintAlpha = UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA,
                 backgroundImageAlpha = UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA,
+                reportsColorMode = "NONE",
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
                 onAddImage = { _, _ -> },
                 onRemoveImage = {},
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
-                onUpdateCategoryColor = { _, _ -> },
                 onSetBackgroundUri = {},
                 onSetBackgroundBlur = {},
                 onSetBackgroundSaturation = {},
@@ -154,23 +190,39 @@ class OptionsScreenTest {
                 onSetBackgroundTintAlpha = {},
                 onSetBackgroundImageAlpha = {},
                 onResetBackgroundSettings = {},
+                onSetReportsColorMode = {},
+                onAddUnit = { _, _, _ -> },
+                onUpdateUnit = {},
+                onToggleUnitVisibility = {},
+                onUpdateUnitsOrder = {},
+                onDeleteUnit = {},
+                onToggleDefaultUnit = {},
                 isPhotoUsed = { false },
                 showAboutDialog = false,
                 onShowAboutDialogChange = { onShowAboutDialogChangeCalled.set(it) },
-                showColorPicker = null,
-                onShowColorPickerChange = {},
+                onShowColorManager = { _, _ -> },
                 showImageDialog = false,
                 onShowImageDialogChange = {},
-                onAddColor = { _, _ -> },
-                onUpdateColor = {},
-                onUpdateColorsOrder = {},
-                onToggleColorVisibility = {},
-                snackbarHostState = remember { SnackbarHostState() }
+                onBackupDatabase = {},
+                onRestoreDatabase = {},
+                onTotalExport = {},
+                getSuggestedBackupFileName = { "" },
+                getSuggestedTotalExportFileName = { "" },
+                snackbarHostState = remember { SnackbarHostState() },
+                googleAccountName = null,
+                onGoogleAccountSelected = {},
+                syncCalendarByDefault = false,
+                onSyncCalendarByDefaultChange = {},
+                onRecalculateAccumulated = {}
             )
         }
 
-        composeTestRule.onNodeWithText("About", ignoreCase = true).performClick()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val aboutLabel = context.getString(R.string.button_about)
 
+        composeTestRule.onNodeWithText(aboutLabel, ignoreCase = true).performScrollTo().performClick()
+        
+        composeTestRule.waitForIdle()
         assertTrue(onShowAboutDialogChangeCalled.get())
     }
 
@@ -183,20 +235,22 @@ class OptionsScreenTest {
                 username = "",
                 allImages = emptyList(),
                 categoriesUiState = emptyList(),
-                allColors = emptyList(),
+                reportsColors = emptyList(),
+                measurementUnits = emptyList(),
+                defaultUnitId = null,
                 backgroundUri = null,
                 backgroundBlur = UiConstants.DEFAULT_BACKGROUND_BLUR,
                 backgroundSaturation = UiConstants.DEFAULT_BACKGROUND_SATURATION,
                 backgroundTintEnabled = UiConstants.DEFAULT_BACKGROUND_TINT_ENABLED,
                 backgroundTintAlpha = UiConstants.DEFAULT_BACKGROUND_TINT_ALPHA,
                 backgroundImageAlpha = UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA,
+                reportsColorMode = "NONE",
                 onUsernameChange = {},
                 onSetCategoryDefault = { _, _ -> },
                 onAddImage = { _, _ -> },
                 onRemoveImage = {},
                 onUpdateImageOrder = {},
                 onToggleImageVisibility = {},
-                onUpdateCategoryColor = { _, _ -> },
                 onSetBackgroundUri = {},
                 onSetBackgroundBlur = {},
                 onSetBackgroundSaturation = {},
@@ -204,18 +258,30 @@ class OptionsScreenTest {
                 onSetBackgroundTintAlpha = {},
                 onSetBackgroundImageAlpha = {},
                 onResetBackgroundSettings = {},
+                onSetReportsColorMode = {},
+                onAddUnit = { _, _, _ -> },
+                onUpdateUnit = {},
+                onToggleUnitVisibility = {},
+                onUpdateUnitsOrder = {},
+                onDeleteUnit = {},
+                onToggleDefaultUnit = {},
                 isPhotoUsed = { false },
                 showAboutDialog = true,
                 onShowAboutDialogChange = { callbackValue.set(it) },
-                showColorPicker = null,
-                onShowColorPickerChange = {},
+                onShowColorManager = { _, _ -> },
                 showImageDialog = false,
                 onShowImageDialogChange = {},
-                onAddColor = { _, _ -> },
-                onUpdateColor = {},
-                onUpdateColorsOrder = {},
-                onToggleColorVisibility = {},
-                snackbarHostState = remember { SnackbarHostState() }
+                onBackupDatabase = {},
+                onRestoreDatabase = {},
+                onTotalExport = {},
+                getSuggestedBackupFileName = { "" },
+                getSuggestedTotalExportFileName = { "" },
+                snackbarHostState = remember { SnackbarHostState() },
+                googleAccountName = null,
+                onGoogleAccountSelected = {},
+                syncCalendarByDefault = false,
+                onSyncCalendarByDefaultChange = {},
+                onRecalculateAccumulated = {}
             )
         }
 

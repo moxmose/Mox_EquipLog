@@ -1,14 +1,13 @@
 package com.moxmose.moxequiplog.ui.options
 
+import android.net.Uri
 import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.AppColor
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -44,7 +43,11 @@ class OptionsViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var appSettingsManager: AppSettingsManager
     private lateinit var equipmentDao: EquipmentDao
+    private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var imageRepository: ImageRepository
+    private lateinit var measurementUnitDao: MeasurementUnitDao
+    private lateinit var backupManager: BackupManager
+    private lateinit var maintenanceManager: MaintenanceManager
     private lateinit var viewModel: OptionsViewModel
 
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
@@ -69,30 +72,45 @@ class OptionsViewModelTest {
             every { backgroundTintEnabled } returns backgroundTintEnabledFlow
             every { backgroundTintAlpha } returns backgroundTintAlphaFlow
             every { backgroundImageAlpha } returns backgroundImageAlphaFlow
+            every { defaultUnitId } returns MutableStateFlow(null)
+            every { reportsColorMode } returns MutableStateFlow(UiConstants.DEFAULT_REPORTS_COLOR_MODE)
+            every { reportsCustomColors } returns MutableStateFlow(null)
         }
         equipmentDao = mockk(relaxed = true)
+        
+        measurementUnitDao = mockk(relaxed = true)
+        every { measurementUnitDao.getAllUnits() } returns MutableStateFlow(emptyList())
+        coEvery { measurementUnitDao.countUnits() } returns 1 // Avoid auto-population during test
         
         imageRepository = mockk(relaxed = true) {
             every { allImages } returns allImagesFlow
             every { allCategories } returns allCategoriesFlow
             every { allColors } returns allColorsFlow
+            every { allColorsForReports } returns allColorsFlow
             every { getCategoryColor(any()) } returns MutableStateFlow(UiConstants.DEFAULT_FALLBACK_COLOR)
             every { getCategoryDefaultIcon(any()) } returns MutableStateFlow(null)
             every { getCategoryDefaultPhoto(any()) } returns MutableStateFlow(null)
         }
-        
-        viewModel = OptionsViewModel(appSettingsManager, equipmentDao, imageRepository)
+
+        backupManager = mockk(relaxed = true)
+        maintenanceLogDao = mockk(relaxed = true)
+        maintenanceManager = mockk<MaintenanceManager>(relaxed = true)
+
+        viewModel = OptionsViewModel(
+            appSettingsManager,
+            equipmentDao,
+            maintenanceLogDao,
+            imageRepository,
+            measurementUnitDao,
+            backupManager,
+            maintenanceManager
+        )
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
         stopKoin()
-    }
-
-    @Test
-    fun onInit_initializesAppData() = runTest {
-        coVerify { imageRepository.initializeAppData() }
     }
 
     @Test
@@ -231,11 +249,11 @@ class OptionsViewModelTest {
     }
 
     @Test
-    fun setCategoryDefault_withNullImageIdentifier_sendsNoImageSelectedEvent() = runTest {
-        viewModel.uiEvents.test {
-            viewModel.setCategoryDefault("test_category", null)
-            assertEquals(OptionsViewModel.OptionsUiEvent.NoImageSelectedForDefault, awaitItem())
-        }
+    fun setCategoryDefault_withNullImageIdentifier_callsRepositoryWithNull() = runTest {
+        val categoryId = "test_category"
+        viewModel.setCategoryDefault(categoryId, null)
+        testDispatcher.scheduler.advanceUntilIdle()
+        coVerify { imageRepository.setCategoryDefault(categoryId, null) }
     }
     
     @Test
@@ -326,7 +344,7 @@ class OptionsViewModelTest {
     @Test
     fun isPhotoUsed_whenPhotoIsInUse_returnsTrue() = runTest {
         val uri = "test_uri"
-        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 1
+        coEvery { maintenanceManager.isPhotoUsed(uri) } returns true
         val result = viewModel.isPhotoUsed(uri)
         assertTrue(result)
     }
@@ -334,9 +352,72 @@ class OptionsViewModelTest {
     @Test
     fun isPhotoUsed_whenPhotoIsNotInUse_returnsFalse() = runTest {
         val uri = "test_uri"
-        coEvery { equipmentDao.countEquipmentsUsingPhoto(uri) } returns 0
+        coEvery { maintenanceManager.isPhotoUsed(uri) } returns false
         val result = viewModel.isPhotoUsed(uri)
         assertFalse(result)
+    }
+
+    @Test
+    fun backupDatabase_onSuccess_emitsBackupResultTrue() = runTest {
+        val uri: Uri = mockk()
+        coEvery { backupManager.backupDatabase(uri) } returns Result.success(Unit)
+
+        viewModel.uiEvents.test {
+            viewModel.backupDatabase(uri)
+            val event = awaitItem()
+            assertTrue(event is OptionsViewModel.OptionsUiEvent.BackupResult)
+            assertTrue((event as OptionsViewModel.OptionsUiEvent.BackupResult).success)
+        }
+    }
+
+    @Test
+    fun backupDatabase_onFailure_emitsBackupResultFalse() = runTest {
+        val uri: Uri = mockk()
+        val errorMessage = "Backup failed"
+        coEvery { backupManager.backupDatabase(uri) } returns Result.failure(Exception(errorMessage))
+
+        viewModel.uiEvents.test {
+            viewModel.backupDatabase(uri)
+            val event = awaitItem()
+            assertTrue(event is OptionsViewModel.OptionsUiEvent.BackupResult)
+            assertFalse((event as OptionsViewModel.OptionsUiEvent.BackupResult).success)
+            assertEquals(errorMessage, (event as OptionsViewModel.OptionsUiEvent.BackupResult).message)
+        }
+    }
+
+    @Test
+    fun restoreDatabase_onSuccess_emitsRestoreResultTrue() = runTest {
+        val uri: Uri = mockk()
+        coEvery { backupManager.restoreDatabase(uri) } returns Result.success(Unit)
+
+        viewModel.uiEvents.test {
+            viewModel.restoreDatabase(uri)
+            val event = awaitItem()
+            assertTrue(event is OptionsViewModel.OptionsUiEvent.RestoreResult)
+            assertTrue((event as OptionsViewModel.OptionsUiEvent.RestoreResult).success)
+        }
+    }
+
+    @Test
+    fun restoreDatabase_onFailure_emitsRestoreResultFalse() = runTest {
+        val uri: Uri = mockk()
+        val errorMessage = "Restore failed"
+        coEvery { backupManager.restoreDatabase(uri) } returns Result.failure(Exception(errorMessage))
+
+        viewModel.uiEvents.test {
+            viewModel.restoreDatabase(uri)
+            val event = awaitItem()
+            assertTrue(event is OptionsViewModel.OptionsUiEvent.RestoreResult)
+            assertFalse((event as OptionsViewModel.OptionsUiEvent.RestoreResult).success)
+            assertEquals(errorMessage, (event as OptionsViewModel.OptionsUiEvent.RestoreResult).message)
+        }
+    }
+
+    @Test
+    fun getSuggestedBackupFileName_returnsValueFromManager() = runTest {
+        val suggestedName = "suggested_backup.db"
+        every { backupManager.getSuggestedBackupFileName() } returns suggestedName
+        assertEquals(suggestedName, viewModel.getSuggestedBackupFileName())
     }
 
     @Test

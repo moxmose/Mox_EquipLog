@@ -18,6 +18,11 @@ class AppSettingsManager(
 
     val defaultOperationTypeId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_operation_type_id")
         .map { it?.toIntOrNull() }
+        
+    val defaultUnitId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_unit_id")
+        .map { it?.toIntOrNull() }
+
+    val googleAccountName: Flow<String?> = appPreferenceDao.getPreferenceFlow("google_account_name")
 
     val backgroundUri: Flow<String?> = appPreferenceDao.getPreferenceFlow("background_uri")
 
@@ -36,6 +41,18 @@ class AppSettingsManager(
     val backgroundImageAlpha: Flow<Float> = appPreferenceDao.getPreferenceFlow("background_image_alpha")
         .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_BACKGROUND_IMAGE_ALPHA }
 
+    val reportsColorMode: Flow<String> = appPreferenceDao.getPreferenceFlow("reports_color_mode")
+        .map { it ?: UiConstants.DEFAULT_REPORTS_COLOR_MODE }
+
+    val reportsCustomColors: Flow<List<String>?> = appPreferenceDao.getPreferenceFlow("reports_custom_colors")
+        .map { it?.split(";") }
+
+    val showWelcomeAlert: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("show_welcome_alert")
+        .map { it?.toBoolean() ?: true }
+
+    val syncCalendarByDefault: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("sync_calendar_by_default")
+        .map { it?.toBoolean() ?: false }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -53,6 +70,22 @@ class AppSettingsManager(
             appPreferenceDao.deletePreference("default_operation_type_id")
         } else {
             appPreferenceDao.insertPreference(AppPreference("default_operation_type_id", id.toString()))
+        }
+    }
+    
+    suspend fun setDefaultUnitId(id: Int?) {
+        if (id == null) {
+            appPreferenceDao.deletePreference("default_unit_id")
+        } else {
+            appPreferenceDao.insertPreference(AppPreference("default_unit_id", id.toString()))
+        }
+    }
+
+    suspend fun setGoogleAccountName(name: String?) {
+        if (name == null) {
+            appPreferenceDao.deletePreference("google_account_name")
+        } else {
+            appPreferenceDao.insertPreference(AppPreference("google_account_name", name))
         }
     }
 
@@ -82,5 +115,25 @@ class AppSettingsManager(
 
     suspend fun setBackgroundImageAlpha(alpha: Float) {
         appPreferenceDao.insertPreference(AppPreference("background_image_alpha", alpha.toString()))
+    }
+
+    suspend fun setReportsColorMode(mode: String) {
+        appPreferenceDao.insertPreference(AppPreference("reports_color_mode", mode))
+    }
+
+    suspend fun setReportsCustomColors(colors: List<String>?) {
+        if (colors == null) {
+            appPreferenceDao.deletePreference("reports_custom_colors")
+        } else {
+            appPreferenceDao.insertPreference(AppPreference("reports_custom_colors", colors.joinToString(";")))
+        }
+    }
+
+    suspend fun setShowWelcomeAlert(show: Boolean) {
+        appPreferenceDao.insertPreference(AppPreference("show_welcome_alert", show.toString()))
+    }
+
+    suspend fun setSyncCalendarByDefault(sync: Boolean) {
+        appPreferenceDao.insertPreference(AppPreference("sync_calendar_by_default", sync.toString()))
     }
 }

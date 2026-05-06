@@ -18,6 +18,7 @@ class ImageRepository(
     val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
     val allImages: Flow<List<Image>> = imageDao.getAllImages()
     val allColors: Flow<List<AppColor>> = appColorDao.getAllColors()
+    val allColorsForReports: Flow<List<AppColor>> = appColorDao.getAllColorsForReports()
 
     fun getImagesByCategory(category: String): Flow<List<Image>> = imageDao.getImagesByCategory(category)
 
@@ -34,15 +35,24 @@ class ImageRepository(
         Log.d("MoxEquipLog", "Initializing app data...")
         
         // 1. Inizializza Colori
-        if (appColorDao.getAllColors().first().isEmpty()) {
+        val currentColors = appColorDao.getAllColors().first()
+        if (currentColors.isEmpty()) {
             val colorsToInsert = defaultColors.mapIndexed { index, colorString ->
                 val (hex, name) = colorString.split(";")
-                AppColor(hexValue = hex, name = name, isDefault = true, displayOrder = index, hidden = false)
+                AppColor(
+                    hexValue = hex, 
+                    name = name, 
+                    isDefault = true, 
+                    displayOrder = index, 
+                    hidden = false,
+                    reportOrder = index,
+                    reportHidden = false
+                )
             }
             appColorDao.insertAllColors(colorsToInsert)
         }
 
-        // 2. Inizializza Categorie (assicura che LOG sia presente)
+        // 2. Inizializza Categorie
         val existingCategories = categoryDao.getAllCategories().first().map { it.id }.toSet()
         defaultCategories.forEach { categoryString ->
             val (id, name, color) = categoryString.split(";")
@@ -53,9 +63,11 @@ class ImageRepository(
             }
         }
 
-        // 3. Inizializza Icone per ogni categoria
+        // 3. Inizializza Icone per ogni categoria (tranne LOG, REPORTS, OPTIONS)
         categoryDao.getAllCategories().first().forEach { category ->
-            initializeIconsForCategory(category.id)
+            if (category.id != Category.LOGS && category.id != Category.REPORTS && category.id != Category.OPTIONS) {
+                initializeIconsForCategory(category.id)
+            }
         }
     }
 
@@ -127,7 +139,16 @@ class ImageRepository(
 
     suspend fun addColor(hex: String, name: String) {
         val maxOrder = appColorDao.getMaxOrder() ?: -1
-        appColorDao.insertColor(AppColor(hexValue = hex, name = name, isDefault = false, displayOrder = maxOrder + 1, hidden = false))
+        val maxReportOrder = appColorDao.getMaxReportOrder() ?: -1
+        appColorDao.insertColor(AppColor(
+            hexValue = hex, 
+            name = name, 
+            isDefault = false, 
+            displayOrder = maxOrder + 1, 
+            hidden = false,
+            reportOrder = maxReportOrder + 1,
+            reportHidden = false
+        ))
     }
 
     suspend fun updateColor(color: AppColor) {
@@ -140,6 +161,10 @@ class ImageRepository(
 
     suspend fun toggleColorVisibility(id: Long) {
         appColorDao.toggleHidden(id)
+    }
+
+    suspend fun toggleReportColorVisibility(id: Long) {
+        appColorDao.toggleReportHidden(id)
     }
 
     suspend fun deleteColor(color: AppColor) {

@@ -21,5 +21,7 @@
         <item>EQUIPMENT;Equipment;#4CAF50</item>
         <item>OPERATION;Operation;#2196F3</item>
         <item>LOG;Logs;#607D8B</item>
+        <item>REPORTS;Reports;#FF9800</item>
+        <item>OPTIONS;Options;#9C27B0</item>
     </string-array>
 </resources>

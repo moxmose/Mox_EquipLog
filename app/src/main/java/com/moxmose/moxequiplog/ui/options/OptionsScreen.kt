@@ -1,60 +1,22 @@
 package com.moxmose.moxequiplog.ui.options
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,31 +25,36 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.AppColor
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
-import com.moxmose.moxequiplog.ui.components.AddColorDialog
-import com.moxmose.moxequiplog.ui.components.ColorItemCard
-import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
-import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
-import com.moxmose.moxequiplog.ui.components.ImageSelector
-import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.*
+import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import android.net.Uri
+import kotlin.system.exitProcess
+
+enum class ColorManagerMode {
+    CATEGORY_PICKER,
+    REPORTS_MANAGER
+}
 
 @Composable
 fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = koinViewModel()) {
     val username by viewModel.username.collectAsState()
+    val allColors by viewModel.allColors.collectAsState()
+    val reportsColors by viewModel.reportsColors.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
-    val allColors by viewModel.allColors.collectAsState()
+    val measurementUnits by viewModel.measurementUnits.collectAsState()
+    val defaultUnitId by viewModel.defaultUnitId.collectAsState()
     
     val backgroundUri by viewModel.backgroundUri.collectAsState()
     val backgroundBlur by viewModel.backgroundBlur.collectAsState()
@@ -95,6 +62,18 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val backgroundTintEnabled by viewModel.backgroundTintEnabled.collectAsState()
     val backgroundTintAlpha by viewModel.backgroundTintAlpha.collectAsState()
     val backgroundImageAlpha by viewModel.backgroundImageAlpha.collectAsState()
+
+    val googleAccountName by viewModel.googleAccountName.collectAsState()
+    val syncCalendarByDefault by viewModel.syncCalendarByDefault.collectAsState()
+
+    val reportsColorMode by viewModel.reportsColorMode.collectAsState()
+
+    val showAboutDialog by viewModel.showAboutDialog.collectAsState()
+    val colorMgmtState by viewModel.colorMgmtState.collectAsState()
+    val showImageDialog by viewModel.showImageDialog.collectAsState()
+    val showBackgroundPicker by viewModel.showBackgroundPicker.collectAsState()
+    val showUnitManagement by viewModel.showUnitManagement.collectAsState()
+    val showRestoreConfirm by viewModel.showRestoreConfirm.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -123,34 +102,48 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ColorIdInvalid -> context.getString(R.string.color_id_invalid)
                 is OptionsViewModel.OptionsUiEvent.DeleteColorFailed -> context.getString(R.string.delete_color_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateBackgroundFailed -> context.getString(R.string.update_background_failed)
+                is OptionsViewModel.OptionsUiEvent.AddUnitFailed -> context.getString(R.string.add_unit_failed)
+                is OptionsViewModel.OptionsUiEvent.AddUnitFailedDuplicate -> context.getString(R.string.add_unit_failed_duplicate)
+                is OptionsViewModel.OptionsUiEvent.DeleteUnitFailed -> context.getString(R.string.delete_unit_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateUnitFailed -> context.getString(R.string.update_unit_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateUnitsOrderFailed -> context.getString(R.string.update_units_order_failed)
+                is OptionsViewModel.OptionsUiEvent.ToggleUnitVisibilityFailed -> context.getString(R.string.toggle_unit_visibility_failed)
+                is OptionsViewModel.OptionsUiEvent.SetDefaultFailed -> context.getString(R.string.set_default_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateReportsSettingsFailed -> context.getString(R.string.update_reports_settings_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateGoogleAccountFailed -> "Failed to update Google account"
+                is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
+                is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
+                is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
+                is OptionsViewModel.OptionsUiEvent.RecalculateSuccess -> context.getString(R.string.recalculate_success)
             }
             snackbarHostState.showSnackbar(message)
+            if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {
+                exitProcess(0)
+            }
         }
     }
-
-    var showAboutDialog by rememberSaveable { mutableStateOf(false) }
-    var showColorPicker by rememberSaveable { mutableStateOf<String?>(null) }
-    var showImageDialog by rememberSaveable { mutableStateOf(false) }
 
     OptionsScreenContent(
         modifier = modifier,
         username = username,
         allImages = allImages,
         categoriesUiState = categoriesUiState,
-        allColors = allColors,
+        reportsColors = reportsColors,
+        measurementUnits = measurementUnits,
+        defaultUnitId = defaultUnitId,
         backgroundUri = backgroundUri,
         backgroundBlur = backgroundBlur,
         backgroundSaturation = backgroundSaturation,
         backgroundTintEnabled = backgroundTintEnabled,
         backgroundTintAlpha = backgroundTintAlpha,
         backgroundImageAlpha = backgroundImageAlpha,
+        reportsColorMode = reportsColorMode,
         onUsernameChange = viewModel::setUsername,
         onSetCategoryDefault = viewModel::setCategoryDefault,
         onAddImage = viewModel::addImage,
         onRemoveImage = viewModel::removeImage,
         onUpdateImageOrder = viewModel::updateImageOrder,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
-        onUpdateCategoryColor = viewModel::updateCategoryColor,
         onSetBackgroundUri = viewModel::setBackgroundUri,
         onSetBackgroundBlur = viewModel::setBackgroundBlur,
         onSetBackgroundSaturation = viewModel::setBackgroundSaturation,
@@ -158,19 +151,64 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetBackgroundTintAlpha = viewModel::setBackgroundTintAlpha,
         onSetBackgroundImageAlpha = viewModel::setBackgroundImageAlpha,
         onResetBackgroundSettings = viewModel::resetBackgroundSettings,
+        onSetReportsColorMode = viewModel::setReportsColorMode,
+        onAddUnit = viewModel::addMeasurementUnit,
+        onUpdateUnit = viewModel::updateMeasurementUnit,
+        onToggleUnitVisibility = viewModel::toggleMeasurementUnitVisibility,
+        onUpdateUnitsOrder = viewModel::updateMeasurementUnitsOrder,
+        onDeleteUnit = viewModel::deleteMeasurementUnit,
+        onToggleDefaultUnit = viewModel::toggleDefaultUnit,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
-        onShowAboutDialogChange = { showAboutDialog = it },
-        showColorPicker = showColorPicker,
-        onShowColorPickerChange = { showColorPicker = it },
+        onShowAboutDialogChange = viewModel::onShowAboutDialogChange,
+        onShowColorManager = viewModel::onShowColorManager,
         showImageDialog = showImageDialog,
-        onShowImageDialogChange = { showImageDialog = it },
-        onAddColor = viewModel::addColor,
-        onUpdateColor = viewModel::updateColor,
-        onUpdateColorsOrder = viewModel::updateColorsOrder,
-        onToggleColorVisibility = viewModel::toggleColorVisibility,
-        snackbarHostState = snackbarHostState
+        onShowImageDialogChange = viewModel::onShowImageDialogChange,
+        showBackgroundPicker = showBackgroundPicker,
+        onShowBackgroundPickerChange = viewModel::onShowBackgroundPickerChange,
+        showUnitManagement = showUnitManagement,
+        onShowUnitManagementChange = viewModel::onShowUnitManagementChange,
+        showRestoreConfirm = showRestoreConfirm,
+        onShowRestoreConfirmChange = viewModel::onShowRestoreConfirmChange,
+        onBackupDatabase = viewModel::backupDatabase,
+        onRestoreDatabase = viewModel::restoreDatabase,
+        onTotalExport = viewModel::totalExport,
+        getSuggestedBackupFileName = viewModel::getSuggestedBackupFileName,
+        getSuggestedTotalExportFileName = viewModel::getSuggestedTotalExportFileName,
+        snackbarHostState = snackbarHostState,
+        googleAccountName = googleAccountName,
+        onGoogleAccountSelected = viewModel::setGoogleAccountName,
+        syncCalendarByDefault = syncCalendarByDefault,
+        onSyncCalendarByDefaultChange = viewModel::setSyncCalendarByDefault,
+        onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues
     )
+
+    colorMgmtState?.let { (mode, categoryId) ->
+        val currentList = if (mode == ColorManagerMode.REPORTS_MANAGER) reportsColors else allColors
+        val title = if (mode == ColorManagerMode.REPORTS_MANAGER) 
+            stringResource(R.string.reports_title) else stringResource(R.string.options_color_mgmt_title)
+        
+        val selectedHex = if (mode == ColorManagerMode.CATEGORY_PICKER) 
+            categoriesUiState.find { it.category.id == categoryId }?.color else null
+
+        ColorLibraryManagerDialog(
+            mode = mode,
+            title = title,
+            allColors = currentList,
+            selectedHex = selectedHex,
+            onDismiss = { viewModel.onDismissColorManager() },
+            onColorSelected = { hex ->
+                if (mode == ColorManagerMode.CATEGORY_PICKER && categoryId != null) {
+                    viewModel.updateCategoryColor(categoryId, hex)
+                }
+                viewModel.onDismissColorManager()
+            },
+            onAddColor = viewModel::addColor,
+            onUpdateColor = viewModel::updateColor,
+            onUpdateOrder = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.updateReportColorsOrder(it) else viewModel.updateColorsOrder(it) },
+            onToggleVisibility = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.toggleReportColorVisibility(it) else viewModel.toggleColorVisibility(it) }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
@@ -180,20 +218,22 @@ fun OptionsScreenContent(
     username: String,
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
-    allColors: List<AppColor>,
+    reportsColors: List<AppColor>,
+    measurementUnits: List<MeasurementUnit>,
+    defaultUnitId: Int?,
     backgroundUri: String?,
     backgroundBlur: Float,
     backgroundSaturation: Float,
     backgroundTintEnabled: Boolean,
     backgroundTintAlpha: Float,
     backgroundImageAlpha: Float,
+    reportsColorMode: String,
     onUsernameChange: (String) -> Unit,
     onSetCategoryDefault: (String, ImageIdentifier?) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
     onRemoveImage: (Image) -> Unit,
     onUpdateImageOrder: (List<Image>) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
-    onUpdateCategoryColor: (String, String) -> Unit,
     onSetBackgroundUri: (String?) -> Unit,
     onSetBackgroundBlur: (Float) -> Unit,
     onSetBackgroundSaturation: (Float) -> Unit,
@@ -201,49 +241,81 @@ fun OptionsScreenContent(
     onSetBackgroundTintAlpha: (Float) -> Unit,
     onSetBackgroundImageAlpha: (Float) -> Unit,
     onResetBackgroundSettings: () -> Unit,
+    onSetReportsColorMode: (String) -> Unit,
+    onAddUnit: (String, String, Int) -> Unit,
+    onUpdateUnit: (MeasurementUnit) -> Unit,
+    onToggleUnitVisibility: (Int) -> Unit,
+    onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
+    onDeleteUnit: (MeasurementUnit) -> Unit,
+    onToggleDefaultUnit: (Int) -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
-    showColorPicker: String?,
-    onShowColorPickerChange: (String?) -> Unit,
+    onShowColorManager: (ColorManagerMode, String?) -> Unit,
     showImageDialog: Boolean,
     onShowImageDialogChange: (Boolean) -> Unit,
-    onAddColor: (String, String) -> Unit,
-    onUpdateColor: (AppColor) -> Unit,
-    onUpdateColorsOrder: (List<AppColor>) -> Unit,
-    onToggleColorVisibility: (Long) -> Unit,
-    snackbarHostState: SnackbarHostState
+    onBackupDatabase: (Uri) -> Unit,
+    onRestoreDatabase: (Uri) -> Unit,
+    onTotalExport: (Uri) -> Unit,
+    getSuggestedBackupFileName: () -> String,
+    getSuggestedTotalExportFileName: () -> String,
+    snackbarHostState: SnackbarHostState,
+    googleAccountName: String?,
+    onGoogleAccountSelected: (String?) -> Unit,
+    syncCalendarByDefault: Boolean,
+    onSyncCalendarByDefaultChange: (Boolean) -> Unit,
+    onRecalculateAccumulated: () -> Unit = {},
+    showBackgroundPicker: Boolean = false,
+    onShowBackgroundPickerChange: (Boolean) -> Unit = {},
+    showUnitManagement: Boolean = false,
+    onShowUnitManagementChange: (Boolean) -> Unit = {},
+    showRestoreConfirm: Uri? = null,
+    onShowRestoreConfirmChange: (Uri?) -> Unit = {}
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
-    var showBackgroundPicker by remember { mutableStateOf(false) }
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
     val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
 
+    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-sqlite3")) { uri ->
+        uri?.let { onBackupDatabase(it) }
+    }
+
+    val totalExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let { onTotalExport(it) }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { onShowRestoreConfirmChange(it) }
+    }
+
+    if (showRestoreConfirm != null) {
+        AlertDialog(
+            onDismissRequest = { onShowRestoreConfirmChange(null) },
+            title = { Text(stringResource(R.string.restore_confirm_title)) },
+            text = { Text(stringResource(R.string.restore_confirm_msg)) },
+            confirmButton = {
+                TextButton(onClick = { 
+                    onRestoreDatabase(showRestoreConfirm)
+                    onShowRestoreConfirmChange(null)
+                }) { Text(stringResource(R.string.button_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { onShowRestoreConfirmChange(null) }) { Text(stringResource(R.string.button_cancel)) }
+            }
+        )
+    }
+
     if (showAboutDialog) {
-        BasicAlertDialog(
-            onDismissRequest = { onShowAboutDialogChange(false) },
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = 6.dp
-            ) {
+        BasicAlertDialog(onDismissRequest = { onShowAboutDialogChange(false) }) {
+            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
                 Column(modifier = Modifier.padding(24.dp)) {
-                    Text(
-                        text = stringResource(R.string.about_dialog_title),
-                        style = MaterialTheme.typography.headlineSmall
-                    )
+                    Text(text = stringResource(R.string.about_dialog_title), style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text(text = stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(24.dp))
-                    TextButton(
-                        onClick = { onShowAboutDialogChange(false) },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
+                    TextButton(onClick = { onShowAboutDialogChange(false) }, modifier = Modifier.align(Alignment.End)) {
                         Text(stringResource(R.string.button_ok))
                     }
                 }
@@ -251,8 +323,22 @@ fun OptionsScreenContent(
         }
     }
 
+    if (showUnitManagement) {
+        UnitManagementDialog(
+            allUnits = measurementUnits,
+            defaultUnitId = defaultUnitId,
+            onDismiss = { onShowUnitManagementChange(false) },
+            onAddUnit = onAddUnit,
+            onUpdateUnit = onUpdateUnit,
+            onUpdateUnitsOrder = onUpdateUnitsOrder,
+            onToggleUnitVisibility = onToggleUnitVisibility,
+            onDeleteUnit = onDeleteUnit,
+            onToggleDefaultUnit = onToggleDefaultUnit
+        )
+    }
+
     if (showImageDialog) {
-        val allCategories = categoriesUiState.map { it.category }
+        val allCategories = categoriesUiState.map { it.category }.filter { it.id != Category.LOGS }
         ImageSelector(
             photoUri = null,
             iconIdentifier = null,
@@ -281,16 +367,14 @@ fun OptionsScreenContent(
     }
 
     if (showBackgroundPicker) {
-        val allCategories = categoriesUiState.map { it.category }
+        val allCategories = categoriesUiState.map { it.category }.filter { it.id != Category.LOGS }
         ImagePickerDialog(
-            onDismissRequest = { showBackgroundPicker = false },
+            onDismissRequest = { onShowBackgroundPickerChange(false) },
             photoUri = backgroundUri,
             iconIdentifier = null,
             onImageSelected = { (_, photoUri) ->
-                if (photoUri != null) {
-                    onSetBackgroundUri(photoUri)
-                }
-                showBackgroundPicker = false
+                if (photoUri != null) onSetBackgroundUri(photoUri)
+                onShowBackgroundPickerChange(false)
             },
             imageLibrary = allImages,
             categories = allCategories,
@@ -306,20 +390,6 @@ fun OptionsScreenContent(
             isPrefsMode = false,
             forcedCategory = null,
             onlyPhotos = true
-        )
-    }
-
-    showColorPicker?.let { categoryId ->
-        val categoryUiState = categoriesUiState.find { it.category.id == categoryId }!!
-        ColorManagementDialog(
-            allColors = allColors,
-            categoryUiState = categoryUiState,
-            onDismiss = { onShowColorPickerChange(null) },
-            onColorSelected = { onUpdateCategoryColor(categoryId, it) },
-            onAddColor = onAddColor,
-            onUpdateColor = onUpdateColor,
-            onUpdateColorsOrder = onUpdateColorsOrder,
-            onToggleColorVisibility = onToggleColorVisibility
         )
     }
 
@@ -345,10 +415,11 @@ fun OptionsScreenContent(
                 textAlign = TextAlign.Center
             )
 
+            // 1. PROFILO
             OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
                 OutlinedTextField(
                     value = editedUsername,
-                    onValueChange = { editedUsername = it },
+                    onValueChange = { name -> if (name.length <= AppConstants.USERNAME_MAX_LENGTH) editedUsername = name },
                     label = { Text(stringResource(R.string.options_username_field_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -362,11 +433,55 @@ fun OptionsScreenContent(
                 )
             }
 
+            // 2. IMMAGINI
+            OptionsSectionCard(
+                title = stringResource(R.string.options_image_mgmt_title),
+                description = stringResource(R.string.options_image_mgmt_desc)
+            ) {
+                OutlinedButton(onClick = { onShowImageDialogChange(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (allImages.isEmpty()) {
+                                Text(stringResource(R.string.options_empty_library))
+                            } else {
+                                allImages.filter { img -> !img.hidden }.distinctBy { img -> img.uri }.take(4).forEach { image ->
+                                    val allCategories = categoriesUiState.map { state -> state.category }
+                                    ImageSelector(
+                                        photoUri = if (image.imageType == "IMAGE") image.uri else null,
+                                        iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
+                                        onImageSelected = {_,_ ->},
+                                        modifier = Modifier.size(40.dp),
+                                        category = image.category,
+                                        categories = allCategories,
+                                        categoryColors = categoryColorsMap,
+                                        categoryDefaultIcons = categoryDefaultIconsMap,
+                                        categoryDefaultPhotos = categoryDefaultPhotosMap,
+                                        imageLibrary = allImages,
+                                        forcedCategory = Category.EQUIPMENT
+                                    )
+                                }
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_images), tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+
+            // 3. COLORI
             OptionsSectionCard(
                 title = stringResource(R.string.options_sections_colors_title),
                 description = stringResource(R.string.options_sections_colors_desc)
             ) {
-                val sectionOrder = listOf(Category.LOGS, Category.EQUIPMENT, Category.OPERATION)
+                val sectionOrder = listOf(
+                    Category.LOGS, 
+                    Category.EQUIPMENT, 
+                    Category.OPERATION, 
+                    Category.REPORTS, 
+                    Category.OPTIONS
+                )
                 categoriesUiState
                     .sortedBy { uiState -> 
                         val index = sectionOrder.indexOf(uiState.category.id)
@@ -385,18 +500,94 @@ fun OptionsScreenContent(
                                     .clip(CircleShape)
                                     .background(Color(uiState.color.toColorInt()))
                                     .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                    .clickable { onShowColorPickerChange(uiState.category.id) }
+                                    .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
                             )
                         }
                     }
             }
 
+            // 4. UNITÀ DI MISURA
+            OptionsSectionCard(
+                title = stringResource(R.string.options_units_title),
+                description = stringResource(R.string.options_units_desc)
+            ) {
+                OutlinedButton(onClick = { onShowUnitManagementChange(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            val visibleUnits = measurementUnits.filter { !it.isHidden }.take(5)
+                            if (visibleUnits.isEmpty()) {
+                                Text(stringResource(R.string.options_empty_library))
+                            } else {
+                                visibleUnits.forEach { unit ->
+                                    Surface(
+                                        shape = MaterialTheme.shapes.small,
+                                        color = if (unit.id == defaultUnitId) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = unit.label,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            fontWeight = if (unit.id == defaultUnitId) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_label), tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+
+            // 5. REPORTS
+            OptionsSectionCard(
+                title = stringResource(R.string.reports_title),
+                description = stringResource(R.string.report_equipments_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.options_use_custom_colors_reports), 
+                            modifier = Modifier.weight(1f), 
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Switch(
+                            checked = reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM,
+                            onCheckedChange = { 
+                                onSetReportsColorMode(if (it) UiConstants.REPORTS_COLOR_MODE_CUSTOM else UiConstants.REPORTS_COLOR_MODE_M3)
+                            }
+                        )
+                    }
+                    
+                    if (reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
+                        OutlinedButton(onClick = { onShowColorManager(ColorManagerMode.REPORTS_MANAGER, null) }, modifier = Modifier.fillMaxWidth()) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    reportsColors.filter { !it.reportHidden }.take(6).forEach { color ->
+                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 6. BACKGROUND
             OptionsSectionCard(
                 title = stringResource(R.string.options_background_custom_title),
                 description = stringResource(R.string.options_background_custom_desc)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Sezione TINT (sempre visibile)
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(R.string.options_enable_section_color), modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
@@ -404,27 +595,13 @@ fun OptionsScreenContent(
                         }
                         if (backgroundTintEnabled) {
                             Text(stringResource(R.string.options_color_intensity, (backgroundTintAlpha * 100).toInt()), style = MaterialTheme.typography.labelMedium)
-                            Slider(
-                                value = backgroundTintAlpha,
-                                onValueChange = onSetBackgroundTintAlpha,
-                                valueRange = 0f..1f
-                            )
+                            Slider(value = backgroundTintAlpha, onValueChange = onSetBackgroundTintAlpha, valueRange = 0f..1f)
                         }
                     }
-
                     HorizontalDivider()
-
-                    // Sezione IMMAGINE
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { showBackgroundPicker = true },
-                                modifier = Modifier.weight(1f)
-                            ) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { onShowBackgroundPickerChange(true) }, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.Image, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.options_select_image))
@@ -435,38 +612,17 @@ fun OptionsScreenContent(
                                 }
                             }
                         }
-
                         if (backgroundUri != null) {
                             Text(stringResource(R.string.options_image_opacity, (backgroundImageAlpha * 100).toInt()), style = MaterialTheme.typography.labelMedium)
-                            Slider(
-                                value = backgroundImageAlpha,
-                                onValueChange = onSetBackgroundImageAlpha,
-                                valueRange = 0f..1f
-                            )
-
+                            Slider(value = backgroundImageAlpha, onValueChange = onSetBackgroundImageAlpha, valueRange = 0f..1f)
                             Text(stringResource(R.string.options_blur_radius_label, backgroundBlur.toInt()), style = MaterialTheme.typography.labelMedium)
-                            Slider(
-                                value = backgroundBlur,
-                                onValueChange = onSetBackgroundBlur,
-                                valueRange = 0f..25f,
-                                steps = 25
-                            )
-
+                            Slider(value = backgroundBlur, onValueChange = onSetBackgroundBlur, valueRange = 0f..25f, steps = 25)
                             Text(stringResource(R.string.options_saturation_label, (backgroundSaturation * 100).toInt()), style = MaterialTheme.typography.labelMedium)
-                            Slider(
-                                value = backgroundSaturation,
-                                onValueChange = onSetBackgroundSaturation,
-                                valueRange = 0f..2f
-                            )
+                            Slider(value = backgroundSaturation, onValueChange = onSetBackgroundSaturation, valueRange = 0f..2f)
                         }
                     }
-
                     HorizontalDivider()
-
-                    TextButton(
-                        onClick = onResetBackgroundSettings,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    TextButton(onClick = onResetBackgroundSettings, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_reset_background_settings))
@@ -474,71 +630,103 @@ fun OptionsScreenContent(
                 }
             }
 
+            // 7. DATA MANAGEMENT
             OptionsSectionCard(
-                title = stringResource(R.string.options_image_mgmt_title),
-                description = stringResource(R.string.options_image_mgmt_desc)
+                title = stringResource(R.string.options_data_management_title),
+                description = stringResource(R.string.options_data_management_desc)
             ) {
-                OutlinedButton(
-                    onClick = { onShowImageDialogChange(true) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = { backupLauncher.launch(getSuggestedBackupFileName()) },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (allImages.isEmpty()) {
-                                Text(stringResource(R.string.options_empty_library))
-                            } else {
-                                allImages.filter { !it.hidden }.distinctBy { it.uri }.take(4).forEach { image ->
-                                    val allCategories = categoriesUiState.map { it.category }
-                                    ImageSelector(
-                                        photoUri = if (image.imageType == "IMAGE") image.uri else null,
-                                        iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
-                                        onImageSelected = {_,_ ->},
-                                        modifier = Modifier.size(40.dp),
-                                        category = image.category,
-                                        categories = allCategories,
-                                        categoryColors = categoryColorsMap,
-                                        categoryDefaultIcons = categoryDefaultIconsMap,
-                                        categoryDefaultPhotos = categoryDefaultPhotosMap,
-                                        imageLibrary = allImages,
-                                        forcedCategory = Category.EQUIPMENT
-                                    )
-                                }
-                            }
-                        }
+                        Icon(Icons.Default.Backup, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_backup_db))
+                    }
+                    OutlinedButton(
+                        onClick = { totalExportLauncher.launch(getSuggestedTotalExportFileName()) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_total_export))
+                    }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                    HorizontalDivider()
+
+                    Text(
+                        text = stringResource(R.string.options_recalculate_accumulated),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.options_recalculate_accumulated_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = onRecalculateAccumulated,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Calculate, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.refresh))
+                    }
+
+                    HorizontalDivider()
+                    OutlinedButton(
+                        onClick = { restoreLauncher.launch(arrayOf("application/octet-stream", "application/x-sqlite3", "*/*")) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Restore, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_restore_db))
+                    }
+                }
+            }
+
+            // 8. GOOGLE CALENDAR
+            OptionsSectionCard(
+                title = stringResource(R.string.options_google_calendar_section),
+                description = stringResource(R.string.options_google_calendar_desc)
+            ) {
+                GoogleAccountSelector(
+                    accountName = googleAccountName,
+                    onAccountSelected = onGoogleAccountSelected
+                )
+
+                if (googleAccountName != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                stringResource(R.string.options_manage_label),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                text = stringResource(R.string.options_sync_calendar_default_label),
+                                style = MaterialTheme.typography.bodyLarge
                             )
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.options_manage_images),
-                                tint = MaterialTheme.colorScheme.primary
+                            Text(
+                                text = stringResource(R.string.options_sync_calendar_default_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Switch(
+                            checked = syncCalendarByDefault,
+                            onCheckedChange = onSyncCalendarByDefaultChange
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { onShowAboutDialogChange(true) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Button(onClick = { onShowAboutDialogChange(true) }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.button_about))
             }
         }
@@ -547,88 +735,256 @@ fun OptionsScreenContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ColorManagementDialog(
+fun ColorLibraryManagerDialog(
+    mode: ColorManagerMode,
+    title: String,
     allColors: List<AppColor>,
-    categoryUiState: CategoryUiState,
+    selectedHex: String?,
     onDismiss: () -> Unit,
     onColorSelected: (String) -> Unit,
     onAddColor: (String, String) -> Unit,
     onUpdateColor: (AppColor) -> Unit,
-    onUpdateColorsOrder: (List<AppColor>) -> Unit,
-    onToggleColorVisibility: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    onUpdateOrder: (List<AppColor>) -> Unit,
+    onToggleVisibility: (Long) -> Unit
 ) {
     var showAddColorDialog by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
-
-    val colorsState = remember(allColors, showHidden) {
-        allColors.filter { !it.hidden || showHidden }.toMutableStateList()
+    
+    val colorsState = remember(allColors, showHidden) { 
+        allColors.filter { color ->
+            if (mode == ColorManagerMode.REPORTS_MANAGER) {
+                !color.reportHidden || showHidden
+            } else {
+                !color.hidden || showHidden
+            }
+        }.toMutableStateList() 
     }
 
-    if (showAddColorDialog) {
-        AddColorDialog(
-            onDismiss = { showAddColorDialog = false },
-            onAddColor = { hex, name -> onAddColor(hex, name) }
-        )
+    if (showAddColorDialog) { 
+        AddColorDialog(onDismiss = { showAddColorDialog = false }, onAddColor = { hex, name -> 
+            onAddColor(hex, name)
+            showAddColorDialog = false 
+        })
     }
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.padding(16.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp
-        ) {
+        Surface(modifier = Modifier.padding(16.dp), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
             Scaffold(
-                modifier = Modifier.height(500.dp),
+                modifier = Modifier.height(550.dp),
                 floatingActionButton = {
                     Column(horizontalAlignment = Alignment.End) {
-                        FloatingActionButton(onClick = { showAddColorDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color))
+                        FloatingActionButton(onClick = { showAddColorDialog = true }) { 
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_color)) 
                         }
                         Spacer(Modifier.height(8.dp))
                         FloatingActionButton(
-                            onClick = {
-                                showHidden = !showHidden
-                                scope.launch { lazyListState.animateScrollToItem(0) }
-                            },
+                            onClick = { showHidden = !showHidden; scope.launch { lazyListState.animateScrollToItem(0) } }, 
                             containerColor = MaterialTheme.colorScheme.secondary
-                        ) {
-                            Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = stringResource(R.string.options_show_hide))
+                        ) { 
+                            Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null) 
                         }
                     }
                 }
             ) { paddingValues ->
                 Column(Modifier.padding(paddingValues).padding(16.dp)) {
-                    Text(
-                        text = stringResource(R.string.options_color_mgmt_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        textAlign = TextAlign.Center
-                    )
+                    Text(text = title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
+                    
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.options_info_drag_reorder), style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (mode == ColorManagerMode.REPORTS_MANAGER) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = stringResource(R.string.options_info_min_one_color),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
                     DraggableLazyColumn(
                         items = colorsState,
                         key = { _, color -> color.id },
                         onMove = { from, to -> colorsState.add(to, colorsState.removeAt(from)) },
-                        onDrop = {
-                            val hiddenColors = allColors.filter { it.hidden && !showHidden }
-                            val fullNewList = colorsState + hiddenColors
-                            onUpdateColorsOrder(fullNewList.mapIndexed { index, appColor -> appColor.copy(displayOrder = index) })
+                        onDrop = { 
+                            // Quando rilasciamo, aggiorniamo l'ordine corretto nel DB includendo gli elementi nascosti
+                            val hiddenColors = allColors.filter { 
+                                if (mode == ColorManagerMode.REPORTS_MANAGER) it.reportHidden && !showHidden 
+                                else it.hidden && !showHidden 
+                            }
+                            val fullList = colorsState + hiddenColors
+                            val updatedList = fullList.mapIndexed { index, color ->
+                                if (mode == ColorManagerMode.REPORTS_MANAGER) color.copy(reportOrder = index)
+                                else color.copy(displayOrder = index)
+                            }
+                            onUpdateOrder(updatedList)
                         },
-                        itemContent = { _, color ->
+                        itemContent = { _, color -> 
                             ColorItemCard(
-                                color = color,
-                                isSelected = categoryUiState.color.equals(color.hexValue, ignoreCase = true),
-                                onColorSelected = {
-                                    onColorSelected(color.hexValue)
-                                    onDismiss()
-                                },
-                                onUpdateColor = onUpdateColor,
-                                onToggleVisibility = { onToggleColorVisibility(color.id) }
+                                color = color, 
+                                isSelected = color.hexValue.equals(selectedHex, ignoreCase = true), 
+                                onColorSelected = { onColorSelected(color.hexValue) }, 
+                                onUpdateColor = onUpdateColor, 
+                                onToggleVisibility = { onToggleVisibility(color.id) },
+                                showReportVisibility = mode == ColorManagerMode.REPORTS_MANAGER
+                            ) 
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UnitManagementDialog(
+    allUnits: List<MeasurementUnit>,
+    defaultUnitId: Int?,
+    onDismiss: () -> Unit,
+    onAddUnit: (String, String, Int) -> Unit,
+    onUpdateUnit: (MeasurementUnit) -> Unit,
+    onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
+    onToggleUnitVisibility: (Int) -> Unit,
+    onDeleteUnit: (MeasurementUnit) -> Unit,
+    onToggleDefaultUnit: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showAddUnitDialog by remember { mutableStateOf(false) }
+    var showHidden by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val lazyListState = rememberLazyListState()
+    val unitsState = remember(allUnits, showHidden) { allUnits.filter { !it.isHidden || showHidden }.toMutableStateList() }
+
+    if (showAddUnitDialog) {
+        var label by remember { mutableStateOf("") }
+        var description by remember { mutableStateOf("") }
+        var decimalPlaces by remember { mutableIntStateOf(0) }
+        val isDuplicate = remember(label, allUnits) {
+            val normalized = label.trim().lowercase()
+            normalized.isNotEmpty() && allUnits.any { it.label.lowercase() == normalized }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showAddUnitDialog = false },
+            title = { Text(stringResource(R.string.options_add_unit)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = label,
+                            onValueChange = { if (it.length <= AppConstants.UNIT_LABEL_MAX_LENGTH) label = it },
+                            label = { Text(stringResource(R.string.options_unit_label_placeholder)) },
+                            singleLine = true,
+                            isError = isDuplicate,
+                            supportingText = {
+                                if (isDuplicate) {
+                                    Text(
+                                        text = stringResource(R.string.add_unit_failed_duplicate),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        )
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { if (it.length <= AppConstants.UNIT_DESCRIPTION_MAX_LENGTH) description = it },
+                            label = { Text(stringResource(R.string.options_unit_desc_placeholder)) },
+                            singleLine = true
+                        )
+                    }
+                    
+                    Column {
+                        Text(
+                            text = stringResource(R.string.options_unit_decimals) + ": $decimalPlaces",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Slider(
+                            value = decimalPlaces.toFloat(),
+                            onValueChange = { decimalPlaces = it.toInt() },
+                            valueRange = 0f..AppConstants.MAX_DECIMAL_PLACES.toFloat(),
+                            steps = AppConstants.MAX_DECIMAL_PLACES - 1
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (!isDuplicate) {
+                            onAddUnit(label, description, decimalPlaces)
+                            showAddUnitDialog = false
+                        }
+                    },
+                    enabled = label.isNotBlank() && !isDuplicate
+                ) { Text(stringResource(R.string.button_add)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddUnitDialog = false }) { Text(stringResource(R.string.button_cancel)) }
+            }
+        )
+    }
+
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(modifier = Modifier.padding(16.dp), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
+            Scaffold(
+                modifier = Modifier.height(500.dp),
+                floatingActionButton = {
+                    Column(horizontalAlignment = Alignment.End) {
+                        FloatingActionButton(onClick = { showAddUnitDialog = true }) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.options_add_unit)) }
+                        Spacer(Modifier.height(8.dp))
+                        FloatingActionButton(onClick = { showHidden = !showHidden; scope.launch { lazyListState.animateScrollToItem(0) } }, containerColor = MaterialTheme.colorScheme.secondary) { Icon(if (showHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = stringResource(R.string.options_show_hide)) }
+                    }
+                }
+            ) { paddingValues ->
+                Column(Modifier.padding(paddingValues).padding(16.dp)) {
+                    Text(text = stringResource(R.string.options_unit_mgmt_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
+                    
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.options_info_select_default) + " " + stringResource(R.string.options_info_drag_reorder),
+                                style = MaterialTheme.typography.labelSmall
                             )
+                        }
+                    }
+
+                    DraggableLazyColumn(
+                        items = unitsState,
+                        key = { _, unit -> unit.id },
+                        onMove = { from, to -> unitsState.add(to, unitsState.removeAt(from)) },
+                        onDrop = { 
+                            val hiddenUnits = allUnits.filter { it.isHidden && !showHidden }
+                            val fullNewList = unitsState + hiddenUnits
+                            onUpdateUnitsOrder(fullNewList.mapIndexed { index, unit -> unit.copy(displayOrder = index) }) 
+                        },
+                        itemContent = { _, unit -> 
+                            UnitItemCard(
+                                unit = unit, 
+                                isDefault = unit.id == defaultUnitId,
+                                onUnitSelected = { onToggleDefaultUnit(unit.id) },
+                                onUpdateUnit = onUpdateUnit, 
+                                onToggleVisibility = { onToggleUnitVisibility(unit.id) },
+                                onDeleteUnit = { onDeleteUnit(unit) }
+                            ) 
                         }
                     )
                 }

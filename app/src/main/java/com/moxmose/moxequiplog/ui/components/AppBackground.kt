@@ -57,7 +57,8 @@ fun AppBackground(
                 AppDestinations.LOGS -> Category.LOGS
                 AppDestinations.EQUIPMENTS -> Category.EQUIPMENT
                 AppDestinations.OPERATIONS -> Category.OPERATION
-                else -> null
+                AppDestinations.REPORTS -> Category.REPORTS
+                AppDestinations.OPTIONS -> Category.OPTIONS
             }
             categoriesUiState.find { it.category.id == categoryId }?.color?.let {
                 try { Color(android.graphics.Color.parseColor(it)) } catch (_: Exception) { null }

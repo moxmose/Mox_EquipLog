@@ -35,10 +35,16 @@ data class MaintenanceLog(
     @ColumnInfo(name = "operationTypeId")
     val operationTypeId: Int,
     val notes: String? = null,
-    val kilometers: Int? = null,
+    val value: Double? = null,
     val date: Long,
     @ColumnInfo(defaultValue = "false")
     val dismissed: Boolean = false,
     val color: String? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    
+    // Nuovi campi per gestione UoM accumulata
+    @ColumnInfo(defaultValue = "0.0")
+    val accumulatedValue: Double = 0.0,
+    @ColumnInfo(defaultValue = "false")
+    val resetAfter: Boolean = false
 )

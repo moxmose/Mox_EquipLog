@@ -5,13 +5,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.CategoryDao
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLog
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
-import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.CalendarManager
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -19,21 +16,31 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 enum class SortProperty {
-    DATE, EQUIPMENT, OPERATION, KILOMETERS, NOTES
+    DATE, EQUIPMENT, OPERATION, VALUE, NOTES
 }
 
 enum class SortDirection {
     ASCENDING, DESCENDING
 }
 
+data class MaintenanceReminderUiModel(
+    val details: MaintenanceReminderDetails,
+    val presumedDate: Long?,
+    val effectiveDate: Long // Used for sorting: fixed date if present, otherwise presumed
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class MaintenanceLogViewModel(
     private val maintenanceLogDao: MaintenanceLogDao,
+    private val maintenanceReminderDao: MaintenanceReminderDao,
     private val equipmentDao: EquipmentDao,
     private val operationTypeDao: OperationTypeDao,
     private val categoryDao: CategoryDao,
     private val appSettingsManager: AppSettingsManager,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val measurementUnitDao: MeasurementUnitDao,
+    private val calendarManager: CalendarManager,
+    private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -41,6 +48,10 @@ class MaintenanceLogViewModel(
         data object UpdateLogFailed : UiEvent()
         data object DismissLogFailed : UiEvent()
         data object RestoreLogFailed : UiEvent()
+        data object DeleteLogFailed : UiEvent()
+        data object DeleteReminderFailed : UiEvent()
+        data object UpdateReminderFailed : UiEvent()
+        data object RecalculateRemindersFailed : UiEvent()
     }
 
     private val _uiEvents = Channel<UiEvent>(Channel.BUFFERED)
@@ -56,6 +67,29 @@ class MaintenanceLogViewModel(
     val sortDirection: StateFlow<SortDirection> = _sortDirection.asStateFlow()
     val showDismissed: StateFlow<Boolean> = _showDismissed.asStateFlow()
 
+    // Hoisted UI State from Screen
+    private val _showAddDialog = MutableStateFlow(false)
+    val showAddDialog = _showAddDialog.asStateFlow()
+
+    private val _expandedCardId = MutableStateFlow<Int?>(null)
+    val expandedCardId = _expandedCardId.asStateFlow()
+
+    private val _editingCardId = MutableStateFlow<Int?>(null)
+    val editingCardId = _editingCardId.asStateFlow()
+
+    private val _selectedReminderForComplete = MutableStateFlow<MaintenanceReminderDetails?>(null)
+    val selectedReminderForComplete = _selectedReminderForComplete.asStateFlow()
+
+    private val _selectedReminderForEdit = MutableStateFlow<MaintenanceReminderDetails?>(null)
+    val selectedReminderForEdit = _selectedReminderForEdit.asStateFlow()
+
+    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
+    fun onCardExpanded(id: Int) { _expandedCardId.value = if (_expandedCardId.value == id) null else id }
+    fun onEditLog(log: MaintenanceLog) { _editingCardId.value = log.id }
+    fun onCancelEdit() { _editingCardId.value = null }
+    fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForComplete.value = reminder }
+    fun onEditReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForEdit.value = reminder }
+
     val logs: StateFlow<List<MaintenanceLogDetails>> = combine(
         _searchQuery,
         _sortProperty,
@@ -67,22 +101,42 @@ class MaintenanceLogViewModel(
         maintenanceLogDao.getLogsWithDetails(query)
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
         initialValue = emptyList()
     )
+
+    val activeReminders: StateFlow<List<MaintenanceReminderDetails>> = maintenanceReminderDao.getActiveRemindersWithDetails()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
+    val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
 
     val allCategories = categoryDao.getAllCategories()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
         
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
+
+    val googleAccountName: StateFlow<String?> = appSettingsManager.googleAccountName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 
@@ -105,7 +159,20 @@ class MaintenanceLogViewModel(
                 ot.photoUri as operationTypePhotoUri,
                 ot.iconIdentifier as operationTypeIconIdentifier,
                 e.dismissed as equipmentDismissed,
-                ot.dismissed as operationTypeDismissed
+                ot.dismissed as operationTypeDismissed,
+                e.isResettable as equipmentIsResettable,
+                ot.isSystem as operationTypeIsSystem,
+                (SELECT l2.value FROM maintenance_logs l2 
+                 JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
+                 WHERE l2.equipmentId = l.equipmentId 
+                 AND (l2.date < l.date OR (l2.date = l.date AND l2.id < l.id)) 
+                 AND ot2.isSystem = 0
+                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogValue,
+                (SELECT ot2.isSystem FROM maintenance_logs l2 
+                 JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
+                 WHERE l2.equipmentId = l.equipmentId 
+                 AND (l2.date < l.date OR (l2.date = l.date AND l2.id < l.id))
+                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogIsSystem
             FROM maintenance_logs as l
             JOIN equipments as e ON l.equipmentId = e.id
             JOIN operation_types as ot ON l.operationTypeId = ot.id
@@ -133,13 +200,13 @@ class MaintenanceLogViewModel(
             SortProperty.DATE -> "l.date"
             SortProperty.EQUIPMENT -> computedEquipmentDesc
             SortProperty.OPERATION -> computedOpDesc
-            SortProperty.KILOMETERS -> "l.kilometers"
+            SortProperty.VALUE -> "l.value"
             SortProperty.NOTES -> "l.notes"
         }
 
         val sortOrder = if (sortDirection == SortDirection.ASCENDING) "ASC" else "DESC"
         val nullsOrder = when (sortProperty) {
-            SortProperty.KILOMETERS, SortProperty.NOTES -> if (sortDirection == SortDirection.ASCENDING) "NULLS FIRST" else "NULLS LAST"
+            SortProperty.VALUE, SortProperty.NOTES -> if (sortDirection == SortDirection.ASCENDING) "NULLS FIRST" else "NULLS LAST"
             else -> ""
         }
 
@@ -170,31 +237,187 @@ class MaintenanceLogViewModel(
     val allEquipments = equipmentDao.getAllEquipments()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allOperationTypes = operationTypeDao.getAllOperationTypes()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, kilometers: Int?, date: Long, color: String?) {
+    val activeResettableEquipmentsCount = equipmentDao.countActiveResettableEquipments()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = 0
+        )
+
+    private suspend fun recalculateAccumulatedValues(equipmentId: Int) {
+        val allLogs = maintenanceLogDao.getAllLogsForEquipment(equipmentId)
+        if (allLogs.isEmpty()) return
+
+        val updatedLogs = mutableListOf<MaintenanceLog>()
+        var currentAccumulated = 0.0
+        var lastValue: Double? = null
+
+        allLogs.forEach { log ->
+            val delta = when {
+                log.value == null -> 0.0
+                lastValue == null -> log.value // Primo log con valore
+                log.value >= lastValue -> log.value - lastValue
+                else -> log.value // Reset rilevato (valore sceso)
+            }
+            
+            currentAccumulated += delta
+            val updatedLog = log.copy(accumulatedValue = currentAccumulated)
+            updatedLogs.add(updatedLog)
+            
+            // Se c'è un reset forzato, il prossimo log inizierà da 0 per il calcolo del delta
+            lastValue = if (log.resetAfter) null else log.value
+        }
+        
+        maintenanceLogDao.updateLogs(updatedLogs)
+    }
+
+    fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, value: Double?, date: Long, color: String?, resetAfter: Boolean = false) {
         viewModelScope.launch {
             try {
                 val newLog = MaintenanceLog(
                     equipmentId = equipmentId,
                     operationTypeId = operationTypeId,
                     notes = notes,
-                    kilometers = kilometers,
+                    value = value,
                     date = date,
-                    color = color
+                    color = color,
+                    resetAfter = resetAfter
                 )
                 maintenanceLogDao.insertLog(newLog)
+                maintenanceManager.recalculateAccumulatedValues(equipmentId)
+                
+                // Mark reminder as completed if it exists for this equipment and operation type
+                maintenanceReminderDao.getReminderByEquipmentAndOperation(equipmentId, operationTypeId)?.let { reminder ->
+                    maintenanceReminderDao.updateReminder(reminder.copy(isCompleted = true))
+                    
+                    // Delete Google Calendar event if it exists
+                    reminder.calendarEventId?.let { eventId ->
+                        val accountName = appSettingsManager.googleAccountName.first()
+                        if (accountName != null) {
+                            val credential = calendarManager.getCredential(accountName)
+                            calendarManager.deleteEvent(credential, eventId)
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.AddLogFailed)
+            }
+        }
+    }
+
+    fun addReminder(equipmentId: Int, operationTypeId: Int, dueDate: Long?, dueValue: Double?, syncToCalendar: Boolean) {
+        viewModelScope.launch {
+            try {
+                // Calculate presumed date if value is present
+                val presumedDate = if (dueValue != null) maintenanceManager.estimateDueDate(equipmentId, dueValue) else null
+                
+                // Use fixed dueDate if present, otherwise use presumedDate for calendar
+                val calendarDate = dueDate ?: presumedDate
+                
+                var calendarEventId: String? = null
+                if (syncToCalendar && calendarDate != null) {
+                    val accountName = appSettingsManager.googleAccountName.first()
+                    if (accountName != null) {
+                        val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId)
+                        val operation = operationTypeDao.getOperationTypeById(operationTypeId)
+                        val title = "Maintenance: ${equipment?.description} - ${operation?.description}"
+                        val description = "Maintenance reminder from Mox EquipLog"
+                        
+                        val credential = calendarManager.getCredential(accountName)
+                        calendarEventId = calendarManager.addEvent(
+                            credential = credential,
+                            title = title,
+                            description = description,
+                            startTimeMillis = calendarDate,
+                            endTimeMillis = calendarDate + 3600000 // +1 hour
+                        )
+                    }
+                }
+
+                val reminder = MaintenanceReminder(
+                    equipmentId = equipmentId,
+                    operationTypeId = operationTypeId,
+                    dueDate = dueDate,
+                    dueValue = dueValue,
+                    presumedDate = presumedDate,
+                    calendarEventId = calendarEventId
+                )
+                maintenanceReminderDao.insertReminder(reminder)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.AddLogFailed)
+            }
+        }
+    }
+
+    fun updateReminder(equipmentId: Int, operationTypeId: Int, dueDate: Long?, dueValue: Double?, syncToCalendar: Boolean, reminderId: Int) {
+        viewModelScope.launch {
+            try {
+                val existingReminder = maintenanceReminderDao.getReminderById(reminderId) ?: return@launch
+                
+                // Calculate presumed date if value is present
+                val presumedDate = if (dueValue != null) maintenanceManager.estimateDueDate(equipmentId, dueValue) else null
+                
+                // Effective date for calendar
+                val calendarDate = dueDate ?: presumedDate
+                
+                var calendarEventId = existingReminder.calendarEventId
+                val accountName = appSettingsManager.googleAccountName.first()
+
+                if (syncToCalendar && calendarDate != null) {
+                    val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId)
+                    val operation = operationTypeDao.getOperationTypeById(operationTypeId)
+                    val title = "Maintenance: ${equipment?.description} - ${operation?.description}"
+                    val description = "Maintenance reminder from Mox EquipLog"
+
+                    if (accountName != null) {
+                        val credential = calendarManager.getCredential(accountName)
+                        if (calendarEventId != null) {
+                            calendarManager.updateEvent(
+                                credential = credential,
+                                eventId = calendarEventId,
+                                title = title,
+                                description = description,
+                                startTimeMillis = calendarDate,
+                                endTimeMillis = calendarDate + 3600000
+                            )
+                        } else {
+                            calendarEventId = calendarManager.addEvent(
+                                credential = credential,
+                                title = title,
+                                description = description,
+                                startTimeMillis = calendarDate,
+                                endTimeMillis = calendarDate + 3600000
+                            )
+                        }
+                    }
+                } else if (calendarEventId != null && accountName != null) {
+                    val credential = calendarManager.getCredential(accountName)
+                    calendarManager.deleteEvent(credential, calendarEventId)
+                    calendarEventId = null
+                }
+
+                val updatedReminder = existingReminder.copy(
+                    equipmentId = equipmentId,
+                    operationTypeId = operationTypeId,
+                    dueDate = dueDate,
+                    dueValue = dueValue,
+                    presumedDate = presumedDate,
+                    calendarEventId = calendarEventId
+                )
+                maintenanceReminderDao.updateReminder(updatedReminder)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateReminderFailed)
             }
         }
     }
@@ -203,6 +426,8 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 maintenanceLogDao.updateLog(log)
+                maintenanceManager.recalculateAccumulatedValues(log.equipmentId)
+                _editingCardId.value = null
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.UpdateLogFailed)
             }
@@ -213,6 +438,7 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 maintenanceLogDao.updateLog(log.copy(dismissed = true))
+                _editingCardId.value = null
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.DismissLogFailed)
             }
@@ -223,9 +449,100 @@ class MaintenanceLogViewModel(
         viewModelScope.launch {
             try {
                 maintenanceLogDao.updateLog(log.copy(dismissed = false))
+                _editingCardId.value = null
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.RestoreLogFailed)
             }
         }
     }
+
+    fun deleteLog(log: MaintenanceLog) {
+        viewModelScope.launch {
+            try {
+                maintenanceLogDao.deleteLog(log)
+                maintenanceManager.recalculateAccumulatedValues(log.equipmentId)
+                _editingCardId.value = null
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.DeleteLogFailed)
+            }
+        }
+    }
+
+    fun deleteReminder(reminderDetails: MaintenanceReminderDetails) {
+        viewModelScope.launch {
+            try {
+                reminderDetails.reminder.calendarEventId?.let { eventId ->
+                    val accountName = appSettingsManager.googleAccountName.first()
+                    if (accountName != null) {
+                        val credential = calendarManager.getCredential(accountName)
+                        calendarManager.deleteEvent(credential, eventId)
+                    }
+                }
+                maintenanceReminderDao.deleteReminder(reminderDetails.reminder)
+                if (_selectedReminderForEdit.value?.reminder?.id == reminderDetails.reminder.id) {
+                    _selectedReminderForEdit.value = null
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.DeleteReminderFailed)
+            }
+        }
+    }
+
+    fun recalculateAllReminders() {
+        viewModelScope.launch {
+            try {
+                val reminders = maintenanceReminderDao.getActiveRemindersWithDetails().first()
+                val accountName = appSettingsManager.googleAccountName.first()
+                val credential = accountName?.let { calendarManager.getCredential(it) }
+
+                reminders.forEach { details ->
+                    val reminder = details.reminder
+                    var updatedReminder = reminder
+                    var changed = false
+
+                    // Logic: Presumed date is always calculated if dueValue is present
+                    if (reminder.dueValue != null) {
+                        val newPresumedDate = maintenanceManager.estimateDueDate(reminder.equipmentId, reminder.dueValue)
+                        if (newPresumedDate != reminder.presumedDate) {
+                            updatedReminder = updatedReminder.copy(presumedDate = newPresumedDate)
+                            changed = true
+                        }
+                    } else {
+                        // If no target value, reset presumed date (shouldn't happen with proper logic but for safety)
+                        if (reminder.presumedDate != null) {
+                            updatedReminder = updatedReminder.copy(presumedDate = null)
+                            changed = true
+                        }
+                    }
+
+                    if (changed) {
+                        maintenanceReminderDao.updateReminder(updatedReminder)
+                        
+                        // Update Google Calendar if event exists
+                        val effectiveDate = updatedReminder.dueDate ?: updatedReminder.presumedDate
+                        if (updatedReminder.calendarEventId != null && credential != null && effectiveDate != null) {
+                            val equipment = equipmentDao.getEquipmentByIdOneShot(updatedReminder.equipmentId)
+                            val operation = operationTypeDao.getOperationTypeById(updatedReminder.operationTypeId)
+                            val title = "Maintenance: ${equipment?.description} - ${operation?.description}"
+                            val description = "Maintenance reminder from Mox EquipLog (updated)"
+                            
+                            calendarManager.updateEvent(
+                                credential = credential,
+                                eventId = updatedReminder.calendarEventId,
+                                title = title,
+                                description = description,
+                                startTimeMillis = effectiveDate,
+                                endTimeMillis = effectiveDate + 3600000
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.RecalculateRemindersFailed)
+            }
+        }
+    }
+
+    suspend fun estimateDueDate(equipmentId: Int, targetValue: Double): Long? = maintenanceManager.estimateDueDate(equipmentId, targetValue)
+    suspend fun estimateTargetValue(equipmentId: Int, dueDate: Long): Double? = maintenanceManager.estimateTargetValue(equipmentId, dueDate)
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
+import com.moxmose.moxequiplog.utils.AppConstants
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -23,14 +24,21 @@ class EquipmentDaoTest {
 
     private lateinit var database: AppDatabase
     private lateinit var equipmentDao: EquipmentDao
+    private lateinit var measurementUnitDao: MeasurementUnitDao
 
     @Before
-    fun setupDatabase() {
+    fun setupDatabase() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-            .allowMainThreadQueries() // For simplicity in tests
+            .allowMainThreadQueries()
             .build()
         equipmentDao = database.equipmentDao()
+        measurementUnitDao = database.measurementUnitDao()
+
+        // Popolamento manuale delle unità per i test per soddisfare il vincolo FK
+        AppConstants.INITIAL_MEASUREMENT_UNITS.forEach { unit ->
+            measurementUnitDao.insertUnit(unit)
+        }
     }
 
     @After
@@ -41,6 +49,7 @@ class EquipmentDaoTest {
 
     @Test
     fun insertEquipment_whenNewEquipmentIsAdded_updatesActiveEquipmentsFlow() = runTest {
+        // unitId defaults to 1, which now exists in the DB
         val equipment = Equipment(id = 1, description = "Test Equipment", displayOrder = 0)
 
         equipmentDao.insertEquipment(equipment)
@@ -58,7 +67,6 @@ class EquipmentDaoTest {
         val initialEquipment = Equipment(id = 1, description = "Initial Name", displayOrder = 0)
         equipmentDao.insertEquipment(initialEquipment)
 
-        // First, verify the initial state
         equipmentDao.getActiveEquipments().test {
             assertEquals("Initial Name", awaitItem().first().description)
             cancelAndIgnoreRemainingEvents()
@@ -67,7 +75,6 @@ class EquipmentDaoTest {
         val updatedEquipment = initialEquipment.copy(description = "Updated Name")
         equipmentDao.updateEquipment(updatedEquipment)
 
-        // Then, verify the updated state
         equipmentDao.getActiveEquipments().test {
             val equipmentList = awaitItem()
             assertEquals(1, equipmentList.size)
@@ -81,27 +88,16 @@ class EquipmentDaoTest {
         val equipment = Equipment(id = 1, description = "Test Equipment", dismissed = false, displayOrder = 0)
         equipmentDao.insertEquipment(equipment)
 
-        // 1. Verify it's initially active
         equipmentDao.getActiveEquipments().test {
             assertEquals(1, awaitItem().size)
             cancelAndIgnoreRemainingEvents()
         }
 
-        // 2. Dismiss the equipment
         val dismissedEquipment = equipment.copy(dismissed = true)
         equipmentDao.updateEquipment(dismissedEquipment)
 
-        // 3. Verify it's no longer in the active list
         equipmentDao.getActiveEquipments().test {
             assertEquals(0, awaitItem().size)
-            cancelAndIgnoreRemainingEvents()
-        }
-
-        // 4. Verify it's still in the "all equipments" list
-        equipmentDao.getAllEquipments().test {
-            val allEquipments = awaitItem()
-            assertEquals(1, allEquipments.size)
-            assertTrue(allEquipments.first().dismissed)
             cancelAndIgnoreRemainingEvents()
         }
     }

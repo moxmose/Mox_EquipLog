@@ -8,6 +8,76 @@
     <string name="navigation_reports">Reports</string>
     <string name="navigation_options">Options</string>
 
+    <!-- Reports -->
+    <string name="reports_title">Reports</string>
+    <string name="report_equipments_title">Equipments Trend</string>
+    <string name="report_equipments_desc">UM trend by equipment</string>
+    <string name="report_operations_title">Operations Trend</string>
+    <string name="report_operations_desc">UM trend by operation type</string>
+    <string name="report_equipments_freq_title">Equipments Frequency</string>
+    <string name="report_equipments_freq_desc">Maintenance frequency by equipment</string>
+    <string name="report_operations_freq_title">Operations Frequency</string>
+    <string name="report_operations_freq_desc">Maintenance frequency by operation type</string>
+    <string name="report_intervals_title">Interval Analysis</string>
+    <string name="report_intervals_desc">Delta analysis between maintenance tasks</string>
+    <string name="report_heatmap_title">Activity Heatmap</string>
+    <string name="report_heatmap_desc">Temporal distribution of activities</string>
+    <string name="report_benchmarking_title">Benchmarking</string>
+    <string name="report_benchmarking_desc">Direct comparison between equipments</string>
+
+    <!-- New Reports -->
+    <string name="report_equipments_vol_title">Equipments Volume</string>
+    <string name="report_equipments_vol_desc">Activity count per equipment over time</string>
+    <string name="report_operations_vol_title">Operations Volume</string>
+    <string name="report_operations_vol_desc">Activity count per operation over time</string>
+    <string name="report_combined_logs_title">Combined Logs Analysis</string>
+    <string name="report_combined_logs_desc">Value trends for specific equipment and operation pairs</string>
+    <string name="report_volume_label">Activity Count</string>
+
+    <string name="report_section_equipments">Equipments</string>
+    <string name="report_section_operations">Operations</string>
+    <string name="report_section_equipments_freq">Equipments Frequency</string>
+    <string name="report_section_operations_freq">Operations Frequency</string>
+    <string name="report_value_over_time">Values over time</string>
+    <string name="report_value_to_date">Value to date</string>
+    <string name="report_no_data">No data available</string>
+    <string name="select_equipment">Select Equipment</string>
+    <string name="select_operation_type">Select Operation Type</string>
+    <string name="um_trend">UM Trend</string>
+    <string name="mixed_units_warning">Warning: selected equipments use different measurement units.</string>
+    <string name="report_equipment_subtitle">Analysis of usage values</string>
+    <string name="report_operation_subtitle">Frequency and values for single operation</string>
+    <string name="report_equipment_freq_subtitle">Usage frequency of equipments</string>
+    <string name="report_operation_freq_subtitle">Frequency of performed operations</string>
+    <string name="report_delta_label">Delta (Value difference)</string>
+    <string name="report_heatmap_intensity">Intensity (count)</string>
+    <string name="report_benchmark_total">Total Value</string>
+    <string name="report_benchmark_avg_interval">Avg Interval</string>
+
+    <string name="filter_from">From</string>
+    <string name="filter_to">To</string>
+    <string name="filter_granularity">Granularity</string>
+    <string name="filter_reset">Reset</string>
+    <string name="granularity_hours">Hours</string>
+    <string name="granularity_15min">15m</string>
+    <string name="granularity_5min">5m</string>
+    <string name="granularity_days">Days</string>
+    <string name="granularity_weeks">Weeks</string>
+    <string name="granularity_months">Months</string>
+    <string name="granularity_years">Years</string>
+    <string name="selection_all">Select all</string>
+    <string name="selection_invert">Invert selection</string>
+    <string name="selection_clear">Clear selection</string>
+    <string name="occurrences_format">%1$s [%2$d occurrences]</string>
+    <string name="save_filter">Save Filter</string>
+    <string name="save_new_filter">Save as New</string>
+    <string name="overwrite_filter">Overwrite Current</string>
+    <string name="load_filter">Load Filter</string>
+    <string name="filter_name">Filter Name</string>
+    <string name="saved_filters">Saved Filters</string>
+    <string name="delete_filter_confirm">Are you sure you want to delete this filter?</string>
+    <string name="custom_filter">Custom (unsaved)</string>
+
     <!-- Options Screen -->
     <string name="options_version_label">Version %1$s</string>
     <string name="options_username_label">Username</string>
@@ -35,10 +105,37 @@
     <string name="options_show_hide">Show/Hide</string>
     <string name="options_reset_background_settings">Reset to defaults</string>
     <string name="update_background_failed">Update background failed.</string>
+    <string name="update_reports_settings_failed">Cannot hide the last visible color.</string>
+    <string name="options_use_custom_colors_reports">Use custom colors instead of Material</string>
+
+    <string name="options_units_title">Measurement Units</string>
+    <string name="options_units_desc">Manage the units of measure for your equipments (e.g., km, hours, liters).</string>
+    <string name="options_add_unit">Add Unit</string>
+    <string name="options_unit_label_placeholder">Label (e.g., hh)</string>
+    <string name="options_unit_desc_placeholder">Description (e.g., Hours)</string>
+    <string name="options_unit_decimals">Decimal places (0&#8211;3)</string>
+    <string name="add_unit_failed">Failed to add unit.</string>
+    <string name="add_unit_failed_duplicate">A unit with this label already exists.</string>
+    <string name="delete_unit_failed">Failed to delete unit.</string>
+    <string name="update_unit_failed">Failed to update unit.</string>
+    <string name="update_units_order_failed">Failed to update units order.</string>
+    <string name="toggle_unit_visibility_failed">Failed to toggle unit visibility.</string>
+    <string name="options_unit_mgmt_title">Unit Management</string>
+    <string name="options_unit_label">Label</string>
+    <string name="options_save_unit">Save unit</string>
+    <string name="options_edit_unit">Edit unit</string>
+
+    <string name="options_info_drag_reorder">Hold and drag items to change order.</string>
+    <string name="options_info_select_default">Tap an item to set it as default.</string>
+    <string name="options_info_select_category_to_reorder">Select a specific category to change the display order.</string>
+    <string name="options_info_background_select">Select an image for the application background.</string>
+    <string name="options_info_min_one_color">At least one color must remain visible for reports.</string>
 
     <string name="button_about" translatable="false">About</string>
     <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>
     <string name="about_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!</string>
+    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!\n\nSpend some effort to customize the app in the Options Section to select backgrounds, images and colors, then:\n1) add equipments\n2) add operations, then\n3) start to record your maintenances</string>
+    <string name="dismiss_next_time">Don\'t show again</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Background Customization</string>
     <string name="background_image">Background Image</string>
@@ -49,7 +146,7 @@
 
     <!-- Equipments & Operations -->
     <string name="hold_and_drag_to_reorder">Hold and drag items to change order</string>
-    <string name="set_as_default_instruction">Tap icon to set as default</string>
+    <string name="set_as_default_and_expand_instruction">Tap card to expand, Star to set default</string>
     <string name="add_equipment">Add Equipment</string>
     <string name="add_operation_type">Add Operation Type</string>
     <string name="hide_dismissed">Hide Dismissed</string>
@@ -60,6 +157,7 @@
     <string name="operation_type_description">Operation type description</string>
     <string name="add_image">Add Image</string>
     <string name="button_add">Add</string>
+    <string name="button_delete">Delete</string>
     <string name="button_cancel">Cancel</string>
     <string name="no_image_title">No Image</string>
     <string name="no_image_message">No picture loaded, add one.</string>
@@ -77,6 +175,8 @@
     <string name="restore_operation_type">Restore Operation Type</string>
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="id_no_description">id:%1$d - no description</string>
+    <string name="measurement_unit">Measurement Unit</string>
+    <string name="equipment_is_resettable">UoM is resettable</string>
 
     <!-- Maintenance Logs -->
     <string name="search_logs">Search</string>
@@ -86,18 +186,47 @@
     <string name="add_new_maintenance_log">Add New Maintenance Log</string>
     <string name="select_an_equipment">Select an equipment</string>
     <string name="select_an_operation">Select an operation</string>
-    <string name="kilometers_optional">Kilometers (optional)</string>
+    <string name="notes_label">Notes</string>
     <string name="notes_optional">Notes (optional)</string>
-    <string name="kilometers_label">Km: %1$d</string>
+    <string name="value_label">Value: %1$d %2$s</string>
+    <string name="value_optional">Value (%1$s) (optional)</string>
     <string name="dismissed_suffix">(dismissed)</string>
     <string name="selected_content_desc">Selected</string>
     <string name="date">Date</string>
+    <string name="time">Time</string>
     <string name="select_date">Select Date</string>
+    <string name="select_time">Select Time</string>
     <string name="edit_log">Edit Log</string>
     <string name="save_log">Save Log</string>
     <string name="dismiss_log">Dismiss Log</string>
     <string name="restore_log">Restore Log</string>
+    <string name="delete_log">Delete Log</string>
+    <string name="delete_log_confirm">Are you sure you want to permanently delete this log?</string>
     <string name="select_media">Select media</string>
+    <string name="schedule_maintenance">Schedule Maintenance</string>
+    <string name="tab_log">Completed</string>
+    <string name="tab_reminder">Planned</string>
+    <string name="sync_to_calendar">Sync to Google Calendar</string>
+    <string name="calendar_no_account">No Google Account linked. Tap to link in Options.</string>
+    <string name="predictive_maintenance_settings">Predictive Maintenance Settings</string>
+    <string name="usage_trend_window">Usage Trend Window (days)</string>
+    <string name="manual_average_usage">Manual Average Usage (optional)</string>
+    <string name="due_date">Due Date</string>
+    <string name="target_value">Target %1$s (optional)</string>
+    <string name="reset_counter_after">Reset counter after this activity</string>
+    <string name="estimated_date_prefix">Estimated: %1$s</string>
+    <string name="likely_needed_by_prefix">Likely needed by: %1$s</string>
+
+    <!-- Maintenance Reminders -->
+    <string name="reminders_dashboard_title">Maintenance Deadlines</string>
+    <string name="no_active_reminders">No active deadlines</string>
+    <string name="due_date_label">Due Date: %1$s</string>
+    <string name="due_value_label">Due Value: %1$s %2$s</string>
+    <string name="reminder_set_calendar">Set calendar reminder</string>
+    <string name="reminder_complete_log">Complete Maintenance</string>
+    <string name="delete_reminder">Delete Reminder</string>
+    <string name="reminder_overdue">OVERDUE</string>
+    <string name="reminder_approaching">APPROACHING</string>
 
     <!-- Error Handling -->
     <string name="error_unknown">An unknown error occurred.</string>
@@ -136,4 +265,36 @@
     <string name="update_log_failed">Failed to update log.</string>
     <string name="dismiss_log_failed">Failed to dismiss log.</string>
     <string name="restore_log_failed">Failed to restore log.</string>
+    <string name="set_default_failed">Set default failed</string>
+    <string name="refresh">Refresh</string>
+    <string name="distribution_analysis">Distribution analysis</string>
+    <string name="export_data_csv">Export Data (CSV)</string>
+    <string name="export_report_pdf">Export Report (PDF)</string>
+    <string name="sharing_pdf_report">Sharing PDF report&#8230;</string>
+    <string name="options_data_management_title">Data Management</string>
+    <string name="options_data_management_desc">Backup your database to a file or restore from a previous backup.</string>
+    <string name="options_backup_db">Backup Database</string>
+    <string name="options_restore_db">Restore Database</string>
+    <string name="backup_success">Backup created successfully.</string>
+    <string name="backup_failed">Backup failed: %1$s</string>
+    <string name="restore_success">Database restored. Please restart the app.</string>
+    <string name="restore_failed">Restore failed: %1$s</string>
+    <string name="restore_confirm_title">Confirm Restore</string>
+    <string name="restore_confirm_msg">This will overwrite all current data. Are you sure? The app will need to be restarted manually.</string>
+    <string name="options_total_export">Total Export (ZIP of CSVs)</string>
+    <string name="export_success">Export completed successfully.</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="options_google_calendar_section">Google Calendar</string>
+    <string name="options_google_account_label">Google Account</string>
+    <string name="options_google_connect">Connect Account</string>
+    <string name="options_google_disconnect">Disconnect Account</string>
+    <string name="update_google_account_failed">Failed to update Google Account.</string>
+    <string name="options_google_calendar_desc">Configure Google Calendar integration for maintenance reminders.</string>
+    <string name="options_recalculate_accumulated">Recalculate Accumulated Values</string>
+    <string name="options_recalculate_accumulated_desc">Ricalcola tutti i valori assoluti basandosi sullo storico dei log. Utile se sono state inserite registrazioni nel passato.</string>
+    <string name="recalculate_success">Ricalcolo completato con successo.</string>
+    <string name="options_sync_calendar_default_label">Sync by default</string>
+    <string name="options_sync_calendar_default_desc">Automatically enable \"Sync to Google Calendar\" when adding new logs or reminders.</string>
+    <string name="google_auth_privacy_note">This app uses the standard Google sign-in method to connect to your Calendar. Only the data strictly necessary for sync will be used.</string>
+    <string name="delete_reminder_confirm">Are you sure you want to permanently delete this reminder?</string>
 </resources>

@@ -4,20 +4,40 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
-import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.Calendar
+
+data class EquipmentOperationStatus(
+    val equipment: Equipment,
+    val lastLogDate: Long?,
+    val lastLogValue: Double?,
+    val nextPresumedDate: Long?,
+    val isOverdue: Boolean,
+    val isPlanned: Boolean = false,
+    val reminderId: Int? = null,
+    val plannedValue: Double? = null,
+    val predictedDate: Long? = null
+)
+
+data class OperationGlobalStatus(
+    val operationId: Int,
+    val affectedEquipments: List<EquipmentOperationStatus>
+)
 
 class OperationsTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
+    private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
-    private val appSettingsManager: AppSettingsManager
+    private val appSettingsManager: AppSettingsManager,
+    private val maintenanceLogDao: MaintenanceLogDao,
+    private val maintenanceReminderDao: MaintenanceReminderDao,
+    private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -36,43 +56,156 @@ class OperationsTypeViewModel(
         data object SetDefaultFailed : UiEvent()
     }
 
-    private val _uiEvents = Channel<UiEvent>(Channel.BUFFERED)
+    private val _uiEvents = Channel<UiEvent>()
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
-    val activeOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getActiveOperationTypes()
+    // Hoisted UI State from Screen
+    private val _showDismissed = MutableStateFlow(false)
+    val showDismissed = _showDismissed.asStateFlow()
+
+    private val _showAddDialog = MutableStateFlow(false)
+    val showAddDialog = _showAddDialog.asStateFlow()
+
+    private val _selectedAffectedEquipmentForAdd = MutableStateFlow<Pair<Int, EquipmentOperationStatus>?>(null)
+    val selectedAffectedEquipmentForAdd = _selectedAffectedEquipmentForAdd.asStateFlow()
+
+    fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
+    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
+    fun onAffectedAction(opId: Int, status: EquipmentOperationStatus?) { _selectedAffectedEquipmentForAdd.value = if (status != null) opId to status else null }
+
+    val allOperationTypes: StateFlow<List<OperationType>> = combine(
+        operationTypeDao.getAllOperationTypes(),
+        equipmentDao.countActiveResettableEquipments()
+    ) { types, resettableCount ->
+        types.map { type ->
+            if (type.isSystem && type.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                type.copy(dismissed = resettableCount == 0)
+            } else {
+                type
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
+
+    val activeOperationTypes: StateFlow<List<OperationType>> = allOperationTypes
+        .map { types -> types.filter { !it.dismissed } }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    val allOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getAllOperationTypes()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
-            initialValue = emptyList()
-        )
+    val operationStatuses: StateFlow<Map<Int, OperationGlobalStatus>> = combine(
+        activeOperationTypes,
+        equipmentDao.getActiveEquipments(),
+        maintenanceReminderDao.getAllReminders(),
+        maintenanceLogDao.getLogsCountFlow()
+    ) { opTypes, equipments, reminders, _ ->
+        val statuses = mutableMapOf<Int, OperationGlobalStatus>()
+        opTypes.filter { it.isPredictable }.forEach { opType ->
+            val affected = equipments.mapNotNull { equipment ->
+                val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
+                val prediction = if (lastLog != null) calculateEquipmentStatusForOp(equipment, opType, lastLog) else null
+                
+                // Check for manual reminder first (Planned)
+                val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
+                
+                val now = System.currentTimeMillis()
+                val horizonMs = when (opType.visibilityHorizonUnit) {
+                    TimeGranularity.MINUTES_5 -> opType.visibilityHorizon * 5 * 60 * 1000L
+                    TimeGranularity.MINUTES_15 -> opType.visibilityHorizon * 15 * 60 * 1000L
+                    TimeGranularity.HOURS -> opType.visibilityHorizon * 60 * 60 * 1000L
+                    TimeGranularity.DAYS -> opType.visibilityHorizon * 24 * 60 * 60 * 1000L
+                    TimeGranularity.WEEKS -> opType.visibilityHorizon * 7 * 24 * 60 * 60 * 1000L
+                    TimeGranularity.MONTHS -> opType.visibilityHorizon * 30 * 24 * 60 * 60 * 1000L
+                    TimeGranularity.YEARS -> opType.visibilityHorizon * 365 * 24 * 60 * 60 * 1000L
+                }
+                val horizonLimit = now + horizonMs
 
-    val operationTypeImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory(Category.OPERATION)
+                if (manualReminder != null) {
+                    val effectiveDate = manualReminder.dueDate ?: manualReminder.presumedDate
+                    val isWithinHorizon = effectiveDate == null || effectiveDate <= horizonLimit || effectiveDate < now
+                    
+                    if (isWithinHorizon) {
+                        return@mapNotNull EquipmentOperationStatus(
+                            equipment = equipment,
+                            lastLogDate = lastLog?.date,
+                            lastLogValue = lastLog?.value,
+                            nextPresumedDate = effectiveDate,
+                            isOverdue = effectiveDate?.let { it < now } ?: false,
+                            isPlanned = true,
+                            reminderId = manualReminder.id,
+                            plannedValue = manualReminder.dueValue,
+                            predictedDate = prediction?.nextPresumedDate
+                        )
+                    } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= horizonLimit))) {
+                        // Planned is far, but prediction is near/overdue -> show prediction as a warning
+                        return@mapNotNull prediction
+                    }
+                } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= horizonLimit))) {
+                    // No manual reminder, show prediction if near/overdue
+                    return@mapNotNull prediction
+                }
+                null
+            }
+            statuses[opType.id] = OperationGlobalStatus(opType.id, affected)
+        }
+        statuses
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    private suspend fun calculateEquipmentStatusForOp(equipment: Equipment, opType: OperationType, lastLog: MaintenanceLog): EquipmentOperationStatus {
+        val now = System.currentTimeMillis()
+        val trend = maintenanceManager.calculateTrend(equipment)
+        val nextDate = maintenanceManager.getOperationPrediction(opType, lastLog, trend)
+
+        return EquipmentOperationStatus(
+            equipment = equipment,
+            lastLogDate = lastLog.date,
+            lastLogValue = lastLog.value,
+            nextPresumedDate = nextDate,
+            isOverdue = nextDate?.let { it < now } ?: false
+        )
+    }
+
+    val operationImages: StateFlow<List<Image>> = imageRepository.getImagesByCategory(Category.OPERATION)
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
     val allCategories: StateFlow<List<Category>> = imageRepository.allCategories
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT),
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(UiConstants.FLOW_STOP_TIMEOUT), null)
+    val categoryColor: StateFlow<String> = imageRepository.getCategoryColor(Category.OPERATION)
+        .map { it ?: UiConstants.DEFAULT_FALLBACK_COLOR }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_FALLBACK_COLOR)
 
-    fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
-    fun getCategoryDefaultIcon(categoryId: String): Flow<String?> = imageRepository.getCategoryDefaultIcon(categoryId)
-    fun getCategoryDefaultPhoto(categoryId: String): Flow<String?> = imageRepository.getCategoryDefaultPhoto(categoryId)
+    val categoryDefaultIcon: StateFlow<String?> = imageRepository.getCategoryDefaultIcon(Category.OPERATION)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto(Category.OPERATION)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    fun setDefaultOperationType(id: Int?) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setDefaultOperationTypeId(id)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.SetDefaultFailed)
+            }
+        }
+    }
 
     fun toggleDefaultOperationType(id: Int) {
         viewModelScope.launch {
@@ -89,15 +222,24 @@ class OperationsTypeViewModel(
         }
     }
 
-    fun addOperationType(description: String, imageIdentifier: ImageIdentifier?) {
+    fun addOperationType(
+        description: String, 
+        imageIdentifier: ImageIdentifier?,
+        isPredictable: Boolean = false,
+        intervalValue: Double? = null,
+        timeoutValue: Int? = null,
+        timeoutUnit: TimeGranularity? = null,
+        visibilityHorizon: Int = 30,
+        visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS
+    ) {
         if (description.isBlank()) {
-            _uiEvents.trySend(UiEvent.DescriptionInvalid)
+            viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
             return
         }
         viewModelScope.launch {
             try {
                 val currentList = allOperationTypes.value
-                val maxDisplayOrder = currentList.maxOfOrNull { it.displayOrder } ?: -1
+                val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
                 
                 var operationPhotoUri: String? = null
                 var operationIconIdentifier: String? = null
@@ -106,17 +248,23 @@ class OperationsTypeViewModel(
                     is ImageIdentifier.Icon -> operationIconIdentifier = imageIdentifier.name
                     is ImageIdentifier.Photo -> operationPhotoUri = imageIdentifier.uri
                     null -> {
-                        operationPhotoUri = imageRepository.getCategoryDefaultPhoto(Category.OPERATION).firstOrNull()
-                        operationIconIdentifier = imageRepository.getCategoryDefaultIcon(Category.OPERATION).firstOrNull()
+                        operationPhotoUri = categoryDefaultPhoto.value
+                        operationIconIdentifier = categoryDefaultIcon.value
                     }
                 }
 
                 operationTypeDao.insertOperationType(
                     OperationType(
                         description = description,
-                        iconIdentifier = operationIconIdentifier,
                         photoUri = operationPhotoUri,
-                        displayOrder = maxDisplayOrder + 1
+                        iconIdentifier = operationIconIdentifier,
+                        displayOrder = nextOrder,
+                        isPredictable = isPredictable,
+                        intervalValue = intervalValue,
+                        timeoutValue = timeoutValue,
+                        timeoutUnit = timeoutUnit,
+                        visibilityHorizon = visibilityHorizon,
+                        visibilityHorizonUnit = visibilityHorizonUnit
                     )
                 )
             } catch (e: Exception) {
@@ -209,13 +357,13 @@ class OperationsTypeViewModel(
 
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {
-            _uiEvents.trySend(UiEvent.PhotoUriInvalid)
+            _uiEvents.send(UiEvent.PhotoUriInvalid)
             return true
         }
         return try {
             operationTypeDao.countOperationTypesUsingPhoto(uri) > 0
         } catch (e: Exception) {
-            _uiEvents.send(UiEvent.DatabaseCheckFailed)
+            _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
         }
     }
