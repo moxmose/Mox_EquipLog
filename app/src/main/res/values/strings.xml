@@ -214,6 +214,10 @@
     <string name="due_date">Due Date</string>
     <string name="target_value">Target %1$s (optional)</string>
     <string name="reset_counter_after">Reset counter after this activity</string>
+    <string name="cost_label">Cost</string>
+    <string name="cost_optional">Cost (optional)</string>
+    <string name="unplanned_intervention">Unplanned intervention</string>
+    <string name="estimated_cost_label">Estimated Cost: %1$s</string>
     <string name="estimated_date_prefix">Estimated: %1$s</string>
     <string name="likely_needed_by_prefix">Likely needed by: %1$s</string>
 

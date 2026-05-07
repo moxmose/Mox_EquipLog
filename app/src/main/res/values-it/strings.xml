@@ -212,6 +212,10 @@
     <string name="due_date">Data di scadenza</string>
     <string name="target_value">Valore target %1$s (opzionale)</string>
     <string name="reset_counter_after">Azzera contatore dopo questa attività</string>
+    <string name="cost_label">Costo</string>
+    <string name="cost_optional">Costo (opzionale)</string>
+    <string name="unplanned_intervention">Intervento non pianificato</string>
+    <string name="estimated_cost_label">Costo Stimato: %1$s</string>
     <string name="estimated_date_prefix">Stimata: %1$s</string>
     <string name="likely_needed_by_prefix">Probabilmente entro il: %1$s</string>
 

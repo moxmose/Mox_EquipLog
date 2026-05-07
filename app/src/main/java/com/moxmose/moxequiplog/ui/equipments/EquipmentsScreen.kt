@@ -119,7 +119,17 @@ fun EquipmentsScreen(
                 if (log.date > now + 60000) { 
                     logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
                 } else {
-                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                    logsViewModel.addLog(
+                        log.equipmentId, 
+                        log.operationTypeId, 
+                        log.notes, 
+                        log.value, 
+                        log.date, 
+                        log.color, 
+                        log.resetAfter,
+                        log.cost,
+                        log.isUnplanned
+                    )
                 }
                 viewModel.onPredictionAction(0, null)
             },
@@ -152,7 +162,17 @@ fun EquipmentsScreen(
                         logsViewModel.updateReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault, id)
                     }
                 } else {
-                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                    logsViewModel.addLog(
+                        log.equipmentId, 
+                        log.operationTypeId, 
+                        log.notes, 
+                        log.value, 
+                        log.date, 
+                        log.color, 
+                        log.resetAfter,
+                        log.cost,
+                        log.isUnplanned
+                    )
                 }
                 viewModel.onPlannedAction(0, null)
             },

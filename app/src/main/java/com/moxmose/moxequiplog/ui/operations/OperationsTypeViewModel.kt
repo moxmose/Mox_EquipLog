@@ -255,7 +255,8 @@ class OperationsTypeViewModel(
         timeoutUnit: TimeGranularity? = null,
         visibilityHorizon: Int = 30,
         visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
-        useCustomVisibilityHorizon: Boolean = false
+        useCustomVisibilityHorizon: Boolean = false,
+        estimatedCost: Double? = null
     ) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
@@ -290,7 +291,8 @@ class OperationsTypeViewModel(
                         timeoutUnit = timeoutUnit,
                         visibilityHorizon = visibilityHorizon,
                         visibilityHorizonUnit = visibilityHorizonUnit,
-                        useCustomVisibilityHorizon = useCustomVisibilityHorizon
+                        useCustomVisibilityHorizon = useCustomVisibilityHorizon,
+                        estimatedCost = estimatedCost
                     )
                 )
             } catch (e: Exception) {

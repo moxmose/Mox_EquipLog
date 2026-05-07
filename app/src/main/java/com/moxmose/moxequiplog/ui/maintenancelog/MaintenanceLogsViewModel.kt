@@ -282,7 +282,17 @@ class MaintenanceLogViewModel(
         maintenanceLogDao.updateLogs(updatedLogs)
     }
 
-    fun addLog(equipmentId: Int, operationTypeId: Int, notes: String?, value: Double?, date: Long, color: String?, resetAfter: Boolean = false) {
+    fun addLog(
+        equipmentId: Int,
+        operationTypeId: Int,
+        notes: String?,
+        value: Double?,
+        date: Long,
+        color: String?,
+        resetAfter: Boolean = false,
+        cost: Double? = null,
+        isUnplanned: Boolean = false
+    ) {
         viewModelScope.launch {
             try {
                 val newLog = MaintenanceLog(
@@ -292,7 +302,9 @@ class MaintenanceLogViewModel(
                     value = value,
                     date = date,
                     color = color,
-                    resetAfter = resetAfter
+                    resetAfter = resetAfter,
+                    cost = cost,
+                    isUnplanned = isUnplanned
                 )
                 maintenanceLogDao.insertLog(newLog)
                 maintenanceManager.recalculateAccumulatedValues(equipmentId)

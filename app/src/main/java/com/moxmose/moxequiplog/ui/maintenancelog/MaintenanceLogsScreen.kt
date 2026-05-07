@@ -62,6 +62,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Payments
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -123,19 +124,31 @@ fun MaintenanceLogScreen(
     val activeOperationTypes = remember(allOperationTypes) { allOperationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
 
     if (selectedReminderForComplete != null) {
+        val details = selectedReminderForComplete!!
         MaintenanceLogDialog(
             equipments = activeEquipments,
             operationTypes = activeOperationTypes,
             measurementUnits = measurementUnits,
             onDismissRequest = { viewModel.onCompleteReminder(null) },
             onConfirm = { log ->
-                viewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                viewModel.addLog(
+                    log.equipmentId, 
+                    log.operationTypeId, 
+                    log.notes, 
+                    log.value, 
+                    log.date, 
+                    log.color, 
+                    log.resetAfter,
+                    log.cost,
+                    log.isUnplanned
+                )
                 viewModel.onCompleteReminder(null)
             },
             onEstimateDueDate = viewModel::estimateDueDate,
             onEstimateTargetValue = viewModel::estimateTargetValue,
-            defaultEquipmentId = selectedReminderForComplete?.reminder?.equipmentId,
-            defaultOperationTypeId = selectedReminderForComplete?.reminder?.operationTypeId,
+            defaultEquipmentId = details.reminder.equipmentId,
+            defaultOperationTypeId = details.reminder.operationTypeId,
+            initialCost = (details.lastLogCost ?: details.operationTypeEstimatedCost)?.toString() ?: "",
             equipmentCategoryColor = equipmentColor,
             operationCategoryColor = operationColor,
             syncCalendarByDefault = syncCalendarByDefault,
@@ -441,6 +454,24 @@ fun ReminderItem(
                         )
                     }
                 }
+
+                val estimatedCost = details.lastLogCost ?: details.operationTypeEstimatedCost
+                if (estimatedCost != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Payments,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.estimated_cost_label, String.format(Locale.US, "%.2f €", estimatedCost)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                }
             }
             
             Row {
@@ -472,7 +503,7 @@ fun MaintenanceLogScreenContent(
     onShowDismissedToggle: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddLog: (Int, Int, String?, Double?, Long, String?, Boolean) -> Unit,
+    onAddLog: (Int, Int, String?, Double?, Long, String?, Boolean, Double?, Boolean) -> Unit,
     onAddReminder: (Int, Int, Long?, Double?, Boolean) -> Unit,
     onRefreshReminders: () -> Unit,
     onEstimateDueDate: suspend (Int, Double) -> Long?,
@@ -529,7 +560,17 @@ fun MaintenanceLogScreenContent(
             measurementUnits = measurementUnits,
             onDismissRequest = { onShowAddDialogChange(false) },
             onConfirm = { log ->
-                onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color, log.resetAfter)
+                onAddLog(
+                    log.equipmentId, 
+                    log.operationTypeId, 
+                    log.notes, 
+                    log.value, 
+                    log.date, 
+                    log.color, 
+                    log.resetAfter,
+                    log.cost,
+                    log.isUnplanned
+                )
                 onShowAddDialogChange(false)
             },
             onSchedule = { equipmentId, opTypeId, date, value, sync ->
@@ -657,6 +698,8 @@ fun MaintenanceLogDialog(
     defaultOperationTypeId: Int?,
     initialDate: Long = System.currentTimeMillis(),
     initialValue: String = "",
+    initialCost: String = "",
+    initialIsUnplanned: Boolean = false,
     initialSyncToCalendar: Boolean? = null,
     initialHasFixedDate: Boolean = true,
     isEditMode: Boolean = false,
@@ -672,6 +715,8 @@ fun MaintenanceLogDialog(
     var selectedTab by remember(isEditMode) { mutableIntStateOf(if (isEditMode) 1 else 0) } // 0: Completed, 1: Planned
     var notes by remember { mutableStateOf("") }
     var valueStr by remember { mutableStateOf(initialValue) }
+    var costStr by remember { mutableStateOf(initialCost) }
+    var isUnplanned by remember { mutableStateOf(initialIsUnplanned) }
     var syncToCalendar by remember(syncCalendarByDefault, initialSyncToCalendar) { 
         mutableStateOf(initialSyncToCalendar ?: syncCalendarByDefault) 
     }
@@ -994,6 +1039,36 @@ fun MaintenanceLogDialog(
                     }
 
                     OutlinedTextField(
+                        value = costStr,
+                        onValueChange = { input ->
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered == ".") {
+                                costStr = filtered
+                            } else {
+                                val doubleVal = filtered.toDoubleOrNull()
+                                if (doubleVal != null && filtered.length <= 10) {
+                                    costStr = filtered
+                                }
+                            }
+                        },
+                        label = { Text(stringResource(R.string.cost_optional)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { isUnplanned = !isUnplanned },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = isUnplanned,
+                            onCheckedChange = { isUnplanned = it }
+                        )
+                        Text(stringResource(R.string.unplanned_intervention))
+                    }
+
+                    OutlinedTextField(
                         value = notes,
                         onValueChange = { if (it.length <= 200) notes = it },
                         label = { Text(stringResource(R.string.notes_optional)) },
@@ -1123,7 +1198,9 @@ fun MaintenanceLogDialog(
                                         notes = notes.takeIf { it.isNotBlank() },
                                         value = valueStr.toDoubleOrNull(),
                                         date = selectedDate,
-                                        resetAfter = resetAfter
+                                        resetAfter = resetAfter,
+                                        cost = costStr.toDoubleOrNull(),
+                                        isUnplanned = isUnplanned
                                     )
                                 )
                             } else {
@@ -1177,6 +1254,8 @@ fun MaintenanceLogCard(
 ) {
     var editedNotes by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.notes ?: "") }
     var editedValueStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.value?.toString() ?: "") }
+    var editedCostStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.cost?.toString() ?: "") }
+    var editedIsUnplanned by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.isUnplanned) }
     var editedDate by remember(logDetail, isEditing) { mutableLongStateOf(logDetail.log.date) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -1445,6 +1524,34 @@ fun MaintenanceLogCard(
                         label = { Text(stringResource(R.string.notes_optional)) },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    OutlinedTextField(
+                        value = editedCostStr,
+                        onValueChange = { input ->
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered == ".") {
+                                editedCostStr = filtered
+                            } else {
+                                val doubleVal = filtered.toDoubleOrNull()
+                                if (doubleVal != null && filtered.length <= 10) {
+                                    editedCostStr = filtered
+                                }
+                            }
+                        },
+                        label = { Text(stringResource(R.string.cost_optional)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { editedIsUnplanned = !editedIsUnplanned },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = editedIsUnplanned,
+                            onCheckedChange = { editedIsUnplanned = it }
+                        )
+                        Text(stringResource(R.string.unplanned_intervention))
+                    }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { showDatePicker = true }, modifier = Modifier.weight(1f)) {
                             Text(text = dayFormat.format(Date(editedDate)))
@@ -1489,8 +1596,22 @@ fun MaintenanceLogCard(
                             style = MaterialTheme.typography.bodyLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.graphicsLayer(alpha = operationTypeAlpha)
+                            modifier = Modifier.graphicsLayer(alpha = operationTypeAlpha).weight(1f)
                         )
+                        if (logDetail.log.isUnplanned) {
+                            Surface(
+                                shape = MaterialTheme.shapes.extraSmall,
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.padding(start = 4.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.unplanned_intervention),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     }
 
                     Row(
@@ -1503,13 +1624,22 @@ fun MaintenanceLogCard(
                             val prevVal = logDetail.previousLogValue ?: 0.0
                             !logDetail.operationTypeIsSystem && !logDetail.previousLogIsSystem && currentVal < prevVal
                         }
-                        Text(
-                            text = logDetail.log.value?.let { String.format(Locale.US, "%.${decimalPlaces}f %s", it, unitLabel) } ?: "",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isValueIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = logDetail.log.value?.let { String.format(Locale.US, "%.${decimalPlaces}f %s", it, unitLabel) } ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isValueIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            logDetail.log.cost?.let {
+                                Text(
+                                    text = String.format(Locale.US, "%.2f €", it),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                         Text(
                             text = dateFormat.format(Date(logDetail.log.date)),
                             style = MaterialTheme.typography.labelSmall
@@ -1532,6 +1662,8 @@ fun MaintenanceLogCard(
                         val updatedLog = logDetail.log.copy(
                             notes = editedNotes,
                             value = editedValueStr.toDoubleOrNull(),
+                            cost = editedCostStr.toDoubleOrNull(),
+                            isUnplanned = editedIsUnplanned,
                             date = editedDate,
                             equipmentId = selectedEquipment?.id ?: logDetail.log.equipmentId,
                             operationTypeId = selectedOperationType?.id ?: logDetail.log.operationTypeId

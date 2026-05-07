@@ -120,7 +120,17 @@ fun OperationTypeScreen(
                         logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
                     }
                 } else {
-                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                    logsViewModel.addLog(
+                        log.equipmentId, 
+                        log.operationTypeId, 
+                        log.notes, 
+                        log.value, 
+                        log.date, 
+                        log.color, 
+                        log.resetAfter,
+                        log.cost,
+                        log.isUnplanned
+                    )
                 }
                 viewModel.onAffectedAction(0, null)
             },
@@ -187,7 +197,7 @@ fun OperationTypeScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddOperationType: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean) -> Unit,
+    onAddOperationType: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
     onUpdateOperationTypes: (List<OperationType>) -> Unit,
     onUpdateOperationType: (OperationType) -> Unit,
     onDismissOperationType: (OperationType) -> Unit,
@@ -241,8 +251,8 @@ fun OperationTypeScreenContent(
                 defaultIcon = defaultIcon,
                 defaultPhotoUri = defaultPhotoUri,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon ->
-                    onAddOperationType(description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon)
+                onConfirm = { description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost ->
+                    onAddOperationType(description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -309,7 +319,7 @@ fun OperationTypeScreenContent(
 @Composable
 fun AddOperationTypeDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
     imageLibrary: List<Image>,
     categories: List<Category>,
     categoryColors: Map<String, String>,
@@ -324,6 +334,8 @@ fun AddOperationTypeDialog(
     var description by rememberSaveable { mutableStateOf("") }
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
     var iconId by rememberSaveable { mutableStateOf<String?>(null) }
+    var estimatedCostStr by rememberSaveable { mutableStateOf("") }
+    var estimatedCost by rememberSaveable { mutableStateOf<Double?>(null) }
     var isPredictable by rememberSaveable { mutableStateOf(false) }
     var intervalValue by rememberSaveable { mutableStateOf<Double?>(null) }
     var intervalValueStr by rememberSaveable { mutableStateOf("") }
@@ -389,6 +401,27 @@ fun AddOperationTypeDialog(
                     OutlinedTextField(value = description, onValueChange = { if (it.length <= 50) description = it }, label = { Text(stringResource(R.string.operation_type_description)) }, modifier = Modifier.weight(1f), singleLine = true)
                 }
 
+                OutlinedTextField(
+                    value = estimatedCostStr,
+                    onValueChange = { input ->
+                        val filtered = input.replace(',', '.')
+                        if (filtered.isEmpty() || filtered == ".") {
+                            estimatedCostStr = filtered
+                            estimatedCost = null
+                        } else {
+                            val doubleVal = filtered.toDoubleOrNull()
+                            if (doubleVal != null && filtered.length <= 10) {
+                                estimatedCostStr = filtered
+                                estimatedCost = doubleVal
+                            }
+                        }
+                    },
+                    label = { Text(stringResource(R.string.cost_optional)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Row(modifier = Modifier.fillMaxWidth().clickable { isPredictable = !isPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = isPredictable, onCheckedChange = { isPredictable = it }); Text(text = "Automatic Maintenance Prediction", style = MaterialTheme.typography.bodyMedium) }
 
                 if (isPredictable) {
@@ -446,7 +479,7 @@ fun AddOperationTypeDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { val identifier = when { photoUri != null -> ImageIdentifier.Photo(photoUri!!) ; iconId != null -> ImageIdentifier.Icon(iconId!!) ; else -> null } ; onConfirm(description, identifier, isPredictable, intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon) }) { Text(stringResource(R.string.button_add)) } },
+        confirmButton = { TextButton(onClick = { val identifier = when { photoUri != null -> ImageIdentifier.Photo(photoUri!!) ; iconId != null -> ImageIdentifier.Icon(iconId!!) ; else -> null } ; onConfirm(description, identifier, isPredictable, intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost) }) { Text(stringResource(R.string.button_add)) } },
         dismissButton = { TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) } }
     )
 }
@@ -491,6 +524,7 @@ fun OperationTypeCard(
     var editedTimeoutUnit by remember(operationType.timeoutUnit) { mutableStateOf(operationType.timeoutUnit ?: TimeGranularity.MONTHS) }
     var editedVisibilityHorizon by remember(operationType.visibilityHorizon) { mutableIntStateOf(operationType.visibilityHorizon) }
     var editedVisibilityHorizonUnit by remember(operationType.visibilityHorizonUnit) { mutableStateOf(operationType.visibilityHorizonUnit) }
+    var editedEstimatedCostStr by remember(operationType.estimatedCost) { mutableStateOf(operationType.estimatedCost?.toString() ?: "") }
 
     val context = LocalContext.current
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
@@ -586,13 +620,51 @@ fun OperationTypeCard(
                     }
                     Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         if (isEditing) IconButton(onClick = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) }) { Icon(imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null) }
-                        IconButton(onClick = { if (isEditing) { onUpdateOperationType(operationType.copy(description = editedDescription, iconIdentifier = editedIconId, photoUri = editedPhotoUri, isPredictable = editedIsPredictable, intervalValue = editedIntervalValueStr.toDoubleOrNull(), timeoutValue = editedTimeoutValueStr.toIntOrNull(), timeoutUnit = editedTimeoutUnit, visibilityHorizon = editedVisibilityHorizon, visibilityHorizonUnit = editedVisibilityHorizonUnit, useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon)) } ; isEditing = !isEditing ; if (isEditing) isExpanded = true }) { Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null) }
+                        IconButton(onClick = { 
+                            if (isEditing) { 
+                                onUpdateOperationType(operationType.copy(
+                                    description = editedDescription, 
+                                    iconIdentifier = editedIconId, 
+                                    photoUri = editedPhotoUri, 
+                                    isPredictable = editedIsPredictable, 
+                                    intervalValue = editedIntervalValueStr.toDoubleOrNull(), 
+                                    timeoutValue = editedTimeoutValueStr.toIntOrNull(), 
+                                    timeoutUnit = editedTimeoutUnit, 
+                                    visibilityHorizon = editedVisibilityHorizon, 
+                                    visibilityHorizonUnit = editedVisibilityHorizonUnit, 
+                                    useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon,
+                                    estimatedCost = editedEstimatedCostStr.toDoubleOrNull()
+                                )) 
+                            } 
+                            isEditing = !isEditing 
+                            if (isEditing) isExpanded = true 
+                        }) { Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null) }
                         IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
                         IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
                     }
                 }
 
                 if (isEditing) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = editedEstimatedCostStr,
+                        onValueChange = { input ->
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered == ".") {
+                                editedEstimatedCostStr = filtered
+                            } else {
+                                val doubleVal = filtered.toDoubleOrNull()
+                                if (doubleVal != null && filtered.length <= 10) {
+                                    editedEstimatedCostStr = filtered
+                                }
+                            }
+                        },
+                        label = { Text(stringResource(R.string.cost_optional)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth().clickable { editedIsPredictable = !editedIsPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = editedIsPredictable, onCheckedChange = { editedIsPredictable = it }); Text(text = "Predictive Maintenance", style = MaterialTheme.typography.bodyMedium) }
                     if (editedIsPredictable) {
