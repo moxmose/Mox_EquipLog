@@ -1,2 +1,13 @@
-/build
-.idea/deploymentTargetSelector.xml
+# IDE e file di sistema
+.idea/
+*.iml
+.gradle/
+/local.properties
+.DS_Store
+
+# Build e Log
+/build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
