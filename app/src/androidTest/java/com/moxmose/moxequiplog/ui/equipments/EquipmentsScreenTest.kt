@@ -44,7 +44,7 @@ class EquipmentsScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddEquipment = { _, _, _, _, _, _, _, _, _, _ -> },
+                onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateEquipments = {},
                 onUpdateEquipment = {},
                 onDismissEquipment = {},
@@ -84,7 +84,7 @@ class EquipmentsScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddEquipment = { _, _, _, _, _, _, _, _, _, _ -> },
+                onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateEquipments = {},
                 onUpdateEquipment = {},
                 onDismissEquipment = {},
@@ -117,7 +117,7 @@ class EquipmentsScreenTest {
         composeTestRule.setContent {
             AddEquipmentDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, identifier, unitId, _, _, _, _, _, _, _ ->
+                onConfirm = { desc, identifier, unitId, _, _, _, _, _, _, _, _, _ ->
                     addedEquipmentInfo.set(Triple(desc, identifier, unitId)) 
                 },
                 defaultIcon = null,

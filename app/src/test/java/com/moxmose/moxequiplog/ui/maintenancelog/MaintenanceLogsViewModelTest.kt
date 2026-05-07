@@ -237,12 +237,16 @@ class MaintenanceLogsViewModelTest {
         }
         val specificTime = calendar.timeInMillis
         
-        viewModel.addLog(1, 1, "Note", 100.0, specificTime, null)
+        viewModel.addLog(1, 1, "Note", 100.0, specificTime, null, false, 45.5, true)
         testDispatcher.scheduler.advanceUntilIdle()
         
         coVerify { 
             maintenanceLogDao.insertLog(match { 
-                it.date == specificTime && it.equipmentId == 1 && it.operationTypeId == 1
+                it.date == specificTime && 
+                it.equipmentId == 1 && 
+                it.operationTypeId == 1 &&
+                it.cost == 45.5 &&
+                it.isUnplanned == true
             }) 
         }
     }

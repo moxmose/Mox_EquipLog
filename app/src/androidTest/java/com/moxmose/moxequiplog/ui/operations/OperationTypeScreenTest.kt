@@ -42,7 +42,7 @@ class OperationTypeScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddOperationType = { _, _, _, _, _, _, _, _ -> },
+                onAddOperationType = { _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = {},
                 onUpdateOperationType = {},
                 onDismissOperationType = {},
@@ -80,7 +80,7 @@ class OperationTypeScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddOperationType = { _, _, _, _, _, _, _, _ -> },
+                onAddOperationType = { _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = {},
                 onUpdateOperationType = {},
                 onDismissOperationType = {},
@@ -108,12 +108,12 @@ class OperationTypeScreenTest {
     @Test
     fun addOperationTypeDialog_onConfirm_callsOnAddOperationType() {
         val newOperationDescription = "Tire Rotation"
-        val addedOperationInfo = AtomicReference<Pair<String, ImageIdentifier?>>()
+        val addedOperationInfo = AtomicReference<Triple<String, ImageIdentifier?, Double?>>()
 
         composeTestRule.setContent {
             AddOperationTypeDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, identifier, _, _, _, _, _, _ -> addedOperationInfo.set(Pair(desc, identifier)) },
+                onConfirm = { desc, identifier, _, _, _, _, _, _, _, cost -> addedOperationInfo.set(Triple(desc, identifier, cost)) },
                 imageLibrary = emptyList(),
                 categories = emptyList(),
                 categoryColors = emptyMap(),
@@ -129,11 +129,15 @@ class OperationTypeScreenTest {
 
         // Cerco "descrip" per Description/Descrizione
         composeTestRule.onNodeWithText("descrip", substring = true, ignoreCase = true).performTextInput(newOperationDescription)
+        
+        // Cerco "cost" per Cost/Costo
+        composeTestRule.onNodeWithText("cost", substring = true, ignoreCase = true).performTextInput("150.0")
 
         // Cerco "Add" o "Aggiungi"
         composeTestRule.onNodeWithText("Add", ignoreCase = true).performClick()
 
         assertEquals(newOperationDescription, addedOperationInfo.get().first)
         assertNull(addedOperationInfo.get().second)
+        assertEquals(150.0, addedOperationInfo.get().third)
     }
 }

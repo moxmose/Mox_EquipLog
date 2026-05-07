@@ -80,6 +80,15 @@ class OptionsScreenTest {
                 onGoogleAccountSelected = {},
                 syncCalendarByDefault = false,
                 onSyncCalendarByDefaultChange = {},
+                globalUsageWindowValue = 30,
+                globalUsageWindowUnit = "DAYS",
+                onSetGlobalUsageWindow = { _, _ -> },
+                globalVisibilityHorizonValue = 30,
+                globalVisibilityHorizonUnit = "DAYS",
+                onSetGlobalVisibilityHorizon = { _, _ -> },
+                costAnalysisWindowValue = 12,
+                costAnalysisWindowUnit = "MONTHS",
+                onSetCostAnalysisWindow = { _, _ -> },
                 onRecalculateAccumulated = {}
             )
         }
@@ -143,6 +152,15 @@ class OptionsScreenTest {
                 onGoogleAccountSelected = {},
                 syncCalendarByDefault = false,
                 onSyncCalendarByDefaultChange = {},
+                globalUsageWindowValue = 30,
+                globalUsageWindowUnit = "DAYS",
+                onSetGlobalUsageWindow = { _, _ -> },
+                globalVisibilityHorizonValue = 30,
+                globalVisibilityHorizonUnit = "DAYS",
+                onSetGlobalVisibilityHorizon = { _, _ -> },
+                costAnalysisWindowValue = 12,
+                costAnalysisWindowUnit = "MONTHS",
+                onSetCostAnalysisWindow = { _, _ -> },
                 onRecalculateAccumulated = {}
             )
         }
@@ -213,6 +231,15 @@ class OptionsScreenTest {
                 onGoogleAccountSelected = {},
                 syncCalendarByDefault = false,
                 onSyncCalendarByDefaultChange = {},
+                globalUsageWindowValue = 30,
+                globalUsageWindowUnit = "DAYS",
+                onSetGlobalUsageWindow = { _, _ -> },
+                globalVisibilityHorizonValue = 30,
+                globalVisibilityHorizonUnit = "DAYS",
+                onSetGlobalVisibilityHorizon = { _, _ -> },
+                costAnalysisWindowValue = 12,
+                costAnalysisWindowUnit = "MONTHS",
+                onSetCostAnalysisWindow = { _, _ -> },
                 onRecalculateAccumulated = {}
             )
         }
@@ -281,6 +308,15 @@ class OptionsScreenTest {
                 onGoogleAccountSelected = {},
                 syncCalendarByDefault = false,
                 onSyncCalendarByDefaultChange = {},
+                globalUsageWindowValue = 30,
+                globalUsageWindowUnit = "DAYS",
+                onSetGlobalUsageWindow = { _, _ -> },
+                globalVisibilityHorizonValue = 30,
+                globalVisibilityHorizonUnit = "DAYS",
+                onSetGlobalVisibilityHorizon = { _, _ -> },
+                costAnalysisWindowValue = 12,
+                costAnalysisWindowUnit = "MONTHS",
+                onSetCostAnalysisWindow = { _, _ -> },
                 onRecalculateAccumulated = {}
             )
         }
