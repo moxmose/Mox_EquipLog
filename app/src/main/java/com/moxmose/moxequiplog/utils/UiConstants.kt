@@ -17,4 +17,10 @@ object UiConstants {
 
     // Analisi e Grafici
     const val MAX_CHART_POINTS = 50
+    const val DEFAULT_USAGE_WINDOW_VALUE = 30
+    const val DEFAULT_USAGE_WINDOW_UNIT = "DAYS"
+    const val DEFAULT_VISIBILITY_HORIZON_VALUE = 30
+    const val DEFAULT_VISIBILITY_HORIZON_UNIT = "DAYS"
+    const val DEFAULT_COST_ANALYSIS_WINDOW_VALUE = 24
+    const val DEFAULT_COST_ANALYSIS_WINDOW_UNIT = "MONTHS"
 }

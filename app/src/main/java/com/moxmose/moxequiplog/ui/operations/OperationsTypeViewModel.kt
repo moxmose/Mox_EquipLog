@@ -105,25 +105,30 @@ class OperationsTypeViewModel(
         maintenanceLogDao.getLogsCountFlow()
     ) { opTypes, equipments, reminders, _ ->
         val statuses = mutableMapOf<Int, OperationGlobalStatus>()
+        val now = System.currentTimeMillis()
+        
         opTypes.filter { it.isPredictable }.forEach { opType ->
             val affected = equipments.mapNotNull { equipment ->
                 val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
-                val prediction = if (lastLog != null) calculateEquipmentStatusForOp(equipment, opType, lastLog) else null
+                val trend = maintenanceManager.calculateTrend(equipment)
+                val nextPresumedDate = if (lastLog != null) maintenanceManager.getOperationPrediction(opType, lastLog, trend) else null
                 
+                val prediction = nextPresumedDate?.let {
+                    if (lastLog != null) {
+                        calculateEquipmentStatusForOp(equipment, opType, lastLog).copy(
+                            nextPresumedDate = it,
+                            isOverdue = it < now
+                        )
+                    } else null
+                }
+
                 // Check for manual reminder first (Planned)
                 val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
                 
-                val now = System.currentTimeMillis()
-                val horizonMs = when (opType.visibilityHorizonUnit) {
-                    TimeGranularity.MINUTES_5 -> opType.visibilityHorizon * 5 * 60 * 1000L
-                    TimeGranularity.MINUTES_15 -> opType.visibilityHorizon * 15 * 60 * 1000L
-                    TimeGranularity.HOURS -> opType.visibilityHorizon * 60 * 60 * 1000L
-                    TimeGranularity.DAYS -> opType.visibilityHorizon * 24 * 60 * 60 * 1000L
-                    TimeGranularity.WEEKS -> opType.visibilityHorizon * 7 * 24 * 60 * 60 * 1000L
-                    TimeGranularity.MONTHS -> opType.visibilityHorizon * 30 * 24 * 60 * 60 * 1000L
-                    TimeGranularity.YEARS -> opType.visibilityHorizon * 365 * 24 * 60 * 60 * 1000L
-                }
-                val horizonLimit = now + horizonMs
+                // Effective horizon check
+                val horizonValue = if (opType.useCustomVisibilityHorizon) opType.visibilityHorizon else globalVisibilityHorizonValue.value
+                val horizonUnit = if (opType.useCustomVisibilityHorizon) opType.visibilityHorizonUnit else globalVisibilityHorizonUnit.value
+                val horizonLimit = now + getHorizonMs(horizonValue.toLong(), horizonUnit)
 
                 if (manualReminder != null) {
                     val effectiveDate = manualReminder.dueDate ?: manualReminder.presumedDate
@@ -155,6 +160,18 @@ class OperationsTypeViewModel(
         }
         statuses
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    private fun getHorizonMs(value: Long, unit: TimeGranularity): Long {
+        return when (unit) {
+            TimeGranularity.MINUTES_5 -> value * 5 * 60 * 1000L
+            TimeGranularity.MINUTES_15 -> value * 15 * 60 * 1000L
+            TimeGranularity.HOURS -> value * 60 * 60 * 1000L
+            TimeGranularity.DAYS -> value * 24 * 60 * 60 * 1000L
+            TimeGranularity.WEEKS -> value * 7 * 24 * 60 * 60 * 1000L
+            TimeGranularity.MONTHS -> value * 30 * 24 * 60 * 60 * 1000L
+            TimeGranularity.YEARS -> value * 365 * 24 * 60 * 60 * 1000L
+        }
+    }
 
     private suspend fun calculateEquipmentStatusForOp(equipment: Equipment, opType: OperationType, lastLog: MaintenanceLog): EquipmentOperationStatus {
         val now = System.currentTimeMillis()
@@ -197,6 +214,13 @@ class OperationsTypeViewModel(
     val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
+    val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
+
+    val globalVisibilityHorizonUnit: StateFlow<TimeGranularity> = appSettingsManager.defaultVisibilityHorizonUnit
+        .map { TimeGranularity.valueOf(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), TimeGranularity.valueOf(UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT))
+
     fun setDefaultOperationType(id: Int?) {
         viewModelScope.launch {
             try {
@@ -230,7 +254,8 @@ class OperationsTypeViewModel(
         timeoutValue: Int? = null,
         timeoutUnit: TimeGranularity? = null,
         visibilityHorizon: Int = 30,
-        visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS
+        visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
+        useCustomVisibilityHorizon: Boolean = false
     ) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
@@ -264,7 +289,8 @@ class OperationsTypeViewModel(
                         timeoutValue = timeoutValue,
                         timeoutUnit = timeoutUnit,
                         visibilityHorizon = visibilityHorizon,
-                        visibilityHorizonUnit = visibilityHorizonUnit
+                        visibilityHorizonUnit = visibilityHorizonUnit,
+                        useCustomVisibilityHorizon = useCustomVisibilityHorizon
                     )
                 )
             } catch (e: Exception) {

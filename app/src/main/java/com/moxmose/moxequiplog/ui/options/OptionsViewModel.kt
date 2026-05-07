@@ -182,6 +182,24 @@ class OptionsViewModel(
     val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
 
+    val globalUsageWindowValue: StateFlow<Int> = appSettingsManager.defaultUsageWindowValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_USAGE_WINDOW_VALUE)
+
+    val globalUsageWindowUnit: StateFlow<String> = appSettingsManager.defaultUsageWindowUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_USAGE_WINDOW_UNIT)
+
+    val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
+
+    val globalVisibilityHorizonUnit: StateFlow<String> = appSettingsManager.defaultVisibilityHorizonUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT)
+
+    val costAnalysisWindowValue: StateFlow<Int> = appSettingsManager.costAnalysisWindowValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_VALUE)
+
+    val costAnalysisWindowUnit: StateFlow<String> = appSettingsManager.costAnalysisWindowUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_UNIT)
+
     fun resetBackgroundSettings() {
         viewModelScope.launch {
             try {
@@ -304,6 +322,39 @@ class OptionsViewModel(
         viewModelScope.launch {
             try {
                 appSettingsManager.setSyncCalendarByDefault(enabled)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
+    fun setGlobalUsageWindow(value: Int, unit: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setDefaultUsageWindowValue(value)
+                appSettingsManager.setDefaultUsageWindowUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
+    fun setGlobalVisibilityHorizon(value: Int, unit: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setDefaultVisibilityHorizonValue(value)
+                appSettingsManager.setDefaultVisibilityHorizonUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
+    fun setCostAnalysisWindow(value: Int, unit: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setCostAnalysisWindowValue(value)
+                appSettingsManager.setCostAnalysisWindowUnit(unit)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
             }

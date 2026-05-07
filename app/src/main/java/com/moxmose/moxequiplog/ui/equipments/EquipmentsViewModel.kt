@@ -129,7 +129,9 @@ class EquipmentsViewModel(
             EquipmentHealth(null, null, null)
         }
 
-        val horizonMs = getHorizonMs(equipment.visibilityHorizon.toLong(), equipment.visibilityHorizonUnit)
+        val horizonValue = if (equipment.useCustomVisibilityHorizon) equipment.visibilityHorizon else globalVisibilityHorizonValue.value
+        val horizonUnit = if (equipment.useCustomVisibilityHorizon) equipment.visibilityHorizonUnit else globalVisibilityHorizonUnit.value
+        val horizonMs = getHorizonMs(horizonValue.toLong(), horizonUnit)
         val horizonLimit = now + horizonMs
 
         val opStatuses = opTypes
@@ -152,9 +154,15 @@ class EquipmentsViewModel(
                 // Check if there's a manual reminder (Planned)
                 val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
                 
+                // Effective horizon check for operation (might have its own custom horizon)
+                val opHorizonValue = if (opType.useCustomVisibilityHorizon) opType.visibilityHorizon else globalVisibilityHorizonValue.value
+                val opHorizonUnit = if (opType.useCustomVisibilityHorizon) opType.visibilityHorizonUnit else globalVisibilityHorizonUnit.value
+                val opHorizonMs = getHorizonMs(opHorizonValue.toLong(), opHorizonUnit)
+                val opHorizonLimit = now + opHorizonMs
+                
                 if (manualReminder != null) {
                     val effectiveDate = manualReminder.dueDate ?: manualReminder.presumedDate
-                    val isWithinHorizon = effectiveDate == null || effectiveDate <= horizonLimit || effectiveDate < now
+                    val isWithinHorizon = effectiveDate == null || effectiveDate <= opHorizonLimit || effectiveDate < now
                     
                     if (isWithinHorizon) {
                         return@mapNotNull OperationStatus(
@@ -168,11 +176,11 @@ class EquipmentsViewModel(
                             plannedValue = manualReminder.dueValue,
                             predictedDate = prediction?.nextPresumedDate
                         )
-                    } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= horizonLimit))) {
+                    } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= opHorizonLimit))) {
                         // Planned is far, but prediction is near/overdue -> show prediction as a warning
                         return@mapNotNull prediction
                     }
-                } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= horizonLimit))) {
+                } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= opHorizonLimit))) {
                     // No manual reminder, show prediction if near/overdue
                     return@mapNotNull prediction
                 }
@@ -231,6 +239,20 @@ class EquipmentsViewModel(
     val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
+    val globalUsageWindowValue: StateFlow<Int> = appSettingsManager.defaultUsageWindowValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_USAGE_WINDOW_VALUE)
+
+    val globalUsageWindowUnit: StateFlow<TimeGranularity> = appSettingsManager.defaultUsageWindowUnit
+        .map { TimeGranularity.valueOf(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), TimeGranularity.valueOf(UiConstants.DEFAULT_USAGE_WINDOW_UNIT))
+
+    val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
+
+    val globalVisibilityHorizonUnit: StateFlow<TimeGranularity> = appSettingsManager.defaultVisibilityHorizonUnit
+        .map { TimeGranularity.valueOf(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), TimeGranularity.valueOf(UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT))
+
     fun setDefaultEquipment(id: Int?) {
         viewModelScope.launch {
             try {
@@ -266,7 +288,9 @@ class EquipmentsViewModel(
         manualAverageValue: Double? = null,
         manualAverageUnit: TimeGranularity = TimeGranularity.DAYS,
         visibilityHorizon: Int = 30,
-        visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS
+        visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
+        useCustomUsageWindow: Boolean = false,
+        useCustomVisibilityHorizon: Boolean = false
     ) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
@@ -302,7 +326,9 @@ class EquipmentsViewModel(
                         manualAverageValue = manualAverageValue,
                         manualAverageUnit = manualAverageUnit,
                         visibilityHorizon = visibilityHorizon,
-                        visibilityHorizonUnit = visibilityHorizonUnit
+                        visibilityHorizonUnit = visibilityHorizonUnit,
+                        useCustomUsageWindow = useCustomUsageWindow,
+                        useCustomVisibilityHorizon = useCustomVisibilityHorizon
                     )
                 )
             } catch (e: Exception) {

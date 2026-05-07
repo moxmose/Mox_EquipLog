@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,6 +34,7 @@ import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.*
+import com.moxmose.moxequiplog.ui.equipments.TimeGranularitySelector
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -65,6 +68,13 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
 
     val googleAccountName by viewModel.googleAccountName.collectAsState()
     val syncCalendarByDefault by viewModel.syncCalendarByDefault.collectAsState()
+
+    val globalUsageWindowValue by viewModel.globalUsageWindowValue.collectAsState()
+    val globalUsageWindowUnit by viewModel.globalUsageWindowUnit.collectAsState()
+    val globalVisibilityHorizonValue by viewModel.globalVisibilityHorizonValue.collectAsState()
+    val globalVisibilityHorizonUnit by viewModel.globalVisibilityHorizonUnit.collectAsState()
+    val costAnalysisWindowValue by viewModel.costAnalysisWindowValue.collectAsState()
+    val costAnalysisWindowUnit by viewModel.costAnalysisWindowUnit.collectAsState()
 
     val reportsColorMode by viewModel.reportsColorMode.collectAsState()
 
@@ -180,6 +190,15 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onGoogleAccountSelected = viewModel::setGoogleAccountName,
         syncCalendarByDefault = syncCalendarByDefault,
         onSyncCalendarByDefaultChange = viewModel::setSyncCalendarByDefault,
+        globalUsageWindowValue = globalUsageWindowValue,
+        globalUsageWindowUnit = globalUsageWindowUnit,
+        onSetGlobalUsageWindow = viewModel::setGlobalUsageWindow,
+        globalVisibilityHorizonValue = globalVisibilityHorizonValue,
+        globalVisibilityHorizonUnit = globalVisibilityHorizonUnit,
+        onSetGlobalVisibilityHorizon = viewModel::setGlobalVisibilityHorizon,
+        costAnalysisWindowValue = costAnalysisWindowValue,
+        costAnalysisWindowUnit = costAnalysisWindowUnit,
+        onSetCostAnalysisWindow = viewModel::setCostAnalysisWindow,
         onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues
     )
 
@@ -264,6 +283,15 @@ fun OptionsScreenContent(
     onGoogleAccountSelected: (String?) -> Unit,
     syncCalendarByDefault: Boolean,
     onSyncCalendarByDefaultChange: (Boolean) -> Unit,
+    globalUsageWindowValue: Int,
+    globalUsageWindowUnit: String,
+    onSetGlobalUsageWindow: (Int, String) -> Unit,
+    globalVisibilityHorizonValue: Int,
+    globalVisibilityHorizonUnit: String,
+    onSetGlobalVisibilityHorizon: (Int, String) -> Unit,
+    costAnalysisWindowValue: Int,
+    costAnalysisWindowUnit: String,
+    onSetCostAnalysisWindow: (Int, String) -> Unit,
     onRecalculateAccumulated: () -> Unit = {},
     showBackgroundPicker: Boolean = false,
     onShowBackgroundPickerChange: (Boolean) -> Unit = {},
@@ -582,7 +610,75 @@ fun OptionsScreenContent(
                 }
             }
 
-            // 6. BACKGROUND
+            // 6. ANALYTICS & PREDICTION
+            OptionsSectionCard(
+                title = stringResource(R.string.predictive_maintenance_settings),
+                description = "Global defaults for maintenance trend and forecasting"
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Trend Window
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Default Trend Analysis Window", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = globalUsageWindowValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalUsageWindow(it, globalUsageWindowUnit) } },
+                                label = { Text("Window") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(globalUsageWindowUnit),
+                                onSelected = { onSetGlobalUsageWindow(globalUsageWindowValue, it.name) },
+                                label = "Of last",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                    }
+
+                    // Visibility Horizon
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Default Event Horizon", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = globalVisibilityHorizonValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalVisibilityHorizon(it, globalVisibilityHorizonUnit) } },
+                                label = { Text("Horizon") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(globalVisibilityHorizonUnit),
+                                onSelected = { onSetGlobalVisibilityHorizon(globalVisibilityHorizonValue, it.name) },
+                                label = "Future span",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                    }
+
+                    // Cost Window
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Cost Growth Analysis Window", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = costAnalysisWindowValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetCostAnalysisWindow(it, costAnalysisWindowUnit) } },
+                                label = { Text("Window") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(costAnalysisWindowUnit),
+                                onSelected = { onSetCostAnalysisWindow(costAnalysisWindowValue, it.name) },
+                                label = "History span",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 7. BACKGROUND
             OptionsSectionCard(
                 title = stringResource(R.string.options_background_custom_title),
                 description = stringResource(R.string.options_background_custom_desc)

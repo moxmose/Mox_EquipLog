@@ -53,6 +53,24 @@ class AppSettingsManager(
     val syncCalendarByDefault: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("sync_calendar_by_default")
         .map { it?.toBoolean() ?: false }
 
+    val defaultUsageWindowValue: Flow<Int> = appPreferenceDao.getPreferenceFlow("default_usage_window_value")
+        .map { it?.toIntOrNull() ?: UiConstants.DEFAULT_USAGE_WINDOW_VALUE }
+
+    val defaultUsageWindowUnit: Flow<String> = appPreferenceDao.getPreferenceFlow("default_usage_window_unit")
+        .map { it ?: UiConstants.DEFAULT_USAGE_WINDOW_UNIT }
+
+    val defaultVisibilityHorizonValue: Flow<Int> = appPreferenceDao.getPreferenceFlow("default_visibility_horizon_value")
+        .map { it?.toIntOrNull() ?: UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE }
+
+    val defaultVisibilityHorizonUnit: Flow<String> = appPreferenceDao.getPreferenceFlow("default_visibility_horizon_unit")
+        .map { it ?: UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT }
+
+    val costAnalysisWindowValue: Flow<Int> = appPreferenceDao.getPreferenceFlow("cost_analysis_window_value")
+        .map { it?.toIntOrNull() ?: UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_VALUE }
+
+    val costAnalysisWindowUnit: Flow<String> = appPreferenceDao.getPreferenceFlow("cost_analysis_window_unit")
+        .map { it ?: UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_UNIT }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -135,5 +153,29 @@ class AppSettingsManager(
 
     suspend fun setSyncCalendarByDefault(sync: Boolean) {
         appPreferenceDao.insertPreference(AppPreference("sync_calendar_by_default", sync.toString()))
+    }
+
+    suspend fun setDefaultUsageWindowValue(value: Int) {
+        appPreferenceDao.insertPreference(AppPreference("default_usage_window_value", value.toString()))
+    }
+
+    suspend fun setDefaultUsageWindowUnit(unit: String) {
+        appPreferenceDao.insertPreference(AppPreference("default_usage_window_unit", unit))
+    }
+
+    suspend fun setDefaultVisibilityHorizonValue(value: Int) {
+        appPreferenceDao.insertPreference(AppPreference("default_visibility_horizon_value", value.toString()))
+    }
+
+    suspend fun setDefaultVisibilityHorizonUnit(unit: String) {
+        appPreferenceDao.insertPreference(AppPreference("default_visibility_horizon_unit", unit))
+    }
+
+    suspend fun setCostAnalysisWindowValue(value: Int) {
+        appPreferenceDao.insertPreference(AppPreference("cost_analysis_window_value", value.toString()))
+    }
+
+    suspend fun setCostAnalysisWindowUnit(unit: String) {
+        appPreferenceDao.insertPreference(AppPreference("cost_analysis_window_unit", unit))
     }
 }

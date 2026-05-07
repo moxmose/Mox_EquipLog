@@ -192,6 +192,37 @@ class MaintenanceManager(
         return inEquipments || inOperations
     }
 
+    // --- COST ANALYSIS LOGIC ---
+
+    suspend fun calculateCostPerUnit(equipmentId: Int, windowValue: Long, windowUnit: TimeGranularity): Double? {
+        val windowMs = getWindowMs(windowValue, windowUnit)
+        val sinceDate = System.currentTimeMillis() - windowMs
+        
+        val totalCost = maintenanceLogDao.getTotalCostForEquipmentSince(equipmentId, sinceDate) ?: 0.0
+        
+        val logs = maintenanceLogDao.getLogsSince(equipmentId, sinceDate)
+            .filter { it.value != null }
+            .sortedBy { it.date }
+
+        if (logs.size < 2) return null
+
+        val firstLog = logs.first()
+        val lastLog = logs.last()
+        val deltaValue = lastLog.accumulatedValue - firstLog.accumulatedValue
+
+        return if (deltaValue > 0) totalCost / deltaValue else null
+    }
+
+    suspend fun getOperationCostStats(operationTypeId: Int, windowValue: Long, windowUnit: TimeGranularity): Pair<Double?, Double?> {
+        val windowMs = getWindowMs(windowValue, windowUnit)
+        val sinceDate = System.currentTimeMillis() - windowMs
+        
+        val lastCost = maintenanceLogDao.getLastLogWithCostForOperation(operationTypeId)?.cost
+        val avgCost = maintenanceLogDao.getAverageCostForOperationSince(operationTypeId, sinceDate)
+        
+        return lastCost to avgCost
+    }
+
     // --- GRANULARITY & PERIOD UTILS ---
 
     fun getPeriodFormat(granularity: TimeGranularity) = when (granularity) {

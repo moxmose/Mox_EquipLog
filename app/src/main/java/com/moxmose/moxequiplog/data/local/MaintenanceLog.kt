@@ -42,6 +42,11 @@ data class MaintenanceLog(
     val color: String? = null,
     val timestamp: Long = System.currentTimeMillis(),
     
+    // Nuovi campi per gestione costi e manutenzione non pianificata
+    val cost: Double? = null,
+    @ColumnInfo(defaultValue = "false")
+    val isUnplanned: Boolean = false,
+
     // Nuovi campi per gestione UoM accumulata
     @ColumnInfo(defaultValue = "0.0")
     val accumulatedValue: Double = 0.0,
