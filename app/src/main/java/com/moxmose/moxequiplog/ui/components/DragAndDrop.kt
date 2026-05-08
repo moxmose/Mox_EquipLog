@@ -16,7 +16,6 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.sqrt
 
 interface DragDropStateHolder {

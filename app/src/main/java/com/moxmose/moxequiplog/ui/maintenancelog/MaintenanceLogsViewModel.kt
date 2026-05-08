@@ -7,14 +7,34 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
-import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.data.local.CategoryDao
+import com.moxmose.moxequiplog.data.local.EquipmentDao
+import com.moxmose.moxequiplog.data.local.MaintenanceLog
+import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
+import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
+import com.moxmose.moxequiplog.data.local.MaintenanceReminder
+import com.moxmose.moxequiplog.data.local.MaintenanceReminderDao
+import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
+import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.CalendarManager
 import com.moxmose.moxequiplog.utils.ResourceProvider
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class SortProperty {

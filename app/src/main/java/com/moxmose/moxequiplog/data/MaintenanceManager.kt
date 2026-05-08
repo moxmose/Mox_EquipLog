@@ -1,11 +1,19 @@
 package com.moxmose.moxequiplog.data
 
-import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.data.local.ChartPoint
+import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.EquipmentDao
+import com.moxmose.moxequiplog.data.local.MaintenanceLog
+import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
+import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
-import java.text.SimpleDateFormat
-import java.util.*
 import kotlinx.coroutines.flow.first
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class MaintenanceManager(
     private val maintenanceLogDao: MaintenanceLogDao,

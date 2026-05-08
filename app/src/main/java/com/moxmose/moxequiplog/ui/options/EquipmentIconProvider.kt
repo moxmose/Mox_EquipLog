@@ -2,7 +2,23 @@ package com.moxmose.moxequiplog.ui.options
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.CleanHands
+import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Construction
+import androidx.compose.material.icons.filled.DirectionsBoat
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.ElectricScooter
+import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.NotInterested
+import androidx.compose.material.icons.filled.PedalBike
+import androidx.compose.material.icons.filled.QuestionMark
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.Upgrade
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.moxmose.moxequiplog.data.local.Category
 
