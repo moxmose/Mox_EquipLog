@@ -66,7 +66,7 @@ class MaintenanceLogsViewModelTest {
             every { getLogsWithDetails(any()) } answers { flowOf(listOf(mockk())) }
         }
         maintenanceReminderDao = mockk(relaxed = true) {
-            every { getActiveRemindersWithDetails() } returns flowOf(emptyList())
+            every { getActiveRemindersWithDetails(any()) } returns flowOf(emptyList())
         }
         equipmentDao = mockk(relaxed = true) {
             every { getAllEquipments() } returns allEquipmentsFlow

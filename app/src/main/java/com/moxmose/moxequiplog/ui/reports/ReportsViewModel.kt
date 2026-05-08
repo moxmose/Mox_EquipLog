@@ -60,6 +60,15 @@ data class ReportsUiState(
     val operationVolumeData: Map<Int, List<ChartPoint>> = emptyMap(),
     val combinedLogsData: Map<String, List<ChartPoint>> = emptyMap(),
 
+    // Cost Analysis Data
+    val equipmentCostData: Map<Int, List<ChartPoint>> = emptyMap(),
+    val operationCostData: Map<Int, List<ChartPoint>> = emptyMap(),
+    val costDistributionByEquipment: List<PieChartPoint> = emptyList(),
+    val costDistributionByOperation: List<PieChartPoint> = emptyList(),
+    val totalCost: Double = 0.0,
+    val averageCostPerLog: Double = 0.0,
+    val costVsUsageData: Map<Int, List<ChartPoint>> = emptyMap(),
+
     val startDate: Long? = null,
     val endDate: Long? = null,
     val timeGranularity: TimeGranularity? = null,
@@ -349,6 +358,49 @@ class ReportsViewModel(
                 }
             }
         }
+
+        // Cost Analysis
+        val equipmentCostData = sortedSelectedEquipIds.associateWith { id ->
+            val points = filteredLogs.filter { it.log.equipmentId == id && it.log.cost != null }.map { ChartPoint(it.log.date, it.log.cost!!.toFloat()) }
+            maintenanceManager.aggregateData(points, effectiveGranularity, isDelta = true)
+        }
+
+        val operationCostData = sortedSelectedOpIds.associateWith { id ->
+            val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.cost != null }.map { ChartPoint(it.log.date, it.log.cost!!.toFloat()) }
+            maintenanceManager.aggregateData(points, effectiveGranularity, isDelta = true)
+        }
+
+        val costDistEquip = filteredLogs.filter { it.log.equipmentId in style.selections.selectedEquipmentIds && it.log.cost != null }.groupBy { it.log.equipmentId }.map { (id, logs) ->
+            val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+            val index = core.equips.indexOfFirst { it.id == id }
+            val color = if (index != -1) currentPalette[index % currentPalette.size] else null
+            PieChartPoint(label, logs.sumOf { it.log.cost!! }.toFloat(), color, id)
+        }.sortedByDescending { it.value }
+
+        val costDistOp = filteredLogs.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds && it.log.cost != null }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
+            val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+            val index = core.ops.indexOfFirst { it.id == id }
+            val color = if (index != -1) currentPalette[index % currentPalette.size] else null
+            PieChartPoint(label, logs.sumOf { it.log.cost!! }.toFloat(), color, id)
+        }.sortedByDescending { it.value }
+
+        val filteredLogsWithCost = filteredLogs.filter { it.log.cost != null }
+        val totalCostVal = filteredLogsWithCost.sumOf { it.log.cost!! }
+        val avgCostPerLog = if (filteredLogsWithCost.isNotEmpty()) totalCostVal / filteredLogsWithCost.size else 0.0
+
+        val costVsUsageData = sortedSelectedEquipIds.associateWith { id ->
+            val logs = filteredLogs.filter { it.log.equipmentId == id && it.log.cost != null && it.log.value != null }.sortedBy { it.log.date }
+            if (logs.size >= 2) {
+                val points = mutableListOf<ChartPoint>()
+                for (i in 1 until logs.size) {
+                    val deltaUsage = (logs[i].log.value!! - logs[i-1].log.value!!).coerceAtLeast(0.0)
+                    val cost = logs[i].log.cost!!
+                    val ratio = if (deltaUsage > 0) (cost / deltaUsage).toFloat() else 0f
+                    points.add(ChartPoint(logs[i].log.date, ratio))
+                }
+                maintenanceManager.aggregateData(points, effectiveGranularity)
+            } else emptyList()
+        }
         
         val selectedEquipUnits = sortedSelectedEquipIds.mapNotNull { id -> core.units.find { it.id == core.equips.find { e -> e.id == id }?.unitId } }
         val selectedUnits = selectedEquipUnits.map { it.label }.distinct()
@@ -373,7 +425,11 @@ class ReportsViewModel(
             startDate = style.selections.startDate, endDate = style.selections.endDate, timeGranularity = style.selections.timeGranularity,
             effectiveGranularity = effectiveGranularity,
             showDismissed = style.selections.showDismissed, colorMode = style.selections.colorMode, customColors = currentPalette,
-            savedFilters = persist.saved, activeFilterName = persist.active?.name, isFilterDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current)
+            savedFilters = persist.saved, activeFilterName = persist.active?.name, isFilterDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current),
+            equipmentCostData = equipmentCostData, operationCostData = operationCostData,
+            costDistributionByEquipment = costDistEquip, costDistributionByOperation = costDistOp,
+            totalCost = totalCostVal, averageCostPerLog = avgCostPerLog,
+            costVsUsageData = costVsUsageData
         )
     }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = ReportsUiState())
 

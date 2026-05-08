@@ -18,6 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingFlat
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -63,6 +66,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.TrendingUp
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -211,6 +215,7 @@ fun MaintenanceLogScreen(
         onRefreshReminders = viewModel::recalculateAllReminders,
         onEstimateDueDate = viewModel::estimateDueDate,
         onEstimateTargetValue = viewModel::estimateTargetValue,
+        onGetOperationCostStats = viewModel::getOperationCostStats,
         expandedCardId = expandedCardId,
         onCardExpanded = viewModel::onCardExpanded,
         editingCardId = editingCardId,
@@ -470,6 +475,20 @@ fun ReminderItem(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.tertiary
                         )
+                        details.averageCost?.let { avg ->
+                            Spacer(Modifier.width(4.dp))
+                            val (icon, color) = when {
+                                estimatedCost > avg * 1.05 -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                estimatedCost < avg * 0.95 -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
+                            }
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -508,6 +527,7 @@ fun MaintenanceLogScreenContent(
     onRefreshReminders: () -> Unit,
     onEstimateDueDate: suspend (Int, Double) -> Long?,
     onEstimateTargetValue: suspend (Int, Long) -> Double?,
+    onGetOperationCostStats: suspend (Int) -> Pair<Double?, Double?>,
     expandedCardId: Int?,
     onCardExpanded: (Int) -> Unit,
     editingCardId: Int?,
@@ -579,6 +599,7 @@ fun MaintenanceLogScreenContent(
                 },
                 onEstimateDueDate = onEstimateDueDate,
                 onEstimateTargetValue = onEstimateTargetValue,
+                onGetOperationCostStats = onGetOperationCostStats,
                 defaultEquipmentId = defaultEquipmentId,
                 defaultOperationTypeId = defaultOperationTypeId,
                 equipmentCategoryColor = equipmentCategoryColor,
@@ -671,6 +692,7 @@ fun MaintenanceLogScreenContent(
                         onDelete = onDeleteLog,
                         onDismiss = { onDismissLog(logDetail.log) },
                         onRestore = { onRestoreLog(logDetail.log) },
+                        onGetOperationCostStats = onGetOperationCostStats,
                         equipmentCategoryColor = equipmentCategoryColor,
                         operationCategoryColor = operationCategoryColor
                     )
@@ -694,6 +716,7 @@ fun MaintenanceLogDialog(
     onDeleteReminder: (() -> Unit)? = null,
     onEstimateDueDate: (suspend (Int, Double) -> Long?)? = null,
     onEstimateTargetValue: (suspend (Int, Long) -> Double?)? = null,
+    onGetOperationCostStats: (suspend (Int) -> Pair<Double?, Double?>)? = null,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
     initialDate: Long = System.currentTimeMillis(),
@@ -745,6 +768,21 @@ fun MaintenanceLogDialog(
     var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteReminderConfirmation by remember { mutableStateOf(false) }
     var resetAfter by remember { mutableStateOf(false) }
+
+    var lastCost by remember { mutableStateOf<Double?>(null) }
+    var avgCost by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(selectedOperationType) {
+        selectedOperationType?.id?.let { opId ->
+            onGetOperationCostStats?.invoke(opId)?.let { (last, avg) ->
+                lastCost = last
+                avgCost = avg
+            }
+        } ?: run {
+            lastCost = null
+            avgCost = null
+        }
+    }
 
     val scope = rememberCoroutineScope()
     var isEstimating by remember { mutableStateOf(false) }
@@ -929,6 +967,9 @@ fun MaintenanceLogDialog(
                                     if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
                                         selectedOperationType = null
                                     }
+                                    if (!equipment.isResettable) {
+                                        resetAfter = false
+                                    }
                                 }
                             )
                         }
@@ -978,6 +1019,9 @@ fun MaintenanceLogDialog(
                                 onClick = {
                                     selectedOperationType = operation
                                     isOperationDropdownExpanded = false
+                                    if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                        resetAfter = true
+                                    }
                                 }
                             )
                         }
@@ -1027,15 +1071,22 @@ fun MaintenanceLogDialog(
                 )
 
                 if (selectedTab == 0) {
+                    val isResettable = selectedEquipment?.isResettable == true
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { resetAfter = !resetAfter },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = isResettable) { resetAfter = !resetAfter },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = resetAfter,
-                            onCheckedChange = { resetAfter = it }
+                            checked = resetAfter && isResettable,
+                            onCheckedChange = { resetAfter = it },
+                            enabled = isResettable
                         )
-                        Text(stringResource(R.string.reset_counter_after))
+                        Text(
+                            text = stringResource(R.string.reset_counter_after),
+                            color = if (isResettable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
                     }
 
                     OutlinedTextField(
@@ -1052,6 +1103,23 @@ fun MaintenanceLogDialog(
                             }
                         },
                         label = { Text(stringResource(R.string.cost_optional)) },
+                        supportingText = {
+                            if (lastCost != null && avgCost != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stringResource(R.string.last_cost_label, String.format(Locale.US, "%.2f €", lastCost)),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    val (icon, color) = when {
+                                        lastCost!! > avgCost!! * 1.05 -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                        lastCost!! < avgCost!! * 0.95 -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                        else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
+                                    }
+                                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -1248,6 +1316,7 @@ fun MaintenanceLogCard(
     onDelete: (MaintenanceLog) -> Unit,
     onDismiss: () -> Unit,
     onRestore: () -> Unit,
+    onGetOperationCostStats: suspend (Int) -> Pair<Double?, Double?>,
     modifier: Modifier = Modifier,
     equipmentCategoryColor: String?,
     operationCategoryColor: String?
@@ -1256,6 +1325,7 @@ fun MaintenanceLogCard(
     var editedValueStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.value?.toString() ?: "") }
     var editedCostStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.cost?.toString() ?: "") }
     var editedIsUnplanned by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.isUnplanned) }
+    var editedResetAfter by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.resetAfter) }
     var editedDate by remember(logDetail, isEditing) { mutableLongStateOf(logDetail.log.date) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -1264,6 +1334,23 @@ fun MaintenanceLogCard(
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    var lastCost by remember { mutableStateOf<Double?>(null) }
+    var avgCost by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(selectedOperationType) {
+        if (isEditing) {
+            selectedOperationType?.id?.let { opId ->
+                onGetOperationCostStats(opId).let { (last, avg) ->
+                    lastCost = last
+                    avgCost = avg
+                }
+            } ?: run {
+                lastCost = null
+                avgCost = null
+            }
+        }
+    }
 
     val unit = remember(selectedEquipment, measurementUnits) {
         measurementUnits.find { it.id == selectedEquipment?.unitId }
@@ -1443,6 +1530,9 @@ fun MaintenanceLogCard(
                                         if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
                                             selectedOperationType = null
                                         }
+                                        if (!equipment.isResettable) {
+                                            editedResetAfter = false
+                                        }
                                     }
                                 )
                             }
@@ -1492,6 +1582,9 @@ fun MaintenanceLogCard(
                                     onClick = {
                                         selectedOperationType = operation
                                         isOperationDropdownExpanded = false
+                                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                            editedResetAfter = true
+                                        }
                                     }
                                 )
                             }
@@ -1518,6 +1611,25 @@ fun MaintenanceLogCard(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    
+                    val isResettable = selectedEquipment?.isResettable == true
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = isResettable) { editedResetAfter = !editedResetAfter },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = editedResetAfter && isResettable,
+                            onCheckedChange = { editedResetAfter = it },
+                            enabled = isResettable
+                        )
+                        Text(
+                            text = stringResource(R.string.reset_counter_after),
+                            color = if (isResettable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    }
+
                     OutlinedTextField(
                         value = editedNotes,
                         onValueChange = { if (it.length <= 200) editedNotes = it },
@@ -1538,6 +1650,23 @@ fun MaintenanceLogCard(
                             }
                         },
                         label = { Text(stringResource(R.string.cost_optional)) },
+                        supportingText = {
+                            if (lastCost != null && avgCost != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stringResource(R.string.last_cost_label, String.format(Locale.US, "%.2f €", lastCost)),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    val (icon, color) = when {
+                                        lastCost!! > avgCost!! * 1.05 -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                        lastCost!! < avgCost!! * 0.95 -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                        else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
+                                    }
+                                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -1664,6 +1793,7 @@ fun MaintenanceLogCard(
                             value = editedValueStr.toDoubleOrNull(),
                             cost = editedCostStr.toDoubleOrNull(),
                             isUnplanned = editedIsUnplanned,
+                            resetAfter = editedResetAfter,
                             date = editedDate,
                             equipmentId = selectedEquipment?.id ?: logDetail.log.equipmentId,
                             operationTypeId = selectedOperationType?.id ?: logDetail.log.operationTypeId

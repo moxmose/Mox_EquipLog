@@ -105,12 +105,19 @@ class MaintenanceLogViewModel(
         initialValue = emptyList()
     )
 
-    val activeReminders: StateFlow<List<MaintenanceReminderDetails>> = maintenanceReminderDao.getActiveRemindersWithDetails()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-            initialValue = emptyList()
-        )
+    val activeReminders: StateFlow<List<MaintenanceReminderDetails>> = combine(
+        appSettingsManager.costAnalysisWindowValue,
+        appSettingsManager.costAnalysisWindowUnit
+    ) { value, unit ->
+        val windowMs = maintenanceManager.getWindowMs(value.toLong(), TimeGranularity.valueOf(unit))
+        System.currentTimeMillis() - windowMs
+    }.flatMapLatest { sinceDate ->
+        maintenanceReminderDao.getActiveRemindersWithDetails(sinceDate)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
 
     val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
         .stateIn(
@@ -503,7 +510,12 @@ class MaintenanceLogViewModel(
     fun recalculateAllReminders() {
         viewModelScope.launch {
             try {
-                val reminders = maintenanceReminderDao.getActiveRemindersWithDetails().first()
+                val windowValue = appSettingsManager.costAnalysisWindowValue.first()
+                val windowUnit = appSettingsManager.costAnalysisWindowUnit.first()
+                val windowMs = maintenanceManager.getWindowMs(windowValue.toLong(), TimeGranularity.valueOf(windowUnit))
+                val sinceDate = System.currentTimeMillis() - windowMs
+                
+                val reminders = maintenanceReminderDao.getActiveRemindersWithDetails(sinceDate).first()
                 val accountName = appSettingsManager.googleAccountName.first()
                 val credential = accountName?.let { calendarManager.getCredential(it) }
 
@@ -557,4 +569,10 @@ class MaintenanceLogViewModel(
 
     suspend fun estimateDueDate(equipmentId: Int, targetValue: Double): Long? = maintenanceManager.estimateDueDate(equipmentId, targetValue)
     suspend fun estimateTargetValue(equipmentId: Int, dueDate: Long): Double? = maintenanceManager.estimateTargetValue(equipmentId, dueDate)
+
+    suspend fun getOperationCostStats(operationTypeId: Int): Pair<Double?, Double?> {
+        val windowValue = appSettingsManager.costAnalysisWindowValue.first()
+        val windowUnit = TimeGranularity.valueOf(appSettingsManager.costAnalysisWindowUnit.first())
+        return maintenanceManager.getOperationCostStats(operationTypeId, windowValue.toLong(), windowUnit)
+    }
 }

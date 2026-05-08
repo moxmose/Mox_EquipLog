@@ -79,7 +79,8 @@ import kotlinx.coroutines.delay
 
 enum class ReportDestination {
     MENU, EQUIPMENTS, OPERATIONS, EQUIPMENTS_FREQ, OPERATIONS_FREQ, INTERVALS, HEATMAP, BENCHMARKING,
-    EQUIPMENTS_VOL, OPERATIONS_VOL, COMBINED_LOGS
+    EQUIPMENTS_VOL, OPERATIONS_VOL, COMBINED_LOGS,
+    COSTS_TREND, COSTS_DIST, COSTS_ANALYSIS
 }
 
 @Composable
@@ -100,6 +101,9 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinViewModel(), onBack: () -> U
             ReportDestination.EQUIPMENTS_VOL -> EquipmentsVolReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
             ReportDestination.OPERATIONS_VOL -> OperationsVolReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
             ReportDestination.COMBINED_LOGS -> CombinedLogsReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
+            ReportDestination.COSTS_TREND -> CostsTrendReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
+            ReportDestination.COSTS_DIST -> CostsDistReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
+            ReportDestination.COSTS_ANALYSIS -> CostsAnalysisReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
         }
     }
 }
@@ -655,6 +659,11 @@ fun ReportsMenu(onNavigate: (ReportDestination) -> Unit, onBack: () -> Unit) {
             item { ReportMenuCard(title = stringResource(R.string.report_intervals_title), description = stringResource(R.string.report_intervals_desc), icon = Icons.AutoMirrored.Filled.TrendingUp, onClick = { onNavigate(ReportDestination.INTERVALS) }) }
             item { ReportMenuCard(title = stringResource(R.string.report_heatmap_title), description = stringResource(R.string.report_heatmap_desc), icon = Icons.Default.GridView, onClick = { onNavigate(ReportDestination.HEATMAP) }) }
             item { ReportMenuCard(title = stringResource(R.string.report_benchmarking_title), description = stringResource(R.string.report_benchmarking_desc), icon = Icons.Default.Compare, onClick = { onNavigate(ReportDestination.BENCHMARKING) }) }
+
+            item { Text(stringResource(R.string.cost_analysis), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp)) }
+            item { ReportMenuCard(title = stringResource(R.string.report_costs_trend_title), description = stringResource(R.string.report_costs_trend_desc), icon = Icons.Default.Payments, onClick = { onNavigate(ReportDestination.COSTS_TREND) }) }
+            item { ReportMenuCard(title = stringResource(R.string.report_costs_dist_title), description = stringResource(R.string.report_costs_dist_desc), icon = Icons.Default.DonutSmall, onClick = { onNavigate(ReportDestination.COSTS_DIST) }) }
+            item { ReportMenuCard(title = stringResource(R.string.report_costs_analysis_title), description = stringResource(R.string.report_costs_analysis_desc), icon = Icons.Default.Insights, onClick = { onNavigate(ReportDestination.COSTS_ANALYSIS) }) }
         }
     }
 }
@@ -841,6 +850,127 @@ fun ChartLegend(items: List<Pair<Int, String>>, colors: List<Color>, allStableId
             } 
         } 
     } 
+}
+
+@Composable
+fun CostsTrendReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = MaterialTheme.colorScheme.primary
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val equipIds = remember(uiState.equipments) { uiState.equipments.map { it.id } }
+    val opIds = remember(uiState.operationTypes) { uiState.operationTypes.map { it.id } }
+    val selectedEquipIds = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
+    val selectedOpIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) { uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds } }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_costs_trend_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+            }
+        }
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.report_total_cost_label), style = MaterialTheme.typography.labelMedium)
+                        Text(String.format(Locale.getDefault(), "€ %.2f", uiState.totalCost), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.report_avg_cost_log_label), style = MaterialTheme.typography.labelMedium)
+                        Text(String.format(Locale.getDefault(), "€ %.2f", uiState.averageCostPerLog), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        item {
+            EquipmentChartCard(
+                title = "${stringResource(R.string.report_cost_evolution)} (${stringResource(R.string.report_section_equipments)})",
+                chartData = uiState.equipmentCostData,
+                unitLabel = "€",
+                hasMixedUnits = false,
+                decimalPlaces = 2,
+                requestedGranularity = uiState.timeGranularity,
+                effectiveGranularity = uiState.effectiveGranularity,
+                colors = chartColors,
+                allStableIds = equipIds,
+                selectedIds = selectedEquipIds,
+                equipments = uiState.equipments
+            )
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "€ ${stringResource(R.string.report_cost_evolution)} (${stringResource(R.string.report_section_operations)})", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    MultiLineChart(chartDataMap = uiState.operationCostData, decimalPlaces = 2, requestedGranularity = uiState.timeGranularity, effectiveGranularity = uiState.effectiveGranularity, finalColors = chartColors, allStableIds = opIds)
+                    if (uiState.operationCostData.any { it.value.isNotEmpty() }) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        ChartLegend(items = selectedOpIds.mapNotNull { id -> uiState.operationTypes.find { it.id == id }?.description?.let { id to it } }, colors = chartColors, allStableIds = opIds)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CostsDistReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = MaterialTheme.colorScheme.primary
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    ReportBaseScreen(
+        title = stringResource(R.string.report_costs_dist_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+            }
+        }
+    ) {
+        item { PieChartCard(title = "${stringResource(R.string.report_costs_dist_title)} (€) - ${stringResource(R.string.report_section_equipments)}", distribution = uiState.costDistributionByEquipment) }
+        item { PieChartCard(title = "${stringResource(R.string.report_costs_dist_title)} (€) - ${stringResource(R.string.report_section_operations)}", distribution = uiState.costDistributionByOperation) }
+    }
+}
+
+@Composable
+fun CostsAnalysisReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = MaterialTheme.colorScheme.primary
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val equipIds = remember(uiState.equipments) { uiState.equipments.map { it.id } }
+    val selectedEquipIds = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_costs_analysis_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+        }
+    ) {
+        item {
+            EquipmentChartCard(
+                title = stringResource(R.string.report_cost_per_usage_label),
+                chartData = uiState.costVsUsageData,
+                unitLabel = "€/unit",
+                hasMixedUnits = uiState.hasMixedUnits,
+                decimalPlaces = 3,
+                requestedGranularity = uiState.timeGranularity,
+                effectiveGranularity = uiState.effectiveGranularity,
+                colors = chartColors,
+                allStableIds = equipIds,
+                selectedIds = selectedEquipIds,
+                equipments = uiState.equipments
+            )
+        }
+    }
 }
 
 @Composable

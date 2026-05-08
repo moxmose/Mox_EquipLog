@@ -24,6 +24,19 @@
     <string name="report_benchmarking_title">Benchmarking</string>
     <string name="report_benchmarking_desc">Confronto diretto tra mezzi</string>
 
+    <!-- Report Costi -->
+    <string name="report_costs_trend_title">Andamento Costi</string>
+    <string name="report_costs_trend_desc">Evoluzione dei costi nel tempo per mezzo o attività</string>
+    <string name="report_costs_dist_title">Distribuzione Costi</string>
+    <string name="report_costs_dist_desc">Peso dei costi per mezzo e per tipo attività</string>
+    <string name="report_costs_analysis_title">Analisi Efficienza Costi</string>
+    <string name="report_costs_analysis_desc">Costo per unità di utilizzo e altre metriche di efficienza</string>
+    <string name="report_total_cost_label">Costo Totale</string>
+    <string name="report_avg_cost_log_label">Costo Medio per Log</string>
+    <string name="report_cost_per_usage_label">Costo per Unità Utilizzo</string>
+    <string name="report_cost_evolution">Evoluzione Costi</string>
+    <string name="cost_analysis">Analisi Costi</string>
+
     <!-- Nuovi Report -->
     <string name="report_equipments_vol_title">Volume Mezzi</string>
     <string name="report_equipments_vol_desc">Conteggio attività per mezzo nel tempo</string>
@@ -216,6 +229,7 @@
     <string name="cost_optional">Costo (opzionale)</string>
     <string name="unplanned_intervention">Intervento non pianificato</string>
     <string name="estimated_cost_label">Costo Stimato: %1$s</string>
+    <string name="last_cost_label">Ultimo: %1$s</string>
     <string name="estimated_date_prefix">Stimata: %1$s</string>
     <string name="likely_needed_by_prefix">Probabilmente entro il: %1$s</string>
 

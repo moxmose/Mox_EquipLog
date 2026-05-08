@@ -25,6 +25,19 @@
     <string name="report_benchmarking_title">Benchmarking</string>
     <string name="report_benchmarking_desc">Direct comparison between equipments</string>
 
+    <!-- Cost Reports -->
+    <string name="report_costs_trend_title">Costs Trend</string>
+    <string name="report_costs_trend_desc">Cost evolution over time by equipment or operation</string>
+    <string name="report_costs_dist_title">Costs Distribution</string>
+    <string name="report_costs_dist_desc">Cost weight by equipment and operation type</string>
+    <string name="report_costs_analysis_title">Cost Efficiency Analysis</string>
+    <string name="report_costs_analysis_desc">Cost per unit of usage and other efficiency metrics</string>
+    <string name="report_total_cost_label">Total Cost</string>
+    <string name="report_avg_cost_log_label">Avg Cost per Log</string>
+    <string name="report_cost_per_usage_label">Cost per Usage Unit</string>
+    <string name="report_cost_evolution">Cost Evolution</string>
+    <string name="cost_analysis">Cost Analysis</string>
+
     <!-- New Reports -->
     <string name="report_equipments_vol_title">Equipments Volume</string>
     <string name="report_equipments_vol_desc">Activity count per equipment over time</string>
@@ -218,6 +231,7 @@
     <string name="cost_optional">Cost (optional)</string>
     <string name="unplanned_intervention">Unplanned intervention</string>
     <string name="estimated_cost_label">Estimated Cost: %1$s</string>
+    <string name="last_cost_label">Last: %1$s</string>
     <string name="estimated_date_prefix">Estimated: %1$s</string>
     <string name="likely_needed_by_prefix">Likely needed by: %1$s</string>
 
@@ -295,8 +309,8 @@
     <string name="update_google_account_failed">Failed to update Google Account.</string>
     <string name="options_google_calendar_desc">Configure Google Calendar integration for maintenance reminders.</string>
     <string name="options_recalculate_accumulated">Recalculate Accumulated Values</string>
-    <string name="options_recalculate_accumulated_desc">Ricalcola tutti i valori assoluti basandosi sullo storico dei log. Utile se sono state inserite registrazioni nel passato.</string>
-    <string name="recalculate_success">Ricalcolo completato con successo.</string>
+    <string name="options_recalculate_accumulated_desc">Recalculate all absolute values based on log history. Useful if recordings were entered in the past.</string>
+    <string name="recalculate_success">Recalculation completed successfully.</string>
     <string name="options_sync_calendar_default_label">Sync by default</string>
     <string name="options_sync_calendar_default_desc">Automatically enable \"Sync to Google Calendar\" when adding new logs or reminders.</string>
     <string name="google_auth_privacy_note">This app uses the standard Google sign-in method to connect to your Calendar. Only the data strictly necessary for sync will be used.</string>

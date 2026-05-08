@@ -120,7 +120,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ToggleUnitVisibilityFailed -> context.getString(R.string.toggle_unit_visibility_failed)
                 is OptionsViewModel.OptionsUiEvent.SetDefaultFailed -> context.getString(R.string.set_default_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateReportsSettingsFailed -> context.getString(R.string.update_reports_settings_failed)
-                is OptionsViewModel.OptionsUiEvent.UpdateGoogleAccountFailed -> "Failed to update Google account"
+                is OptionsViewModel.OptionsUiEvent.UpdateGoogleAccountFailed -> context.getString(R.string.update_google_account_failed)
                 is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
