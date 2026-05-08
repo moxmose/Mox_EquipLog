@@ -11,7 +11,6 @@ import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 data class EquipmentOperationStatus(
     val equipment: Equipment,
@@ -159,17 +158,17 @@ class OperationsTypeViewModel(
             statuses[opType.id] = OperationGlobalStatus(opType.id, affected)
         }
         statuses
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
 
     private fun getHorizonMs(value: Long, unit: TimeGranularity): Long {
         return when (unit) {
             TimeGranularity.MINUTES_5 -> value * 5 * 60 * 1000L
             TimeGranularity.MINUTES_15 -> value * 15 * 60 * 1000L
             TimeGranularity.HOURS -> value * 60 * 60 * 1000L
-            TimeGranularity.DAYS -> value * 24 * 60 * 60 * 1000L
-            TimeGranularity.WEEKS -> value * 7 * 24 * 60 * 60 * 1000L
-            TimeGranularity.MONTHS -> value * 30 * 24 * 60 * 60 * 1000L
-            TimeGranularity.YEARS -> value * 365 * 24 * 60 * 60 * 1000L
+            TimeGranularity.DAYS -> value * AppConstants.MS_PER_DAY
+            TimeGranularity.WEEKS -> value * 7 * AppConstants.MS_PER_DAY
+            TimeGranularity.MONTHS -> value * 30 * AppConstants.MS_PER_DAY
+            TimeGranularity.YEARS -> value * 365 * AppConstants.MS_PER_DAY
         }
     }
 

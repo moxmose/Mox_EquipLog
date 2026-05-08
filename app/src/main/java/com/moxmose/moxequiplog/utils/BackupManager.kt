@@ -3,6 +3,7 @@ package com.moxmose.moxequiplog.utils
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
+import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppDatabase
 import java.io.File
 import java.io.FileInputStream
@@ -27,14 +28,14 @@ class BackupManager(private val context: Context, private val database: AppDatab
 
             val dbFile = context.getDatabasePath(DATABASE_NAME)
             if (!dbFile.exists()) {
-                return Result.failure(Exception("Database file not found"))
+                return Result.failure(Exception(context.getString(R.string.backup_error_db_not_found)))
             }
 
             context.contentResolver.openOutputStream(destinationUri)?.use { outputStream ->
                 FileInputStream(dbFile).use { inputStream ->
                     inputStream.copyTo(outputStream)
                 }
-            } ?: return Result.failure(Exception("Failed to open output stream"))
+            } ?: return Result.failure(Exception(context.getString(R.string.backup_error_no_output_stream)))
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -53,7 +54,7 @@ class BackupManager(private val context: Context, private val database: AppDatab
                 FileOutputStream(dbFile).use { outputStream ->
                     inputStream.copyTo(outputStream)
                 }
-            } ?: return Result.failure(Exception("Failed to open input stream"))
+            } ?: return Result.failure(Exception(context.getString(R.string.restore_error_no_input_stream)))
 
             // Clean up WAL and SHM files to ensure the new database is loaded correctly
             File(dbFile.path + "-wal").delete()
@@ -97,7 +98,7 @@ class BackupManager(private val context: Context, private val database: AppDatab
                         zipOut.closeEntry()
                     }
                 }
-            } ?: return Result.failure(Exception("Failed to open output stream"))
+            } ?: return Result.failure(Exception(context.getString(R.string.backup_error_no_output_stream)))
 
             tempDir.deleteRecursively()
             Result.success(Unit)

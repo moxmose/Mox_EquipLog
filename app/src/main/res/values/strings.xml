@@ -148,6 +148,13 @@
     <string name="button_about" translatable="false">About</string>
     <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>
     <string name="about_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!</string>
+    <string name="about_version_label">Version: %1$s</string>
+    <string name="about_developer_label">Developed by: %1$s</string>
+    <string name="about_license_label">License: %1$s</string>
+    <string name="about_github_label">GitHub Repository</string>
+    <string name="about_github_url" translatable="false">https://github.com/MoxMose/Mox_EquipLogs</string>
+    <string name="about_developer_value" translatable="false">Mox (moxmose)</string>
+    <string name="about_license_value" translatable="false">Apache License 2.0</string>
     <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!\n\nTo get the best experience, visit the Options Section to:\n\n• Setup Predictive Analytics &amp; Cost Thresholds\n• Define your Measurement Units\n• Personalize with Images, Colors and Backgrounds\n• Sync with Google Calendar\n\nReady? Add your equipments and operations to start recording!</string>
     <string name="dismiss_next_time">Don\'t show again</string>
     <string name="button_ok">OK</string>
@@ -202,7 +209,7 @@
     <string name="select_an_operation">Select an operation</string>
     <string name="notes_label">Notes</string>
     <string name="notes_optional">Notes (optional)</string>
-    <string name="value_label">Value: %1$d %2$s</string>
+    <string name="value_label">Value: %1$s %2$s</string>
     <string name="value_optional">Value (%1$s) (optional)</string>
     <string name="dismissed_suffix">(dismissed)</string>
     <string name="selected_content_desc">Selected</string>
@@ -329,4 +336,34 @@
     <string name="options_sync_calendar_default_desc">Automatically enable \"Sync to Google Calendar\" when adding new logs or reminders.</string>
     <string name="google_auth_privacy_note">This app uses the standard Google sign-in method to connect to your Calendar. Only the data strictly necessary for sync will be used.</string>
     <string name="delete_reminder_confirm">Are you sure you want to permanently delete this reminder?</string>
+
+    <!-- CSV Export -->
+    <string name="csv_export_report_label">Report</string>
+    <string name="csv_export_date_label">Export Date</string>
+    <string name="csv_export_period_label">Period</string>
+    <string name="csv_export_start_label">Start</string>
+    <string name="csv_export_end_label">End</string>
+    <string name="csv_export_data_header">Date</string>
+    <string name="csv_export_equipment_header">Equipment</string>
+    <string name="csv_export_operation_header">Operation</string>
+    <string name="csv_export_value_header">Value</string>
+    <string name="csv_export_unit_header">Unit</string>
+    <string name="csv_export_benchmark_title">Benchmark Analysis</string>
+    <string name="csv_export_total_usage_header">Total Usage</string>
+    <string name="csv_export_avg_interval_header">Avg Interval</string>
+    <string name="csv_export_count_header">Log Count</string>
+    <string name="csv_export_distribution_title">Distribution</string>
+    <string name="csv_export_name_header">Name</string>
+    <string name="csv_export_occurrences_header">Occurrences</string>
+    <string name="csv_export_percentage_header">Percentage</string>
+
+    <!-- Google Calendar -->
+    <string name="calendar_event_title">Maintenance: %1$s - %2$s</string>
+    <string name="calendar_event_description">Maintenance reminder from Mox EquipLog</string>
+    <string name="calendar_event_description_updated">Maintenance reminder from Mox EquipLog (updated)</string>
+
+    <!-- Backup & Restore Errors -->
+    <string name="backup_error_db_not_found">Database file not found</string>
+    <string name="backup_error_no_output_stream">Failed to open output stream</string>
+    <string name="restore_error_no_input_stream">Failed to open input stream</string>
 </resources>

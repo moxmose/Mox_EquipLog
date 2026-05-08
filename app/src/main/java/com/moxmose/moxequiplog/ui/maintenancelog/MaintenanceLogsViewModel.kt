@@ -3,12 +3,14 @@ package com.moxmose.moxequiplog.ui.maintenancelog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.sqlite.db.SimpleSQLiteQuery
+import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.CalendarManager
+import com.moxmose.moxequiplog.utils.ResourceProvider
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -40,7 +42,8 @@ class MaintenanceLogViewModel(
     private val imageRepository: ImageRepository,
     private val measurementUnitDao: MeasurementUnitDao,
     private val calendarManager: CalendarManager,
-    private val maintenanceManager: MaintenanceManager
+    private val maintenanceManager: MaintenanceManager,
+    private val resourceProvider: ResourceProvider
 ) : ViewModel() {
 
     sealed class UiEvent {
@@ -86,7 +89,6 @@ class MaintenanceLogViewModel(
     fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
     fun onCardExpanded(id: Int) { _expandedCardId.value = if (_expandedCardId.value == id) null else id }
     fun onEditLog(log: MaintenanceLog) { _editingCardId.value = log.id }
-    fun onCancelEdit() { _editingCardId.value = null }
     fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForComplete.value = reminder }
     fun onEditReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForEdit.value = reminder }
 
@@ -265,33 +267,6 @@ class MaintenanceLogViewModel(
             initialValue = 0
         )
 
-    private suspend fun recalculateAccumulatedValues(equipmentId: Int) {
-        val allLogs = maintenanceLogDao.getAllLogsForEquipment(equipmentId)
-        if (allLogs.isEmpty()) return
-
-        val updatedLogs = mutableListOf<MaintenanceLog>()
-        var currentAccumulated = 0.0
-        var lastValue: Double? = null
-
-        allLogs.forEach { log ->
-            val delta = when {
-                log.value == null -> 0.0
-                lastValue == null -> log.value // Primo log con valore
-                log.value >= lastValue -> log.value - lastValue
-                else -> log.value // Reset rilevato (valore sceso)
-            }
-            
-            currentAccumulated += delta
-            val updatedLog = log.copy(accumulatedValue = currentAccumulated)
-            updatedLogs.add(updatedLog)
-            
-            // Se c'è un reset forzato, il prossimo log inizierà da 0 per il calcolo del delta
-            lastValue = if (log.resetAfter) null else log.value
-        }
-        
-        maintenanceLogDao.updateLogs(updatedLogs)
-    }
-
     fun addLog(
         equipmentId: Int,
         operationTypeId: Int,
@@ -353,8 +328,8 @@ class MaintenanceLogViewModel(
                     if (accountName != null) {
                         val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId)
                         val operation = operationTypeDao.getOperationTypeById(operationTypeId)
-                        val title = "Maintenance: ${equipment?.description} - ${operation?.description}"
-                        val description = "Maintenance reminder from Mox EquipLog"
+                        val title = resourceProvider.getString(R.string.calendar_event_title, equipment?.description ?: "", operation?.description ?: "")
+                        val description = resourceProvider.getString(R.string.calendar_event_description)
                         
                         val credential = calendarManager.getCredential(accountName)
                         calendarEventId = calendarManager.addEvent(
@@ -399,8 +374,8 @@ class MaintenanceLogViewModel(
                 if (syncToCalendar && calendarDate != null) {
                     val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId)
                     val operation = operationTypeDao.getOperationTypeById(operationTypeId)
-                    val title = "Maintenance: ${equipment?.description} - ${operation?.description}"
-                    val description = "Maintenance reminder from Mox EquipLog"
+                    val title = resourceProvider.getString(R.string.calendar_event_title, equipment?.description ?: "", operation?.description ?: "")
+                    val description = resourceProvider.getString(R.string.calendar_event_description)
 
                     if (accountName != null) {
                         val credential = calendarManager.getCredential(accountName)
@@ -550,8 +525,8 @@ class MaintenanceLogViewModel(
                         if (updatedReminder.calendarEventId != null && credential != null && effectiveDate != null) {
                             val equipment = equipmentDao.getEquipmentByIdOneShot(updatedReminder.equipmentId)
                             val operation = operationTypeDao.getOperationTypeById(updatedReminder.operationTypeId)
-                            val title = "Maintenance: ${equipment?.description} - ${operation?.description}"
-                            val description = "Maintenance reminder from Mox EquipLog (updated)"
+                            val title = resourceProvider.getString(R.string.calendar_event_title, equipment?.description ?: "", operation?.description ?: "")
+                            val description = resourceProvider.getString(R.string.calendar_event_description_updated)
                             
                             calendarManager.updateEvent(
                                 credential = credential,

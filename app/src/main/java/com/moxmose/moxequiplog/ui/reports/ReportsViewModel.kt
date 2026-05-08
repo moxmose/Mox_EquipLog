@@ -2,10 +2,13 @@ package com.moxmose.moxequiplog.ui.reports
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.ResourceProvider
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -108,7 +111,8 @@ class ReportsViewModel(
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
     private val reportFilterDao: ReportFilterDao,
-    private val maintenanceManager: MaintenanceManager
+    private val maintenanceManager: MaintenanceManager,
+    private val resourceProvider: ResourceProvider
 ) : ViewModel() {
 
     private val _selectedEquipmentIds = MutableStateFlow<Set<Int>>(emptySet())
@@ -140,7 +144,7 @@ class ReportsViewModel(
         imageRepository.allColorsForReports
     ) { state, refresh, mode, custom, dbColors ->
         val dbColorList = dbColors.filter { !it.reportHidden }.map { it.hexValue }.takeIf { it.isNotEmpty() } 
-            ?: listOf("#4285F4", "#34A853", "#FBBC05", "#EA4335", "#9C27B0", "#00BCD4")
+            ?: UiConstants.DEFAULT_PALETTE
 
         val palette = if (mode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
             custom ?: dbColorList
@@ -431,7 +435,7 @@ class ReportsViewModel(
             totalCost = totalCostVal, averageCostPerLog = avgCostPerLog,
             costVsUsageData = costVsUsageData
         )
-    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = ReportsUiState())
+    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), initialValue = ReportsUiState())
 
     fun toggleEquipmentSelection(id: Int) { _selectedEquipmentIds.value = if (_selectedEquipmentIds.value.contains(id)) _selectedEquipmentIds.value - id else _selectedEquipmentIds.value + id }
     fun toggleOperationTypeSelection(id: Int) { _selectedOperationTypeIds.value = if (_selectedOperationTypeIds.value.contains(id)) _selectedOperationTypeIds.value - id else _selectedOperationTypeIds.value + id }
@@ -494,11 +498,24 @@ class ReportsViewModel(
         val state = uiState.value
         val sb = StringBuilder()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        sb.append("Report;${reportTitle}\n")
-        sb.append("Data Esportazione;${dateFormat.format(Date())}\n")
-        sb.append("Periodo;${state.startDate?.let { dateFormat.format(Date(it)) } ?: "Inizio"} - ${state.endDate?.let { dateFormat.format(Date(it)) } ?: "Fine"}\n\n")
+        
+        val reportLabel = resourceProvider.getString(R.string.csv_export_report_label)
+        val exportDateLabel = resourceProvider.getString(R.string.csv_export_date_label)
+        val periodLabel = resourceProvider.getString(R.string.csv_export_period_label)
+        val startLabel = resourceProvider.getString(R.string.csv_export_start_label)
+        val endLabel = resourceProvider.getString(R.string.csv_export_end_label)
+        val dataHeader = resourceProvider.getString(R.string.csv_export_data_header)
+        val equipHeader = resourceProvider.getString(R.string.csv_export_equipment_header)
+        val opHeader = resourceProvider.getString(R.string.csv_export_operation_header)
+        val valHeader = resourceProvider.getString(R.string.csv_export_value_header)
+        val unitHeader = resourceProvider.getString(R.string.csv_export_unit_header)
+
+        sb.append("$reportLabel;${reportTitle}\n")
+        sb.append("$exportDateLabel;${dateFormat.format(Date())}\n")
+        sb.append("$periodLabel;${state.startDate?.let { dateFormat.format(Date(it)) } ?: startLabel} - ${state.endDate?.let { dateFormat.format(Date(it)) } ?: endLabel}\n\n")
+        
         if (state.equipmentChartData.any { it.value.isNotEmpty() }) {
-            sb.append("Data;Attrezzatura;Valore;Unita\n")
+            sb.append("$dataHeader;$equipHeader;$valHeader;$unitHeader\n")
             state.equipmentChartData.forEach { (id, points) ->
                 val name = state.equipments.find { it.id == id }?.description ?: "ID $id"
                 points.forEach { p ->
@@ -507,7 +524,7 @@ class ReportsViewModel(
                 }
             }
         } else if (state.operationChartData.any { it.value.isNotEmpty() }) {
-            sb.append("Data;Operazione;Valore;Unita\n")
+            sb.append("$dataHeader;$opHeader;$valHeader;$unitHeader\n")
             state.operationChartData.forEach { (id, points) ->
                 val name = state.operationTypes.find { it.id == id }?.description ?: "ID $id"
                 points.forEach { p ->
@@ -516,18 +533,30 @@ class ReportsViewModel(
                 }
             }
         }
+        
         if (state.benchmarkData.isNotEmpty()) {
-            sb.append("\nAnalisi Benchmark\n")
-            sb.append("Attrezzatura;Utilizzo Totale;Media Intervallo;Conteggio Log\n")
+            val benchTitle = resourceProvider.getString(R.string.csv_export_benchmark_title)
+            val totalUsageHeader = resourceProvider.getString(R.string.csv_export_total_usage_header)
+            val avgIntHeader = resourceProvider.getString(R.string.csv_export_avg_interval_header)
+            val countHeader = resourceProvider.getString(R.string.csv_export_count_header)
+            
+            sb.append("\n$benchTitle\n")
+            sb.append("$equipHeader;$totalUsageHeader;$avgIntHeader;$countHeader\n")
             state.benchmarkData.forEach { b ->
                 val total = String.format(Locale.getDefault(), "%.${state.equipmentMaxDecimalPlaces}f", b.totalValue)
                 val avg = String.format(Locale.getDefault(), "%.${state.equipmentMaxDecimalPlaces}f", b.avgInterval)
                 sb.append("\"${b.equipmentName}\";$total;$avg;${b.count}\n")
             }
         }
+        
         if (state.equipmentDistribution.isNotEmpty() && reportTitle.contains("Freq", ignoreCase = true)) {
-            sb.append("\nDistribuzione\n")
-            sb.append("Nome;Occorrenze;Percentuale\n")
+            val distTitle = resourceProvider.getString(R.string.csv_export_distribution_title)
+            val nameHeader = resourceProvider.getString(R.string.csv_export_name_header)
+            val occHeader = resourceProvider.getString(R.string.csv_export_occurrences_header)
+            val percHeader = resourceProvider.getString(R.string.csv_export_percentage_header)
+            
+            sb.append("\n$distTitle\n")
+            sb.append("$nameHeader;$occHeader;$percHeader\n")
             val dist = if (reportTitle.contains("Equip", ignoreCase = true)) state.equipmentDistribution else state.operationDistribution
             val total = dist.sumOf { it.value.toDouble() }.toFloat()
             dist.forEach { p ->

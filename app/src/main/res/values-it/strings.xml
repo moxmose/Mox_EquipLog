@@ -146,6 +146,10 @@
     <string name="button_about" translatable="false">Informazioni</string>
     <string name="about_dialog_title" translatable="false">Informazioni su Mox EquipLog</string>
     <string name="about_dialog_content">Questa app aiuta a tracciare registrazioni di manutenzione per i vostri mezzi. Mantienili in forma perfetta!</string>
+    <string name="about_version_label">Versione: %1$s</string>
+    <string name="about_developer_label">Sviluppato da: %1$s</string>
+    <string name="about_license_label">Licenza: %1$s</string>
+    <string name="about_github_label">Repository GitHub</string>
     <string name="welcome_dialog_content">Questa app ti aiuta a tracciare le manutenzioni dei tuoi mezzi. Mantienili in forma perfetta!\n\nPer un\u0027esperienza ottimale, visita la sezione Opzioni per:\n\n• Configurare Analisi Predittiva e Soglie di Costo\n• Definire le tue Unità di Misura\n• Personalizzare Immagini, Colori e Sfondi\n• Sincronizzare con Google Calendar\n\nPronto? Aggiungi i tuoi mezzi e le attività per iniziare a registrare!</string>
     <string name="dismiss_next_time">Non mostrare più</string>
     <string name="button_ok">OK</string>
@@ -200,8 +204,8 @@
     <string name="select_an_operation">Selezione un operazione</string>
     <string name="notes_label">Note</string>
     <string name="notes_optional">Note (opzionale)</string>
-    <string name="value_label">Valore: %1$d %2$s</string>
-    <string name="value_optional">Valore (opzionale)</string>
+    <string name="value_label">Valore: %1$s %2$s</string>
+    <string name="value_optional">Valore (%1$s) (opzionale)</string>
     <string name="dismissed_suffix">(dismesso)</string>
     <string name="selected_content_desc">Selezionato</string>
     <string name="date">Data</string>
@@ -327,4 +331,34 @@
     <string name="options_sync_calendar_default_desc">Abilita automaticamente \"Sincronizza con Google Calendar\" quando aggiungi nuovi log o promemoria.</string>
     <string name="google_auth_privacy_note">Questa app utilizza il metodo di accesso standard di Google per collegarsi al tuo Calendario. Verranno utilizzati solo i dati strettamente necessari alla sincronizzazione.</string>
     <string name="delete_reminder_confirm">Sei sicuro di voler eliminare permanentemente questo promemoria?</string>
+
+    <!-- Esportazione CSV -->
+    <string name="csv_export_report_label">Report</string>
+    <string name="csv_export_date_label">Data Esportazione</string>
+    <string name="csv_export_period_label">Periodo</string>
+    <string name="csv_export_start_label">Inizio</string>
+    <string name="csv_export_end_label">Fine</string>
+    <string name="csv_export_data_header">Data</string>
+    <string name="csv_export_equipment_header">Mezzo</string>
+    <string name="csv_export_operation_header">Attività</string>
+    <string name="csv_export_value_header">Valore</string>
+    <string name="csv_export_unit_header">Unità</string>
+    <string name="csv_export_benchmark_title">Analisi Benchmark</string>
+    <string name="csv_export_total_usage_header">Utilizzo Totale</string>
+    <string name="csv_export_avg_interval_header">Intervallo Medio</string>
+    <string name="csv_export_count_header">Conteggio Log</string>
+    <string name="csv_export_distribution_title">Distribuzione</string>
+    <string name="csv_export_name_header">Nome</string>
+    <string name="csv_export_occurrences_header">Occorrenze</string>
+    <string name="csv_export_percentage_header">Percentuale</string>
+
+    <!-- Google Calendar -->
+    <string name="calendar_event_title">Manutenzione: %1$s - %2$s</string>
+    <string name="calendar_event_description">Promemoria manutenzione da Mox EquipLog</string>
+    <string name="calendar_event_description_updated">Promemoria manutenzione da Mox EquipLog (aggiornato)</string>
+
+    <!-- Errori Backup e Ripristino -->
+    <string name="backup_error_db_not_found">File del database non trovato</string>
+    <string name="backup_error_no_output_stream">Impossibile aprire lo stream di output</string>
+    <string name="restore_error_no_input_stream">Impossibile aprire lo stream di input</string>
 </resources>

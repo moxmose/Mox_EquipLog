@@ -11,7 +11,6 @@ import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 data class OperationStatus(
     val operation: OperationType,
@@ -110,7 +109,7 @@ class EquipmentsViewModel(
             statuses[equipment.id] = calculateEquipmentStatus(equipment, opTypes, reminders)
         }
         statuses
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
 
     private suspend fun calculateEquipmentStatus(
         equipment: Equipment, 
@@ -122,7 +121,7 @@ class EquipmentsViewModel(
         val now = System.currentTimeMillis()
 
         val health = if (lastValueLog != null) {
-            val daysSince = (now - lastValueLog.date).toDouble() / (24 * 60 * 60 * 1000.0)
+            val daysSince = (now - lastValueLog.date).toDouble() / AppConstants.MS_PER_DAY
             val estimatedCurrent = if (trend != null) (lastValueLog.value ?: 0.0) + (daysSince * trend) else null
             EquipmentHealth(lastValueLog.value, lastValueLog.date, estimatedCurrent)
         } else {
@@ -195,10 +194,10 @@ class EquipmentsViewModel(
             TimeGranularity.MINUTES_5 -> value * 5 * 60 * 1000L
             TimeGranularity.MINUTES_15 -> value * 15 * 60 * 1000L
             TimeGranularity.HOURS -> value * 60 * 60 * 1000L
-            TimeGranularity.DAYS -> value * 24 * 60 * 60 * 1000L
-            TimeGranularity.WEEKS -> value * 7 * 24 * 60 * 60 * 1000L
-            TimeGranularity.MONTHS -> value * 30 * 24 * 60 * 60 * 1000L
-            TimeGranularity.YEARS -> value * 365 * 24 * 60 * 60 * 1000L
+            TimeGranularity.DAYS -> value * AppConstants.MS_PER_DAY
+            TimeGranularity.WEEKS -> value * 7 * AppConstants.MS_PER_DAY
+            TimeGranularity.MONTHS -> value * 30 * AppConstants.MS_PER_DAY
+            TimeGranularity.YEARS -> value * 365 * AppConstants.MS_PER_DAY
         }
     }
 
@@ -238,13 +237,6 @@ class EquipmentsViewModel(
         
     val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
-
-    val globalUsageWindowValue: StateFlow<Int> = appSettingsManager.defaultUsageWindowValue
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_USAGE_WINDOW_VALUE)
-
-    val globalUsageWindowUnit: StateFlow<TimeGranularity> = appSettingsManager.defaultUsageWindowUnit
-        .map { TimeGranularity.valueOf(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), TimeGranularity.valueOf(UiConstants.DEFAULT_USAGE_WINDOW_UNIT))
 
     val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)

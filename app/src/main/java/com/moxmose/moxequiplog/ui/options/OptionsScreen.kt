@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -368,12 +368,56 @@ fun OptionsScreenContent(
     }
 
     if (showAboutDialog) {
+        val uriHandler = LocalUriHandler.current
+        val githubUrl = stringResource(R.string.about_github_url)
+
         BasicAlertDialog(onDismissRequest = { onShowAboutDialogChange(false) }) {
             Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(text = stringResource(R.string.about_dialog_title), style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)
+                    Text(text = stringResource(R.string.about_dialog_content), style = MaterialTheme.typography.bodyMedium)
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = stringResource(R.string.about_version_label, BuildConfig.VERSION_NAME),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.about_developer_label, stringResource(R.string.about_developer_value)),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.about_license_label, stringResource(R.string.about_license_value)),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    TextButton(
+                        onClick = { uriHandler.openUri(githubUrl) },
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload, // Using a generic download icon for code, or we could add a custom github one
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.about_github_label),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
                     TextButton(onClick = { onShowAboutDialogChange(false) }, modifier = Modifier.align(Alignment.End)) {
                         Text(stringResource(R.string.button_ok))

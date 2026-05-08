@@ -53,5 +53,9 @@ This project is built with 100% Kotlin and follows modern Android development pr
     ./gradlew assembleDebug
     ```
 
+## 📄 License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
 ---
 *This README and the code was generated with assistance from Gemini in Android Studio.*

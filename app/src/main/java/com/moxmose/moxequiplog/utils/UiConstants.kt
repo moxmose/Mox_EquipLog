@@ -28,4 +28,6 @@ object UiConstants {
 
     // Cost trend defaults
     const val DEFAULT_COST_TREND_THRESHOLD = 0.05f
+
+    val DEFAULT_PALETTE = listOf("#4285F4", "#34A853", "#FBBC05", "#EA4335", "#9C27B0", "#00BCD4")
 }
