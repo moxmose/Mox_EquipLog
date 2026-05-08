@@ -6,6 +6,7 @@ import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -83,6 +84,9 @@ class MaintenanceLogsViewModelTest {
             every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
             every { syncCalendarByDefault } returns flowOf(false)
             every { googleAccountName } returns flowOf(null)
+            every { costTrendThreshold } returns flowOf(UiConstants.DEFAULT_COST_TREND_THRESHOLD)
+            every { costAnalysisWindowValue } returns flowOf(UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_VALUE)
+            every { costAnalysisWindowUnit } returns flowOf(UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_UNIT)
         }
         imageRepository = mockk(relaxed = true) {
              every { getCategoryColor(any()) } returns MutableStateFlow("#000000")

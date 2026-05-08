@@ -145,6 +145,9 @@ class MaintenanceLogViewModel(
     val googleAccountName: StateFlow<String?> = appSettingsManager.googleAccountName
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
+    val costTrendThreshold: StateFlow<Float> = appSettingsManager.costTrendThreshold
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_TREND_THRESHOLD)
+
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 
     private fun buildQuery(

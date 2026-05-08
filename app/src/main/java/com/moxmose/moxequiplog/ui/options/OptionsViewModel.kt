@@ -63,6 +63,7 @@ class OptionsViewModel(
         data object ToggleUnitVisibilityFailed : OptionsUiEvent()
         data object SetDefaultFailed : OptionsUiEvent()
         data object UpdateReportsSettingsFailed : OptionsUiEvent()
+        data object UpdateSettingsFailed : OptionsUiEvent()
         data object UpdateGoogleAccountFailed : OptionsUiEvent()
         data class BackupResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
@@ -178,6 +179,9 @@ class OptionsViewModel(
 
     val googleAccountName: StateFlow<String?> = appSettingsManager.googleAccountName
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val costTrendThreshold: StateFlow<Float> = appSettingsManager.costTrendThreshold
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_TREND_THRESHOLD)
 
     val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
@@ -334,7 +338,7 @@ class OptionsViewModel(
                 appSettingsManager.setDefaultUsageWindowValue(value)
                 appSettingsManager.setDefaultUsageWindowUnit(unit)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
             }
         }
     }
@@ -345,7 +349,7 @@ class OptionsViewModel(
                 appSettingsManager.setDefaultVisibilityHorizonValue(value)
                 appSettingsManager.setDefaultVisibilityHorizonUnit(unit)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
             }
         }
     }
@@ -356,7 +360,17 @@ class OptionsViewModel(
                 appSettingsManager.setCostAnalysisWindowValue(value)
                 appSettingsManager.setCostAnalysisWindowUnit(unit)
             } catch (e: Exception) {
-                _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
+            }
+        }
+    }
+
+    fun setCostTrendThreshold(threshold: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setCostTrendThreshold(threshold)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
             }
         }
     }

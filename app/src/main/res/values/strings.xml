@@ -118,6 +118,7 @@
     <string name="options_show_hide">Show/Hide</string>
     <string name="options_reset_background_settings">Reset to defaults</string>
     <string name="update_background_failed">Update background failed.</string>
+    <string name="update_settings_failed">Failed to update settings.</string>
     <string name="update_reports_settings_failed">Cannot hide the last visible color.</string>
     <string name="options_use_custom_colors_reports">Use custom colors instead of Material</string>
 
@@ -147,7 +148,7 @@
     <string name="button_about" translatable="false">About</string>
     <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>
     <string name="about_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!</string>
-    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!\n\nSpend some effort to customize the app in the Options Section to select backgrounds, images and colors, then:\n1) add equipments\n2) add operations, then\n3) start to record your maintenances</string>
+    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!\n\nTo get the best experience, visit the Options Section to:\n\n• Setup Predictive Analytics &amp; Cost Thresholds\n• Define your Measurement Units\n• Personalize with Images, Colors and Backgrounds\n• Sync with Google Calendar\n\nReady? Add your equipments and operations to start recording!</string>
     <string name="dismiss_next_time">Don\'t show again</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Background Customization</string>
@@ -222,6 +223,19 @@
     <string name="sync_to_calendar">Sync to Google Calendar</string>
     <string name="calendar_no_account">No Google Account linked. Tap to link in Options.</string>
     <string name="predictive_maintenance_settings">Predictive Maintenance Settings</string>
+    <string name="options_predictive_desc">Global defaults for maintenance trend and forecasting</string>
+    <string name="options_usage_window_title">Default Trend Analysis Window</string>
+    <string name="options_usage_window_desc">Used to calculate the average usage rate from recent history.</string>
+    <string name="options_visibility_horizon_title">Default Event Horizon</string>
+    <string name="options_visibility_horizon_desc">Defines how far into the future predicted activities are shown.</string>
+    <string name="options_cost_window_title">Cost Growth Analysis Window</string>
+    <string name="options_cost_window_desc">History period used to analyze cost increases.</string>
+    <string name="options_cost_trend_threshold">Cost Trend Threshold</string>
+    <string name="options_cost_trend_threshold_desc">Percentage increase in cost that triggers an efficiency warning.</string>
+    <string name="options_section_general">General</string>
+    <string name="options_section_appearance">Behaviour and appearance</string>
+    <string name="options_section_system">System</string>
+    <string name="options_reports_colors_title">Reports colors</string>
     <string name="usage_trend_window">Usage Trend Window (days)</string>
     <string name="manual_average_usage">Manual Average Usage (optional)</string>
     <string name="due_date">Due Date</string>

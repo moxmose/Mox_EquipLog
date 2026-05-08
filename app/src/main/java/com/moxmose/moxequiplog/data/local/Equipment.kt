@@ -6,11 +6,6 @@ import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
-@Serializable
-enum class TimeGranularity {
-    MINUTES_5, MINUTES_15, HOURS, DAYS, WEEKS, MONTHS, YEARS
-}
-
 @Entity(
     tableName = "equipments",
     foreignKeys = [

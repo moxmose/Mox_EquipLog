@@ -63,6 +63,7 @@ class MaintenanceLogScreenTest {
                 onRefreshReminders = {},
                 onEstimateDueDate = { _, _ -> null },
                 onEstimateTargetValue = { _, _ -> null },
+                onGetOperationCostStats = { _ -> null to null },
                 expandedCardId = null,
                 onCardExpanded = {},
                 editingCardId = null,
@@ -81,6 +82,7 @@ class MaintenanceLogScreenTest {
                 onDeleteReminder = {},
                 syncCalendarByDefault = false,
                 googleAccountName = null,
+                costTrendThreshold = 0.05f,
                 onNavigateToOptions = {}
             )
         }
@@ -114,6 +116,7 @@ class MaintenanceLogScreenTest {
                 onRefreshReminders = {},
                 onEstimateDueDate = { _, _ -> null },
                 onEstimateTargetValue = { _, _ -> null },
+                onGetOperationCostStats = { _ -> null to null },
                 expandedCardId = null,
                 onCardExpanded = {},
                 editingCardId = null,
@@ -132,6 +135,7 @@ class MaintenanceLogScreenTest {
                 onDeleteReminder = {},
                 syncCalendarByDefault = false,
                 googleAccountName = null,
+                costTrendThreshold = 0.05f,
                 onNavigateToOptions = {}
             )
         }
@@ -208,8 +212,10 @@ class MaintenanceLogScreenTest {
                 onDelete = {},
                 onDismiss = {}, 
                 onRestore = {},
+                onGetOperationCostStats = { _ -> null to null },
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                costTrendThreshold = 0.05f
             )
         }
 
@@ -247,8 +253,10 @@ class MaintenanceLogScreenTest {
                 onDelete = {},
                 onDismiss = {}, 
                 onRestore = {},
+                onGetOperationCostStats = { _ -> null to null },
                 equipmentCategoryColor = null,
-                operationCategoryColor = null
+                operationCategoryColor = null,
+                costTrendThreshold = 0.05f
             )
         }
 

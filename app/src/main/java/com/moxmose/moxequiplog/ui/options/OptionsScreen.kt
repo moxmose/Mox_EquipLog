@@ -14,7 +14,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -75,6 +88,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val globalVisibilityHorizonUnit by viewModel.globalVisibilityHorizonUnit.collectAsState()
     val costAnalysisWindowValue by viewModel.costAnalysisWindowValue.collectAsState()
     val costAnalysisWindowUnit by viewModel.costAnalysisWindowUnit.collectAsState()
+    val costTrendThreshold by viewModel.costTrendThreshold.collectAsState()
 
     val reportsColorMode by viewModel.reportsColorMode.collectAsState()
 
@@ -120,6 +134,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ToggleUnitVisibilityFailed -> context.getString(R.string.toggle_unit_visibility_failed)
                 is OptionsViewModel.OptionsUiEvent.SetDefaultFailed -> context.getString(R.string.set_default_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateReportsSettingsFailed -> context.getString(R.string.update_reports_settings_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateSettingsFailed -> context.getString(R.string.update_settings_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateGoogleAccountFailed -> context.getString(R.string.update_google_account_failed)
                 is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
@@ -199,6 +214,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         costAnalysisWindowValue = costAnalysisWindowValue,
         costAnalysisWindowUnit = costAnalysisWindowUnit,
         onSetCostAnalysisWindow = viewModel::setCostAnalysisWindow,
+        costTrendThreshold = costTrendThreshold,
+        onSetCostTrendThreshold = viewModel::setCostTrendThreshold,
         onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues
     )
 
@@ -228,6 +245,19 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
             onToggleVisibility = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.toggleReportColorVisibility(it) else viewModel.toggleColorVisibility(it) }
         )
     }
+}
+
+@Composable
+private fun OptionsGroupHeader(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, end = 4.dp, top = 16.dp, bottom = 8.dp),
+        fontWeight = FontWeight.Bold
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
@@ -292,6 +322,8 @@ fun OptionsScreenContent(
     costAnalysisWindowValue: Int,
     costAnalysisWindowUnit: String,
     onSetCostAnalysisWindow: (Int, String) -> Unit,
+    costTrendThreshold: Float,
+    onSetCostTrendThreshold: (Float) -> Unit,
     onRecalculateAccumulated: () -> Unit = {},
     showBackgroundPicker: Boolean = false,
     onShowBackgroundPickerChange: (Boolean) -> Unit = {},
@@ -443,6 +475,95 @@ fun OptionsScreenContent(
                 textAlign = TextAlign.Center
             )
 
+            // --- SECTION: GENERAL ---
+            OptionsGroupHeader(stringResource(R.string.options_section_general))
+
+            // 6. ANALYTICS & PREDICTION
+            OptionsSectionCard(
+                title = stringResource(R.string.predictive_maintenance_settings),
+                description = stringResource(R.string.options_predictive_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Trend Window
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.options_usage_window_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = globalUsageWindowValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalUsageWindow(it, globalUsageWindowUnit) } },
+                                label = { Text("Window") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(globalUsageWindowUnit),
+                                onSelected = { onSetGlobalUsageWindow(globalUsageWindowValue, it.name) },
+                                label = "Of last",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                        Text(text = stringResource(R.string.options_usage_window_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    // Visibility Horizon
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.options_visibility_horizon_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = globalVisibilityHorizonValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalVisibilityHorizon(it, globalVisibilityHorizonUnit) } },
+                                label = { Text("Horizon") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(globalVisibilityHorizonUnit),
+                                onSelected = { onSetGlobalVisibilityHorizon(globalVisibilityHorizonValue, it.name) },
+                                label = "Future span",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                        Text(text = stringResource(R.string.options_visibility_horizon_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    // Cost Window
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.options_cost_window_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = costAnalysisWindowValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetCostAnalysisWindow(it, costAnalysisWindowUnit) } },
+                                label = { Text("Window") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(costAnalysisWindowUnit),
+                                onSelected = { onSetCostAnalysisWindow(costAnalysisWindowValue, it.name) },
+                                label = "History span",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                        Text(text = stringResource(R.string.options_cost_window_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    // Cost Trend Threshold
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.options_cost_trend_threshold), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Text("${(costTrendThreshold * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+                        Slider(
+                            value = costTrendThreshold,
+                            onValueChange = onSetCostTrendThreshold,
+                            valueRange = 0f..0.5f,
+                            steps = 49 // Da 0% a 50% con step dell'1%
+                        )
+                        Text(text = stringResource(R.string.options_cost_trend_threshold_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
             // 1. PROFILO
             OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
                 OutlinedTextField(
@@ -459,79 +580,6 @@ fun OptionsScreenContent(
                         }
                     }
                 )
-            }
-
-            // 2. IMMAGINI
-            OptionsSectionCard(
-                title = stringResource(R.string.options_image_mgmt_title),
-                description = stringResource(R.string.options_image_mgmt_desc)
-            ) {
-                OutlinedButton(onClick = { onShowImageDialogChange(true) }, modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (allImages.isEmpty()) {
-                                Text(stringResource(R.string.options_empty_library))
-                            } else {
-                                allImages.filter { img -> !img.hidden }.distinctBy { img -> img.uri }.take(4).forEach { image ->
-                                    val allCategories = categoriesUiState.map { state -> state.category }
-                                    ImageSelector(
-                                        photoUri = if (image.imageType == "IMAGE") image.uri else null,
-                                        iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
-                                        onImageSelected = {_,_ ->},
-                                        modifier = Modifier.size(40.dp),
-                                        category = image.category,
-                                        categories = allCategories,
-                                        categoryColors = categoryColorsMap,
-                                        categoryDefaultIcons = categoryDefaultIconsMap,
-                                        categoryDefaultPhotos = categoryDefaultPhotosMap,
-                                        imageLibrary = allImages,
-                                        forcedCategory = Category.EQUIPMENT
-                                    )
-                                }
-                            }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_images), tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            }
-
-            // 3. COLORI
-            OptionsSectionCard(
-                title = stringResource(R.string.options_sections_colors_title),
-                description = stringResource(R.string.options_sections_colors_desc)
-            ) {
-                val sectionOrder = listOf(
-                    Category.LOGS, 
-                    Category.EQUIPMENT, 
-                    Category.OPERATION, 
-                    Category.REPORTS, 
-                    Category.OPTIONS
-                )
-                categoriesUiState
-                    .sortedBy { uiState -> 
-                        val index = sectionOrder.indexOf(uiState.category.id)
-                        if (index != -1) index else Int.MAX_VALUE
-                    }
-                    .forEach { uiState ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        ) {
-                            Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                            Spacer(Modifier.width(12.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(uiState.color.toColorInt()))
-                                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                    .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
-                            )
-                        }
-                    }
             }
 
             // 4. UNITÀ DI MISURA
@@ -570,109 +618,41 @@ fun OptionsScreenContent(
                 }
             }
 
-            // 5. REPORTS
+            // --- SECTION: BEHAVIOUR AND APPEARANCE ---
+            OptionsGroupHeader(stringResource(R.string.options_section_appearance))
+
+            // 2. IMMAGINI
             OptionsSectionCard(
-                title = stringResource(R.string.reports_title),
-                description = stringResource(R.string.report_equipments_desc)
+                title = stringResource(R.string.options_image_mgmt_title),
+                description = stringResource(R.string.options_image_mgmt_desc)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.options_use_custom_colors_reports), 
-                            modifier = Modifier.weight(1f), 
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Switch(
-                            checked = reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM,
-                            onCheckedChange = { 
-                                onSetReportsColorMode(if (it) UiConstants.REPORTS_COLOR_MODE_CUSTOM else UiConstants.REPORTS_COLOR_MODE_M3)
-                            }
-                        )
-                    }
-                    
-                    if (reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
-                        OutlinedButton(onClick = { onShowColorManager(ColorManagerMode.REPORTS_MANAGER, null) }, modifier = Modifier.fillMaxWidth()) {
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    reportsColors.filter { !it.reportHidden }.take(6).forEach { color ->
-                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
-                                    }
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                OutlinedButton(onClick = { onShowImageDialogChange(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (allImages.isEmpty()) {
+                                Text(stringResource(R.string.options_empty_library))
+                            } else {
+                                allImages.filter { img -> !img.hidden }.distinctBy { img -> img.uri }.take(4).forEach { image ->
+                                    val allCategories = categoriesUiState.map { state -> state.category }
+                                    ImageSelector(
+                                        photoUri = if (image.imageType == "IMAGE") image.uri else null,
+                                        iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
+                                        onImageSelected = {_,_ ->},
+                                        modifier = Modifier.size(40.dp),
+                                        category = image.category,
+                                        categories = allCategories,
+                                        categoryColors = categoryColorsMap,
+                                        categoryDefaultIcons = categoryDefaultIconsMap,
+                                        categoryDefaultPhotos = categoryDefaultPhotosMap,
+                                        imageLibrary = allImages,
+                                        forcedCategory = Category.EQUIPMENT
+                                    )
                                 }
                             }
                         }
-                    }
-                }
-            }
-
-            // 6. ANALYTICS & PREDICTION
-            OptionsSectionCard(
-                title = stringResource(R.string.predictive_maintenance_settings),
-                description = "Global defaults for maintenance trend and forecasting"
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Trend Window
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Default Trend Analysis Window", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = globalUsageWindowValue.toString(),
-                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalUsageWindow(it, globalUsageWindowUnit) } },
-                                label = { Text("Window") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                            TimeGranularitySelector(
-                                selected = TimeGranularity.valueOf(globalUsageWindowUnit),
-                                onSelected = { onSetGlobalUsageWindow(globalUsageWindowValue, it.name) },
-                                label = "Of last",
-                                modifier = Modifier.weight(1.2f)
-                            )
-                        }
-                    }
-
-                    // Visibility Horizon
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Default Event Horizon", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = globalVisibilityHorizonValue.toString(),
-                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalVisibilityHorizon(it, globalVisibilityHorizonUnit) } },
-                                label = { Text("Horizon") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                            TimeGranularitySelector(
-                                selected = TimeGranularity.valueOf(globalVisibilityHorizonUnit),
-                                onSelected = { onSetGlobalVisibilityHorizon(globalVisibilityHorizonValue, it.name) },
-                                label = "Future span",
-                                modifier = Modifier.weight(1.2f)
-                            )
-                        }
-                    }
-
-                    // Cost Window
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Cost Growth Analysis Window", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = costAnalysisWindowValue.toString(),
-                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetCostAnalysisWindow(it, costAnalysisWindowUnit) } },
-                                label = { Text("Window") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f)
-                            )
-                            TimeGranularitySelector(
-                                selected = TimeGranularity.valueOf(costAnalysisWindowUnit),
-                                onSelected = { onSetCostAnalysisWindow(costAnalysisWindowValue, it.name) },
-                                label = "History span",
-                                modifier = Modifier.weight(1.2f)
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_images), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -725,6 +705,85 @@ fun OptionsScreenContent(
                     }
                 }
             }
+
+            // 3. COLORI
+            OptionsSectionCard(
+                title = stringResource(R.string.options_sections_colors_title),
+                description = stringResource(R.string.options_sections_colors_desc)
+            ) {
+                val sectionOrder = listOf(
+                    Category.LOGS, 
+                    Category.EQUIPMENT, 
+                    Category.OPERATION, 
+                    Category.REPORTS, 
+                    Category.OPTIONS
+                )
+                categoriesUiState
+                    .sortedBy { uiState -> 
+                        val index = sectionOrder.indexOf(uiState.category.id)
+                        if (index != -1) index else Int.MAX_VALUE
+                    }
+                    .forEach { uiState ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                            Spacer(Modifier.width(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(uiState.color.toColorInt()))
+                                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                    .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
+                            )
+                        }
+                    }
+            }
+
+            // 5. REPORTS
+            OptionsSectionCard(
+                title = stringResource(R.string.options_reports_colors_title),
+                description = stringResource(R.string.report_equipments_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.options_use_custom_colors_reports), 
+                            modifier = Modifier.weight(1f), 
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Switch(
+                            checked = reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM,
+                            onCheckedChange = { 
+                                onSetReportsColorMode(if (it) UiConstants.REPORTS_COLOR_MODE_CUSTOM else UiConstants.REPORTS_COLOR_MODE_M3)
+                            }
+                        )
+                    }
+                    
+                    if (reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
+                        OutlinedButton(onClick = { onShowColorManager(ColorManagerMode.REPORTS_MANAGER, null) }, modifier = Modifier.fillMaxWidth()) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    reportsColors.filter { !it.reportHidden }.take(6).forEach { color ->
+                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- SECTION: SYSTEM ---
+            OptionsGroupHeader(stringResource(R.string.options_section_system))
 
             // 7. DATA MANAGEMENT
             OptionsSectionCard(

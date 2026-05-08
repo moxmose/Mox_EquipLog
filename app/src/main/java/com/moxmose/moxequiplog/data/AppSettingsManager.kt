@@ -71,6 +71,9 @@ class AppSettingsManager(
     val costAnalysisWindowUnit: Flow<String> = appPreferenceDao.getPreferenceFlow("cost_analysis_window_unit")
         .map { it ?: UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_UNIT }
 
+    val costTrendThreshold: Flow<Float> = appPreferenceDao.getPreferenceFlow("cost_trend_threshold")
+        .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_COST_TREND_THRESHOLD }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -177,5 +180,9 @@ class AppSettingsManager(
 
     suspend fun setCostAnalysisWindowUnit(unit: String) {
         appPreferenceDao.insertPreference(AppPreference("cost_analysis_window_unit", unit))
+    }
+
+    suspend fun setCostTrendThreshold(threshold: Float) {
+        appPreferenceDao.insertPreference(AppPreference("cost_trend_threshold", threshold.toString()))
     }
 }

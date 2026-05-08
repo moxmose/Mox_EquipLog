@@ -116,6 +116,7 @@
     <string name="options_show_hide">Mostra/Nascondi</string>
     <string name="options_reset_background_settings">Ripristina valori predefiniti</string>
     <string name="update_background_failed">Aggiornamento dello sfondo fallito.</string>
+    <string name="update_settings_failed">Aggiornamento delle impostazioni fallito.</string>
     <string name="update_reports_settings_failed">Impossibile nascondere l\'ultimo colore visibile.</string>
     <string name="options_use_custom_colors_reports">Usa colori personalizzati nei report</string>
 
@@ -145,7 +146,7 @@
     <string name="button_about" translatable="false">Informazioni</string>
     <string name="about_dialog_title" translatable="false">Informazioni su Mox EquipLog</string>
     <string name="about_dialog_content">Questa app aiuta a tracciare registrazioni di manutenzione per i vostri mezzi. Mantienili in forma perfetta!</string>
-    <string name="welcome_dialog_content">Questa app aiuta a tracciare le manutenzioni dei tuoi mezzi. Mantienili in perfetta forma!\n\nPrenditi un momento per personalizzare l\'app nella sezione Opzioni per scegliere sfondi, immagini e colori, quindi:\n1) aggiungi i mezzi\n2) aggiungi le attività, poi\n3) inizia a registrare le tue manutenzioni</string>
+    <string name="welcome_dialog_content">Questa app ti aiuta a tracciare le manutenzioni dei tuoi mezzi. Mantienili in forma perfetta!\n\nPer un\u0027esperienza ottimale, visita la sezione Opzioni per:\n\n• Configurare Analisi Predittiva e Soglie di Costo\n• Definire le tue Unità di Misura\n• Personalizzare Immagini, Colori e Sfondi\n• Sincronizzare con Google Calendar\n\nPronto? Aggiungi i tuoi mezzi e le attività per iniziare a registrare!</string>
     <string name="dismiss_next_time">Non mostrare più</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Personalizzazione Sfondo</string>
@@ -220,6 +221,19 @@
     <string name="sync_to_calendar">Sincronizza con Google Calendar</string>
     <string name="calendar_no_account">Nessun account Google collegato. Tocca per collegarlo nelle Opzioni.</string>
     <string name="predictive_maintenance_settings">Impostazioni Manutenzione Predittiva</string>
+    <string name="options_predictive_desc">Valori predefiniti globali per i trend e le previsioni di manutenzione.</string>
+    <string name="options_usage_window_title">Finestra Trend Utilizzo Predefinita</string>
+    <string name="options_usage_window_desc">Utilizzato per calcolare il tasso di utilizzo medio dalla cronologia recente.</string>
+    <string name="options_visibility_horizon_title">Orizzonte Eventi Predefinito</string>
+    <string name="options_visibility_horizon_desc">Definisce quanto in là nel futuro vengono mostrate le attività previste.</string>
+    <string name="options_cost_window_title">Finestra Analisi Crescita Costi</string>
+    <string name="options_cost_window_desc">Periodo storico utilizzato per analizzare gli incrementi di costo.</string>
+    <string name="options_cost_trend_threshold">Soglia Trend Costi</string>
+    <string name="options_cost_trend_threshold_desc">Percentuale di incremento del costo che attiva un avviso di efficienza.</string>
+    <string name="options_section_general">Generale</string>
+    <string name="options_section_appearance">Comportamento e Aspetto</string>
+    <string name="options_section_system">Sistema</string>
+    <string name="options_reports_colors_title">Colori Report</string>
     <string name="usage_trend_window">Finestra trend di utilizzo (giorni)</string>
     <string name="manual_average_usage">Media utilizzo manuale (opzionale)</string>
     <string name="due_date">Data di scadenza</string>

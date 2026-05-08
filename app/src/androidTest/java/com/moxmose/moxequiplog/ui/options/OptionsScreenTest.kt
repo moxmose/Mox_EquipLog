@@ -1,6 +1,5 @@
 package com.moxmose.moxequiplog.ui.options
 
-import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.*
@@ -89,7 +88,9 @@ class OptionsScreenTest {
                 costAnalysisWindowValue = 12,
                 costAnalysisWindowUnit = "MONTHS",
                 onSetCostAnalysisWindow = { _, _ -> },
-                onRecalculateAccumulated = {}
+                costTrendThreshold = 0.05f,
+                onSetCostTrendThreshold = {},
+                onRecalculateAccumulated = {},
             )
         }
 
@@ -161,7 +162,9 @@ class OptionsScreenTest {
                 costAnalysisWindowValue = 12,
                 costAnalysisWindowUnit = "MONTHS",
                 onSetCostAnalysisWindow = { _, _ -> },
-                onRecalculateAccumulated = {}
+                costTrendThreshold = 0.05f,
+                onSetCostTrendThreshold = {},
+                onRecalculateAccumulated = {},
             )
         }
 
@@ -240,7 +243,9 @@ class OptionsScreenTest {
                 costAnalysisWindowValue = 12,
                 costAnalysisWindowUnit = "MONTHS",
                 onSetCostAnalysisWindow = { _, _ -> },
-                onRecalculateAccumulated = {}
+                costTrendThreshold = 0.05f,
+                onSetCostTrendThreshold = {},
+                onRecalculateAccumulated = {},
             )
         }
 
@@ -317,7 +322,9 @@ class OptionsScreenTest {
                 costAnalysisWindowValue = 12,
                 costAnalysisWindowUnit = "MONTHS",
                 onSetCostAnalysisWindow = { _, _ -> },
-                onRecalculateAccumulated = {}
+                costTrendThreshold = 0.05f,
+                onSetCostTrendThreshold = {},
+                onRecalculateAccumulated = {},
             )
         }
 

@@ -21,18 +21,25 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingFlat
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,14 +66,6 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.utils.AppConstants
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.TrendingUp
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -95,6 +94,7 @@ fun MaintenanceLogScreen(
     val googleAccountName by viewModel.googleAccountName.collectAsState()
     val allEquipments by viewModel.allEquipments.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
+    val costTrendThreshold by viewModel.costTrendThreshold.collectAsState()
     
     val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
     val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
@@ -157,6 +157,7 @@ fun MaintenanceLogScreen(
             operationCategoryColor = operationColor,
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
+            costTrendThreshold = costTrendThreshold,
             onNavigateToOptions = onNavigateToOptions
         )
     }
@@ -191,6 +192,7 @@ fun MaintenanceLogScreen(
             operationCategoryColor = operationColor,
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
+            costTrendThreshold = costTrendThreshold,
             onNavigateToOptions = onNavigateToOptions
         )
     }
@@ -235,6 +237,7 @@ fun MaintenanceLogScreen(
         onDeleteReminder = viewModel::deleteReminder,
         syncCalendarByDefault = syncCalendarByDefault,
         googleAccountName = googleAccountName,
+        costTrendThreshold = costTrendThreshold,
         onNavigateToOptions = onNavigateToOptions
     )
 }
@@ -247,7 +250,8 @@ fun RemindersDashboard(
     operationCategoryColor: String?,
     onComplete: (MaintenanceReminderDetails) -> Unit,
     onEdit: (MaintenanceReminderDetails) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    costTrendThreshold: Float
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     
@@ -324,7 +328,8 @@ fun RemindersDashboard(
                             eColor = eColor,
                             oColor = oColor,
                             onComplete = { onComplete(reminderDetails) },
-                            onEdit = { onEdit(reminderDetails) }
+                            onEdit = { onEdit(reminderDetails) },
+                            costTrendThreshold = costTrendThreshold
                         )
                     }
                     Spacer(modifier = Modifier.padding(bottom = 4.dp))
@@ -341,7 +346,8 @@ fun ReminderItem(
     eColor: Color,
     oColor: Color,
     onComplete: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    costTrendThreshold: Float
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val unit = measurementUnits.find { it.id == details.unitId }
@@ -478,8 +484,8 @@ fun ReminderItem(
                         details.averageCost?.let { avg ->
                             Spacer(Modifier.width(4.dp))
                             val (icon, color) = when {
-                                estimatedCost > avg * 1.05 -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
-                                estimatedCost < avg * 0.95 -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                estimatedCost > avg * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                estimatedCost < avg * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
                                 else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
                             }
                             Icon(
@@ -548,6 +554,7 @@ fun MaintenanceLogScreenContent(
     onDeleteReminder: (MaintenanceReminderDetails) -> Unit,
     syncCalendarByDefault: Boolean,
     googleAccountName: String?,
+    costTrendThreshold: Float,
     onNavigateToOptions: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
@@ -606,6 +613,7 @@ fun MaintenanceLogScreenContent(
                 operationCategoryColor = operationCategoryColor,
                 syncCalendarByDefault = syncCalendarByDefault,
                 googleAccountName = googleAccountName,
+                costTrendThreshold = costTrendThreshold,
                 onNavigateToOptions = onNavigateToOptions
             )
         }
@@ -618,7 +626,8 @@ fun MaintenanceLogScreenContent(
                 operationCategoryColor = operationCategoryColor,
                 onComplete = onCompleteReminder,
                 onEdit = onEditReminder,
-                onRefresh = onRefreshReminders
+                onRefresh = onRefreshReminders,
+                costTrendThreshold = costTrendThreshold
             )
             Row(
                 modifier = Modifier
@@ -694,7 +703,8 @@ fun MaintenanceLogScreenContent(
                         onRestore = { onRestoreLog(logDetail.log) },
                         onGetOperationCostStats = onGetOperationCostStats,
                         equipmentCategoryColor = equipmentCategoryColor,
-                        operationCategoryColor = operationCategoryColor
+                        operationCategoryColor = operationCategoryColor,
+                        costTrendThreshold = costTrendThreshold
                     )
                 }
             }
@@ -730,6 +740,7 @@ fun MaintenanceLogDialog(
     operationCategoryColor: String?,
     syncCalendarByDefault: Boolean = false,
     googleAccountName: String? = null,
+    costTrendThreshold: Float = UiConstants.DEFAULT_COST_TREND_THRESHOLD,
     onNavigateToOptions: () -> Unit = {}
 ) {
     val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
@@ -1112,8 +1123,8 @@ fun MaintenanceLogDialog(
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     val (icon, color) = when {
-                                        lastCost!! > avgCost!! * 1.05 -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
-                                        lastCost!! < avgCost!! * 0.95 -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                        lastCost!! > avgCost!! * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                        lastCost!! < avgCost!! * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
                                         else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
                                     }
                                     Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
@@ -1319,7 +1330,8 @@ fun MaintenanceLogCard(
     onGetOperationCostStats: suspend (Int) -> Pair<Double?, Double?>,
     modifier: Modifier = Modifier,
     equipmentCategoryColor: String?,
-    operationCategoryColor: String?
+    operationCategoryColor: String?,
+    costTrendThreshold: Float
 ) {
     var editedNotes by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.notes ?: "") }
     var editedValueStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.value?.toString() ?: "") }
@@ -1659,8 +1671,8 @@ fun MaintenanceLogCard(
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     val (icon, color) = when {
-                                        lastCost!! > avgCost!! * 1.05 -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
-                                        lastCost!! < avgCost!! * 0.95 -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                        lastCost!! > avgCost!! * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                        lastCost!! < avgCost!! * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
                                         else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
                                     }
                                     Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
