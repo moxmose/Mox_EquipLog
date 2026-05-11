@@ -201,6 +201,7 @@ fun OperationTypeScreen(
             initialDate = if ((status.nextPresumedDate ?: 0L) > System.currentTimeMillis()) status.nextPresumedDate!! else System.currentTimeMillis(),
             initialValue = if (status.isPlanned) status.plannedValue?.toString() ?: "" else "", 
             isEditMode = status.isPlanned,
+            initialTab = 1, // Start on "Planned" for predictions
             equipmentCategoryColor = categoryColorsMap[Category.EQUIPMENT],
             operationCategoryColor = categoryColor,
             syncCalendarByDefault = syncCalendarByDefault,

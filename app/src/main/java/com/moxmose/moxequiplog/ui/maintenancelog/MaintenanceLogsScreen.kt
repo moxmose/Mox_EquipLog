@@ -798,12 +798,15 @@ fun MaintenanceLogDialog(
     syncCalendarByDefault: Boolean = false,
     googleAccountName: String? = null,
     costTrendThreshold: Float = UiConstants.DEFAULT_COST_TREND_THRESHOLD,
+    initialTab: Int? = null,
     onNavigateToOptions: () -> Unit = {}
 ) {
     val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
-    var selectedTab by remember(isEditMode) { mutableIntStateOf(if (isEditMode) 1 else 0) } // 0: Completed, 1: Planned
+    var selectedTab by remember(isEditMode, initialTab) { 
+        mutableIntStateOf(initialTab ?: if (isEditMode) 1 else 0) 
+    } // 0: Completed, 1: Planned
     var notes by remember { mutableStateOf("") }
     var valueStr by remember { mutableStateOf(initialValue) }
     var costStr by remember { mutableStateOf(initialCost) }
@@ -1094,6 +1097,7 @@ fun MaintenanceLogDialog(
                                     isOperationDropdownExpanded = false
                                     if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
                                         resetAfter = true
+                                        valueStr = "0"
                                     }
                                 }
                             )
@@ -1119,6 +1123,7 @@ fun MaintenanceLogDialog(
                         }
                     },
                     label = { Text(if (selectedTab == 0) stringResource(R.string.value_optional, unitLabel) else stringResource(R.string.target_value, unitLabel)) },
+                    readOnly = selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     trailingIcon = {
@@ -1148,13 +1153,19 @@ fun MaintenanceLogDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = isResettable) { resetAfter = !resetAfter },
+                            .clickable(enabled = isResettable && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) { 
+                                resetAfter = !resetAfter
+                                if (resetAfter) valueStr = "0"
+                            },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = resetAfter && isResettable,
-                            onCheckedChange = { resetAfter = it },
-                            enabled = isResettable
+                            onCheckedChange = { 
+                                resetAfter = it 
+                                if (it) valueStr = "0"
+                            },
+                            enabled = isResettable && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID
                         )
                         Text(
                             text = stringResource(R.string.reset_counter_after),

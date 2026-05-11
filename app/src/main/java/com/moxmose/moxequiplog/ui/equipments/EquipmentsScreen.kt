@@ -201,6 +201,7 @@ fun EquipmentsScreen(
             defaultOperationTypeId = opStatus.operation.id,
             initialDate = if ((opStatus.nextPresumedDate ?: 0L) > System.currentTimeMillis()) opStatus.nextPresumedDate!! else System.currentTimeMillis(),
             initialValue = equipmentStatuses[eqId]?.health?.estimatedCurrentValue?.let { String.format(Locale.US, "%.${measurementUnits.find { it.id == activeEquipments.find { e -> e.id == eqId }?.unitId }?.decimalPlaces ?: 0}f", it) } ?: "",
+            initialTab = 1, // Start on "Planned" for predictions
             equipmentCategoryColor = categoryColor,
             operationCategoryColor = categoryColorsMap[Category.OPERATION],
             syncCalendarByDefault = syncCalendarByDefault,
@@ -958,10 +959,13 @@ fun EquipmentCard(
                             }
                             if (status != null) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    status.health.lastRecordedValue?.let { valStr ->
+                                    val displayValue = status.health.currentSessionValue ?: status.health.lastRecordedValue
+                                    displayValue?.let { valStr ->
                                         Text(text = "Last: ${String.format(Locale.US, "%.${decimalPlaces}f", valStr)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    status.health.estimatedCurrentValue?.let { estStr ->
+                                    
+                                    val displayEstimated = status.health.currentSessionEstimated ?: status.health.estimatedCurrentValue
+                                    displayEstimated?.let { estStr ->
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(text = "Now (est): ${String.format(Locale.US, "%.${decimalPlaces}f", estStr)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = equipmentColor, fontWeight = FontWeight.Bold)
                                     }

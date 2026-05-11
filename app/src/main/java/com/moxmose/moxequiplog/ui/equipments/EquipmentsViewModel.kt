@@ -47,7 +47,9 @@ data class OperationStatus(
 data class EquipmentHealth(
     val lastRecordedValue: Double?,
     val lastRecordedDate: Long?,
-    val estimatedCurrentValue: Double?
+    val estimatedCurrentValue: Double?,
+    val currentSessionValue: Double? = null,
+    val currentSessionEstimated: Double? = null
 )
 
 data class EquipmentStatus(
@@ -143,7 +145,18 @@ class EquipmentsViewModel(
         val health = if (lastValueLog != null) {
             val daysSince = (now - lastValueLog.date).toDouble() / AppConstants.MS_PER_DAY
             val estimatedCurrent = if (trend != null) (lastValueLog.value ?: 0.0) + (daysSince * trend) else null
-            EquipmentHealth(lastValueLog.value, lastValueLog.date, estimatedCurrent)
+            
+            // Gestione sessione (reset UdM)
+            val sessionValue = if (lastValueLog.resetAfter) 0.0 else lastValueLog.value
+            val sessionEstimated = if (sessionValue != null && trend != null) sessionValue + (daysSince * trend) else sessionValue
+
+            EquipmentHealth(
+                lastRecordedValue = lastValueLog.value,
+                lastRecordedDate = lastValueLog.date,
+                estimatedCurrentValue = estimatedCurrent,
+                currentSessionValue = sessionValue,
+                currentSessionEstimated = sessionEstimated
+            )
         } else {
             EquipmentHealth(null, null, null)
         }
