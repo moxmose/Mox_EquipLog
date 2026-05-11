@@ -354,8 +354,8 @@
 
     <!-- Google Calendar -->
     <string name="calendar_event_title">#MOX-EL Manutenzione: %1$s - %2$s</string>
-    <string name="calendar_event_description">Promemoria manutenzione da Mox EquipLog</string>
-    <string name="calendar_event_description_updated">Promemoria manutenzione da Mox EquipLog (aggiornato)</string>
+    <string name="calendar_event_description">Promemoria manutenzione da Mox EquipLog.\nPer gestire questo evento, usa l\'app.</string>
+    <string name="calendar_event_description_updated">Promemoria manutenzione da Mox EquipLog (aggiornato).\nPer gestire questo evento, usa l\'app.</string>
 
     <!-- Errori Backup e Ripristino -->
     <string name="backup_error_db_not_found">File del database non trovato</string>

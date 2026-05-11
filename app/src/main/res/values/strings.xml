@@ -152,8 +152,8 @@
     <string name="about_developer_label">Developed by: %1$s</string>
     <string name="about_license_label">License: %1$s</string>
     <string name="about_github_label">GitHub Repository</string>
-    <string name="about_github_url" translatable="false">https://github.com/MoxMose/Mox_EquipLogs</string>
-    <string name="about_developer_value" translatable="false">Mox (moxmose)</string>
+    <string name="about_github_url" translatable="false">https://github.com/MoxMose/Mox_EquipLog</string>
+    <string name="about_developer_value" translatable="false">Mosè Pittau (Mox)</string>
     <string name="about_license_value" translatable="false">Apache License 2.0</string>
     <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!\n\nTo get the best experience, visit the Options Section to:\n\n• Setup Predictive Analytics &amp; Cost Thresholds\n• Define your Measurement Units\n• Personalize with Images, Colors and Backgrounds\n• Sync with Google Calendar\n\nReady? Add your equipments and operations to start recording!</string>
     <string name="dismiss_next_time">Don\'t show again</string>
@@ -359,8 +359,8 @@
 
     <!-- Google Calendar -->
     <string name="calendar_event_title">#MOX-EL Maintenance: %1$s - %2$s</string>
-    <string name="calendar_event_description">Maintenance reminder from Mox EquipLog</string>
-    <string name="calendar_event_description_updated">Maintenance reminder from Mox EquipLog (updated)</string>
+    <string name="calendar_event_description">Maintenance reminder from Mox EquipLog.\nTo manage this event, use the app.</string>
+    <string name="calendar_event_description_updated">Maintenance reminder from Mox EquipLog (updated).\nTo manage this event, use the app.</string>
 
     <!-- Backup & Restore Errors -->
     <string name="backup_error_db_not_found">Database file not found</string>
