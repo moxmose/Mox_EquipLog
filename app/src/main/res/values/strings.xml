@@ -358,7 +358,7 @@
     <string name="csv_export_percentage_header">Percentage</string>
 
     <!-- Google Calendar -->
-    <string name="calendar_event_title">Maintenance: %1$s - %2$s</string>
+    <string name="calendar_event_title">#MOX-EL Maintenance: %1$s - %2$s</string>
     <string name="calendar_event_description">Maintenance reminder from Mox EquipLog</string>
     <string name="calendar_event_description_updated">Maintenance reminder from Mox EquipLog (updated)</string>
 

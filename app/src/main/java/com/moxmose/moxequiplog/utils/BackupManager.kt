@@ -80,7 +80,8 @@ class BackupManager(private val context: Context, private val database: AppDatab
             val tables = listOf(
                 "equipments", "operation_types", "maintenance_logs",
                 "images", "categories", "app_colors",
-                "app_preferences", "measurement_units", "report_filters"
+                "app_preferences", "measurement_units", "report_filters",
+                "maintenance_reminders"
             )
 
             tables.forEach { tableName ->
