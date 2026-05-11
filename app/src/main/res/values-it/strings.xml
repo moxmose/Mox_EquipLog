@@ -357,6 +357,20 @@
     <string name="calendar_event_description">Promemoria manutenzione da Mox EquipLog.\nPer gestire questo evento, usa l\'app.</string>
     <string name="calendar_event_description_updated">Promemoria manutenzione da Mox EquipLog (aggiornato).\nPer gestire questo evento, usa l\'app.</string>
 
+    <!-- Image Selector -->
+    <string name="image_selector_delete_title">Elimina immagine</string>
+    <string name="image_selector_delete_confirm">Eliminare definitivamente dalla libreria di \'%1$s\'?</string>
+    <string name="image_selector_attention_used">ATTENZIONE: In uso!</string>
+    <string name="image_selector_app_background">Sfondo App</string>
+    <string name="image_selector_library_mgmt">Gestione Libreria</string>
+    <string name="image_selector_select_image">Seleziona Immagine</string>
+    <string name="image_selector_all_categories">Tutte le categorie</string>
+    <string name="image_selector_filter_category">Filtra per Categoria</string>
+    <string name="image_selector_import">Importa</string>
+    <string name="image_selector_tap_to_select">Tocca per selezionare.</string>
+    <string name="image_selector_nothing">Nessuna</string>
+    <string name="image_selector_close">Chiudi</string>
+
     <!-- Errori Backup e Ripristino -->
     <string name="backup_error_db_not_found">File del database non trovato</string>
     <string name="backup_error_no_output_stream">Impossibile aprire lo stream di output</string>

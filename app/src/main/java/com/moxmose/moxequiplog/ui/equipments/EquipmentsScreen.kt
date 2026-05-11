@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -1158,7 +1159,7 @@ fun EquipmentCard(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                     Icon(
-                                        imageVector = if (opStatus.isOverdue || hasInconsistency) Icons.Default.Warning else if (opStatus.isPlanned) Icons.AutoMirrored.Filled.EventNote else Icons.Default.Schedule,
+                                        imageVector = if (opStatus.isOverdue) Icons.Default.PriorityHigh else if (hasInconsistency) Icons.Default.Warning else if (opStatus.isPlanned) Icons.AutoMirrored.Filled.EventNote else Icons.Default.Schedule,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
                                         tint = if (opStatus.isOverdue) MaterialTheme.colorScheme.error 
@@ -1196,7 +1197,8 @@ fun EquipmentCard(
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = opStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never",
+                                        text = (if (opStatus.isOverdue) stringResource(R.string.reminder_overdue) + " - " else "") +
+                                               (opStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never"),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (opStatus.isOverdue) MaterialTheme.colorScheme.error 
                                                 else if (hasInconsistency) Color(0xFFFF9800)

@@ -2,6 +2,8 @@ package com.moxmose.moxequiplog.ui.maintenancelog
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -396,10 +398,10 @@ fun ReminderItem(
 
     val fixedDate = details.reminder.dueDate
     val presumedDate = details.reminder.presumedDate
-    val effectiveDate = fixedDate ?: presumedDate ?: System.currentTimeMillis()
+    val effectiveDate = fixedDate ?: presumedDate
 
     val isOverdue = remember(effectiveDate) {
-        effectiveDate < System.currentTimeMillis()
+        effectiveDate != null && effectiveDate < System.currentTimeMillis()
     }
     
     // Warning if presumed date is before fixed date
@@ -463,7 +465,8 @@ fun ReminderItem(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = stringResource(R.string.due_date_label, dateFormat.format(Date(fixedDate))),
+                            text = (if (isOverdue) stringResource(R.string.reminder_overdue) + " - " else "") + 
+                                   stringResource(R.string.due_date_label, dateFormat.format(Date(fixedDate))),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isOverdue) MaterialTheme.colorScheme.error else Color.Unspecified
                         )
@@ -472,20 +475,34 @@ fun ReminderItem(
                 
                 // Display PRESUMED Date (only if fixed date is missing or if it adds info)
                 if (presumedDate != null && (fixedDate == null || hasWarning)) {
+                    val presumedIsOverdue = presumedDate < System.currentTimeMillis()
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = if (hasWarning) Icons.Default.Warning else Icons.Default.AccessTime,
+                            imageVector = when {
+                                presumedIsOverdue -> Icons.Default.PriorityHigh
+                                hasWarning -> Icons.Default.Warning
+                                else -> Icons.Default.AccessTime
+                            },
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
-                            tint = if (hasWarning) Color(0xFFFF9800) else MaterialTheme.colorScheme.secondary
+                            tint = when {
+                                presumedIsOverdue -> MaterialTheme.colorScheme.error
+                                hasWarning -> Color(0xFFFF9800)
+                                else -> MaterialTheme.colorScheme.secondary
+                            }
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (fixedDate == null) 
-                                stringResource(R.string.estimated_date_prefix, dateFormat.format(Date(presumedDate))) 
-                                else stringResource(R.string.likely_needed_by_prefix, dateFormat.format(Date(presumedDate))),
+                            text = (if (presumedIsOverdue) stringResource(R.string.reminder_overdue) + " - " else "") +
+                                   (if (fixedDate == null) 
+                                       stringResource(R.string.estimated_date_prefix, dateFormat.format(Date(presumedDate))) 
+                                       else stringResource(R.string.likely_needed_by_prefix, dateFormat.format(Date(presumedDate)))),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (hasWarning) Color(0xFFFF9800) else MaterialTheme.colorScheme.secondary
+                            color = when {
+                                presumedIsOverdue -> MaterialTheme.colorScheme.error
+                                hasWarning -> Color(0xFFFF9800)
+                                else -> MaterialTheme.colorScheme.secondary
+                            }
                         )
                     }
                 }
@@ -954,7 +971,12 @@ fun MaintenanceLogDialog(
             ) 
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 if (onSchedule != null && !isEditMode) {
                     TabRow(selectedTabIndex = selectedTab) {
                         Tab(

@@ -32,6 +32,7 @@ class MaintenanceManager(
         val windowMs = getWindowMs(equipment.usageWindow.toLong(), equipment.usageWindowUnit)
         val sinceDate = System.currentTimeMillis() - windowMs
         
+        // Escludiamo i log con lo stesso timestamp per evitare divisioni per zero
         val logs = maintenanceLogDao.getLogsSince(equipment.id, sinceDate)
             .filter { it.value != null }
             .sortedBy { it.date }
@@ -47,15 +48,16 @@ class MaintenanceManager(
             val next = logs[i+1]
             
             val diff = next.accumulatedValue - current.accumulatedValue
-            if (diff >= 0) {
+            val timeDiff = next.date - current.date
+            if (diff >= 0 && timeDiff > 0) {
                 totalValueDiff += diff
-                totalTimeDiff += (next.date - current.date)
+                totalTimeDiff += timeDiff
             }
         }
 
         if (totalTimeDiff <= 0) return manualAvg
         
-        val calculatedAverage = (totalValueDiff / totalTimeDiff) * AppConstants.MS_PER_DAY
+        val calculatedAverage = (totalValueDiff.toDouble() / totalTimeDiff) * AppConstants.MS_PER_DAY
         
         return if (calculatedAverage > 0) calculatedAverage else manualAvg
     }
@@ -89,36 +91,32 @@ class MaintenanceManager(
         val trend = calculateTrend(equipmentId) ?: return null
         if (trend <= 0) return null
 
-        val lastLog = maintenanceLogDao.getLastLogBefore(equipmentId, Long.MAX_VALUE)
+        val lastLog = maintenanceLogDao.getLastValueLogForEquipment(equipmentId)
         val lastValue = lastLog?.value ?: 0.0
         val lastDate = lastLog?.date ?: System.currentTimeMillis()
-
-        if (targetValue <= lastValue) return null
 
         val remainingValue = targetValue - lastValue
         val daysRemaining = remainingValue / trend
         
-        val estimatedDate = lastDate + (daysRemaining * AppConstants.MS_PER_DAY).toLong()
-        return if (estimatedDate > System.currentTimeMillis()) estimatedDate else System.currentTimeMillis() + AppConstants.MS_PER_DAY
+        return lastDate + (daysRemaining * AppConstants.MS_PER_DAY).toLong()
     }
 
     suspend fun estimateTargetValue(equipmentId: Int, dueDate: Long): Double? {
         val trend = calculateTrend(equipmentId) ?: return null
 
-        val lastLog = maintenanceLogDao.getLastLogBefore(equipmentId, Long.MAX_VALUE)
+        val lastLog = maintenanceLogDao.getLastValueLogForEquipment(equipmentId)
         val lastValue = lastLog?.value ?: 0.0
         val lastDate = lastLog?.date ?: System.currentTimeMillis()
 
-        val referenceDate = if (dueDate > lastDate) lastDate else System.currentTimeMillis()
-        if (dueDate <= referenceDate) return lastValue
-
-        val timeDiff = dueDate - referenceDate
+        // Calcoliamo i giorni di differenza (positivi o negativi) rispetto all'ultima lettura
+        val timeDiff = dueDate - lastDate
         val days = timeDiff.toDouble() / AppConstants.MS_PER_DAY
 
         return lastValue + (days * trend)
     }
 
-    fun getOperationPrediction(
+    suspend fun getOperationPrediction(
+        equipmentId: Int,
         opType: OperationType,
         lastLog: MaintenanceLog,
         trend: Double?
@@ -141,10 +139,25 @@ class MaintenanceManager(
         }
 
         val usagePrediction = if (opType.intervalValue != null && trend != null && trend > 0) {
-            val lastAccumulated = lastLog.accumulatedValue
-            val targetAccumulated = lastAccumulated + opType.intervalValue
-            val daysToTarget = (targetAccumulated - lastAccumulated) / trend
-            (lastLog.date + (daysToTarget * AppConstants.MS_PER_DAY).toLong())
+            val lastValueLog = maintenanceLogDao.getLastValueLogForEquipment(equipmentId)
+            
+            // Il target si calcola sempre rispetto a quando è stata fatta l'ultima manutenzione specifica
+            // (lastLog è l'ultimo log di tipo opType.id per questo equipaggiamento)
+            val targetAccumulated = lastLog.accumulatedValue + opType.intervalValue
+            
+            // Il consumo attuale (accumulato) dell'equipaggiamento al momento dell'ultimo log di valore (fallout o altro)
+            val currentAccumulated = lastValueLog?.accumulatedValue ?: lastLog.accumulatedValue
+            
+            val remainingValue = targetAccumulated - currentAccumulated
+            
+            // Se siamo già oltre la soglia, la data stimata DEVE essere nel passato
+            // daysRemaining sarà negativo, portando la referenceDate all'indietro
+            val daysRemaining = remainingValue / trend
+            
+            // Data di riferimento: quando è stata rilevata l'ultima lettura km (es. 130km il 04/05)
+            val referenceDate = lastValueLog?.date ?: lastLog.date
+            
+            referenceDate + (daysRemaining * AppConstants.MS_PER_DAY).toLong()
         } else null
 
         return when {

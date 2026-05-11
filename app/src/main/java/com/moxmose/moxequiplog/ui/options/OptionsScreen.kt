@@ -424,7 +424,11 @@ fun OptionsScreenContent(
 
         BasicAlertDialog(onDismissRequest = { onShowAboutDialogChange(false) }) {
             Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
-                Column(modifier = Modifier.padding(24.dp)) {
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
                     Text(text = stringResource(R.string.about_dialog_title), style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(text = stringResource(R.string.about_dialog_content), style = MaterialTheme.typography.bodyMedium)

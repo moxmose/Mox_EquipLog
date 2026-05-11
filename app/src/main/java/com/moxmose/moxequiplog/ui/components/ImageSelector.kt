@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -58,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -165,7 +167,7 @@ fun ImageSelector(
                 else -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(imageVector = Icons.Default.NotInterested, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Nothing", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.image_selector_nothing), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -233,13 +235,13 @@ fun ImagePickerDialog(
 
         AlertDialog(
             onDismissRequest = { imageToDelete = null },
-            title = { Text("Elimina immagine") },
+            title = { Text(stringResource(R.string.image_selector_delete_title)) },
             text = {
                 Column {
-                    Text("Eliminare definitivamente dalla libreria di '$categoryName'?")
+                    Text(stringResource(R.string.image_selector_delete_confirm, categoryName))
                     if (isUsed) {
                         Spacer(Modifier.height(8.dp))
-                        Text("ATTENZIONE: In uso!", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.image_selector_attention_used), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                     }
                 }
             },
@@ -251,9 +253,9 @@ fun ImagePickerDialog(
                         imageToDelete = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text("Elimina") }
+                ) { Text(stringResource(R.string.button_delete)) }
             },
-            dismissButton = { TextButton(onClick = { imageToDelete = null }) { Text("Annulla") } }
+            dismissButton = { TextButton(onClick = { imageToDelete = null }) { Text(stringResource(R.string.button_cancel)) } }
         )
     }
 
@@ -261,13 +263,15 @@ fun ImagePickerDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
-                text = if (onlyPhotos) "Sfondo App" else if (isPrefsMode) "Gestione Libreria" else "Seleziona Immagine",
+                text = if (onlyPhotos) stringResource(R.string.image_selector_app_background) else if (isPrefsMode) stringResource(R.string.image_selector_library_mgmt) else stringResource(R.string.image_selector_select_image),
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth().height(550.dp)) {
+            val configuration = LocalConfiguration.current
+            val screenHeight = configuration.screenHeightDp.dp
+            Column(modifier = Modifier.fillMaxWidth().heightIn(max = screenHeight * 0.7f)) {
                 if (!onlyPhotos && (forcedCategory == null || isPrefsMode)) {
                     ExposedDropdownMenuBox(
                         expanded = dropdownExpanded,
@@ -275,10 +279,10 @@ fun ImagePickerDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedTextField(
-                            value = if (currentFilterCategory == "ALL") "Tutte le categorie" else categories.find { it.id == currentFilterCategory }?.name ?: currentFilterCategory,
+                            value = if (currentFilterCategory == "ALL") stringResource(R.string.image_selector_all_categories) else categories.find { it.id == currentFilterCategory }?.name ?: currentFilterCategory,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Filtra per Categoria") },
+                            label = { Text(stringResource(R.string.image_selector_filter_category)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
                             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
@@ -288,7 +292,7 @@ fun ImagePickerDialog(
                             onDismissRequest = { dropdownExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Tutte le categorie") },
+                                text = { Text(stringResource(R.string.image_selector_all_categories)) },
                                 onClick = { currentFilterCategory = "ALL"; dropdownExpanded = false }
                             )
                             filteredCategories.forEach { cat ->
@@ -309,7 +313,7 @@ fun ImagePickerDialog(
                     ) {
                         Icon(Icons.Default.AddAPhoto, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Importa")
+                        Text(stringResource(R.string.image_selector_import))
                     }
 
                     if (!onlyPhotos) {
@@ -351,7 +355,7 @@ fun ImagePickerDialog(
                                 onlyPhotos -> stringResource(R.string.options_info_background_select)
                                 isMixedMode && isPrefsMode -> stringResource(R.string.options_info_select_category_to_reorder)
                                 isPrefsMode && canDrag -> stringResource(R.string.options_info_drag_reorder)
-                                else -> "Tocca per selezionare."
+                                else -> stringResource(R.string.image_selector_tap_to_select)
                             })
                             if (isPrefsMode && !onlyPhotos) {
                                 append("\n")
@@ -385,6 +389,7 @@ fun ImagePickerDialog(
                         }
                     },
                     canDrag = canDrag,
+                    modifier = Modifier.weight(1f),
                     key = { _, m -> "${m.category}:${m.uri}" },
                     itemContent = { image ->
                         val uriKey = image.uri.removePrefix("icon:")
@@ -457,7 +462,7 @@ fun ImagePickerDialog(
                 )
             }
         },
-        confirmButton = { TextButton(onClick = onDismissRequest) { Text("Chiudi") } }
+        confirmButton = { TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.image_selector_close)) } }
     )
 }
 
@@ -498,7 +503,7 @@ fun ImageGridItem(
                 if (uriKey == "none") {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.NotInterested, null, modifier = Modifier.size(24.dp), tint = if (isHidden) MaterialTheme.colorScheme.onSurface.copy(0.3f) else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Nothing", style = MaterialTheme.typography.labelSmall, color = if (isHidden) MaterialTheme.colorScheme.onSurface.copy(0.3f) else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.image_selector_nothing), style = MaterialTheme.typography.labelSmall, color = if (isHidden) MaterialTheme.colorScheme.onSurface.copy(0.3f) else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     Icon(

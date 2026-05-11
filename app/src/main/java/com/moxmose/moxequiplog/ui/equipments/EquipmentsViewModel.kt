@@ -157,7 +157,7 @@ class EquipmentsViewModel(
             .filter { it.isPredictable && !it.dismissed }
             .mapNotNull { opType ->
                 val lastLogForOp = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
-                val nextPresumedDate = if (lastLogForOp != null) maintenanceManager.getOperationPrediction(opType, lastLogForOp, trend) else null
+                val nextPresumedDate = if (lastLogForOp != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend) else null
                 
                 val prediction = nextPresumedDate?.let {
                     OperationStatus(
@@ -170,14 +170,14 @@ class EquipmentsViewModel(
                     )
                 }
                 
-                // Check if there's a manual reminder (Planned)
-                val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
-                
                 // Effective horizon check for operation (might have its own custom horizon)
                 val opHorizonValue = if (opType.useCustomVisibilityHorizon) opType.visibilityHorizon else globalVisibilityHorizonValue.value
                 val opHorizonUnit = if (opType.useCustomVisibilityHorizon) opType.visibilityHorizonUnit else globalVisibilityHorizonUnit.value
                 val opHorizonMs = getHorizonMs(opHorizonValue.toLong(), opHorizonUnit)
                 val opHorizonLimit = now + opHorizonMs
+
+                // Check if there's a manual reminder (Planned)
+                val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
                 
                 if (manualReminder != null) {
                     val effectiveDate = manualReminder.dueDate ?: manualReminder.presumedDate
@@ -195,12 +195,13 @@ class EquipmentsViewModel(
                             plannedValue = manualReminder.dueValue,
                             predictedDate = prediction?.nextPresumedDate
                         )
-                    } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= opHorizonLimit))) {
-                        // Planned is far, but prediction is near/overdue -> show prediction as a warning
+                    } else if (prediction != null) {
+                        // Se la manutenzione pianificata è lontana ma la predizione dice che serve ora,
+                        // mostriamo la predizione (che sarà rossa perché scaduta)
                         return@mapNotNull prediction
                     }
-                } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= opHorizonLimit))) {
-                    // No manual reminder, show prediction if near/overdue
+                } else if (prediction != null) {
+                    // Senza reminder manuale, mostriamo sempre la predizione (il filtro temporale lo fa l'app chiamante o la logica di business)
                     return@mapNotNull prediction
                 }
                 null

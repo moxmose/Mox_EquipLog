@@ -128,7 +128,7 @@ class OperationsTypeViewModel(
             val affected = equipments.mapNotNull { equipment ->
                 val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
                 val trend = maintenanceManager.calculateTrend(equipment)
-                val nextPresumedDate = if (lastLog != null) maintenanceManager.getOperationPrediction(opType, lastLog, trend) else null
+                val nextPresumedDate = if (lastLog != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend) else null
                 
                 val prediction = nextPresumedDate?.let {
                     if (lastLog != null) {
@@ -163,12 +163,10 @@ class OperationsTypeViewModel(
                             plannedValue = manualReminder.dueValue,
                             predictedDate = prediction?.nextPresumedDate
                         )
-                    } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= horizonLimit))) {
-                        // Planned is far, but prediction is near/overdue -> show prediction as a warning
+                    } else if (prediction != null) {
                         return@mapNotNull prediction
                     }
-                } else if (prediction != null && (prediction.isOverdue || (prediction.nextPresumedDate != null && prediction.nextPresumedDate <= horizonLimit))) {
-                    // No manual reminder, show prediction if near/overdue
+                } else if (prediction != null) {
                     return@mapNotNull prediction
                 }
                 null
@@ -193,7 +191,7 @@ class OperationsTypeViewModel(
     private suspend fun calculateEquipmentStatusForOp(equipment: Equipment, opType: OperationType, lastLog: MaintenanceLog): EquipmentOperationStatus {
         val now = System.currentTimeMillis()
         val trend = maintenanceManager.calculateTrend(equipment)
-        val nextDate = maintenanceManager.getOperationPrediction(opType, lastLog, trend)
+        val nextDate = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend)
 
         return EquipmentOperationStatus(
             equipment = equipment,

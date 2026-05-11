@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -756,7 +757,7 @@ fun OperationTypeCard(
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                     Icon(
-                                        imageVector = if (eqStatus.isOverdue || hasInconsistency) Icons.Default.Warning else if (eqStatus.isPlanned) Icons.AutoMirrored.Filled.EventNote else Icons.Default.Schedule,
+                                        imageVector = if (eqStatus.isOverdue) Icons.Default.PriorityHigh else if (hasInconsistency) Icons.Default.Warning else if (eqStatus.isPlanned) Icons.AutoMirrored.Filled.EventNote else Icons.Default.Schedule,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
                                         tint = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error 
@@ -788,7 +789,9 @@ fun OperationTypeCard(
                                     Text(text = eqStatus.equipment.description, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = eqStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never", 
+                                    Text(
+                                        text = (if (eqStatus.isOverdue) stringResource(R.string.reminder_overdue) + " - " else "") +
+                                               (eqStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never"),
                                         style = MaterialTheme.typography.labelSmall, 
                                         color = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error 
                                                 else if (hasInconsistency) Color(0xFFFF9800)

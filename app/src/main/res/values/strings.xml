@@ -362,6 +362,20 @@
     <string name="calendar_event_description">Maintenance reminder from Mox EquipLog.\nTo manage this event, use the app.</string>
     <string name="calendar_event_description_updated">Maintenance reminder from Mox EquipLog (updated).\nTo manage this event, use the app.</string>
 
+    <!-- Image Selector -->
+    <string name="image_selector_delete_title">Delete Image</string>
+    <string name="image_selector_delete_confirm">Permanently delete from \'%1$s\' library?</string>
+    <string name="image_selector_attention_used">ATTENTION: In use!</string>
+    <string name="image_selector_app_background">App Background</string>
+    <string name="image_selector_library_mgmt">Library Management</string>
+    <string name="image_selector_select_image">Select Image</string>
+    <string name="image_selector_all_categories">All categories</string>
+    <string name="image_selector_filter_category">Filter by Category</string>
+    <string name="image_selector_import">Import</string>
+    <string name="image_selector_tap_to_select">Tap to select.</string>
+    <string name="image_selector_nothing">Nothing</string>
+    <string name="image_selector_close">Close</string>
+
     <!-- Backup & Restore Errors -->
     <string name="backup_error_db_not_found">Database file not found</string>
     <string name="backup_error_no_output_stream">Failed to open output stream</string>
