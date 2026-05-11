@@ -6,11 +6,11 @@ import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,7 +66,7 @@ class MaintenanceLogsViewModelTest {
             every { getLogsWithDetails(any()) } answers { flowOf(listOf(mockk())) }
         }
         maintenanceReminderDao = mockk(relaxed = true) {
-            every { getActiveRemindersWithDetails() } returns flowOf(emptyList())
+            every { getActiveRemindersWithDetails(any()) } returns flowOf(emptyList())
         }
         equipmentDao = mockk(relaxed = true) {
             every { getAllEquipments() } returns allEquipmentsFlow
@@ -83,6 +83,9 @@ class MaintenanceLogsViewModelTest {
             every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
             every { syncCalendarByDefault } returns flowOf(false)
             every { googleAccountName } returns flowOf(null)
+            every { costTrendThreshold } returns flowOf(UiConstants.DEFAULT_COST_TREND_THRESHOLD)
+            every { costAnalysisWindowValue } returns flowOf(UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_VALUE)
+            every { costAnalysisWindowUnit } returns flowOf(UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_UNIT)
         }
         imageRepository = mockk(relaxed = true) {
              every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
@@ -102,7 +105,8 @@ class MaintenanceLogsViewModelTest {
             imageRepository,
             measurementUnitDao,
             mockk(relaxed = true), // calendarManager
-            maintenanceManager
+            maintenanceManager,
+            mockk(relaxed = true) // resourceProvider
         )
     }
 
@@ -237,12 +241,16 @@ class MaintenanceLogsViewModelTest {
         }
         val specificTime = calendar.timeInMillis
         
-        viewModel.addLog(1, 1, "Note", 100.0, specificTime, null)
+        viewModel.addLog(1, 1, "Note", 100.0, specificTime, null, false, 45.5, true)
         testDispatcher.scheduler.advanceUntilIdle()
         
         coVerify { 
             maintenanceLogDao.insertLog(match { 
-                it.date == specificTime && it.equipmentId == 1 && it.operationTypeId == 1
+                it.date == specificTime && 
+                it.equipmentId == 1 && 
+                it.operationTypeId == 1 &&
+                it.cost == 45.5 &&
+                it.isUnplanned == true
             }) 
         }
     }

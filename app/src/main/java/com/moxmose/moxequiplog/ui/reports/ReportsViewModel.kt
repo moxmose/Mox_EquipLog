@@ -2,21 +2,51 @@ package com.moxmose.moxequiplog.ui.reports
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.sqlite.db.SimpleSQLiteQuery
+import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
-import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.data.local.BenchmarkData
+import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.ChartPoint
+import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.EquipmentDao
+import com.moxmose.moxequiplog.data.local.HeatmapPoint
+import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
+import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
+import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.PieChartPoint
+import com.moxmose.moxequiplog.data.local.ReportFilter
+import com.moxmose.moxequiplog.data.local.ReportFilterDao
+import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.ResourceProvider
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.util.*
-import androidx.sqlite.db.SimpleSQLiteQuery
 import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @Serializable
 data class ReportFilterState(
@@ -60,6 +90,15 @@ data class ReportsUiState(
     val operationVolumeData: Map<Int, List<ChartPoint>> = emptyMap(),
     val combinedLogsData: Map<String, List<ChartPoint>> = emptyMap(),
 
+    // Cost Analysis Data
+    val equipmentCostData: Map<Int, List<ChartPoint>> = emptyMap(),
+    val operationCostData: Map<Int, List<ChartPoint>> = emptyMap(),
+    val costDistributionByEquipment: List<PieChartPoint> = emptyList(),
+    val costDistributionByOperation: List<PieChartPoint> = emptyList(),
+    val totalCost: Double = 0.0,
+    val averageCostPerLog: Double = 0.0,
+    val costVsUsageData: Map<Int, List<ChartPoint>> = emptyMap(),
+
     val startDate: Long? = null,
     val endDate: Long? = null,
     val timeGranularity: TimeGranularity? = null,
@@ -99,7 +138,8 @@ class ReportsViewModel(
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
     private val reportFilterDao: ReportFilterDao,
-    private val maintenanceManager: MaintenanceManager
+    private val maintenanceManager: MaintenanceManager,
+    private val resourceProvider: ResourceProvider
 ) : ViewModel() {
 
     private val _selectedEquipmentIds = MutableStateFlow<Set<Int>>(emptySet())
@@ -131,7 +171,7 @@ class ReportsViewModel(
         imageRepository.allColorsForReports
     ) { state, refresh, mode, custom, dbColors ->
         val dbColorList = dbColors.filter { !it.reportHidden }.map { it.hexValue }.takeIf { it.isNotEmpty() } 
-            ?: listOf("#4285F4", "#34A853", "#FBBC05", "#EA4335", "#9C27B0", "#00BCD4")
+            ?: UiConstants.DEFAULT_PALETTE
 
         val palette = if (mode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
             custom ?: dbColorList
@@ -349,6 +389,49 @@ class ReportsViewModel(
                 }
             }
         }
+
+        // Cost Analysis
+        val equipmentCostData = sortedSelectedEquipIds.associateWith { id ->
+            val points = filteredLogs.filter { it.log.equipmentId == id && it.log.cost != null }.map { ChartPoint(it.log.date, it.log.cost!!.toFloat()) }
+            maintenanceManager.aggregateData(points, effectiveGranularity, isDelta = true)
+        }
+
+        val operationCostData = sortedSelectedOpIds.associateWith { id ->
+            val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.cost != null }.map { ChartPoint(it.log.date, it.log.cost!!.toFloat()) }
+            maintenanceManager.aggregateData(points, effectiveGranularity, isDelta = true)
+        }
+
+        val costDistEquip = filteredLogs.filter { it.log.equipmentId in style.selections.selectedEquipmentIds && it.log.cost != null }.groupBy { it.log.equipmentId }.map { (id, logs) ->
+            val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+            val index = core.equips.indexOfFirst { it.id == id }
+            val color = if (index != -1) currentPalette[index % currentPalette.size] else null
+            PieChartPoint(label, logs.sumOf { it.log.cost!! }.toFloat(), color, id)
+        }.sortedByDescending { it.value }
+
+        val costDistOp = filteredLogs.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds && it.log.cost != null }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
+            val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
+            val index = core.ops.indexOfFirst { it.id == id }
+            val color = if (index != -1) currentPalette[index % currentPalette.size] else null
+            PieChartPoint(label, logs.sumOf { it.log.cost!! }.toFloat(), color, id)
+        }.sortedByDescending { it.value }
+
+        val filteredLogsWithCost = filteredLogs.filter { it.log.cost != null }
+        val totalCostVal = filteredLogsWithCost.sumOf { it.log.cost!! }
+        val avgCostPerLog = if (filteredLogsWithCost.isNotEmpty()) totalCostVal / filteredLogsWithCost.size else 0.0
+
+        val costVsUsageData = sortedSelectedEquipIds.associateWith { id ->
+            val logs = filteredLogs.filter { it.log.equipmentId == id && it.log.cost != null && it.log.value != null }.sortedBy { it.log.date }
+            if (logs.size >= 2) {
+                val points = mutableListOf<ChartPoint>()
+                for (i in 1 until logs.size) {
+                    val deltaUsage = (logs[i].log.value!! - logs[i-1].log.value!!).coerceAtLeast(0.0)
+                    val cost = logs[i].log.cost!!
+                    val ratio = if (deltaUsage > 0) (cost / deltaUsage).toFloat() else 0f
+                    points.add(ChartPoint(logs[i].log.date, ratio))
+                }
+                maintenanceManager.aggregateData(points, effectiveGranularity)
+            } else emptyList()
+        }
         
         val selectedEquipUnits = sortedSelectedEquipIds.mapNotNull { id -> core.units.find { it.id == core.equips.find { e -> e.id == id }?.unitId } }
         val selectedUnits = selectedEquipUnits.map { it.label }.distinct()
@@ -373,9 +456,13 @@ class ReportsViewModel(
             startDate = style.selections.startDate, endDate = style.selections.endDate, timeGranularity = style.selections.timeGranularity,
             effectiveGranularity = effectiveGranularity,
             showDismissed = style.selections.showDismissed, colorMode = style.selections.colorMode, customColors = currentPalette,
-            savedFilters = persist.saved, activeFilterName = persist.active?.name, isFilterDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current)
+            savedFilters = persist.saved, activeFilterName = persist.active?.name, isFilterDirty = persist.active != null && persist.active.filterJson != Json.encodeToString(persist.current),
+            equipmentCostData = equipmentCostData, operationCostData = operationCostData,
+            costDistributionByEquipment = costDistEquip, costDistributionByOperation = costDistOp,
+            totalCost = totalCostVal, averageCostPerLog = avgCostPerLog,
+            costVsUsageData = costVsUsageData
         )
-    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = ReportsUiState())
+    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), initialValue = ReportsUiState())
 
     fun toggleEquipmentSelection(id: Int) { _selectedEquipmentIds.value = if (_selectedEquipmentIds.value.contains(id)) _selectedEquipmentIds.value - id else _selectedEquipmentIds.value + id }
     fun toggleOperationTypeSelection(id: Int) { _selectedOperationTypeIds.value = if (_selectedOperationTypeIds.value.contains(id)) _selectedOperationTypeIds.value - id else _selectedOperationTypeIds.value + id }
@@ -438,11 +525,24 @@ class ReportsViewModel(
         val state = uiState.value
         val sb = StringBuilder()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        sb.append("Report;${reportTitle}\n")
-        sb.append("Data Esportazione;${dateFormat.format(Date())}\n")
-        sb.append("Periodo;${state.startDate?.let { dateFormat.format(Date(it)) } ?: "Inizio"} - ${state.endDate?.let { dateFormat.format(Date(it)) } ?: "Fine"}\n\n")
+        
+        val reportLabel = resourceProvider.getString(R.string.csv_export_report_label)
+        val exportDateLabel = resourceProvider.getString(R.string.csv_export_date_label)
+        val periodLabel = resourceProvider.getString(R.string.csv_export_period_label)
+        val startLabel = resourceProvider.getString(R.string.csv_export_start_label)
+        val endLabel = resourceProvider.getString(R.string.csv_export_end_label)
+        val dataHeader = resourceProvider.getString(R.string.csv_export_data_header)
+        val equipHeader = resourceProvider.getString(R.string.csv_export_equipment_header)
+        val opHeader = resourceProvider.getString(R.string.csv_export_operation_header)
+        val valHeader = resourceProvider.getString(R.string.csv_export_value_header)
+        val unitHeader = resourceProvider.getString(R.string.csv_export_unit_header)
+
+        sb.append("$reportLabel;${reportTitle}\n")
+        sb.append("$exportDateLabel;${dateFormat.format(Date())}\n")
+        sb.append("$periodLabel;${state.startDate?.let { dateFormat.format(Date(it)) } ?: startLabel} - ${state.endDate?.let { dateFormat.format(Date(it)) } ?: endLabel}\n\n")
+        
         if (state.equipmentChartData.any { it.value.isNotEmpty() }) {
-            sb.append("Data;Attrezzatura;Valore;Unita\n")
+            sb.append("$dataHeader;$equipHeader;$valHeader;$unitHeader\n")
             state.equipmentChartData.forEach { (id, points) ->
                 val name = state.equipments.find { it.id == id }?.description ?: "ID $id"
                 points.forEach { p ->
@@ -451,7 +551,7 @@ class ReportsViewModel(
                 }
             }
         } else if (state.operationChartData.any { it.value.isNotEmpty() }) {
-            sb.append("Data;Operazione;Valore;Unita\n")
+            sb.append("$dataHeader;$opHeader;$valHeader;$unitHeader\n")
             state.operationChartData.forEach { (id, points) ->
                 val name = state.operationTypes.find { it.id == id }?.description ?: "ID $id"
                 points.forEach { p ->
@@ -460,18 +560,30 @@ class ReportsViewModel(
                 }
             }
         }
+        
         if (state.benchmarkData.isNotEmpty()) {
-            sb.append("\nAnalisi Benchmark\n")
-            sb.append("Attrezzatura;Utilizzo Totale;Media Intervallo;Conteggio Log\n")
+            val benchTitle = resourceProvider.getString(R.string.csv_export_benchmark_title)
+            val totalUsageHeader = resourceProvider.getString(R.string.csv_export_total_usage_header)
+            val avgIntHeader = resourceProvider.getString(R.string.csv_export_avg_interval_header)
+            val countHeader = resourceProvider.getString(R.string.csv_export_count_header)
+            
+            sb.append("\n$benchTitle\n")
+            sb.append("$equipHeader;$totalUsageHeader;$avgIntHeader;$countHeader\n")
             state.benchmarkData.forEach { b ->
                 val total = String.format(Locale.getDefault(), "%.${state.equipmentMaxDecimalPlaces}f", b.totalValue)
                 val avg = String.format(Locale.getDefault(), "%.${state.equipmentMaxDecimalPlaces}f", b.avgInterval)
                 sb.append("\"${b.equipmentName}\";$total;$avg;${b.count}\n")
             }
         }
+        
         if (state.equipmentDistribution.isNotEmpty() && reportTitle.contains("Freq", ignoreCase = true)) {
-            sb.append("\nDistribuzione\n")
-            sb.append("Nome;Occorrenze;Percentuale\n")
+            val distTitle = resourceProvider.getString(R.string.csv_export_distribution_title)
+            val nameHeader = resourceProvider.getString(R.string.csv_export_name_header)
+            val occHeader = resourceProvider.getString(R.string.csv_export_occurrences_header)
+            val percHeader = resourceProvider.getString(R.string.csv_export_percentage_header)
+            
+            sb.append("\n$distTitle\n")
+            sb.append("$nameHeader;$occHeader;$percHeader\n")
             val dist = if (reportTitle.contains("Equip", ignoreCase = true)) state.equipmentDistribution else state.operationDistribution
             val total = dist.sumOf { it.value.toDouble() }.toFloat()
             dist.forEach { p ->

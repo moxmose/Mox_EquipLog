@@ -6,16 +6,67 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.UnfoldLess
+import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +76,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,7 +84,11 @@ import androidx.core.graphics.toColorInt
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.equipments.TimeGranularitySelector
@@ -40,14 +96,11 @@ import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
-import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.Date
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import java.util.Locale
 
 @Composable
 fun OperationTypeScreen(
@@ -120,7 +173,17 @@ fun OperationTypeScreen(
                         logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
                     }
                 } else {
-                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                    logsViewModel.addLog(
+                        log.equipmentId, 
+                        log.operationTypeId, 
+                        log.notes, 
+                        log.value, 
+                        log.date, 
+                        log.color, 
+                        log.resetAfter,
+                        log.cost,
+                        log.isUnplanned
+                    )
                 }
                 viewModel.onAffectedAction(0, null)
             },
@@ -187,7 +250,7 @@ fun OperationTypeScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddOperationType: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity) -> Unit,
+    onAddOperationType: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
     onUpdateOperationTypes: (List<OperationType>) -> Unit,
     onUpdateOperationType: (OperationType) -> Unit,
     onDismissOperationType: (OperationType) -> Unit,
@@ -241,8 +304,8 @@ fun OperationTypeScreenContent(
                 defaultIcon = defaultIcon,
                 defaultPhotoUri = defaultPhotoUri,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit ->
-                    onAddOperationType(description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit)
+                onConfirm = { description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost ->
+                    onAddOperationType(description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -309,7 +372,7 @@ fun OperationTypeScreenContent(
 @Composable
 fun AddOperationTypeDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
     imageLibrary: List<Image>,
     categories: List<Category>,
     categoryColors: Map<String, String>,
@@ -324,17 +387,24 @@ fun AddOperationTypeDialog(
     var description by rememberSaveable { mutableStateOf("") }
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
     var iconId by rememberSaveable { mutableStateOf<String?>(null) }
+    var estimatedCostStr by rememberSaveable { mutableStateOf("") }
+    var estimatedCost by rememberSaveable { mutableStateOf<Double?>(null) }
     var isPredictable by rememberSaveable { mutableStateOf(false) }
     var intervalValue by rememberSaveable { mutableStateOf<Double?>(null) }
     var intervalValueStr by rememberSaveable { mutableStateOf("") }
     var timeoutValue by rememberSaveable { mutableStateOf<Int?>(null) }
     var timeoutValueStr by rememberSaveable { mutableStateOf("") }
     var timeoutUnit by rememberSaveable { mutableStateOf(TimeGranularity.MONTHS) }
+    
+    var useCustomVisibilityHorizon by rememberSaveable { mutableStateOf(false) }
     var visibilityHorizon by rememberSaveable { mutableIntStateOf(30) }
     var visibilityHorizonUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
 
     var isPristine by rememberSaveable { mutableStateOf(true) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
+    var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
+
+    val selectedUnitLabel = "" // Standard label logic could be added if needed
 
     if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
         LaunchedEffect(defaultIcon, defaultPhotoUri) {
@@ -384,6 +454,27 @@ fun AddOperationTypeDialog(
                     OutlinedTextField(value = description, onValueChange = { if (it.length <= 50) description = it }, label = { Text(stringResource(R.string.operation_type_description)) }, modifier = Modifier.weight(1f), singleLine = true)
                 }
 
+                OutlinedTextField(
+                    value = estimatedCostStr,
+                    onValueChange = { input ->
+                        val filtered = input.replace(',', '.')
+                        if (filtered.isEmpty() || filtered == ".") {
+                            estimatedCostStr = filtered
+                            estimatedCost = null
+                        } else {
+                            val doubleVal = filtered.toDoubleOrNull()
+                            if (doubleVal != null && filtered.length <= 10) {
+                                estimatedCostStr = filtered
+                                estimatedCost = doubleVal
+                            }
+                        }
+                    },
+                    label = { Text(stringResource(R.string.cost_optional)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Row(modifier = Modifier.fillMaxWidth().clickable { isPredictable = !isPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = isPredictable, onCheckedChange = { isPredictable = it }); Text(text = "Automatic Maintenance Prediction", style = MaterialTheme.typography.bodyMedium) }
 
                 if (isPredictable) {
@@ -400,19 +491,48 @@ fun AddOperationTypeDialog(
                             }
                             Text("Maximum time allowed between maintenances", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(value = visibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f) )
-                                TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
-                            }
-                            Text("How far into the future to show upcoming maintenance items", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                        HorizontalDivider()
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { showAdvancedSettings = !showAdvancedSettings },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Advanced Visibility",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Icon(
+                                imageVector = if (showAdvancedSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
-                        Text("App will pick the earliest of the two triggers.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+
+                        if (showAdvancedSettings) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth().clickable { useCustomVisibilityHorizon = !useCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = useCustomVisibilityHorizon, onCheckedChange = { useCustomVisibilityHorizon = it })
+                                    Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (useCustomVisibilityHorizon) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        OutlinedTextField(value = visibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f) )
+                                        TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                    }
+                                } else {
+                                    Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
+                                }
+                            }
+                        }
+                        Text("App will pick the earliest of the triggers.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { val identifier = when { photoUri != null -> ImageIdentifier.Photo(photoUri!!) ; iconId != null -> ImageIdentifier.Icon(iconId!!) ; else -> null } ; onConfirm(description, identifier, isPredictable, intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit) }) { Text(stringResource(R.string.button_add)) } },
+        confirmButton = { TextButton(onClick = { val identifier = when { photoUri != null -> ImageIdentifier.Photo(photoUri!!) ; iconId != null -> ImageIdentifier.Icon(iconId!!) ; else -> null } ; onConfirm(description, identifier, isPredictable, intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost) }) { Text(stringResource(R.string.button_add)) } },
         dismissButton = { TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) } }
     )
 }
@@ -450,11 +570,14 @@ fun OperationTypeCard(
     var editedIconId by remember(operationType.iconIdentifier) { mutableStateOf(operationType.iconIdentifier) }
     var editedPhotoUri by remember(operationType.photoUri) { mutableStateOf(operationType.photoUri) }
     var editedIsPredictable by remember(operationType.isPredictable) { mutableStateOf(operationType.isPredictable) }
+    
+    var editedUseCustomVisibilityHorizon by remember(operationType.useCustomVisibilityHorizon) { mutableStateOf(operationType.useCustomVisibilityHorizon) }
     var editedIntervalValueStr by remember(operationType.intervalValue) { mutableStateOf(operationType.intervalValue?.toString() ?: "") }
     var editedTimeoutValueStr by remember(operationType.timeoutValue) { mutableStateOf(operationType.timeoutValue?.toString() ?: "") }
     var editedTimeoutUnit by remember(operationType.timeoutUnit) { mutableStateOf(operationType.timeoutUnit ?: TimeGranularity.MONTHS) }
     var editedVisibilityHorizon by remember(operationType.visibilityHorizon) { mutableIntStateOf(operationType.visibilityHorizon) }
     var editedVisibilityHorizonUnit by remember(operationType.visibilityHorizonUnit) { mutableStateOf(operationType.visibilityHorizonUnit) }
+    var editedEstimatedCostStr by remember(operationType.estimatedCost) { mutableStateOf(operationType.estimatedCost?.toString() ?: "") }
 
     val context = LocalContext.current
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
@@ -550,13 +673,51 @@ fun OperationTypeCard(
                     }
                     Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         if (isEditing) IconButton(onClick = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) }) { Icon(imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null) }
-                        IconButton(onClick = { if (isEditing) { onUpdateOperationType(operationType.copy(description = editedDescription, iconIdentifier = editedIconId, photoUri = editedPhotoUri, isPredictable = editedIsPredictable, intervalValue = editedIntervalValueStr.toDoubleOrNull(), timeoutValue = editedTimeoutValueStr.toIntOrNull(), timeoutUnit = editedTimeoutUnit, visibilityHorizon = editedVisibilityHorizon, visibilityHorizonUnit = editedVisibilityHorizonUnit)) } ; isEditing = !isEditing ; if (isEditing) isExpanded = true }) { Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null) }
+                        IconButton(onClick = { 
+                            if (isEditing) { 
+                                onUpdateOperationType(operationType.copy(
+                                    description = editedDescription, 
+                                    iconIdentifier = editedIconId, 
+                                    photoUri = editedPhotoUri, 
+                                    isPredictable = editedIsPredictable, 
+                                    intervalValue = editedIntervalValueStr.toDoubleOrNull(), 
+                                    timeoutValue = editedTimeoutValueStr.toIntOrNull(), 
+                                    timeoutUnit = editedTimeoutUnit, 
+                                    visibilityHorizon = editedVisibilityHorizon, 
+                                    visibilityHorizonUnit = editedVisibilityHorizonUnit, 
+                                    useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon,
+                                    estimatedCost = editedEstimatedCostStr.toDoubleOrNull()
+                                )) 
+                            } 
+                            isEditing = !isEditing 
+                            if (isEditing) isExpanded = true 
+                        }) { Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null) }
                         IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
                         IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
                     }
                 }
 
                 if (isEditing) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = editedEstimatedCostStr,
+                        onValueChange = { input ->
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered == ".") {
+                                editedEstimatedCostStr = filtered
+                            } else {
+                                val doubleVal = filtered.toDoubleOrNull()
+                                if (doubleVal != null && filtered.length <= 10) {
+                                    editedEstimatedCostStr = filtered
+                                }
+                            }
+                        },
+                        label = { Text(stringResource(R.string.cost_optional)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth().clickable { editedIsPredictable = !editedIsPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = editedIsPredictable, onCheckedChange = { editedIsPredictable = it }); Text(text = "Predictive Maintenance", style = MaterialTheme.typography.bodyMedium) }
                     if (editedIsPredictable) {
@@ -567,9 +728,20 @@ fun OperationTypeCard(
                                 OutlinedTextField(value = editedTimeoutValueStr, onValueChange = { input -> if (input.isEmpty()) editedTimeoutValueStr = "" else input.toIntOrNull()?.let { editedTimeoutValueStr = input } }, label = { Text("Timeout Value") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
                                 TimeGranularitySelector(selected = editedTimeoutUnit, onSelected = { editedTimeoutUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
                             }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(value = editedVisibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
-                                TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                            
+                            Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
+                                    Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (editedUseCustomVisibilityHorizon) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        OutlinedTextField(value = editedVisibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
+                                        TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                    }
+                                } else {
+                                    Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
+                                }
                             }
                         }
                     }

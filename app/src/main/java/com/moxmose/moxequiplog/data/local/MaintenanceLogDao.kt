@@ -35,6 +35,15 @@ interface MaintenanceLogDao {
     @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId ORDER BY date ASC, timestamp ASC")
     suspend fun getAllLogsForEquipment(equipmentId: Int): List<MaintenanceLog>
 
+    @Query("SELECT SUM(cost) FROM maintenance_logs WHERE equipmentId = :equipmentId AND date >= :sinceDate")
+    suspend fun getTotalCostForEquipmentSince(equipmentId: Int, sinceDate: Long): Double?
+
+    @Query("SELECT * FROM maintenance_logs WHERE operationTypeId = :operationTypeId AND cost IS NOT NULL ORDER BY date DESC LIMIT 1")
+    suspend fun getLastLogWithCostForOperation(operationTypeId: Int): MaintenanceLog?
+
+    @Query("SELECT AVG(cost) FROM maintenance_logs WHERE operationTypeId = :operationTypeId AND date >= :sinceDate")
+    suspend fun getAverageCostForOperationSince(operationTypeId: Int, sinceDate: Long): Double?
+
     @Query("SELECT COUNT(*) FROM maintenance_logs")
     fun getLogsCountFlow(): Flow<Int>
 

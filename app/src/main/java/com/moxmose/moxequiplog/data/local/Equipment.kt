@@ -4,12 +4,6 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
-import kotlinx.serialization.Serializable
-
-@Serializable
-enum class TimeGranularity {
-    MINUTES_5, MINUTES_15, HOURS, DAYS, WEEKS, MONTHS, YEARS
-}
 
 @Entity(
     tableName = "equipments",
@@ -47,5 +41,10 @@ data class Equipment(
     @ColumnInfo(defaultValue = "30")
     val visibilityHorizon: Int = 30,
     @ColumnInfo(defaultValue = "DAYS")
-    val visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS
+    val visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
+    @ColumnInfo(defaultValue = "false")
+    val useCustomUsageWindow: Boolean = false,
+    @ColumnInfo(defaultValue = "false")
+    val useCustomVisibilityHorizon: Boolean = false,
+    val estimatedCostPerUnit: Double? = null
 )

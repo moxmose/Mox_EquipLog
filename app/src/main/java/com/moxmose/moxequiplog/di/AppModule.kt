@@ -11,8 +11,10 @@ import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.operations.OperationsTypeViewModel
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import com.moxmose.moxequiplog.ui.reports.ReportsViewModel
+import com.moxmose.moxequiplog.utils.AndroidResourceProvider
 import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.CalendarManager
+import com.moxmose.moxequiplog.utils.ResourceProvider
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
@@ -54,6 +56,7 @@ val appModule = module {
     single { MaintenanceManager(get(), get(), get()) }
     single { BackupManager(androidContext(), get()) }
     single { CalendarManager(androidContext()) }
+    single<ResourceProvider> { AndroidResourceProvider(androidContext()) }
 
     // ViewModels
     viewModelOf(::EquipmentsViewModel)

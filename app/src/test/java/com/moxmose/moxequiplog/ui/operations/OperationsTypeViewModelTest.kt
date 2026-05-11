@@ -134,9 +134,14 @@ class OperationsTypeViewModelTest {
             allOperationTypesFlow.value = listOf(OperationType(id = 1, description = "OT1", displayOrder = 0))
             awaitItem()
 
-            viewModel.addOperationType("OT1", ImageIdentifier.Icon("icon1"))
+            viewModel.addOperationType("OT1", ImageIdentifier.Icon("icon1"), estimatedCost = 150.0)
             testDispatcher.scheduler.advanceUntilIdle()
-            coVerify { operationTypeDao.insertOperationType(match { it.description == "OT1" && it.iconIdentifier == "icon1" && it.displayOrder == 1}) }
+            coVerify { operationTypeDao.insertOperationType(match { 
+                it.description == "OT1" && 
+                it.iconIdentifier == "icon1" && 
+                it.displayOrder == 1 &&
+                it.estimatedCost == 150.0
+            }) }
         }
     }
 

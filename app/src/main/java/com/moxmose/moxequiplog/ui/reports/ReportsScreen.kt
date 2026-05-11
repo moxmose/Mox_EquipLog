@@ -2,23 +2,104 @@
 
 package com.moxmose.moxequiplog.ui.reports
 
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfDocument
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Compare
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DonutSmall
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.FilterAltOff
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.PostAdd
+import androidx.compose.material.icons.filled.PrecisionManufacturing
+import androidx.compose.material.icons.filled.QueryStats
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDateRangePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,37 +108,36 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.toColorInt
-import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.*
-import com.moxmose.moxequiplog.ui.components.ImageIcon
-import androidx.compose.ui.graphics.toArgb
-import android.content.Context
-import android.content.Intent
 import androidx.core.content.FileProvider
-import java.io.File
-import androidx.compose.ui.platform.LocalContext
+import androidx.core.graphics.toColorInt
+import androidx.core.view.drawToBitmap
+import com.moxmose.moxequiplog.R
+import com.moxmose.moxequiplog.data.local.BenchmarkData
+import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.ChartPoint
+import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.HeatmapPoint
+import com.moxmose.moxequiplog.data.local.PieChartPoint
+import com.moxmose.moxequiplog.data.local.ReportFilter
+import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
-import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
-import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
-import com.patrykandpatrick.vico.compose.common.fill
-import com.patrykandpatrick.vico.core.common.Fill
-import com.patrykandpatrick.vico.core.common.component.LineComponent
-import com.patrykandpatrick.vico.core.common.component.ShapeComponent
-import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -66,20 +146,21 @@ import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
-import org.koin.androidx.compose.koinViewModel
-import java.text.SimpleDateFormat
-import java.util.*
-import android.graphics.Bitmap
-import android.graphics.Canvas as AndroidCanvas
-import android.graphics.pdf.PdfDocument
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.drawToBitmap
+import com.patrykandpatrick.vico.core.common.Fill
+import com.patrykandpatrick.vico.core.common.component.LineComponent
+import com.patrykandpatrick.vico.core.common.component.ShapeComponent
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
+import org.koin.androidx.compose.koinViewModel
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 enum class ReportDestination {
     MENU, EQUIPMENTS, OPERATIONS, EQUIPMENTS_FREQ, OPERATIONS_FREQ, INTERVALS, HEATMAP, BENCHMARKING,
-    EQUIPMENTS_VOL, OPERATIONS_VOL, COMBINED_LOGS
+    EQUIPMENTS_VOL, OPERATIONS_VOL, COMBINED_LOGS,
+    COSTS_TREND, COSTS_DIST, COSTS_ANALYSIS
 }
 
 @Composable
@@ -100,6 +181,9 @@ fun ReportsScreen(viewModel: ReportsViewModel = koinViewModel(), onBack: () -> U
             ReportDestination.EQUIPMENTS_VOL -> EquipmentsVolReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
             ReportDestination.OPERATIONS_VOL -> OperationsVolReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
             ReportDestination.COMBINED_LOGS -> CombinedLogsReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
+            ReportDestination.COSTS_TREND -> CostsTrendReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
+            ReportDestination.COSTS_DIST -> CostsDistReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
+            ReportDestination.COSTS_ANALYSIS -> CostsAnalysisReportScreen(uiState, viewModel) { currentDestination = ReportDestination.MENU }
         }
     }
 }
@@ -655,6 +739,11 @@ fun ReportsMenu(onNavigate: (ReportDestination) -> Unit, onBack: () -> Unit) {
             item { ReportMenuCard(title = stringResource(R.string.report_intervals_title), description = stringResource(R.string.report_intervals_desc), icon = Icons.AutoMirrored.Filled.TrendingUp, onClick = { onNavigate(ReportDestination.INTERVALS) }) }
             item { ReportMenuCard(title = stringResource(R.string.report_heatmap_title), description = stringResource(R.string.report_heatmap_desc), icon = Icons.Default.GridView, onClick = { onNavigate(ReportDestination.HEATMAP) }) }
             item { ReportMenuCard(title = stringResource(R.string.report_benchmarking_title), description = stringResource(R.string.report_benchmarking_desc), icon = Icons.Default.Compare, onClick = { onNavigate(ReportDestination.BENCHMARKING) }) }
+
+            item { Text(stringResource(R.string.cost_analysis), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp)) }
+            item { ReportMenuCard(title = stringResource(R.string.report_costs_trend_title), description = stringResource(R.string.report_costs_trend_desc), icon = Icons.Default.Payments, onClick = { onNavigate(ReportDestination.COSTS_TREND) }) }
+            item { ReportMenuCard(title = stringResource(R.string.report_costs_dist_title), description = stringResource(R.string.report_costs_dist_desc), icon = Icons.Default.DonutSmall, onClick = { onNavigate(ReportDestination.COSTS_DIST) }) }
+            item { ReportMenuCard(title = stringResource(R.string.report_costs_analysis_title), description = stringResource(R.string.report_costs_analysis_desc), icon = Icons.Default.Insights, onClick = { onNavigate(ReportDestination.COSTS_ANALYSIS) }) }
         }
     }
 }
@@ -841,6 +930,127 @@ fun ChartLegend(items: List<Pair<Int, String>>, colors: List<Color>, allStableId
             } 
         } 
     } 
+}
+
+@Composable
+fun CostsTrendReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = MaterialTheme.colorScheme.primary
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val equipIds = remember(uiState.equipments) { uiState.equipments.map { it.id } }
+    val opIds = remember(uiState.operationTypes) { uiState.operationTypes.map { it.id } }
+    val selectedEquipIds = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
+    val selectedOpIds = remember(uiState.operationTypes, uiState.selectedOperationTypeIds) { uiState.operationTypes.map { it.id }.filter { it in uiState.selectedOperationTypeIds } }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_costs_trend_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+            }
+        }
+    ) {
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.report_total_cost_label), style = MaterialTheme.typography.labelMedium)
+                        Text(String.format(Locale.getDefault(), "€ %.2f", uiState.totalCost), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.report_avg_cost_log_label), style = MaterialTheme.typography.labelMedium)
+                        Text(String.format(Locale.getDefault(), "€ %.2f", uiState.averageCostPerLog), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        item {
+            EquipmentChartCard(
+                title = "${stringResource(R.string.report_cost_evolution)} (${stringResource(R.string.report_section_equipments)})",
+                chartData = uiState.equipmentCostData,
+                unitLabel = "€",
+                hasMixedUnits = false,
+                decimalPlaces = 2,
+                requestedGranularity = uiState.timeGranularity,
+                effectiveGranularity = uiState.effectiveGranularity,
+                colors = chartColors,
+                allStableIds = equipIds,
+                selectedIds = selectedEquipIds,
+                equipments = uiState.equipments
+            )
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "€ ${stringResource(R.string.report_cost_evolution)} (${stringResource(R.string.report_section_operations)})", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    MultiLineChart(chartDataMap = uiState.operationCostData, decimalPlaces = 2, requestedGranularity = uiState.timeGranularity, effectiveGranularity = uiState.effectiveGranularity, finalColors = chartColors, allStableIds = opIds)
+                    if (uiState.operationCostData.any { it.value.isNotEmpty() }) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        ChartLegend(items = selectedOpIds.mapNotNull { id -> uiState.operationTypes.find { it.id == id }?.description?.let { id to it } }, colors = chartColors, allStableIds = opIds)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CostsDistReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = MaterialTheme.colorScheme.primary
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    ReportBaseScreen(
+        title = stringResource(R.string.report_costs_dist_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+            }
+        }
+    ) {
+        item { PieChartCard(title = "${stringResource(R.string.report_costs_dist_title)} (€) - ${stringResource(R.string.report_section_equipments)}", distribution = uiState.costDistributionByEquipment) }
+        item { PieChartCard(title = "${stringResource(R.string.report_costs_dist_title)} (€) - ${stringResource(R.string.report_section_operations)}", distribution = uiState.costDistributionByOperation) }
+    }
+}
+
+@Composable
+fun CostsAnalysisReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, onBack: () -> Unit) {
+    val categoryColor = MaterialTheme.colorScheme.primary
+    val chartColors = rememberChartColors(uiState.colorMode, uiState.customColors)
+    val equipIds = remember(uiState.equipments) { uiState.equipments.map { it.id } }
+    val selectedEquipIds = remember(uiState.equipments, uiState.selectedEquipmentIds) { uiState.equipments.map { it.id }.filter { it in uiState.selectedEquipmentIds } }
+
+    ReportBaseScreen(
+        title = stringResource(R.string.report_costs_analysis_title),
+        onBack = onBack,
+        uiState = uiState,
+        viewModel = viewModel,
+        selector = {
+            GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+        }
+    ) {
+        item {
+            EquipmentChartCard(
+                title = stringResource(R.string.report_cost_per_usage_label),
+                chartData = uiState.costVsUsageData,
+                unitLabel = "€/unit",
+                hasMixedUnits = uiState.hasMixedUnits,
+                decimalPlaces = 3,
+                requestedGranularity = uiState.timeGranularity,
+                effectiveGranularity = uiState.effectiveGranularity,
+                colors = chartColors,
+                allStableIds = equipIds,
+                selectedIds = selectedEquipIds,
+                equipments = uiState.equipments
+            )
+        }
+    }
 }
 
 @Composable

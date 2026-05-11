@@ -1,6 +1,5 @@
 package com.moxmose.moxequiplog.ui.options
 
-import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.*
@@ -80,7 +79,18 @@ class OptionsScreenTest {
                 onGoogleAccountSelected = {},
                 syncCalendarByDefault = false,
                 onSyncCalendarByDefaultChange = {},
-                onRecalculateAccumulated = {}
+                globalUsageWindowValue = 30,
+                globalUsageWindowUnit = "DAYS",
+                onSetGlobalUsageWindow = { _, _ -> },
+                globalVisibilityHorizonValue = 30,
+                globalVisibilityHorizonUnit = "DAYS",
+                onSetGlobalVisibilityHorizon = { _, _ -> },
+                costAnalysisWindowValue = 12,
+                costAnalysisWindowUnit = "MONTHS",
+                onSetCostAnalysisWindow = { _, _ -> },
+                costTrendThreshold = 0.05f,
+                onSetCostTrendThreshold = {},
+                onRecalculateAccumulated = {},
             )
         }
 
@@ -143,7 +153,18 @@ class OptionsScreenTest {
                 onGoogleAccountSelected = {},
                 syncCalendarByDefault = false,
                 onSyncCalendarByDefaultChange = {},
-                onRecalculateAccumulated = {}
+                globalUsageWindowValue = 30,
+                globalUsageWindowUnit = "DAYS",
+                onSetGlobalUsageWindow = { _, _ -> },
+                globalVisibilityHorizonValue = 30,
+                globalVisibilityHorizonUnit = "DAYS",
+                onSetGlobalVisibilityHorizon = { _, _ -> },
+                costAnalysisWindowValue = 12,
+                costAnalysisWindowUnit = "MONTHS",
+                onSetCostAnalysisWindow = { _, _ -> },
+                costTrendThreshold = 0.05f,
+                onSetCostTrendThreshold = {},
+                onRecalculateAccumulated = {},
             )
         }
 
@@ -213,7 +234,18 @@ class OptionsScreenTest {
                 onGoogleAccountSelected = {},
                 syncCalendarByDefault = false,
                 onSyncCalendarByDefaultChange = {},
-                onRecalculateAccumulated = {}
+                globalUsageWindowValue = 30,
+                globalUsageWindowUnit = "DAYS",
+                onSetGlobalUsageWindow = { _, _ -> },
+                globalVisibilityHorizonValue = 30,
+                globalVisibilityHorizonUnit = "DAYS",
+                onSetGlobalVisibilityHorizon = { _, _ -> },
+                costAnalysisWindowValue = 12,
+                costAnalysisWindowUnit = "MONTHS",
+                onSetCostAnalysisWindow = { _, _ -> },
+                costTrendThreshold = 0.05f,
+                onSetCostTrendThreshold = {},
+                onRecalculateAccumulated = {},
             )
         }
 
@@ -281,7 +313,18 @@ class OptionsScreenTest {
                 onGoogleAccountSelected = {},
                 syncCalendarByDefault = false,
                 onSyncCalendarByDefaultChange = {},
-                onRecalculateAccumulated = {}
+                globalUsageWindowValue = 30,
+                globalUsageWindowUnit = "DAYS",
+                onSetGlobalUsageWindow = { _, _ -> },
+                globalVisibilityHorizonValue = 30,
+                globalVisibilityHorizonUnit = "DAYS",
+                onSetGlobalVisibilityHorizon = { _, _ -> },
+                costAnalysisWindowValue = 12,
+                costAnalysisWindowUnit = "MONTHS",
+                onSetCostAnalysisWindow = { _, _ -> },
+                costTrendThreshold = 0.05f,
+                onSetCostTrendThreshold = {},
+                onRecalculateAccumulated = {},
             )
         }
 

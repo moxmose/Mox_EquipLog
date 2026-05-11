@@ -12,5 +12,8 @@ data class MaintenanceReminderDetails(
     val operationTypeIconIdentifier: String?,
     val equipmentDismissed: Boolean,
     val operationTypeDismissed: Boolean,
-    val unitId: Int?
+    val unitId: Int?,
+    val operationTypeEstimatedCost: Double?,
+    val lastLogCost: Double?,
+    val averageCost: Double?
 )

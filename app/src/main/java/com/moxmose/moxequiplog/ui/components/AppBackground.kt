@@ -5,20 +5,32 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.AppDestinations
+import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -61,7 +73,7 @@ fun AppBackground(
                 AppDestinations.OPTIONS -> Category.OPTIONS
             }
             categoriesUiState.find { it.category.id == categoryId }?.color?.let {
-                try { Color(android.graphics.Color.parseColor(it)) } catch (_: Exception) { null }
+                try { Color(it.toColorInt()) } catch (_: Exception) { null }
             }
         }
     }
@@ -98,5 +110,17 @@ fun AppBackground(
                     .background(it.copy(alpha = tintAlpha))
             )
         }
+
+        // Version Watermark (Vertical on the right)
+        Text(
+            text = "v${BuildConfig.VERSION_NAME}",
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 4.dp, bottom = 120.dp)
+                .graphicsLayer(rotationZ = -90f),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+            maxLines = 1
+        )
     }
 }

@@ -1,10 +1,19 @@
 package com.moxmose.moxequiplog.data
 
-import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.data.local.ChartPoint
+import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.EquipmentDao
+import com.moxmose.moxequiplog.data.local.MaintenanceLog
+import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
+import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
-import java.text.SimpleDateFormat
-import java.util.*
 import kotlinx.coroutines.flow.first
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class MaintenanceManager(
     private val maintenanceLogDao: MaintenanceLogDao,
@@ -46,8 +55,7 @@ class MaintenanceManager(
 
         if (totalTimeDiff <= 0) return manualAvg
         
-        val msPerDay = 24 * 60 * 60 * 1000.0
-        val calculatedAverage = (totalValueDiff / totalTimeDiff) * msPerDay
+        val calculatedAverage = (totalValueDiff / totalTimeDiff) * AppConstants.MS_PER_DAY
         
         return if (calculatedAverage > 0) calculatedAverage else manualAvg
     }
@@ -57,10 +65,10 @@ class MaintenanceManager(
             TimeGranularity.MINUTES_5 -> value * 5 * 60 * 1000L
             TimeGranularity.MINUTES_15 -> value * 15 * 60 * 1000L
             TimeGranularity.HOURS -> value * 60 * 60 * 1000L
-            TimeGranularity.DAYS -> value * 24 * 60 * 60 * 1000L
-            TimeGranularity.WEEKS -> value * 7 * 24 * 60 * 60 * 1000L
-            TimeGranularity.MONTHS -> value * 30 * 24 * 60 * 60 * 1000L
-            TimeGranularity.YEARS -> value * 365 * 24 * 60 * 60 * 1000L
+            TimeGranularity.DAYS -> value * AppConstants.MS_PER_DAY
+            TimeGranularity.WEEKS -> value * 7 * AppConstants.MS_PER_DAY
+            TimeGranularity.MONTHS -> value * 30 * AppConstants.MS_PER_DAY
+            TimeGranularity.YEARS -> value * 365 * AppConstants.MS_PER_DAY
         }
     }
 
@@ -90,8 +98,8 @@ class MaintenanceManager(
         val remainingValue = targetValue - lastValue
         val daysRemaining = remainingValue / trend
         
-        val estimatedDate = lastDate + (daysRemaining * 24 * 60 * 60 * 1000).toLong()
-        return if (estimatedDate > System.currentTimeMillis()) estimatedDate else System.currentTimeMillis() + (24 * 60 * 60 * 1000)
+        val estimatedDate = lastDate + (daysRemaining * AppConstants.MS_PER_DAY).toLong()
+        return if (estimatedDate > System.currentTimeMillis()) estimatedDate else System.currentTimeMillis() + AppConstants.MS_PER_DAY
     }
 
     suspend fun estimateTargetValue(equipmentId: Int, dueDate: Long): Double? {
@@ -105,8 +113,7 @@ class MaintenanceManager(
         if (dueDate <= referenceDate) return lastValue
 
         val timeDiff = dueDate - referenceDate
-        val msPerDay = 24 * 60 * 60 * 1000.0
-        val days = timeDiff / msPerDay
+        val days = timeDiff.toDouble() / AppConstants.MS_PER_DAY
 
         return lastValue + (days * trend)
     }
@@ -137,7 +144,7 @@ class MaintenanceManager(
             val lastAccumulated = lastLog.accumulatedValue
             val targetAccumulated = lastAccumulated + opType.intervalValue
             val daysToTarget = (targetAccumulated - lastAccumulated) / trend
-            (lastLog.date + (daysToTarget * 24 * 60 * 60 * 1000).toLong())
+            (lastLog.date + (daysToTarget * AppConstants.MS_PER_DAY).toLong())
         } else null
 
         return when {
@@ -190,6 +197,18 @@ class MaintenanceManager(
         val inEquipments = equipmentDao.countEquipmentsUsingPhoto(uri) > 0
         val inOperations = operationTypeDao.countOperationTypesUsingPhoto(uri) > 0
         return inEquipments || inOperations
+    }
+
+    // --- COST ANALYSIS LOGIC ---
+
+    suspend fun getOperationCostStats(operationTypeId: Int, windowValue: Long, windowUnit: TimeGranularity): Pair<Double?, Double?> {
+        val windowMs = getWindowMs(windowValue, windowUnit)
+        val sinceDate = System.currentTimeMillis() - windowMs
+        
+        val lastCost = maintenanceLogDao.getLastLogWithCostForOperation(operationTypeId)?.cost
+        val avgCost = maintenanceLogDao.getAverageCostForOperationSince(operationTypeId, sinceDate)
+        
+        return lastCost to avgCost
     }
 
     // --- GRANULARITY & PERIOD UTILS ---

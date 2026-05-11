@@ -8,7 +8,6 @@ import com.moxmose.moxequiplog.data.local.ReportFilterDao
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.MaintenanceManager
-import com.moxmose.moxequiplog.data.local.*
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -19,16 +18,13 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.stopKoin
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.util.*
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest=Config.NONE)
@@ -80,7 +76,8 @@ class ReportsViewModelTest {
             imageRepository = imageRepository,
             appSettingsManager = appSettingsManager,
             reportFilterDao = reportFilterDao,
-            maintenanceManager = maintenanceManager
+            maintenanceManager = maintenanceManager,
+            resourceProvider = mockk(relaxed = true)
         )
     }
 

@@ -25,5 +25,8 @@ data class OperationType(
     @ColumnInfo(defaultValue = "30")
     val visibilityHorizon: Int = 30,
     @ColumnInfo(defaultValue = "DAYS")
-    val visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS
+    val visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
+    @ColumnInfo(defaultValue = "false")
+    val useCustomVisibilityHorizon: Boolean = false,
+    val estimatedCost: Double? = null
 )

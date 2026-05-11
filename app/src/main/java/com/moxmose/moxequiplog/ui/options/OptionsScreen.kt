@@ -1,44 +1,111 @@
 package com.moxmose.moxequiplog.ui.options
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.BuildConfig
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.*
-import com.moxmose.moxequiplog.ui.components.*
+import com.moxmose.moxequiplog.data.local.AppColor
+import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.ui.components.AddColorDialog
+import com.moxmose.moxequiplog.ui.components.ColorItemCard
+import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
+import com.moxmose.moxequiplog.ui.components.GoogleAccountSelector
+import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
+import com.moxmose.moxequiplog.ui.components.ImageSelector
+import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
+import com.moxmose.moxequiplog.ui.components.UnitItemCard
+import com.moxmose.moxequiplog.ui.equipments.TimeGranularitySelector
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import android.net.Uri
 import kotlin.system.exitProcess
 
 enum class ColorManagerMode {
@@ -65,6 +132,14 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
 
     val googleAccountName by viewModel.googleAccountName.collectAsState()
     val syncCalendarByDefault by viewModel.syncCalendarByDefault.collectAsState()
+
+    val globalUsageWindowValue by viewModel.globalUsageWindowValue.collectAsState()
+    val globalUsageWindowUnit by viewModel.globalUsageWindowUnit.collectAsState()
+    val globalVisibilityHorizonValue by viewModel.globalVisibilityHorizonValue.collectAsState()
+    val globalVisibilityHorizonUnit by viewModel.globalVisibilityHorizonUnit.collectAsState()
+    val costAnalysisWindowValue by viewModel.costAnalysisWindowValue.collectAsState()
+    val costAnalysisWindowUnit by viewModel.costAnalysisWindowUnit.collectAsState()
+    val costTrendThreshold by viewModel.costTrendThreshold.collectAsState()
 
     val reportsColorMode by viewModel.reportsColorMode.collectAsState()
 
@@ -110,7 +185,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.ToggleUnitVisibilityFailed -> context.getString(R.string.toggle_unit_visibility_failed)
                 is OptionsViewModel.OptionsUiEvent.SetDefaultFailed -> context.getString(R.string.set_default_failed)
                 is OptionsViewModel.OptionsUiEvent.UpdateReportsSettingsFailed -> context.getString(R.string.update_reports_settings_failed)
-                is OptionsViewModel.OptionsUiEvent.UpdateGoogleAccountFailed -> "Failed to update Google account"
+                is OptionsViewModel.OptionsUiEvent.UpdateSettingsFailed -> context.getString(R.string.update_settings_failed)
+                is OptionsViewModel.OptionsUiEvent.UpdateGoogleAccountFailed -> context.getString(R.string.update_google_account_failed)
                 is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
@@ -180,6 +256,17 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onGoogleAccountSelected = viewModel::setGoogleAccountName,
         syncCalendarByDefault = syncCalendarByDefault,
         onSyncCalendarByDefaultChange = viewModel::setSyncCalendarByDefault,
+        globalUsageWindowValue = globalUsageWindowValue,
+        globalUsageWindowUnit = globalUsageWindowUnit,
+        onSetGlobalUsageWindow = viewModel::setGlobalUsageWindow,
+        globalVisibilityHorizonValue = globalVisibilityHorizonValue,
+        globalVisibilityHorizonUnit = globalVisibilityHorizonUnit,
+        onSetGlobalVisibilityHorizon = viewModel::setGlobalVisibilityHorizon,
+        costAnalysisWindowValue = costAnalysisWindowValue,
+        costAnalysisWindowUnit = costAnalysisWindowUnit,
+        onSetCostAnalysisWindow = viewModel::setCostAnalysisWindow,
+        costTrendThreshold = costTrendThreshold,
+        onSetCostTrendThreshold = viewModel::setCostTrendThreshold,
         onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues
     )
 
@@ -209,6 +296,19 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
             onToggleVisibility = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.toggleReportColorVisibility(it) else viewModel.toggleColorVisibility(it) }
         )
     }
+}
+
+@Composable
+private fun OptionsGroupHeader(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, end = 4.dp, top = 16.dp, bottom = 8.dp),
+        fontWeight = FontWeight.Bold
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
@@ -264,6 +364,17 @@ fun OptionsScreenContent(
     onGoogleAccountSelected: (String?) -> Unit,
     syncCalendarByDefault: Boolean,
     onSyncCalendarByDefaultChange: (Boolean) -> Unit,
+    globalUsageWindowValue: Int,
+    globalUsageWindowUnit: String,
+    onSetGlobalUsageWindow: (Int, String) -> Unit,
+    globalVisibilityHorizonValue: Int,
+    globalVisibilityHorizonUnit: String,
+    onSetGlobalVisibilityHorizon: (Int, String) -> Unit,
+    costAnalysisWindowValue: Int,
+    costAnalysisWindowUnit: String,
+    onSetCostAnalysisWindow: (Int, String) -> Unit,
+    costTrendThreshold: Float,
+    onSetCostTrendThreshold: (Float) -> Unit,
     onRecalculateAccumulated: () -> Unit = {},
     showBackgroundPicker: Boolean = false,
     onShowBackgroundPickerChange: (Boolean) -> Unit = {},
@@ -308,12 +419,56 @@ fun OptionsScreenContent(
     }
 
     if (showAboutDialog) {
+        val uriHandler = LocalUriHandler.current
+        val githubUrl = stringResource(R.string.about_github_url)
+
         BasicAlertDialog(onDismissRequest = { onShowAboutDialogChange(false) }) {
             Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(text = stringResource(R.string.about_dialog_title), style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = stringResource(R.string.about_dialog_content, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)
+                    Text(text = stringResource(R.string.about_dialog_content), style = MaterialTheme.typography.bodyMedium)
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = stringResource(R.string.about_version_label, BuildConfig.VERSION_NAME),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.about_developer_label, stringResource(R.string.about_developer_value)),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.about_license_label, stringResource(R.string.about_license_value)),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    TextButton(
+                        onClick = { uriHandler.openUri(githubUrl) },
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload, // Using a generic download icon for code, or we could add a custom github one
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.about_github_label),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
                     TextButton(onClick = { onShowAboutDialogChange(false) }, modifier = Modifier.align(Alignment.End)) {
                         Text(stringResource(R.string.button_ok))
@@ -415,6 +570,95 @@ fun OptionsScreenContent(
                 textAlign = TextAlign.Center
             )
 
+            // --- SECTION: GENERAL ---
+            OptionsGroupHeader(stringResource(R.string.options_section_general))
+
+            // 6. ANALYTICS & PREDICTION
+            OptionsSectionCard(
+                title = stringResource(R.string.predictive_maintenance_settings),
+                description = stringResource(R.string.options_predictive_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Trend Window
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.options_usage_window_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = globalUsageWindowValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalUsageWindow(it, globalUsageWindowUnit) } },
+                                label = { Text("Window") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(globalUsageWindowUnit),
+                                onSelected = { onSetGlobalUsageWindow(globalUsageWindowValue, it.name) },
+                                label = "Of last",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                        Text(text = stringResource(R.string.options_usage_window_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    // Visibility Horizon
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.options_visibility_horizon_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = globalVisibilityHorizonValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalVisibilityHorizon(it, globalVisibilityHorizonUnit) } },
+                                label = { Text("Horizon") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(globalVisibilityHorizonUnit),
+                                onSelected = { onSetGlobalVisibilityHorizon(globalVisibilityHorizonValue, it.name) },
+                                label = "Future span",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                        Text(text = stringResource(R.string.options_visibility_horizon_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    // Cost Window
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.options_cost_window_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = costAnalysisWindowValue.toString(),
+                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetCostAnalysisWindow(it, costAnalysisWindowUnit) } },
+                                label = { Text("Window") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimeGranularitySelector(
+                                selected = TimeGranularity.valueOf(costAnalysisWindowUnit),
+                                onSelected = { onSetCostAnalysisWindow(costAnalysisWindowValue, it.name) },
+                                label = "History span",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                        }
+                        Text(text = stringResource(R.string.options_cost_window_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    // Cost Trend Threshold
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.options_cost_trend_threshold), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Text("${(costTrendThreshold * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+                        Slider(
+                            value = costTrendThreshold,
+                            onValueChange = onSetCostTrendThreshold,
+                            valueRange = 0f..0.5f,
+                            steps = 49 // Da 0% a 50% con step dell'1%
+                        )
+                        Text(text = stringResource(R.string.options_cost_trend_threshold_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
             // 1. PROFILO
             OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
                 OutlinedTextField(
@@ -431,79 +675,6 @@ fun OptionsScreenContent(
                         }
                     }
                 )
-            }
-
-            // 2. IMMAGINI
-            OptionsSectionCard(
-                title = stringResource(R.string.options_image_mgmt_title),
-                description = stringResource(R.string.options_image_mgmt_desc)
-            ) {
-                OutlinedButton(onClick = { onShowImageDialogChange(true) }, modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (allImages.isEmpty()) {
-                                Text(stringResource(R.string.options_empty_library))
-                            } else {
-                                allImages.filter { img -> !img.hidden }.distinctBy { img -> img.uri }.take(4).forEach { image ->
-                                    val allCategories = categoriesUiState.map { state -> state.category }
-                                    ImageSelector(
-                                        photoUri = if (image.imageType == "IMAGE") image.uri else null,
-                                        iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
-                                        onImageSelected = {_,_ ->},
-                                        modifier = Modifier.size(40.dp),
-                                        category = image.category,
-                                        categories = allCategories,
-                                        categoryColors = categoryColorsMap,
-                                        categoryDefaultIcons = categoryDefaultIconsMap,
-                                        categoryDefaultPhotos = categoryDefaultPhotosMap,
-                                        imageLibrary = allImages,
-                                        forcedCategory = Category.EQUIPMENT
-                                    )
-                                }
-                            }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_images), tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            }
-
-            // 3. COLORI
-            OptionsSectionCard(
-                title = stringResource(R.string.options_sections_colors_title),
-                description = stringResource(R.string.options_sections_colors_desc)
-            ) {
-                val sectionOrder = listOf(
-                    Category.LOGS, 
-                    Category.EQUIPMENT, 
-                    Category.OPERATION, 
-                    Category.REPORTS, 
-                    Category.OPTIONS
-                )
-                categoriesUiState
-                    .sortedBy { uiState -> 
-                        val index = sectionOrder.indexOf(uiState.category.id)
-                        if (index != -1) index else Int.MAX_VALUE
-                    }
-                    .forEach { uiState ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        ) {
-                            Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                            Spacer(Modifier.width(12.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(uiState.color.toColorInt()))
-                                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                    .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
-                            )
-                        }
-                    }
             }
 
             // 4. UNITÀ DI MISURA
@@ -542,47 +713,47 @@ fun OptionsScreenContent(
                 }
             }
 
-            // 5. REPORTS
+            // --- SECTION: BEHAVIOUR AND APPEARANCE ---
+            OptionsGroupHeader(stringResource(R.string.options_section_appearance))
+
+            // 2. IMMAGINI
             OptionsSectionCard(
-                title = stringResource(R.string.reports_title),
-                description = stringResource(R.string.report_equipments_desc)
+                title = stringResource(R.string.options_image_mgmt_title),
+                description = stringResource(R.string.options_image_mgmt_desc)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.options_use_custom_colors_reports), 
-                            modifier = Modifier.weight(1f), 
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Switch(
-                            checked = reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM,
-                            onCheckedChange = { 
-                                onSetReportsColorMode(if (it) UiConstants.REPORTS_COLOR_MODE_CUSTOM else UiConstants.REPORTS_COLOR_MODE_M3)
-                            }
-                        )
-                    }
-                    
-                    if (reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
-                        OutlinedButton(onClick = { onShowColorManager(ColorManagerMode.REPORTS_MANAGER, null) }, modifier = Modifier.fillMaxWidth()) {
-                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    reportsColors.filter { !it.reportHidden }.take(6).forEach { color ->
-                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
-                                    }
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                OutlinedButton(onClick = { onShowImageDialogChange(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (allImages.isEmpty()) {
+                                Text(stringResource(R.string.options_empty_library))
+                            } else {
+                                allImages.filter { img -> !img.hidden }.distinctBy { img -> img.uri }.take(4).forEach { image ->
+                                    val allCategories = categoriesUiState.map { state -> state.category }
+                                    ImageSelector(
+                                        photoUri = if (image.imageType == "IMAGE") image.uri else null,
+                                        iconIdentifier = if (image.imageType == "ICON") image.uri.removePrefix("icon:") else null,
+                                        onImageSelected = {_,_ ->},
+                                        modifier = Modifier.size(40.dp),
+                                        category = image.category,
+                                        categories = allCategories,
+                                        categoryColors = categoryColorsMap,
+                                        categoryDefaultIcons = categoryDefaultIconsMap,
+                                        categoryDefaultPhotos = categoryDefaultPhotosMap,
+                                        imageLibrary = allImages,
+                                        forcedCategory = Category.EQUIPMENT
+                                    )
                                 }
                             }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_images), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             }
 
-            // 6. BACKGROUND
+            // 7. BACKGROUND
             OptionsSectionCard(
                 title = stringResource(R.string.options_background_custom_title),
                 description = stringResource(R.string.options_background_custom_desc)
@@ -629,6 +800,85 @@ fun OptionsScreenContent(
                     }
                 }
             }
+
+            // 3. COLORI
+            OptionsSectionCard(
+                title = stringResource(R.string.options_sections_colors_title),
+                description = stringResource(R.string.options_sections_colors_desc)
+            ) {
+                val sectionOrder = listOf(
+                    Category.LOGS, 
+                    Category.EQUIPMENT, 
+                    Category.OPERATION, 
+                    Category.REPORTS, 
+                    Category.OPTIONS
+                )
+                categoriesUiState
+                    .sortedBy { uiState -> 
+                        val index = sectionOrder.indexOf(uiState.category.id)
+                        if (index != -1) index else Int.MAX_VALUE
+                    }
+                    .forEach { uiState ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                            Spacer(Modifier.width(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(uiState.color.toColorInt()))
+                                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                    .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
+                            )
+                        }
+                    }
+            }
+
+            // 5. REPORTS
+            OptionsSectionCard(
+                title = stringResource(R.string.options_reports_colors_title),
+                description = stringResource(R.string.report_equipments_desc)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.options_use_custom_colors_reports), 
+                            modifier = Modifier.weight(1f), 
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Switch(
+                            checked = reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM,
+                            onCheckedChange = { 
+                                onSetReportsColorMode(if (it) UiConstants.REPORTS_COLOR_MODE_CUSTOM else UiConstants.REPORTS_COLOR_MODE_M3)
+                            }
+                        )
+                    }
+                    
+                    if (reportsColorMode == UiConstants.REPORTS_COLOR_MODE_CUSTOM) {
+                        OutlinedButton(onClick = { onShowColorManager(ColorManagerMode.REPORTS_MANAGER, null) }, modifier = Modifier.fillMaxWidth()) {
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    reportsColors.filter { !it.reportHidden }.take(6).forEach { color ->
+                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- SECTION: SYSTEM ---
+            OptionsGroupHeader(stringResource(R.string.options_section_system))
 
             // 7. DATA MANAGEMENT
             OptionsSectionCard(

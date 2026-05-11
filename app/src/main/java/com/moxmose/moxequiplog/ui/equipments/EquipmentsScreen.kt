@@ -6,16 +6,72 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.UnfoldLess
+import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +81,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,21 +89,23 @@ import androidx.core.graphics.toColorInt
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
-import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.Date
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import java.util.Locale
 
 @Composable
 fun EquipmentsScreen(
@@ -119,7 +178,17 @@ fun EquipmentsScreen(
                 if (log.date > now + 60000) { 
                     logsViewModel.addReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault)
                 } else {
-                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                    logsViewModel.addLog(
+                        log.equipmentId, 
+                        log.operationTypeId, 
+                        log.notes, 
+                        log.value, 
+                        log.date, 
+                        log.color, 
+                        log.resetAfter,
+                        log.cost,
+                        log.isUnplanned
+                    )
                 }
                 viewModel.onPredictionAction(0, null)
             },
@@ -152,7 +221,17 @@ fun EquipmentsScreen(
                         logsViewModel.updateReminder(log.equipmentId, log.operationTypeId, log.date, log.value, syncCalendarByDefault, id)
                     }
                 } else {
-                    logsViewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                    logsViewModel.addLog(
+                        log.equipmentId, 
+                        log.operationTypeId, 
+                        log.notes, 
+                        log.value, 
+                        log.date, 
+                        log.color, 
+                        log.resetAfter,
+                        log.cost,
+                        log.isUnplanned
+                    )
                 }
                 viewModel.onPlannedAction(0, null)
             },
@@ -225,7 +304,7 @@ fun EquipmentsScreenContent(
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
@@ -282,8 +361,8 @@ fun EquipmentsScreenContent(
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit ->
-                    onAddEquipment(desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit)
+                onConfirm = { desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon ->
+                    onAddEquipment(desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -365,7 +444,7 @@ fun EquipmentsScreenContent(
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     imageLibrary: List<Image>,
@@ -386,16 +465,21 @@ fun AddEquipmentDialog(
     var isResettable by rememberSaveable { mutableStateOf(false) }
     
     // Predictive Settings
+    var useCustomUsageWindow by rememberSaveable { mutableStateOf(false) }
     var usageWindow by rememberSaveable { mutableIntStateOf(30) }
     var usageWindowUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+    
     var manualAverageValue by rememberSaveable { mutableStateOf<Double?>(null) }
     var manualAverageValueStr by rememberSaveable { mutableStateOf("") }
     var manualAverageUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+    
+    var useCustomVisibilityHorizon by rememberSaveable { mutableStateOf(false) }
     var visibilityHorizon by rememberSaveable { mutableIntStateOf(30) }
     var visibilityHorizonUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
 
     var isPristine by rememberSaveable { mutableStateOf(true) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
+    var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
 
     val selectedUnit = measurementUnits.find { it.id == unitId }
     val unitLabel = selectedUnit?.label ?: ""
@@ -504,68 +588,97 @@ fun AddEquipmentDialog(
 
                 HorizontalDivider()
 
-                Text(
-                    text = stringResource(R.string.predictive_maintenance_settings),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                // Trend Window Section
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = usageWindow.toString(),
-                            onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it } },
-                            label = { Text("Window Value") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        TimeGranularitySelector(selected = usageWindowUnit, onSelected = { usageWindowUnit = it }, label = "Of last", modifier = Modifier.weight(1.2f))
-                    }
-                    Text(text = "Time window used to analyze history and calculate trends", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { showAdvancedSettings = !showAdvancedSettings },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = stringResource(R.string.predictive_maintenance_settings),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = if (showAdvancedSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
 
-                // Manual Average Section
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = manualAverageValueStr,
-                            onValueChange = { input ->
-                                val filtered = input.replace(',', '.')
-                                if (filtered.isEmpty() || filtered == "." || filtered == "-") {
-                                    manualAverageValueStr = filtered
-                                    manualAverageValue = null
-                                } else {
-                                    val doubleVal = filtered.toDoubleOrNull()
-                                    if (doubleVal != null) {
-                                        manualAverageValueStr = filtered
-                                        manualAverageValue = doubleVal
-                                    }
+                if (showAdvancedSettings) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        // Trend Window Section
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth().clickable { useCustomUsageWindow = !useCustomUsageWindow }, verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = useCustomUsageWindow, onCheckedChange = { useCustomUsageWindow = it })
+                                Text("Use custom trend window", style = MaterialTheme.typography.bodySmall)
+                            }
+                            if (useCustomUsageWindow) {
+                                Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    OutlinedTextField(
+                                        value = usageWindow.toString(),
+                                        onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it } },
+                                        label = { Text("Window Value") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TimeGranularitySelector(selected = usageWindowUnit, onSelected = { usageWindowUnit = it }, label = "Of last", modifier = Modifier.weight(1.2f))
                                 }
-                            },
-                            label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
-                            placeholder = { Text("Fallback") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        TimeGranularitySelector(selected = manualAverageUnit, onSelected = { manualAverageUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
-                    }
-                    Text(text = "Optional: expected usage when history is missing (fallback)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                            } else {
+                                Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
+                            }
+                        }
 
-                // Visibility Horizon Row
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = visibilityHorizon.toString(),
-                            onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } },
-                            label = { Text("Event Horizon") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                        // Manual Average Section
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedTextField(
+                                    value = manualAverageValueStr,
+                                    onValueChange = { input ->
+                                        val filtered = input.replace(',', '.')
+                                        if (filtered.isEmpty() || filtered == "." || filtered == "-") {
+                                            manualAverageValueStr = filtered
+                                            manualAverageValue = null
+                                        } else {
+                                            val doubleVal = filtered.toDoubleOrNull()
+                                            if (doubleVal != null) {
+                                                manualAverageValueStr = filtered
+                                                manualAverageValue = doubleVal
+                                            }
+                                        }
+                                    },
+                                    label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
+                                    placeholder = { Text("Fallback") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TimeGranularitySelector(selected = manualAverageUnit, onSelected = { manualAverageUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
+                            }
+                            Text(text = "Optional: expected usage when history is missing (fallback)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        // Visibility Horizon Row
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth().clickable { useCustomVisibilityHorizon = !useCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = useCustomVisibilityHorizon, onCheckedChange = { useCustomVisibilityHorizon = it })
+                                Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
+                            }
+                            if (useCustomVisibilityHorizon) {
+                                Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    OutlinedTextField(
+                                        value = visibilityHorizon.toString(),
+                                        onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } },
+                                        label = { Text("Event Horizon") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                }
+                            } else {
+                                Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
+                            }
+                        }
                     }
-                    Text(text = "How far into the future to show upcoming maintenance items", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         },
@@ -577,7 +690,7 @@ fun AddEquipmentDialog(
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
-                    onConfirm(description, identifier, unitId, isResettable, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit, visibilityHorizon, visibilityHorizonUnit)
+                    onConfirm(description, identifier, unitId, isResettable, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit, visibilityHorizon, visibilityHorizonUnit, useCustomUsageWindow, useCustomVisibilityHorizon)
                 }
             ) { Text(stringResource(R.string.button_add)) }
         },
@@ -698,11 +811,15 @@ fun EquipmentCard(
     var editedIsResettable by remember(equipment.isResettable) { mutableStateOf(equipment.isResettable) }
     
     // Predictive Settings
+    var editedUseCustomUsageWindow by remember(equipment.useCustomUsageWindow) { mutableStateOf(equipment.useCustomUsageWindow) }
     var editedUsageWindow by remember(equipment.usageWindow) { mutableIntStateOf(equipment.usageWindow) }
     var editedUsageWindowUnit by remember(equipment.usageWindowUnit) { mutableStateOf(equipment.usageWindowUnit) }
+    
     var editedManualAverageValue by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue) }
     var editedManualAverageValueStr by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue?.toString() ?: "") }
     var editedManualAverageUnit by remember(equipment.manualAverageUnit) { mutableStateOf(equipment.manualAverageUnit) }
+    
+    var editedUseCustomVisibilityHorizon by remember(equipment.useCustomVisibilityHorizon) { mutableStateOf(equipment.useCustomVisibilityHorizon) }
     var editedVisibilityHorizon by remember(equipment.visibilityHorizon) { mutableIntStateOf(equipment.visibilityHorizon) }
     var editedVisibilityHorizonUnit by remember(equipment.visibilityHorizonUnit) { mutableStateOf(equipment.visibilityHorizonUnit) }
     
@@ -872,7 +989,9 @@ fun EquipmentCard(
                                         manualAverageValue = editedManualAverageValue,
                                         manualAverageUnit = editedManualAverageUnit,
                                         visibilityHorizon = editedVisibilityHorizon,
-                                        visibilityHorizonUnit = editedVisibilityHorizonUnit
+                                        visibilityHorizonUnit = editedVisibilityHorizonUnit,
+                                        useCustomUsageWindow = editedUseCustomUsageWindow,
+                                        useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon
                                     )
                                 )
                             }
@@ -915,35 +1034,37 @@ fun EquipmentCard(
 
                     // Trend Window Section
                     Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = editedUsageWindow.toString(),
-                                onValueChange = { input ->
-                                    input.toIntOrNull()?.let { if (it in 1..999) editedUsageWindow = it }
-                                },
-                                label = { Text("Window Value") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                textStyle = MaterialTheme.typography.bodySmall
-                            )
-                            
-                            TimeGranularitySelector(
-                                selected = editedUsageWindowUnit,
-                                onSelected = { editedUsageWindowUnit = it },
-                                label = "Of last",
-                                modifier = Modifier.weight(1.2f)
-                            )
+                        Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomUsageWindow = !editedUseCustomUsageWindow }, verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = editedUseCustomUsageWindow, onCheckedChange = { editedUseCustomUsageWindow = it })
+                            Text("Use custom trend window", style = MaterialTheme.typography.bodySmall)
                         }
-                        Text(
-                            text = "Time window used to analyze history and calculate trends",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
+                        if (editedUseCustomUsageWindow) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(start = 24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = editedUsageWindow.toString(),
+                                    onValueChange = { input ->
+                                        input.toIntOrNull()?.let { if (it in 1..999) editedUsageWindow = it }
+                                    },
+                                    label = { Text("Window Value") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(1f),
+                                    textStyle = MaterialTheme.typography.bodySmall
+                                )
+                                
+                                TimeGranularitySelector(
+                                    selected = editedUsageWindowUnit,
+                                    onSelected = { editedUsageWindowUnit = it },
+                                    label = "Of last",
+                                    modifier = Modifier.weight(1.2f)
+                                )
+                            }
+                        } else {
+                            Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
+                        }
                     }
 
                     // Manual Average Section
@@ -992,18 +1113,25 @@ fun EquipmentCard(
 
                     // Visibility Horizon Section
                     Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = editedVisibilityHorizon.toString(),
-                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) editedVisibilityHorizon = it } },
-                                label = { Text("Event Horizon") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                textStyle = MaterialTheme.typography.bodySmall
-                            )
-                            TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                        Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
+                            Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
                         }
-                        Text(text = "How far into the future to show upcoming maintenance items", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+                        if (editedUseCustomVisibilityHorizon) {
+                            Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedTextField(
+                                    value = editedVisibilityHorizon.toString(),
+                                    onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } },
+                                    label = { Text("Event Horizon") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(1f),
+                                    textStyle = MaterialTheme.typography.bodySmall
+                                )
+                                TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                            }
+                        } else {
+                            Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
+                        }
                     }
                 }
 

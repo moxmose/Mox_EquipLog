@@ -18,26 +18,73 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingFlat
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,22 +100,19 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
+import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.utils.AppConstants
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Warning
-import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.ui.components.ImageIcon
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun MaintenanceLogScreen(
@@ -90,6 +134,7 @@ fun MaintenanceLogScreen(
     val googleAccountName by viewModel.googleAccountName.collectAsState()
     val allEquipments by viewModel.allEquipments.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
+    val costTrendThreshold by viewModel.costTrendThreshold.collectAsState()
     
     val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
     val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
@@ -123,23 +168,36 @@ fun MaintenanceLogScreen(
     val activeOperationTypes = remember(allOperationTypes) { allOperationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
 
     if (selectedReminderForComplete != null) {
+        val details = selectedReminderForComplete!!
         MaintenanceLogDialog(
             equipments = activeEquipments,
             operationTypes = activeOperationTypes,
             measurementUnits = measurementUnits,
             onDismissRequest = { viewModel.onCompleteReminder(null) },
             onConfirm = { log ->
-                viewModel.addLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color)
+                viewModel.addLog(
+                    log.equipmentId, 
+                    log.operationTypeId, 
+                    log.notes, 
+                    log.value, 
+                    log.date, 
+                    log.color, 
+                    log.resetAfter,
+                    log.cost,
+                    log.isUnplanned
+                )
                 viewModel.onCompleteReminder(null)
             },
             onEstimateDueDate = viewModel::estimateDueDate,
             onEstimateTargetValue = viewModel::estimateTargetValue,
-            defaultEquipmentId = selectedReminderForComplete?.reminder?.equipmentId,
-            defaultOperationTypeId = selectedReminderForComplete?.reminder?.operationTypeId,
+            defaultEquipmentId = details.reminder.equipmentId,
+            defaultOperationTypeId = details.reminder.operationTypeId,
+            initialCost = (details.lastLogCost ?: details.operationTypeEstimatedCost)?.toString() ?: "",
             equipmentCategoryColor = equipmentColor,
             operationCategoryColor = operationColor,
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
+            costTrendThreshold = costTrendThreshold,
             onNavigateToOptions = onNavigateToOptions
         )
     }
@@ -174,6 +232,7 @@ fun MaintenanceLogScreen(
             operationCategoryColor = operationColor,
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
+            costTrendThreshold = costTrendThreshold,
             onNavigateToOptions = onNavigateToOptions
         )
     }
@@ -198,6 +257,7 @@ fun MaintenanceLogScreen(
         onRefreshReminders = viewModel::recalculateAllReminders,
         onEstimateDueDate = viewModel::estimateDueDate,
         onEstimateTargetValue = viewModel::estimateTargetValue,
+        onGetOperationCostStats = viewModel::getOperationCostStats,
         expandedCardId = expandedCardId,
         onCardExpanded = viewModel::onCardExpanded,
         editingCardId = editingCardId,
@@ -217,6 +277,7 @@ fun MaintenanceLogScreen(
         onDeleteReminder = viewModel::deleteReminder,
         syncCalendarByDefault = syncCalendarByDefault,
         googleAccountName = googleAccountName,
+        costTrendThreshold = costTrendThreshold,
         onNavigateToOptions = onNavigateToOptions
     )
 }
@@ -229,7 +290,8 @@ fun RemindersDashboard(
     operationCategoryColor: String?,
     onComplete: (MaintenanceReminderDetails) -> Unit,
     onEdit: (MaintenanceReminderDetails) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    costTrendThreshold: Float
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     
@@ -306,7 +368,8 @@ fun RemindersDashboard(
                             eColor = eColor,
                             oColor = oColor,
                             onComplete = { onComplete(reminderDetails) },
-                            onEdit = { onEdit(reminderDetails) }
+                            onEdit = { onEdit(reminderDetails) },
+                            costTrendThreshold = costTrendThreshold
                         )
                     }
                     Spacer(modifier = Modifier.padding(bottom = 4.dp))
@@ -323,7 +386,8 @@ fun ReminderItem(
     eColor: Color,
     oColor: Color,
     onComplete: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    costTrendThreshold: Float
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val unit = measurementUnits.find { it.id == details.unitId }
@@ -441,6 +505,38 @@ fun ReminderItem(
                         )
                     }
                 }
+
+                val estimatedCost = details.lastLogCost ?: details.operationTypeEstimatedCost
+                if (estimatedCost != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Payments,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.estimated_cost_label, String.format(Locale.US, "%.2f €", estimatedCost)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                        details.averageCost?.let { avg ->
+                            Spacer(Modifier.width(4.dp))
+                            val (icon, color) = when {
+                                estimatedCost > avg * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                estimatedCost < avg * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
+                            }
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
             }
             
             Row {
@@ -472,11 +568,12 @@ fun MaintenanceLogScreenContent(
     onShowDismissedToggle: () -> Unit,
     showAddDialog: Boolean,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddLog: (Int, Int, String?, Double?, Long, String?, Boolean) -> Unit,
+    onAddLog: (Int, Int, String?, Double?, Long, String?, Boolean, Double?, Boolean) -> Unit,
     onAddReminder: (Int, Int, Long?, Double?, Boolean) -> Unit,
     onRefreshReminders: () -> Unit,
     onEstimateDueDate: suspend (Int, Double) -> Long?,
     onEstimateTargetValue: suspend (Int, Long) -> Double?,
+    onGetOperationCostStats: suspend (Int) -> Pair<Double?, Double?>,
     expandedCardId: Int?,
     onCardExpanded: (Int) -> Unit,
     editingCardId: Int?,
@@ -497,6 +594,7 @@ fun MaintenanceLogScreenContent(
     onDeleteReminder: (MaintenanceReminderDetails) -> Unit,
     syncCalendarByDefault: Boolean,
     googleAccountName: String?,
+    costTrendThreshold: Float,
     onNavigateToOptions: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
@@ -529,7 +627,17 @@ fun MaintenanceLogScreenContent(
             measurementUnits = measurementUnits,
             onDismissRequest = { onShowAddDialogChange(false) },
             onConfirm = { log ->
-                onAddLog(log.equipmentId, log.operationTypeId, log.notes, log.value, log.date, log.color, log.resetAfter)
+                onAddLog(
+                    log.equipmentId, 
+                    log.operationTypeId, 
+                    log.notes, 
+                    log.value, 
+                    log.date, 
+                    log.color, 
+                    log.resetAfter,
+                    log.cost,
+                    log.isUnplanned
+                )
                 onShowAddDialogChange(false)
             },
             onSchedule = { equipmentId, opTypeId, date, value, sync ->
@@ -538,12 +646,14 @@ fun MaintenanceLogScreenContent(
                 },
                 onEstimateDueDate = onEstimateDueDate,
                 onEstimateTargetValue = onEstimateTargetValue,
+                onGetOperationCostStats = onGetOperationCostStats,
                 defaultEquipmentId = defaultEquipmentId,
                 defaultOperationTypeId = defaultOperationTypeId,
                 equipmentCategoryColor = equipmentCategoryColor,
                 operationCategoryColor = operationCategoryColor,
                 syncCalendarByDefault = syncCalendarByDefault,
                 googleAccountName = googleAccountName,
+                costTrendThreshold = costTrendThreshold,
                 onNavigateToOptions = onNavigateToOptions
             )
         }
@@ -556,7 +666,8 @@ fun MaintenanceLogScreenContent(
                 operationCategoryColor = operationCategoryColor,
                 onComplete = onCompleteReminder,
                 onEdit = onEditReminder,
-                onRefresh = onRefreshReminders
+                onRefresh = onRefreshReminders,
+                costTrendThreshold = costTrendThreshold
             )
             Row(
                 modifier = Modifier
@@ -630,8 +741,10 @@ fun MaintenanceLogScreenContent(
                         onDelete = onDeleteLog,
                         onDismiss = { onDismissLog(logDetail.log) },
                         onRestore = { onRestoreLog(logDetail.log) },
+                        onGetOperationCostStats = onGetOperationCostStats,
                         equipmentCategoryColor = equipmentCategoryColor,
-                        operationCategoryColor = operationCategoryColor
+                        operationCategoryColor = operationCategoryColor,
+                        costTrendThreshold = costTrendThreshold
                     )
                 }
             }
@@ -653,10 +766,13 @@ fun MaintenanceLogDialog(
     onDeleteReminder: (() -> Unit)? = null,
     onEstimateDueDate: (suspend (Int, Double) -> Long?)? = null,
     onEstimateTargetValue: (suspend (Int, Long) -> Double?)? = null,
+    onGetOperationCostStats: (suspend (Int) -> Pair<Double?, Double?>)? = null,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
     initialDate: Long = System.currentTimeMillis(),
     initialValue: String = "",
+    initialCost: String = "",
+    initialIsUnplanned: Boolean = false,
     initialSyncToCalendar: Boolean? = null,
     initialHasFixedDate: Boolean = true,
     isEditMode: Boolean = false,
@@ -664,6 +780,7 @@ fun MaintenanceLogDialog(
     operationCategoryColor: String?,
     syncCalendarByDefault: Boolean = false,
     googleAccountName: String? = null,
+    costTrendThreshold: Float = UiConstants.DEFAULT_COST_TREND_THRESHOLD,
     onNavigateToOptions: () -> Unit = {}
 ) {
     val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
@@ -672,6 +789,8 @@ fun MaintenanceLogDialog(
     var selectedTab by remember(isEditMode) { mutableIntStateOf(if (isEditMode) 1 else 0) } // 0: Completed, 1: Planned
     var notes by remember { mutableStateOf("") }
     var valueStr by remember { mutableStateOf(initialValue) }
+    var costStr by remember { mutableStateOf(initialCost) }
+    var isUnplanned by remember { mutableStateOf(initialIsUnplanned) }
     var syncToCalendar by remember(syncCalendarByDefault, initialSyncToCalendar) { 
         mutableStateOf(initialSyncToCalendar ?: syncCalendarByDefault) 
     }
@@ -700,6 +819,21 @@ fun MaintenanceLogDialog(
     var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteReminderConfirmation by remember { mutableStateOf(false) }
     var resetAfter by remember { mutableStateOf(false) }
+
+    var lastCost by remember { mutableStateOf<Double?>(null) }
+    var avgCost by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(selectedOperationType) {
+        selectedOperationType?.id?.let { opId ->
+            onGetOperationCostStats?.invoke(opId)?.let { (last, avg) ->
+                lastCost = last
+                avgCost = avg
+            }
+        } ?: run {
+            lastCost = null
+            avgCost = null
+        }
+    }
 
     val scope = rememberCoroutineScope()
     var isEstimating by remember { mutableStateOf(false) }
@@ -884,6 +1018,9 @@ fun MaintenanceLogDialog(
                                     if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
                                         selectedOperationType = null
                                     }
+                                    if (!equipment.isResettable) {
+                                        resetAfter = false
+                                    }
                                 }
                             )
                         }
@@ -933,6 +1070,9 @@ fun MaintenanceLogDialog(
                                 onClick = {
                                     selectedOperationType = operation
                                     isOperationDropdownExpanded = false
+                                    if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                        resetAfter = true
+                                    }
                                 }
                             )
                         }
@@ -982,15 +1122,69 @@ fun MaintenanceLogDialog(
                 )
 
                 if (selectedTab == 0) {
+                    val isResettable = selectedEquipment?.isResettable == true
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { resetAfter = !resetAfter },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = isResettable) { resetAfter = !resetAfter },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = resetAfter,
-                            onCheckedChange = { resetAfter = it }
+                            checked = resetAfter && isResettable,
+                            onCheckedChange = { resetAfter = it },
+                            enabled = isResettable
                         )
-                        Text(stringResource(R.string.reset_counter_after))
+                        Text(
+                            text = stringResource(R.string.reset_counter_after),
+                            color = if (isResettable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = costStr,
+                        onValueChange = { input ->
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered == ".") {
+                                costStr = filtered
+                            } else {
+                                val doubleVal = filtered.toDoubleOrNull()
+                                if (doubleVal != null && filtered.length <= 10) {
+                                    costStr = filtered
+                                }
+                            }
+                        },
+                        label = { Text(stringResource(R.string.cost_optional)) },
+                        supportingText = {
+                            if (lastCost != null && avgCost != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stringResource(R.string.last_cost_label, String.format(Locale.US, "%.2f €", lastCost)),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    val (icon, color) = when {
+                                        lastCost!! > avgCost!! * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                        lastCost!! < avgCost!! * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                        else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
+                                    }
+                                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { isUnplanned = !isUnplanned },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = isUnplanned,
+                            onCheckedChange = { isUnplanned = it }
+                        )
+                        Text(stringResource(R.string.unplanned_intervention))
                     }
 
                     OutlinedTextField(
@@ -1123,7 +1317,9 @@ fun MaintenanceLogDialog(
                                         notes = notes.takeIf { it.isNotBlank() },
                                         value = valueStr.toDoubleOrNull(),
                                         date = selectedDate,
-                                        resetAfter = resetAfter
+                                        resetAfter = resetAfter,
+                                        cost = costStr.toDoubleOrNull(),
+                                        isUnplanned = isUnplanned
                                     )
                                 )
                             } else {
@@ -1171,12 +1367,17 @@ fun MaintenanceLogCard(
     onDelete: (MaintenanceLog) -> Unit,
     onDismiss: () -> Unit,
     onRestore: () -> Unit,
+    onGetOperationCostStats: suspend (Int) -> Pair<Double?, Double?>,
     modifier: Modifier = Modifier,
     equipmentCategoryColor: String?,
-    operationCategoryColor: String?
+    operationCategoryColor: String?,
+    costTrendThreshold: Float
 ) {
     var editedNotes by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.notes ?: "") }
     var editedValueStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.value?.toString() ?: "") }
+    var editedCostStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.cost?.toString() ?: "") }
+    var editedIsUnplanned by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.isUnplanned) }
+    var editedResetAfter by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.resetAfter) }
     var editedDate by remember(logDetail, isEditing) { mutableLongStateOf(logDetail.log.date) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -1185,6 +1386,23 @@ fun MaintenanceLogCard(
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    var lastCost by remember { mutableStateOf<Double?>(null) }
+    var avgCost by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(selectedOperationType) {
+        if (isEditing) {
+            selectedOperationType?.id?.let { opId ->
+                onGetOperationCostStats(opId).let { (last, avg) ->
+                    lastCost = last
+                    avgCost = avg
+                }
+            } ?: run {
+                lastCost = null
+                avgCost = null
+            }
+        }
+    }
 
     val unit = remember(selectedEquipment, measurementUnits) {
         measurementUnits.find { it.id == selectedEquipment?.unitId }
@@ -1364,6 +1582,9 @@ fun MaintenanceLogCard(
                                         if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
                                             selectedOperationType = null
                                         }
+                                        if (!equipment.isResettable) {
+                                            editedResetAfter = false
+                                        }
                                     }
                                 )
                             }
@@ -1413,6 +1634,9 @@ fun MaintenanceLogCard(
                                     onClick = {
                                         selectedOperationType = operation
                                         isOperationDropdownExpanded = false
+                                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                            editedResetAfter = true
+                                        }
                                     }
                                 )
                             }
@@ -1439,12 +1663,76 @@ fun MaintenanceLogCard(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    
+                    val isResettable = selectedEquipment?.isResettable == true
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = isResettable) { editedResetAfter = !editedResetAfter },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = editedResetAfter && isResettable,
+                            onCheckedChange = { editedResetAfter = it },
+                            enabled = isResettable
+                        )
+                        Text(
+                            text = stringResource(R.string.reset_counter_after),
+                            color = if (isResettable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    }
+
                     OutlinedTextField(
                         value = editedNotes,
                         onValueChange = { if (it.length <= 200) editedNotes = it },
                         label = { Text(stringResource(R.string.notes_optional)) },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    OutlinedTextField(
+                        value = editedCostStr,
+                        onValueChange = { input ->
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered == ".") {
+                                editedCostStr = filtered
+                            } else {
+                                val doubleVal = filtered.toDoubleOrNull()
+                                if (doubleVal != null && filtered.length <= 10) {
+                                    editedCostStr = filtered
+                                }
+                            }
+                        },
+                        label = { Text(stringResource(R.string.cost_optional)) },
+                        supportingText = {
+                            if (lastCost != null && avgCost != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = stringResource(R.string.last_cost_label, String.format(Locale.US, "%.2f €", lastCost)),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    val (icon, color) = when {
+                                        lastCost!! > avgCost!! * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
+                                        lastCost!! < avgCost!! * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
+                                        else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
+                                    }
+                                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { editedIsUnplanned = !editedIsUnplanned },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = editedIsUnplanned,
+                            onCheckedChange = { editedIsUnplanned = it }
+                        )
+                        Text(stringResource(R.string.unplanned_intervention))
+                    }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { showDatePicker = true }, modifier = Modifier.weight(1f)) {
                             Text(text = dayFormat.format(Date(editedDate)))
@@ -1489,8 +1777,22 @@ fun MaintenanceLogCard(
                             style = MaterialTheme.typography.bodyLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.graphicsLayer(alpha = operationTypeAlpha)
+                            modifier = Modifier.graphicsLayer(alpha = operationTypeAlpha).weight(1f)
                         )
+                        if (logDetail.log.isUnplanned) {
+                            Surface(
+                                shape = MaterialTheme.shapes.extraSmall,
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.padding(start = 4.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.unplanned_intervention),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     }
 
                     Row(
@@ -1503,13 +1805,22 @@ fun MaintenanceLogCard(
                             val prevVal = logDetail.previousLogValue ?: 0.0
                             !logDetail.operationTypeIsSystem && !logDetail.previousLogIsSystem && currentVal < prevVal
                         }
-                        Text(
-                            text = logDetail.log.value?.let { String.format(Locale.US, "%.${decimalPlaces}f %s", it, unitLabel) } ?: "",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isValueIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = logDetail.log.value?.let { String.format(Locale.US, "%.${decimalPlaces}f %s", it, unitLabel) } ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isValueIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            logDetail.log.cost?.let {
+                                Text(
+                                    text = String.format(Locale.US, "%.2f €", it),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                         Text(
                             text = dateFormat.format(Date(logDetail.log.date)),
                             style = MaterialTheme.typography.labelSmall
@@ -1532,6 +1843,9 @@ fun MaintenanceLogCard(
                         val updatedLog = logDetail.log.copy(
                             notes = editedNotes,
                             value = editedValueStr.toDoubleOrNull(),
+                            cost = editedCostStr.toDoubleOrNull(),
+                            isUnplanned = editedIsUnplanned,
+                            resetAfter = editedResetAfter,
                             date = editedDate,
                             equipmentId = selectedEquipment?.id ?: logDetail.log.equipmentId,
                             operationTypeId = selectedOperationType?.id ?: logDetail.log.operationTypeId

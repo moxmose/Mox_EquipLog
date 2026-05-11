@@ -1,18 +1,35 @@
 package com.moxmose.moxequiplog.ui.options
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
-import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.data.local.AppColor
+import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.EquipmentDao
+import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
-import android.net.Uri
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class CategoryUiState(
@@ -63,6 +80,7 @@ class OptionsViewModel(
         data object ToggleUnitVisibilityFailed : OptionsUiEvent()
         data object SetDefaultFailed : OptionsUiEvent()
         data object UpdateReportsSettingsFailed : OptionsUiEvent()
+        data object UpdateSettingsFailed : OptionsUiEvent()
         data object UpdateGoogleAccountFailed : OptionsUiEvent()
         data class BackupResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
@@ -179,8 +197,29 @@ class OptionsViewModel(
     val googleAccountName: StateFlow<String?> = appSettingsManager.googleAccountName
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
+    val costTrendThreshold: StateFlow<Float> = appSettingsManager.costTrendThreshold
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_TREND_THRESHOLD)
+
     val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
+
+    val globalUsageWindowValue: StateFlow<Int> = appSettingsManager.defaultUsageWindowValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_USAGE_WINDOW_VALUE)
+
+    val globalUsageWindowUnit: StateFlow<String> = appSettingsManager.defaultUsageWindowUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_USAGE_WINDOW_UNIT)
+
+    val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
+
+    val globalVisibilityHorizonUnit: StateFlow<String> = appSettingsManager.defaultVisibilityHorizonUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT)
+
+    val costAnalysisWindowValue: StateFlow<Int> = appSettingsManager.costAnalysisWindowValue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_VALUE)
+
+    val costAnalysisWindowUnit: StateFlow<String> = appSettingsManager.costAnalysisWindowUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_UNIT)
 
     fun resetBackgroundSettings() {
         viewModelScope.launch {
@@ -306,6 +345,49 @@ class OptionsViewModel(
                 appSettingsManager.setSyncCalendarByDefault(enabled)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
+    fun setGlobalUsageWindow(value: Int, unit: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setDefaultUsageWindowValue(value)
+                appSettingsManager.setDefaultUsageWindowUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
+            }
+        }
+    }
+
+    fun setGlobalVisibilityHorizon(value: Int, unit: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setDefaultVisibilityHorizonValue(value)
+                appSettingsManager.setDefaultVisibilityHorizonUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
+            }
+        }
+    }
+
+    fun setCostAnalysisWindow(value: Int, unit: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setCostAnalysisWindowValue(value)
+                appSettingsManager.setCostAnalysisWindowUnit(unit)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
+            }
+        }
+    }
+
+    fun setCostTrendThreshold(threshold: Float) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setCostTrendThreshold(threshold)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
             }
         }
     }
