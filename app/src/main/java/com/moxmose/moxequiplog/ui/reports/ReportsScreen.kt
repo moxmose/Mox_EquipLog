@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfDocument
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.Canvas
@@ -134,6 +135,8 @@ import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisTickComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
@@ -725,8 +728,22 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                                     dataWithPoints.values.forEach { points -> 
                                         series(
                                             points.map { 
-                                                val x = (it.date - minDate) / stepMs
-                                                Math.round(x * 10000.0) / 10000.0
+                                                val x = when (effectiveGranularity) {
+                                                    TimeGranularity.MONTHS -> {
+                                                        val calMin = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = minDate }
+                                                        val calCurr = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = it.date }
+                                                        (calCurr.get(Calendar.YEAR) - calMin.get(Calendar.YEAR)) * 12.0 + (calCurr.get(Calendar.MONTH) - calMin.get(Calendar.MONTH))
+                                                    }
+                                                    TimeGranularity.YEARS -> {
+                                                        val calMin = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = minDate }
+                                                        val calCurr = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = it.date }
+                                                        (calCurr.get(Calendar.YEAR) - calMin.get(Calendar.YEAR)).toDouble()
+                                                    }
+                                                    else -> (it.date - minDate) / stepMs
+                                                }
+                                                val roundedX = Math.round(x * 10000.0) / 10000.0
+                                                Log.d("ReportsXDebug", "Date: ${Date(it.date)}, RawX: $x, RoundedX: $roundedX, Gran: $effectiveGranularity")
+                                                roundedX
                                             }, 
                                             points.map { it.value }
                                         ) 
@@ -746,7 +763,19 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                                             HorizontalAxis.ItemPlacer.aligned()
                                         },
                                         valueFormatter = CartesianValueFormatter { _, value, _ ->
-                                            val date = Date(minDate + (value * stepMs).toLong())
+                                            val date = when (effectiveGranularity) {
+                                                TimeGranularity.MONTHS -> {
+                                                    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = minDate }
+                                                    cal.add(Calendar.MONTH, value.toInt())
+                                                    cal.time
+                                                }
+                                                TimeGranularity.YEARS -> {
+                                                    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = minDate }
+                                                    cal.add(Calendar.YEAR, value.toInt())
+                                                    cal.time
+                                                }
+                                                else -> Date(minDate + (value * stepMs).toLong())
+                                            }
                                             if (effectiveGranularity == TimeGranularity.MONTHS || effectiveGranularity == TimeGranularity.YEARS) {
                                                 val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = date.time }
                                                 if (effectiveGranularity == TimeGranularity.MONTHS && cal.get(Calendar.DAY_OF_MONTH) != 1) return@CartesianValueFormatter "\u200B"
@@ -755,12 +784,12 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                                             dateFormat.format(date)
                                         },
                                         label = rememberAxisLabelComponent(color = if (uiState.timeGranularity != null && uiState.timeGranularity != effectiveGranularity) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface),
-                                        guideline = null,
-                                        tick = null
+                                        guideline = rememberAxisGuidelineComponent(),
+                                        tick = rememberAxisTickComponent(),
                                     ),
                                 ),
                                 modelProducer = modelProducer,
-                                zoomState = rememberVicoZoomState(initialZoom = Zoom.max(Zoom.Content, Zoom.static(1f))),
+                                zoomState = rememberVicoZoomState(initialZoom = Zoom.max(Zoom.Content, Zoom.x(12.0))),
                                 modifier = Modifier.fillMaxWidth().height(250.dp)
                             )
                         }
@@ -1009,11 +1038,25 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
                     dataWithPoints.values.forEach { points -> 
                         series(
                             points.map { 
-                                val x = (it.date - minDate) / stepMs
-                                Math.round(x * 10000.0) / 10000.0
+                                val x = when (effectiveGranularity) {
+                                    TimeGranularity.MONTHS -> {
+                                        val calMin = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = minDate }
+                                        val calCurr = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = it.date }
+                                        (calCurr.get(Calendar.YEAR) - calMin.get(Calendar.YEAR)) * 12.0 + (calCurr.get(Calendar.MONTH) - calMin.get(Calendar.MONTH))
+                                    }
+                                    TimeGranularity.YEARS -> {
+                                        val calMin = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = minDate }
+                                        val calCurr = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = it.date }
+                                        (calCurr.get(Calendar.YEAR) - calMin.get(Calendar.YEAR)).toDouble()
+                                    }
+                                    else -> (it.date - minDate) / stepMs
+                                }
+                                val roundedX = Math.round(x * 10000.0) / 10000.0
+                                Log.d("ReportsXDebug", "Multi Date: ${Date(it.date)}, RawX: $x, RoundedX: $roundedX, Gran: $effectiveGranularity")
+                                roundedX
                             }, 
                             points.map { it.value }
-                        )
+                        ) 
                     } 
                 } 
             } 
@@ -1031,7 +1074,19 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
                         HorizontalAxis.ItemPlacer.aligned()
                     },
                     valueFormatter = CartesianValueFormatter { _, value, _ ->
-                        val date = Date(minDate + (value * stepMs).toLong())
+                        val date = when (effectiveGranularity) {
+                            TimeGranularity.MONTHS -> {
+                                val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = minDate }
+                                cal.add(Calendar.MONTH, value.toInt())
+                                cal.time
+                            }
+                            TimeGranularity.YEARS -> {
+                                val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = minDate }
+                                cal.add(Calendar.YEAR, value.toInt())
+                                cal.time
+                            }
+                            else -> Date(minDate + (value * stepMs).toLong())
+                        }
                         if (effectiveGranularity == TimeGranularity.MONTHS || effectiveGranularity == TimeGranularity.YEARS) {
                             val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = date.time }
                             if (effectiveGranularity == TimeGranularity.MONTHS && cal.get(Calendar.DAY_OF_MONTH) != 1) return@CartesianValueFormatter "\u200B"
@@ -1040,12 +1095,12 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
                         dateFormat.format(date)
                     },
                     label = rememberAxisLabelComponent(color = if (requestedGranularity != null && requestedGranularity != effectiveGranularity) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface),
-                    guideline = null,
-                    tick = null
+                    guideline = rememberAxisGuidelineComponent(),
+                    tick = rememberAxisTickComponent(),
                 ),
             ), 
             modelProducer = modelProducer, 
-            zoomState = rememberVicoZoomState(initialZoom = Zoom.max(Zoom.Content, Zoom.static(1f))),
+            zoomState = rememberVicoZoomState(initialZoom = Zoom.max(Zoom.Content, Zoom.x(12.0))),
             modifier = Modifier.fillMaxWidth().height(250.dp)
         ) 
     } } else NoDataPlaceholder()

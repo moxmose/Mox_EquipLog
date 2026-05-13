@@ -241,7 +241,6 @@ class MaintenanceManager(
         val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
         cal.timeInMillis = timestamp
         
-        // Resetting all fields below the granularity to ensure identical timestamps for grouping
         cal.set(Calendar.MILLISECOND, 0)
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MINUTE, 0)
@@ -256,27 +255,23 @@ class MaintenanceManager(
                 cal.set(Calendar.DAY_OF_MONTH, 1)
             }
             TimeGranularity.WEEKS -> {
-                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                // Forziamo l'inizio settimana al Lunedì (ISO) per coerenza tra piattaforme
+                cal.setFirstDayOfWeek(Calendar.MONDAY)
+                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
             }
-            TimeGranularity.DAYS -> {
-                // Already truncated by resetting hours/mins/secs
-            }
+            TimeGranularity.DAYS -> {}
             TimeGranularity.HOURS -> {
-                // Restore hours, minutes are already 0
-                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                calOriginal.timeInMillis = timestamp
+                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = timestamp }
                 cal.set(Calendar.HOUR_OF_DAY, calOriginal.get(Calendar.HOUR_OF_DAY))
             }
             TimeGranularity.MINUTES_15 -> {
-                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                calOriginal.timeInMillis = timestamp
+                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = timestamp }
                 val min = calOriginal.get(Calendar.MINUTE)
                 cal.set(Calendar.HOUR_OF_DAY, calOriginal.get(Calendar.HOUR_OF_DAY))
                 cal.set(Calendar.MINUTE, (min / 15) * 15)
             }
             TimeGranularity.MINUTES_5 -> {
-                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                calOriginal.timeInMillis = timestamp
+                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = timestamp }
                 val min = calOriginal.get(Calendar.MINUTE)
                 cal.set(Calendar.HOUR_OF_DAY, calOriginal.get(Calendar.HOUR_OF_DAY))
                 cal.set(Calendar.MINUTE, (min / 5) * 5)
