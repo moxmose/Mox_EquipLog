@@ -1,5 +1,7 @@
 # Mox EquipLog
 
+![Android CI](https://github.com/moxmose/Mox_EquipLog/actions/workflows/android.yml/badge.svg)
+
 An Android application to help you manage and track maintenance logs for your equipments. Keep your equipments in top condition by logging every operation, from cleaning the chain to complex repairs.
 
 ## ✨ Features
