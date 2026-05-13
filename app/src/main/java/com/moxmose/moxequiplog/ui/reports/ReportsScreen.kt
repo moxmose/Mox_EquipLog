@@ -687,6 +687,7 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                                 val color = chartColors[if (chartColors.isNotEmpty()) index % chartColors.size else 0]
                                 LineCartesianLayer.Line(
                                     fill = LineCartesianLayer.LineFill.single(fill = Fill(color.toArgb())),
+                                    pointConnector = LineCartesianLayer.PointConnector.cubic(curvature = 0.4f),
                                     pointProvider = LineCartesianLayer.PointProvider.single(
                                         LineCartesianLayer.Point(
                                             ShapeComponent(
@@ -742,7 +743,6 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                                                     else -> (it.date - minDate) / stepMs
                                                 }
                                                 val roundedX = Math.round(x * 10000.0) / 10000.0
-                                                Log.d("ReportsXDebug", "Date: ${Date(it.date)}, RawX: $x, RoundedX: $roundedX, Gran: $effectiveGranularity")
                                                 roundedX
                                             }, 
                                             points.map { it.value }
@@ -997,6 +997,7 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
             val color = finalColors[if (finalColors.isNotEmpty()) colorIndex % finalColors.size else 0]
             LineCartesianLayer.Line(
                 fill = LineCartesianLayer.LineFill.single(fill = Fill(color.toArgb())),
+                pointConnector = LineCartesianLayer.PointConnector.cubic(curvature = 0.4f),
                 pointProvider = LineCartesianLayer.PointProvider.single(
                     LineCartesianLayer.Point(
                         ShapeComponent(
@@ -1052,7 +1053,6 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
                                     else -> (it.date - minDate) / stepMs
                                 }
                                 val roundedX = Math.round(x * 10000.0) / 10000.0
-                                Log.d("ReportsXDebug", "Multi Date: ${Date(it.date)}, RawX: $x, RoundedX: $roundedX, Gran: $effectiveGranularity")
                                 roundedX
                             }, 
                             points.map { it.value }
