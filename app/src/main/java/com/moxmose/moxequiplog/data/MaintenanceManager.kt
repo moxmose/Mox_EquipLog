@@ -13,7 +13,9 @@ import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 class MaintenanceManager(
     private val maintenanceLogDao: MaintenanceLogDao,
@@ -236,31 +238,51 @@ class MaintenanceManager(
     }
 
     fun getCalendarTruncatedTo(timestamp: Long, granularity: TimeGranularity): Long {
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = timestamp
+        val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+        cal.timeInMillis = timestamp
+        
+        // Resetting all fields below the granularity to ensure identical timestamps for grouping
+        cal.set(Calendar.MILLISECOND, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        
         when (granularity) {
-            TimeGranularity.MINUTES_5 -> {
-                val min = calendar.get(Calendar.MINUTE)
-                calendar.set(Calendar.MINUTE, (min / 5) * 5)
-                calendar.set(Calendar.SECOND, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
+            TimeGranularity.YEARS -> {
+                cal.set(Calendar.MONTH, Calendar.JANUARY)
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+            }
+            TimeGranularity.MONTHS -> {
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+            }
+            TimeGranularity.WEEKS -> {
+                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+            }
+            TimeGranularity.DAYS -> {
+                // Already truncated by resetting hours/mins/secs
+            }
+            TimeGranularity.HOURS -> {
+                // Restore hours, minutes are already 0
+                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                calOriginal.timeInMillis = timestamp
+                cal.set(Calendar.HOUR_OF_DAY, calOriginal.get(Calendar.HOUR_OF_DAY))
             }
             TimeGranularity.MINUTES_15 -> {
-                val min = calendar.get(Calendar.MINUTE)
-                calendar.set(Calendar.MINUTE, (min / 15) * 15)
-                calendar.set(Calendar.SECOND, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
+                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                calOriginal.timeInMillis = timestamp
+                val min = calOriginal.get(Calendar.MINUTE)
+                cal.set(Calendar.HOUR_OF_DAY, calOriginal.get(Calendar.HOUR_OF_DAY))
+                cal.set(Calendar.MINUTE, (min / 15) * 15)
             }
-            TimeGranularity.HOURS -> { calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
-            TimeGranularity.DAYS -> { calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
-            TimeGranularity.WEEKS -> { 
-                calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-                calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) 
+            TimeGranularity.MINUTES_5 -> {
+                val calOriginal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                calOriginal.timeInMillis = timestamp
+                val min = calOriginal.get(Calendar.MINUTE)
+                cal.set(Calendar.HOUR_OF_DAY, calOriginal.get(Calendar.HOUR_OF_DAY))
+                cal.set(Calendar.MINUTE, (min / 5) * 5)
             }
-            TimeGranularity.MONTHS -> { calendar.set(Calendar.DAY_OF_MONTH, 1); calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
-            TimeGranularity.YEARS -> { calendar.set(Calendar.DAY_OF_YEAR, 1); calendar.set(Calendar.HOUR_OF_DAY, 0); calendar.set(Calendar.MINUTE, 0); calendar.set(Calendar.SECOND, 0); calendar.set(Calendar.MILLISECOND, 0) }
         }
-        return calendar.timeInMillis
+        return cal.timeInMillis
     }
 
     // --- CHARTING & AGGREGATION UTILS ---
@@ -278,29 +300,23 @@ class MaintenanceManager(
     }
 
     fun findBestGranularity(points: List<ChartPoint>, requested: TimeGranularity, isDelta: Boolean, isCount: Boolean): TimeGranularity {
-        if (points.size < 2) return requested
-        
-        var current = requested
-        while (current != TimeGranularity.HOURS) {
-            val testAggregation = performAggregation(points, current, isDelta, isCount)
-            if (testAggregation.size >= 2) return current
-            
-            current = when (current) {
-                TimeGranularity.YEARS -> TimeGranularity.MONTHS
-                TimeGranularity.MONTHS -> TimeGranularity.WEEKS
-                TimeGranularity.WEEKS -> TimeGranularity.DAYS
-                TimeGranularity.DAYS -> TimeGranularity.HOURS
-                TimeGranularity.HOURS -> TimeGranularity.MINUTES_15
-                else -> TimeGranularity.MINUTES_5
-            }
-        }
-        return current
+        // Se l'utente ha richiesto una granularità specifica, la onoriamo sempre.
+        // La logica di fallback deve intervenire solo se non c'è una richiesta esplicita (auto-mode).
+        return requested
     }
 
     fun findAutoGranularity(points: List<ChartPoint>, isDelta: Boolean, isCount: Boolean): TimeGranularity? {
         if (points.isEmpty()) return null
         
-        val granularities = listOf(TimeGranularity.YEARS, TimeGranularity.MONTHS, TimeGranularity.WEEKS, TimeGranularity.DAYS, TimeGranularity.HOURS, TimeGranularity.MINUTES_15, TimeGranularity.MINUTES_5)
+        val granularities = listOf(
+            TimeGranularity.YEARS,
+            TimeGranularity.MONTHS,
+            TimeGranularity.WEEKS,
+            TimeGranularity.DAYS,
+            TimeGranularity.HOURS,
+            TimeGranularity.MINUTES_15,
+            TimeGranularity.MINUTES_5
+        )
         
         for (gran in granularities) {
             val aggregated = performAggregation(points, gran, isDelta, isCount)
@@ -319,7 +335,15 @@ class MaintenanceManager(
             val value = when {
                 isCount -> groupedPoints.size.toFloat()
                 isDelta -> groupedPoints.sumOf { it.value.toDouble() }.toFloat()
-                else -> groupedPoints.maxOf { it.value }
+                else -> {
+                    // Per la granularità MONTHS e YEARS, prendiamo l'ultimo valore disponibile del periodo
+                    // per evitare oscillazioni se ci sono più log nel periodo (es. due rifornimenti nello stesso mese)
+                    if (granularity == TimeGranularity.MONTHS || granularity == TimeGranularity.YEARS) {
+                        groupedPoints.maxBy { it.date }.value
+                    } else {
+                        groupedPoints.maxOf { it.value }
+                    }
+                }
             }
             ChartPoint(timestamp, value) 
         }.sortedBy { it.date }

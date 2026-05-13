@@ -82,6 +82,7 @@
     <string name="selection_invert">Invert selection</string>
     <string name="selection_clear">Clear selection</string>
     <string name="occurrences_format">%1$s [%2$d occurrences]</string>
+    <string name="value_format">%1$s [%2$s]</string>
     <string name="save_filter">Save Filter</string>
     <string name="save_new_filter">Save as New</string>
     <string name="overwrite_filter">Overwrite Current</string>
@@ -332,6 +333,12 @@
     <string name="options_recalculate_accumulated">Recalculate Accumulated Values</string>
     <string name="options_recalculate_accumulated_desc">Recalculate all absolute values based on log history. Useful if recordings were entered in the past.</string>
     <string name="recalculate_success">Recalculation completed successfully.</string>
+    <string name="options_generate_demo_data">Generate Demo Data</string>
+    <string name="options_generate_demo_data_desc">Adds dummy equipments and logs to test app features.</string>
+    <string name="options_delete_demo_data">Delete Demo Data</string>
+    <string name="demo_data_confirm_msg">This will add new equipment and logs for testing. It is recommended to backup your database first. Proceed?</string>
+    <string name="demo_data_success">Demo data generated successfully.</string>
+    <string name="demo_data_deleted_success">Demo data deleted successfully.</string>
     <string name="options_sync_calendar_default_label">Sync by default</string>
     <string name="options_sync_calendar_default_desc">Automatically enable \"Sync to Google Calendar\" when adding new logs or reminders.</string>
     <string name="google_auth_privacy_note">This app uses the standard Google sign-in method to connect to your Calendar. Only the data strictly necessary for sync will be used.</string>

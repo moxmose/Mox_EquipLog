@@ -1,5 +1,6 @@
 package com.moxmose.moxequiplog.ui.reports
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.sqlite.db.SimpleSQLiteQuery
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -226,10 +228,10 @@ class ReportsViewModel(
 
     val uiState: StateFlow<ReportsUiState> = combine(
         combine(
-            _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() },
-            _showDismissed.flatMapLatest { if (it) operationTypeDao.getAllOperationTypes() else operationTypeDao.getActiveOperationTypes() },
-            maintenanceLogDao.getLogsWithDetails(SimpleSQLiteQuery("SELECT l.*, e.description as equipmentDescription, ot.description as operationTypeDescription, e.photoUri as equipmentPhotoUri, e.iconIdentifier as equipmentIconIdentifier, ot.photoUri as operationTypePhotoUri, ot.iconIdentifier as operationTypeIconIdentifier, e.dismissed as equipmentDismissed, ot.dismissed as operationTypeDismissed FROM maintenance_logs as l JOIN equipments as e ON l.equipmentId = e.id JOIN operation_types as ot ON l.operationTypeId = ot.id ORDER BY l.date ASC")),
-            measurementUnitDao.getAllUnits()
+            _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() }.distinctUntilChanged(),
+            _showDismissed.flatMapLatest { if (it) operationTypeDao.getAllOperationTypes() else operationTypeDao.getActiveOperationTypes() }.distinctUntilChanged(),
+            maintenanceLogDao.getLogsWithDetails(SimpleSQLiteQuery("SELECT l.*, e.description as equipmentDescription, ot.description as operationTypeDescription, e.photoUri as equipmentPhotoUri, e.iconIdentifier as equipmentIconIdentifier, ot.photoUri as operationTypePhotoUri, ot.iconIdentifier as operationTypeIconIdentifier, e.dismissed as equipmentDismissed, ot.dismissed as operationTypeDismissed FROM maintenance_logs as l JOIN equipments as e ON l.equipmentId = e.id JOIN operation_types as ot ON l.operationTypeId = ot.id ORDER BY l.date ASC")).distinctUntilChanged(),
+            measurementUnitDao.getAllUnits().distinctUntilChanged()
         ) { e, o, l, u -> FilterCore(e, o, l, u) },
         combine(
             imageRepository.getCategoryColor(Category.EQUIPMENT),
@@ -250,7 +252,12 @@ class ReportsViewModel(
             matchesDate && matchesVisibility
         }
 
-        val allPoints = filteredLogs.map { ChartPoint(it.log.date, it.log.value?.toFloat() ?: 0f) }
+        val fullyFilteredLogs = filteredLogs.filter { 
+            it.log.equipmentId in style.selections.selectedEquipmentIds && 
+            it.log.operationTypeId in style.selections.selectedOperationTypeIds 
+        }
+
+        val allPoints = fullyFilteredLogs.map { ChartPoint(it.log.date, it.log.value?.toFloat() ?: 0f) }
         val effectiveGranularity = if (style.selections.timeGranularity != null) {
             maintenanceManager.findBestGranularity(allPoints, style.selections.timeGranularity, false, false)
         } else {
@@ -264,24 +271,34 @@ class ReportsViewModel(
 
         // Standard Trends
         val equipChartData = sortedSelectedEquipIds.associateWith { id ->
-            val points = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }.map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
-            maintenanceManager.aggregateData(points, effectiveGranularity)
+            val points = fullyFilteredLogs.filter { it.log.equipmentId == id && it.log.value != null }.map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
+            val aggregated = maintenanceManager.aggregateData(points, effectiveGranularity)
+            if (style.selections.timeGranularity == TimeGranularity.MONTHS) {
+                Log.d("ReportsDebug", "EQUIP ID $id aggregated points: ${aggregated.size}")
+                aggregated.forEach { Log.d("ReportsDebug", "  Point: ${Date(it.date)} -> ${it.value}") }
+            }
+            aggregated
         }
 
         val opChartData = sortedSelectedOpIds.associateWith { id ->
-            val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.value != null }.map { ChartPoint(it.log.date, it.log.value!!.toFloat(), it.equipmentDescription) }
-            maintenanceManager.aggregateData(points, effectiveGranularity)
+            val points = fullyFilteredLogs.filter { it.log.operationTypeId == id && it.log.value != null }.map { ChartPoint(it.log.date, it.log.value!!.toFloat(), it.equipmentDescription) }
+            val aggregated = maintenanceManager.aggregateData(points, effectiveGranularity)
+            if (style.selections.timeGranularity == TimeGranularity.MONTHS) {
+                Log.d("ReportsDebug", "OP ID $id aggregated points: ${aggregated.size}")
+                aggregated.forEach { Log.d("ReportsDebug", "  Point: ${Date(it.date)} -> ${it.value}") }
+            }
+            aggregated
         }
 
         // Global Distributions
-        val equipDist = filteredLogs.filter { it.log.equipmentId in style.selections.selectedEquipmentIds }.groupBy { it.log.equipmentId }.map { (id, logs) ->
+        val equipDist = fullyFilteredLogs.groupBy { it.log.equipmentId }.map { (id, logs) ->
             val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
             val index = core.equips.indexOfFirst { it.id == id }
             val color = if (index != -1) currentPalette[index % currentPalette.size] else null
             PieChartPoint(label, logs.size.toFloat(), color, id)
         }.sortedByDescending { it.value }
 
-        val opDist = filteredLogs.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
+        val opDist = fullyFilteredLogs.groupBy { it.log.operationTypeId }.map { (id, logs) ->
             val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
             val index = core.ops.indexOfFirst { it.id == id }
             val color = if (index != -1) currentPalette[index % currentPalette.size] else null
@@ -291,11 +308,11 @@ class ReportsViewModel(
         // Period-based Distributions
         val equipDistByPeriod = if (effectiveGranularity != null) {
             val dateFormat = maintenanceManager.getPeriodFormat(effectiveGranularity)
-            val periods = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
+            val periods = fullyFilteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
             if (effectiveGranularity == TimeGranularity.HOURS && periods.size > 60) emptyMap()
             else {
                 periods.mapValues { (_, logsInPeriod) ->
-                    logsInPeriod.filter { it.log.equipmentId in style.selections.selectedEquipmentIds }.groupBy { it.log.equipmentId }.map { (id, logs) ->
+                    logsInPeriod.groupBy { it.log.equipmentId }.map { (id, logs) ->
                         val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
                         val index = core.equips.indexOfFirst { it.id == id }
                         val color = if (index != -1) currentPalette[index % currentPalette.size] else null
@@ -307,11 +324,11 @@ class ReportsViewModel(
 
         val opDistByPeriod = if (effectiveGranularity != null) {
             val dateFormat = maintenanceManager.getPeriodFormat(effectiveGranularity)
-            val periods = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
+            val periods = fullyFilteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
             if (effectiveGranularity == TimeGranularity.HOURS && periods.size > 60) emptyMap()
             else {
                 periods.mapValues { (_, logsInPeriod) ->
-                    logsInPeriod.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
+                    logsInPeriod.groupBy { it.log.operationTypeId }.map { (id, logs) ->
                         val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
                         val index = core.ops.indexOfFirst { it.id == id }
                         val color = if (index != -1) currentPalette[index % currentPalette.size] else null
@@ -323,7 +340,7 @@ class ReportsViewModel(
 
         // KPI
         val intervalData = sortedSelectedEquipIds.associateWith { id ->
-            val rawPoints = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }
+            val rawPoints = fullyFilteredLogs.filter { it.log.equipmentId == id && it.log.value != null }
                 .map { ChartPoint(it.log.date, it.log.value!!.toFloat()) }
                 .sortedBy { it.date }
             
@@ -337,14 +354,14 @@ class ReportsViewModel(
 
         // Heatmap
         val cal = Calendar.getInstance()
-        val heatmapData = filteredLogs.groupBy { log ->
+        val heatmapData = fullyFilteredLogs.groupBy { log ->
             cal.timeInMillis = log.log.date
             cal.get(Calendar.DAY_OF_WEEK) to cal.get(Calendar.MONTH)
         }.map { (key, logs) -> HeatmapPoint(key.first, key.second, logs.size) }
 
         // Benchmarking
         val benchmarkData = sortedSelectedEquipIds.map { id ->
-            val equipLogs = filteredLogs.filter { it.log.equipmentId == id && it.log.value != null }.sortedBy { it.log.date }
+            val equipLogs = fullyFilteredLogs.filter { it.log.equipmentId == id && it.log.value != null }.sortedBy { it.log.date }
             val totalUsage = if (equipLogs.size > 1) (equipLogs.last().log.value!! - equipLogs.first().log.value!!).toFloat() 
                              else equipLogs.firstOrNull()?.log?.value?.toFloat() ?: 0f
             val intervals = mutableListOf<Float>()
@@ -355,11 +372,11 @@ class ReportsViewModel(
 
         val benchmarkByPeriod = if (effectiveGranularity != null && effectiveGranularity != TimeGranularity.HOURS) {
             val dateFormat = maintenanceManager.getPeriodFormat(effectiveGranularity)
-            val logsByPeriod = filteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
+            val logsByPeriod = fullyFilteredLogs.groupBy { dateFormat.format(Date(it.log.date)) }
             logsByPeriod.mapValues { (period, _) ->
                 sortedSelectedEquipIds.map { id ->
                     val usageInPeriod = intervalData[id]?.find { dateFormat.format(Date(it.date)) == period }?.value ?: 0f
-                    val countInPeriod = filteredLogs.count { it.log.equipmentId == id && dateFormat.format(Date(it.log.date)) == period }
+                    val countInPeriod = fullyFilteredLogs.count { it.log.equipmentId == id && dateFormat.format(Date(it.log.date)) == period }
                     val avgInPeriod = if (countInPeriod > 0) usageInPeriod / countInPeriod else 0f
                     BenchmarkData(equipmentName = core.equips.find { it.id == id }?.description ?: "ID: $id", totalValue = usageInPeriod, avgInterval = avgInPeriod, count = countInPeriod, periodLabel = period)
                 }
@@ -368,11 +385,11 @@ class ReportsViewModel(
 
         // Activity Volume
         val equipmentVolumeData = sortedSelectedEquipIds.associateWith { id ->
-            val points = filteredLogs.filter { it.log.equipmentId == id }.map { ChartPoint(it.log.date, 1f) }
+            val points = fullyFilteredLogs.filter { it.log.equipmentId == id }.map { ChartPoint(it.log.date, 1f) }
             maintenanceManager.aggregateData(points, effectiveGranularity, isCount = true)
         }
         val operationVolumeData = sortedSelectedOpIds.associateWith { id ->
-            val points = filteredLogs.filter { it.log.operationTypeId == id }.map { ChartPoint(it.log.date, 1f) }
+            val points = fullyFilteredLogs.filter { it.log.operationTypeId == id }.map { ChartPoint(it.log.date, 1f) }
             maintenanceManager.aggregateData(points, effectiveGranularity, isCount = true)
         }
 
@@ -380,7 +397,7 @@ class ReportsViewModel(
         val combinedLogsData = mutableMapOf<String, List<ChartPoint>>()
         sortedSelectedEquipIds.forEach { eId ->
             sortedSelectedOpIds.forEach { oId ->
-                val logs = filteredLogs.filter { it.log.equipmentId == eId && it.log.operationTypeId == oId && it.log.value != null }
+                val logs = fullyFilteredLogs.filter { it.log.equipmentId == eId && it.log.operationTypeId == oId && it.log.value != null }
                 if (logs.isNotEmpty()) {
                     val eDesc = core.equips.find { it.id == eId }?.description ?: "E$eId"
                     val oDesc = core.ops.find { it.id == oId }?.description ?: "O$oId"
@@ -392,35 +409,35 @@ class ReportsViewModel(
 
         // Cost Analysis
         val equipmentCostData = sortedSelectedEquipIds.associateWith { id ->
-            val points = filteredLogs.filter { it.log.equipmentId == id && it.log.cost != null }.map { ChartPoint(it.log.date, it.log.cost!!.toFloat()) }
+            val points = fullyFilteredLogs.filter { it.log.equipmentId == id && it.log.cost != null }.map { ChartPoint(it.log.date, it.log.cost!!.toFloat()) }
             maintenanceManager.aggregateData(points, effectiveGranularity, isDelta = true)
         }
 
         val operationCostData = sortedSelectedOpIds.associateWith { id ->
-            val points = filteredLogs.filter { it.log.operationTypeId == id && it.log.cost != null }.map { ChartPoint(it.log.date, it.log.cost!!.toFloat()) }
+            val points = fullyFilteredLogs.filter { it.log.operationTypeId == id && it.log.cost != null }.map { ChartPoint(it.log.date, it.log.cost!!.toFloat()) }
             maintenanceManager.aggregateData(points, effectiveGranularity, isDelta = true)
         }
 
-        val costDistEquip = filteredLogs.filter { it.log.equipmentId in style.selections.selectedEquipmentIds && it.log.cost != null }.groupBy { it.log.equipmentId }.map { (id, logs) ->
+        val costDistEquip = fullyFilteredLogs.filter { it.log.cost != null }.groupBy { it.log.equipmentId }.map { (id, logs) ->
             val label = core.equips.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
             val index = core.equips.indexOfFirst { it.id == id }
             val color = if (index != -1) currentPalette[index % currentPalette.size] else null
             PieChartPoint(label, logs.sumOf { it.log.cost!! }.toFloat(), color, id)
         }.sortedByDescending { it.value }
 
-        val costDistOp = filteredLogs.filter { it.log.operationTypeId in style.selections.selectedOperationTypeIds && it.log.cost != null }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
+        val costDistOp = fullyFilteredLogs.filter { it.log.cost != null }.groupBy { it.log.operationTypeId }.map { (id, logs) ->
             val label = core.ops.find { it.id == id }?.description?.takeIf { it.isNotBlank() } ?: "ID: $id"
             val index = core.ops.indexOfFirst { it.id == id }
             val color = if (index != -1) currentPalette[index % currentPalette.size] else null
             PieChartPoint(label, logs.sumOf { it.log.cost!! }.toFloat(), color, id)
         }.sortedByDescending { it.value }
 
-        val filteredLogsWithCost = filteredLogs.filter { it.log.cost != null }
-        val totalCostVal = filteredLogsWithCost.sumOf { it.log.cost!! }
-        val avgCostPerLog = if (filteredLogsWithCost.isNotEmpty()) totalCostVal / filteredLogsWithCost.size else 0.0
+        val logsForCostSummary = fullyFilteredLogs.filter { it.log.cost != null }
+        val totalCostVal = logsForCostSummary.sumOf { it.log.cost!! }
+        val avgCostPerLog = if (logsForCostSummary.isNotEmpty()) totalCostVal / logsForCostSummary.size else 0.0
 
         val costVsUsageData = sortedSelectedEquipIds.associateWith { id ->
-            val logs = filteredLogs.filter { it.log.equipmentId == id && it.log.cost != null && it.log.value != null }.sortedBy { it.log.date }
+            val logs = fullyFilteredLogs.filter { it.log.equipmentId == id && it.log.cost != null && it.log.value != null }.sortedBy { it.log.date }
             if (logs.size >= 2) {
                 val points = mutableListOf<ChartPoint>()
                 for (i in 1 until logs.size) {
@@ -436,7 +453,7 @@ class ReportsViewModel(
         val selectedEquipUnits = sortedSelectedEquipIds.mapNotNull { id -> core.units.find { it.id == core.equips.find { e -> e.id == id }?.unitId } }
         val selectedUnits = selectedEquipUnits.map { it.label }.distinct()
         val equipMaxDecimals = selectedEquipUnits.maxOfOrNull { it.decimalPlaces } ?: 0
-        val selectedOpUnits = sortedSelectedOpIds.flatMap { opId -> filteredLogs.filter { it.log.operationTypeId == opId }.mapNotNull { logDetail -> core.equips.find { it.id == logDetail.log.equipmentId }?.unitId?.let { unitId -> core.units.find { it.id == unitId } } } }
+        val selectedOpUnits = fullyFilteredLogs.mapNotNull { logDetail -> core.equips.find { it.id == logDetail.log.equipmentId }?.unitId?.let { unitId -> core.units.find { it.id == unitId } } }
         val opSelectedUnitLabels = selectedOpUnits.map { it.label }.distinct()
         val opMaxDecimals = selectedOpUnits.maxOfOrNull { it.decimalPlaces } ?: 0
 
@@ -462,7 +479,8 @@ class ReportsViewModel(
             totalCost = totalCostVal, averageCostPerLog = avgCostPerLog,
             costVsUsageData = costVsUsageData
         )
-    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), initialValue = ReportsUiState())
+    }.distinctUntilChanged()
+    .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), initialValue = ReportsUiState())
 
     fun toggleEquipmentSelection(id: Int) { _selectedEquipmentIds.value = if (_selectedEquipmentIds.value.contains(id)) _selectedEquipmentIds.value - id else _selectedEquipmentIds.value + id }
     fun toggleOperationTypeSelection(id: Int) { _selectedOperationTypeIds.value = if (_selectedOperationTypeIds.value.contains(id)) _selectedOperationTypeIds.value - id else _selectedOperationTypeIds.value + id }
@@ -474,7 +492,8 @@ class ReportsViewModel(
     fun clearOperationTypeSelection() { _selectedOperationTypeIds.value = emptySet() }
     fun setDateRange(start: Long?, end: Long?) { _startDate.value = start; _endDate.value = end }
     fun setTimeGranularity(granularity: TimeGranularity?) { _timeGranularity.value = if (_timeGranularity.value == granularity) null else granularity }
-    fun resetFilters() { _startDate.value = null; _endDate.value = null; _timeGranularity.value = null; _showDismissed.value = false; selectAllEquipment(); selectAllOperationTypes(); _activeFilter.value = null }
+    fun resetFilters() { _startDate.value = null; _endDate.value = null; _timeGranularity.value = null; _activeFilter.value = null }
+    fun resetDateFilters() { _startDate.value = null; _endDate.value = null }
     fun toggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
     fun refresh() { _refreshTrigger.value += 1 }
 

@@ -14,6 +14,9 @@ interface MaintenanceLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: MaintenanceLog)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLogs(logs: List<MaintenanceLog>)
+
     @Update
     suspend fun updateLog(log: MaintenanceLog)
 

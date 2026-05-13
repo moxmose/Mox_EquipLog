@@ -191,6 +191,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RecalculateSuccess -> context.getString(R.string.recalculate_success)
+                is OptionsViewModel.OptionsUiEvent.DemoDataGenerated -> context.getString(R.string.demo_data_success)
+                is OptionsViewModel.OptionsUiEvent.DemoDataDeleted -> context.getString(R.string.demo_data_deleted_success)
             }
             snackbarHostState.showSnackbar(message)
             if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {
@@ -249,6 +251,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onBackupDatabase = viewModel::backupDatabase,
         onRestoreDatabase = viewModel::restoreDatabase,
         onTotalExport = viewModel::totalExport,
+        onGenerateDemoData = viewModel::generateDemoData,
+        onDeleteDemoData = viewModel::deleteDemoData,
         getSuggestedBackupFileName = viewModel::getSuggestedBackupFileName,
         getSuggestedTotalExportFileName = viewModel::getSuggestedTotalExportFileName,
         snackbarHostState = snackbarHostState,
@@ -357,6 +361,8 @@ fun OptionsScreenContent(
     onBackupDatabase: (Uri) -> Unit,
     onRestoreDatabase: (Uri) -> Unit,
     onTotalExport: (Uri) -> Unit,
+    onGenerateDemoData: () -> Unit,
+    onDeleteDemoData: () -> Unit,
     getSuggestedBackupFileName: () -> String,
     getSuggestedTotalExportFileName: () -> String,
     snackbarHostState: SnackbarHostState,
@@ -401,6 +407,25 @@ fun OptionsScreenContent(
         uri?.let { onShowRestoreConfirmChange(it) }
     }
 
+    var showDemoDataConfirm by remember { mutableStateOf(false) }
+
+    if (showDemoDataConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDemoDataConfirm = false },
+            title = { Text(stringResource(R.string.options_generate_demo_data)) },
+            text = { Text(stringResource(R.string.demo_data_confirm_msg)) },
+            confirmButton = {
+                TextButton(onClick = { 
+                    onGenerateDemoData()
+                    showDemoDataConfirm = false
+                }) { Text(stringResource(R.string.button_add)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDemoDataConfirm = false }) { Text(stringResource(R.string.button_cancel)) }
+            }
+        )
+    }
+
     if (showRestoreConfirm != null) {
         AlertDialog(
             onDismissRequest = { onShowRestoreConfirmChange(null) },
@@ -408,7 +433,7 @@ fun OptionsScreenContent(
             text = { Text(stringResource(R.string.restore_confirm_msg)) },
             confirmButton = {
                 TextButton(onClick = { 
-                    onRestoreDatabase(showRestoreConfirm)
+                    showRestoreConfirm?.let { onRestoreDatabase(it) }
                     onShowRestoreConfirmChange(null)
                 }) { Text(stringResource(R.string.button_ok)) }
             },
@@ -926,6 +951,37 @@ fun OptionsScreenContent(
                         Icon(Icons.Default.Calculate, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.refresh))
+                    }
+
+                    HorizontalDivider()
+
+                    Text(
+                        text = stringResource(R.string.options_generate_demo_data),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.options_generate_demo_data_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(
+                        onClick = { showDemoDataConfirm = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_generate_demo_data))
+                    }
+
+                    TextButton(
+                        onClick = onDeleteDemoData,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_delete_demo_data))
                     }
 
                     HorizontalDivider()

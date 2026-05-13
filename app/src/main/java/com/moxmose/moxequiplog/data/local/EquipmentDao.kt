@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface EquipmentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertEquipment(equipment: Equipment)
+    suspend fun insertEquipment(equipment: Equipment): Long
 
     @Update
     suspend fun updateEquipment(equipment: Equipment)
@@ -38,4 +38,10 @@ interface EquipmentDao {
 
     @Query("SELECT COUNT(*) FROM equipments WHERE isResettable = 1 AND dismissed = 0")
     fun countActiveResettableEquipments(): Flow<Int>
+
+    @Query("SELECT * FROM equipments WHERE description LIKE '%(Demo)%'")
+    suspend fun getDemoEquipments(): List<Equipment>
+
+    @androidx.room.Delete
+    suspend fun deleteEquipments(equipments: List<Equipment>)
 }

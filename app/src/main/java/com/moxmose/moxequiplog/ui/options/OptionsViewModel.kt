@@ -8,15 +8,23 @@ import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
+import com.moxmose.moxequiplog.data.local.MaintenanceReminder
+import com.moxmose.moxequiplog.data.local.MaintenanceReminderDao
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
+import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
+import java.util.Calendar
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -44,8 +52,10 @@ class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
     private val equipmentDao: EquipmentDao,
     private val maintenanceLogDao: MaintenanceLogDao,
+    private val operationTypeDao: OperationTypeDao,
     private val imageRepository: ImageRepository,
     private val measurementUnitDao: MeasurementUnitDao,
+    private val maintenanceReminderDao: MaintenanceReminderDao,
     private val backupManager: BackupManager,
     private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {
@@ -86,6 +96,8 @@ class OptionsViewModel(
         data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class TotalExportResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data object RecalculateSuccess : OptionsUiEvent()
+        data object DemoDataGenerated : OptionsUiEvent()
+        data object DemoDataDeleted : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -704,6 +716,181 @@ class OptionsViewModel(
     }
 
     fun getSuggestedTotalExportFileName(): String = backupManager.getSuggestedTotalExportFileName()
+
+    fun generateDemoData() {
+        viewModelScope.launch {
+            try {
+                // 1. Create Equipments
+                val pandaId = equipmentDao.insertEquipment(Equipment(
+                    description = "Fiat Panda (Demo)",
+                    unitId = 1, // km
+                    color = "#FF4285F4",
+                    estimatedCostPerUnit = 0.18
+                )).toInt()
+
+                val supraId = equipmentDao.insertEquipment(Equipment(
+                    description = "Toyota Supra (Demo)",
+                    unitId = 1, // km
+                    color = "#FFEA4335",
+                    estimatedCostPerUnit = 0.95
+                )).toInt()
+
+                // 2. Create Operation Types
+                val fuelOpId = operationTypeDao.insertOperationType(OperationType(
+                    description = "Rifornimento (Demo)",
+                    color = "#FF34A853",
+                    iconIdentifier = "local_gas_station"
+                )).toInt()
+
+                val maintenanceOpId = operationTypeDao.insertOperationType(OperationType(
+                    description = "Tagliando (Demo)",
+                    color = "#FFFBBC05",
+                    iconIdentifier = "build",
+                    estimatedCost = 250.0,
+                    isPredictable = true,
+                    intervalValue = 15000.0 // Previsione chilometrica
+                )).toInt()
+
+                val tireOpId = operationTypeDao.insertOperationType(OperationType(
+                    description = "Cambio Gomme (Demo)",
+                    color = "#FF9C27B0",
+                    iconIdentifier = "settings_backup_restore",
+                    isPredictable = true,
+                    timeoutValue = 6,
+                    timeoutUnit = TimeGranularity.MONTHS // Previsione temporale (6 mesi)
+                )).toInt()
+
+                val inspectionOpId = operationTypeDao.insertOperationType(OperationType(
+                    description = "Revisione (Demo)",
+                    color = "#FF607D8B",
+                    iconIdentifier = "verified_user",
+                    isPredictable = true,
+                    timeoutValue = 2,
+                    timeoutUnit = TimeGranularity.YEARS // Previsione temporale (2 anni)
+                )).toInt()
+
+                val washOpId = operationTypeDao.insertOperationType(OperationType(
+                    description = "Lavaggio (Demo)",
+                    color = "#FF00BCD4",
+                    iconIdentifier = "local_car_wash"
+                )).toInt()
+
+                // 3. Create Logs for the last 12 months
+                val now = System.currentTimeMillis()
+                val monthMs = 30 * AppConstants.MS_PER_DAY
+                val logs = mutableListOf<MaintenanceLog>()
+                
+                var pandaKm = 5000.0
+                var supraKm = 5000.0
+
+                // Baseline per la Panda: Tagliando fatto 11 mesi fa a 6.000 km
+                val pandaTagliandoDate = now - (11 * monthMs)
+                logs.add(MaintenanceLog(equipmentId = pandaId, operationTypeId = maintenanceOpId, value = 6000.0, date = pandaTagliandoDate, cost = 240.0, notes = "Tagliando Panda (Demo)"))
+
+                // Baseline per la Panda: Cambio Gomme fatto 4 mesi fa
+                val pandaTireDate = now - (4 * monthMs)
+                logs.add(MaintenanceLog(equipmentId = pandaId, operationTypeId = tireOpId, value = 15000.0, date = pandaTireDate, cost = 380.0, notes = "Cambio Gomme Panda (Demo)"))
+
+                // Baseline per la Supra: Revisione fatta inizio anno scorso
+                val supraInspectionDate = now - (16 * monthMs)
+                logs.add(MaintenanceLog(equipmentId = supraId, operationTypeId = inspectionOpId, value = 4000.0, date = supraInspectionDate, cost = 75.0, notes = "Revisione Supra (Demo)"))
+
+                for (i in 12 downTo 0) {
+                    val monthStart = now - (i * monthMs)
+                    
+                    // --- Panda Activity ---
+                    // Rifornimento ogni ~15 giorni (~1300 km/mese per forzare scadenza tagliando)
+                    for (j in 0 until 2) {
+                        val date = monthStart + (j * 15 * AppConstants.MS_PER_DAY) + (Math.random() * AppConstants.MS_PER_DAY).toLong()
+                        if (date > now) continue
+                        pandaKm += 600.0 + (Math.random() * 100)
+                        logs.add(MaintenanceLog(equipmentId = pandaId, operationTypeId = fuelOpId, value = pandaKm, date = date, cost = 50.0 + (Math.random() * 10), notes = "Panda Fuel"))
+                    }
+                    // Lavaggio occasionale (con valore km coerente)
+                    if (i % 3 == 0) {
+                        logs.add(MaintenanceLog(equipmentId = pandaId, operationTypeId = washOpId, date = monthStart + (5 * AppConstants.MS_PER_DAY), value = pandaKm, cost = 15.0))
+                    }
+
+                    // Supra Activity
+                    if (i % 2 == 0) {
+                        val date = monthStart + (10 * AppConstants.MS_PER_DAY)
+                        if (date <= now) {
+                            supraKm += 200.0 + (Math.random() * 50)
+                            logs.add(MaintenanceLog(equipmentId = supraId, operationTypeId = fuelOpId, value = supraKm, date = date, cost = 90.0 + (Math.random() * 20), notes = "Supra High Octane"))
+                            
+                            // Aggiungiamo anche un lavaggio per la Supra ogni tanto per testare trend
+                            if (i % 4 == 0) {
+                                logs.add(MaintenanceLog(equipmentId = supraId, operationTypeId = washOpId, date = date + AppConstants.MS_PER_DAY, value = supraKm, cost = 25.0))
+                            }
+                        }
+                    }
+                }
+
+                // Inserimento massivo log (ordinati per data per ricalcolo accumulato)
+                maintenanceLogDao.insertLogs(logs.sortedBy { it.date })
+
+                // Ricalcolo valori accumulati
+                maintenanceManager.recalculateAccumulatedValues(pandaId)
+                maintenanceManager.recalculateAccumulatedValues(supraId)
+
+                // 4. Creazione Scadenze (Reminders) per popolare la sezione Planned
+                
+                // Panda Tagliando: Target = 6000 (ultimo log) + 15000 (intervallo) = 21000 km
+                val pandaTagliandoReminder = MaintenanceReminder(
+                    equipmentId = pandaId,
+                    operationTypeId = maintenanceOpId,
+                    dueValue = 21000.0,
+                    presumedDate = maintenanceManager.estimateDueDate(pandaId, 21000.0)
+                )
+                maintenanceReminderDao.insertReminder(pandaTagliandoReminder)
+
+                // Panda Cambio Gomme: Scadenza tra 2 mesi (4 mesi fa + 6 mesi intervallo)
+                val cal = Calendar.getInstance()
+                cal.timeInMillis = pandaTireDate
+                cal.add(Calendar.MONTH, 6)
+                val pandaTireDueDate = cal.timeInMillis
+                maintenanceReminderDao.insertReminder(MaintenanceReminder(
+                    equipmentId = pandaId,
+                    operationTypeId = tireOpId,
+                    dueDate = pandaTireDueDate
+                ))
+
+                // Supra Revisione: Scadenza tra 8 mesi (16 mesi fa + 24 mesi intervallo)
+                cal.timeInMillis = supraInspectionDate
+                cal.add(Calendar.YEAR, 2)
+                val supraInspectionDueDate = cal.timeInMillis
+                maintenanceReminderDao.insertReminder(MaintenanceReminder(
+                    equipmentId = supraId,
+                    operationTypeId = inspectionOpId,
+                    dueDate = supraInspectionDueDate
+                ))
+                
+                _uiEvents.send(OptionsUiEvent.DemoDataGenerated)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
+            }
+        }
+    }
+
+    fun deleteDemoData() {
+        viewModelScope.launch {
+            try {
+                val demoEquips = equipmentDao.getDemoEquipments()
+                if (demoEquips.isNotEmpty()) {
+                    equipmentDao.deleteEquipments(demoEquips)
+                }
+                
+                val demoOps = operationTypeDao.getDemoOperationTypes()
+                if (demoOps.isNotEmpty()) {
+                    operationTypeDao.deleteOperationTypes(demoOps)
+                }
+                
+                _uiEvents.send(OptionsUiEvent.DemoDataDeleted)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
+            }
+        }
+    }
 
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) {

@@ -132,6 +132,7 @@ import com.moxmose.moxequiplog.data.local.ReportFilter
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -140,6 +141,7 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.Zoom
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
@@ -154,8 +156,10 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 enum class ReportDestination {
     MENU, EQUIPMENTS, OPERATIONS, EQUIPMENTS_FREQ, OPERATIONS_FREQ, INTERVALS, HEATMAP, BENCHMARKING,
@@ -200,6 +204,7 @@ fun ReportBaseScreen(
     onInvertSelection: (() -> Unit)? = null,
     onClearSelection: (() -> Unit)? = null,
     granularityEnabled: Boolean = true,
+    showVisibilityToggle: Boolean = true,
     content: LazyListScope.() -> Unit
 ) {
     val context = LocalContext.current
@@ -238,13 +243,13 @@ fun ReportBaseScreen(
                 ReportSelectionHeader(
                     selector = selector, 
                     showDismissed = uiState.showDismissed, 
-                    onToggleShowDismissed = { viewModel.toggleShowDismissed(); viewModel.refresh() }, 
+                    onToggleShowDismissed = if (showVisibilityToggle) { { viewModel.toggleShowDismissed(); viewModel.refresh() } } else null, 
                     onSelectAll = onSelectAll?.let { { it(); viewModel.refresh() } }, 
                     onInvertSelection = onInvertSelection?.let { { it(); viewModel.refresh() } }, 
                     onClearSelection = onClearSelection?.let { { it(); viewModel.refresh() } }
                 ) 
             }
-            item { StandardFilterSection(startDate = uiState.startDate, endDate = uiState.endDate, granularity = uiState.timeGranularity, onDateRangeSelected = viewModel::setDateRange, onGranularitySelected = viewModel::setTimeGranularity, onReset = viewModel::resetFilters, onRefresh = viewModel::refresh, enabledGranularity = granularityEnabled) }
+            item { StandardFilterSection(startDate = uiState.startDate, endDate = uiState.endDate, granularity = uiState.timeGranularity, onDateRangeSelected = viewModel::setDateRange, onGranularitySelected = viewModel::setTimeGranularity, onReset = viewModel::resetDateFilters, onRefresh = viewModel::refresh, enabledGranularity = granularityEnabled) }
             item { FilterManagementRow(savedFilters = uiState.savedFilters, activeFilterName = uiState.activeFilterName, isDirty = uiState.isFilterDirty, onSaveNew = viewModel::saveAsNewFilter, onOverwrite = viewModel::overwriteActiveFilter, onApply = { viewModel.applySavedFilter(it); viewModel.refresh() }, onDelete = viewModel::deleteSavedFilter) }
             content()
 
@@ -352,7 +357,7 @@ fun shareCsvFile(context: Context, fileName: String, content: String) {
 fun ReportSelectionHeader(
     selector: @Composable (() -> Unit),
     showDismissed: Boolean,
-    onToggleShowDismissed: () -> Unit,
+    onToggleShowDismissed: (() -> Unit)? = null,
     onSelectAll: (() -> Unit)? = null,
     onInvertSelection: (() -> Unit)? = null,
     onClearSelection: (() -> Unit)? = null
@@ -361,8 +366,8 @@ fun ReportSelectionHeader(
         Box(modifier = Modifier.weight(1f)) { selector() }
         
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-            IconButton(onClick = onToggleShowDismissed, colors = IconButtonDefaults.iconButtonColors(containerColor = if (showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)) { 
-                Icon(imageVector = if (showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = if (showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed), tint = if (showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) 
+            if (onToggleShowDismissed != null) {
+                VisibilityToggleIconButton(showDismissed, onToggleShowDismissed)
             }
             
             if (onSelectAll != null && onInvertSelection != null && onClearSelection != null) {
@@ -371,6 +376,13 @@ fun ReportSelectionHeader(
                 IconButton(onClick = onClearSelection) { Icon(imageVector = Icons.Default.FilterAltOff, contentDescription = stringResource(R.string.selection_clear), tint = MaterialTheme.colorScheme.primary) }
             }
         }
+    }
+}
+
+@Composable
+fun VisibilityToggleIconButton(showDismissed: Boolean, onToggle: () -> Unit) {
+    IconButton(onClick = onToggle, colors = IconButtonDefaults.iconButtonColors(containerColor = if (showDismissed) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)) { 
+        Icon(imageVector = if (showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = if (showDismissed) stringResource(R.string.hide_dismissed) else stringResource(R.string.show_dismissed), tint = if (showDismissed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -590,6 +602,7 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
         onBack = onBack,
         uiState = uiState,
         viewModel = viewModel,
+        showVisibilityToggle = false,
         selector = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // Riga Equipaggiamenti
@@ -610,6 +623,7 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                             getPhotoUri = { it.photoUri }
                         )
                     }
+                    VisibilityToggleIconButton(uiState.showDismissed) { viewModel.toggleShowDismissed(); viewModel.refresh() }
                     IconButton(onClick = { viewModel.selectAllEquipment(); viewModel.refresh() }) {
                         Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.selection_all), tint = MaterialTheme.colorScheme.primary)
                     }
@@ -639,6 +653,7 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                             getPhotoUri = { it.photoUri }
                         )
                     }
+                    VisibilityToggleIconButton(uiState.showDismissed) { viewModel.toggleShowDismissed(); viewModel.refresh() }
                     IconButton(onClick = { viewModel.selectAllOperationTypes(); viewModel.refresh() }) {
                         Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.selection_all), tint = MaterialTheme.colorScheme.primary)
                     }
@@ -686,13 +701,40 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                             when (effectiveGranularity) { 
                                 TimeGranularity.MINUTES_5, TimeGranularity.MINUTES_15, TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
                                 TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault())
-                                TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
+                                TimeGranularity.MONTHS -> SimpleDateFormat("MMM yy", Locale.getDefault())
                                 TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
                                 null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
+                            }.apply { timeZone = TimeZone.getTimeZone("UTC") }
+                        }
+                        val minDate = remember(dataWithPoints) { dataWithPoints.values.flatten().minOfOrNull { it.date } ?: 0L }
+                        val stepMs = remember(effectiveGranularity) {
+                            when (effectiveGranularity) {
+                                TimeGranularity.MINUTES_5 -> 5 * 60 * 1000.0
+                                TimeGranularity.MINUTES_15 -> 15 * 60 * 1000.0
+                                TimeGranularity.HOURS -> 60 * 60 * 1000.0
+                                TimeGranularity.DAYS -> 24 * 60 * 60 * 1000.0
+                                TimeGranularity.WEEKS -> 7 * 24 * 60 * 60 * 1000.0
+                                TimeGranularity.MONTHS -> 30 * 24 * 60 * 60 * 1000.0
+                                TimeGranularity.YEARS -> 365 * 24 * 60 * 60 * 1000.0
+                                else -> 1.0
+                            }
+                        }
+                        LaunchedEffect(dataWithPoints, effectiveGranularity, minDate, stepMs) { 
+                            modelProducer.runTransaction { 
+                                lineSeries { 
+                                    dataWithPoints.values.forEach { points -> 
+                                        series(
+                                            points.map { 
+                                                val x = (it.date - minDate) / stepMs
+                                                Math.round(x * 10000.0) / 10000.0
+                                            }, 
+                                            points.map { it.value }
+                                        ) 
+                                    } 
+                                } 
                             } 
                         }
-                        LaunchedEffect(dataWithPoints, effectiveGranularity) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(points.map { it.date }, points.map { it.value }) } } } }
-                        key(uiState.timeGranularity, effectiveGranularity, dataWithPoints.keys) {
+                        key(uiState.timeGranularity, effectiveGranularity, dataWithPoints.keys, chartColors) {
                             CartesianChartHost(
                                 chart = rememberCartesianChart(
                                     rememberLineCartesianLayer(lineProvider = LineCartesianLayer.LineProvider.series(lineStyles)),
@@ -700,11 +742,25 @@ fun CombinedLogsReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
                                         valueFormatter = CartesianValueFormatter { _, value, _ -> String.format(Locale.US, "%.${uiState.operationMaxDecimalPlaces}f", value) }
                                     ),
                                     bottomAxis = HorizontalAxis.rememberBottom(
-                                        valueFormatter = CartesianValueFormatter { _, value, _ -> dateFormat.format(Date(value.toLong())) },
-                                        label = rememberAxisLabelComponent(color = if (uiState.timeGranularity != null && uiState.timeGranularity != effectiveGranularity) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                                        itemPlacer = remember(effectiveGranularity) {
+                                            HorizontalAxis.ItemPlacer.aligned()
+                                        },
+                                        valueFormatter = CartesianValueFormatter { _, value, _ ->
+                                            val date = Date(minDate + (value * stepMs).toLong())
+                                            if (effectiveGranularity == TimeGranularity.MONTHS || effectiveGranularity == TimeGranularity.YEARS) {
+                                                val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = date.time }
+                                                if (effectiveGranularity == TimeGranularity.MONTHS && cal.get(Calendar.DAY_OF_MONTH) != 1) return@CartesianValueFormatter "\u200B"
+                                                if (effectiveGranularity == TimeGranularity.YEARS && cal.get(Calendar.DAY_OF_YEAR) != 1) return@CartesianValueFormatter "\u200B"
+                                            }
+                                            dateFormat.format(date)
+                                        },
+                                        label = rememberAxisLabelComponent(color = if (uiState.timeGranularity != null && uiState.timeGranularity != effectiveGranularity) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface),
+                                        guideline = null,
+                                        tick = null
                                     ),
                                 ),
                                 modelProducer = modelProducer,
+                                zoomState = rememberVicoZoomState(initialZoom = Zoom.max(Zoom.Content, Zoom.static(1f))),
                                 modifier = Modifier.fillMaxWidth().height(250.dp)
                             )
                         }
@@ -802,11 +858,26 @@ fun BenchmarkCard(title: String? = null, data: List<BenchmarkData>, colors: List
     val modelProducer = remember { CartesianChartModelProducer() }
     LaunchedEffect(data) { if (data.isNotEmpty()) { modelProducer.runTransaction { columnSeries { series(data.map { it.totalValue }) ; series(data.map { it.avgInterval }) } } } }
     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
-        androidx.compose.foundation.layout.Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(title ?: stringResource(R.string.report_benchmarking_title), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(16.dp))
             if (data.isEmpty()) NoDataPlaceholder() else {
-                CartesianChartHost(chart = rememberCartesianChart(rememberColumnCartesianLayer(columnProvider = ColumnCartesianLayer.ColumnProvider.series(colors.take(2).map { color -> LineComponent(color = color.toArgb(), thicknessDp = 16f) })), startAxis = VerticalAxis.rememberStart(), bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = CartesianValueFormatter { _, value, _ -> data.getOrNull(value.toInt())?.equipmentName ?: "" })), modelProducer = modelProducer, modifier = Modifier.fillMaxWidth().height(250.dp) )
+                CartesianChartHost(
+                    chart = rememberCartesianChart(
+                        rememberColumnCartesianLayer(
+                            columnProvider = ColumnCartesianLayer.ColumnProvider.series(
+                                colors.take(2).map { color -> LineComponent(color = color.toArgb(), thicknessDp = 16f) }
+                            )
+                        ),
+                        startAxis = VerticalAxis.rememberStart(),
+                        bottomAxis = HorizontalAxis.rememberBottom(
+                            valueFormatter = CartesianValueFormatter { _, value, _ -> data.getOrNull(value.toInt())?.equipmentName ?: "" }
+                        )
+                    ),
+                    modelProducer = modelProducer,
+                    zoomState = rememberVicoZoomState(initialZoom = Zoom.max(Zoom.Content, Zoom.static(1f))),
+                    modifier = Modifier.fillMaxWidth().height(250.dp)
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) { Box(modifier = Modifier.size(12.dp).background(colors[0])); Spacer(modifier = Modifier.width(4.dp)); Text(stringResource(R.string.report_benchmark_total), style = MaterialTheme.typography.labelSmall) }
@@ -835,7 +906,7 @@ fun FilterManagementRow(savedFilters: List<ReportFilter>, activeFilterName: Stri
 }
 
 @Composable
-fun PieChartCard(title: String, distribution: List<PieChartPoint>) {
+fun PieChartCard(title: String, distribution: List<PieChartPoint>, unit: String? = null) {
     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 16.dp))
@@ -843,7 +914,27 @@ fun PieChartCard(title: String, distribution: List<PieChartPoint>) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     PieChart(modifier = Modifier.size(140.dp), points = distribution)
                     Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) { distribution.take(5).forEach { point -> Row(verticalAlignment = Alignment.Top) { val color = point.color?.let { Color(it.toColorInt()) } ?: Color.Gray ; Box(modifier = Modifier.padding(top = 4.dp).size(12.dp).clip(CircleShape).background(color)) ; Spacer(modifier = Modifier.width(8.dp)); Text(text = stringResource(R.string.occurrences_format, point.label, point.value.toInt()), style = MaterialTheme.typography.labelSmall) } } ; if (distribution.size > 5) Text(text = "...", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 20.dp)) }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) { 
+                        distribution.take(5).forEach { point -> 
+                            Row(verticalAlignment = Alignment.Top) { 
+                                val color = point.color?.let { Color(it.toColorInt()) } ?: Color.Gray 
+                                Box(modifier = Modifier.padding(top = 4.dp).size(12.dp).clip(CircleShape).background(color)) 
+                                Spacer(modifier = Modifier.width(8.dp))
+                                val labelText = if (unit != null) {
+                                    val formattedValue = if (unit == "€") {
+                                        String.format(Locale.getDefault(), "€ %.2f", point.value)
+                                    } else {
+                                        "${point.value} $unit"
+                                    }
+                                    stringResource(R.string.value_format, point.label, formattedValue)
+                                } else {
+                                    stringResource(R.string.occurrences_format, point.label, point.value.toInt())
+                                }
+                                Text(text = labelText, style = MaterialTheme.typography.labelSmall) 
+                            } 
+                        } 
+                        if (distribution.size > 5) Text(text = "...", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 20.dp)) 
+                    }
                 }
             }
         }
@@ -856,10 +947,10 @@ fun PieChart(modifier: Modifier = Modifier, points: List<PieChartPoint>) {
     Canvas(modifier = modifier) {
         var startAngle = -90f
         points.forEach { point -> 
-            val sweepAngle = (point.value / total) * 360f ; 
+            val sweepAngle = (point.value / total) * 360f
             val color = point.color?.let { Color(it.toColorInt()) } ?: Color.Gray
-            drawArc(color = color, startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true, size = Size(size.minDimension, size.minDimension), topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2)) ; 
-            drawArc(color = Color.White.copy(alpha = 0.3f), startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true, style = Stroke(width = 1.dp.toPx()), size = Size(size.minDimension, size.minDimension), topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2)) ; 
+            drawArc(color = color, startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true, size = Size(size.minDimension, size.minDimension), topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2))
+            drawArc(color = Color.White.copy(alpha = 0.3f), startAngle = startAngle, sweepAngle = sweepAngle, useCenter = true, style = Stroke(width = 1.dp.toPx()), size = Size(size.minDimension, size.minDimension), topLeft = Offset((size.width - size.minDimension) / 2, (size.height - size.minDimension) / 2))
             startAngle += sweepAngle 
         }
     }
@@ -893,12 +984,41 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
         when (effectiveGranularity) { 
             TimeGranularity.MINUTES_5, TimeGranularity.MINUTES_15, TimeGranularity.HOURS -> SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
             TimeGranularity.DAYS, TimeGranularity.WEEKS -> SimpleDateFormat("dd/MM", Locale.getDefault())
-            TimeGranularity.MONTHS -> SimpleDateFormat("MM/yy", Locale.getDefault())
+            TimeGranularity.MONTHS -> SimpleDateFormat("MMM yy", Locale.getDefault())
             TimeGranularity.YEARS -> SimpleDateFormat("yyyy", Locale.getDefault())
             null -> SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
+        }.apply { timeZone = TimeZone.getTimeZone("UTC") }
+    }
+    val minDate = remember(dataWithPoints) { dataWithPoints.values.flatten().minOfOrNull { it.date } ?: 0L }
+    val stepMs = remember(effectiveGranularity) {
+        when (effectiveGranularity) {
+            TimeGranularity.MINUTES_5 -> 5 * 60 * 1000.0
+            TimeGranularity.MINUTES_15 -> 15 * 60 * 1000.0
+            TimeGranularity.HOURS -> 60 * 60 * 1000.0
+            TimeGranularity.DAYS -> 24 * 60 * 60 * 1000.0
+            TimeGranularity.WEEKS -> 7 * 24 * 60 * 60 * 1000.0
+            TimeGranularity.MONTHS -> 30 * 24 * 60 * 60 * 1000.0
+            TimeGranularity.YEARS -> 365 * 24 * 60 * 60 * 1000.0
+            else -> 1.0
+        }
+    }
+    LaunchedEffect(dataWithPoints, effectiveGranularity, minDate, stepMs) { 
+        if (dataWithPoints.isNotEmpty()) { 
+            modelProducer.runTransaction { 
+                lineSeries { 
+                    dataWithPoints.values.forEach { points -> 
+                        series(
+                            points.map { 
+                                val x = (it.date - minDate) / stepMs
+                                Math.round(x * 10000.0) / 10000.0
+                            }, 
+                            points.map { it.value }
+                        )
+                    } 
+                } 
+            } 
         } 
     }
-    LaunchedEffect(dataWithPoints, effectiveGranularity) { if (dataWithPoints.isNotEmpty()) { modelProducer.runTransaction { lineSeries { dataWithPoints.values.forEach { points -> series(points.map { it.date }, points.map { it.value }) } } } } }
     if (dataWithPoints.isNotEmpty()) { key(requestedGranularity, effectiveGranularity, dataWithPoints.keys, finalColors) { 
         CartesianChartHost(
             chart = rememberCartesianChart(
@@ -907,11 +1027,25 @@ fun MultiLineChart(chartDataMap: Map<Int, List<ChartPoint>>, decimalPlaces: Int,
                     valueFormatter = CartesianValueFormatter { _, value, _ -> String.format(Locale.US, "%.${decimalPlaces}f", value) }
                 ),
                 bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = CartesianValueFormatter { _, value, _ -> dateFormat.format(Date(value.toLong())) },
-                    label = rememberAxisLabelComponent(color = if (requestedGranularity != null && requestedGranularity != effectiveGranularity) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    itemPlacer = remember(effectiveGranularity) {
+                        HorizontalAxis.ItemPlacer.aligned()
+                    },
+                    valueFormatter = CartesianValueFormatter { _, value, _ ->
+                        val date = Date(minDate + (value * stepMs).toLong())
+                        if (effectiveGranularity == TimeGranularity.MONTHS || effectiveGranularity == TimeGranularity.YEARS) {
+                            val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = date.time }
+                            if (effectiveGranularity == TimeGranularity.MONTHS && cal.get(Calendar.DAY_OF_MONTH) != 1) return@CartesianValueFormatter "\u200B"
+                            if (effectiveGranularity == TimeGranularity.YEARS && cal.get(Calendar.DAY_OF_YEAR) != 1) return@CartesianValueFormatter "\u200B"
+                        }
+                        dateFormat.format(date)
+                    },
+                    label = rememberAxisLabelComponent(color = if (requestedGranularity != null && requestedGranularity != effectiveGranularity) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface),
+                    guideline = null,
+                    tick = null
                 ),
             ), 
             modelProducer = modelProducer, 
+            zoomState = rememberVicoZoomState(initialZoom = Zoom.max(Zoom.Content, Zoom.static(1f))),
             modifier = Modifier.fillMaxWidth().height(250.dp)
         ) 
     } } else NoDataPlaceholder()
@@ -946,10 +1080,40 @@ fun CostsTrendReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel,
         onBack = onBack,
         uiState = uiState,
         viewModel = viewModel,
+        showVisibilityToggle = false,
         selector = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
-                GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                    }
+                    VisibilityToggleIconButton(uiState.showDismissed) { viewModel.toggleShowDismissed(); viewModel.refresh() }
+                    IconButton(onClick = { viewModel.selectAllEquipment(); viewModel.refresh() }) {
+                        Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.selection_all), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.invertEquipmentSelection(); viewModel.refresh() }) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.selection_invert), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.clearEquipmentSelection(); viewModel.refresh() }) {
+                        Icon(Icons.Default.FilterAltOff, contentDescription = stringResource(R.string.selection_clear), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                    }
+                    VisibilityToggleIconButton(uiState.showDismissed) { viewModel.toggleShowDismissed(); viewModel.refresh() }
+                    IconButton(onClick = { viewModel.selectAllOperationTypes(); viewModel.refresh() }) {
+                        Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.selection_all), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.invertOperationTypeSelection(); viewModel.refresh() }) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.selection_invert), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.clearOperationTypeSelection(); viewModel.refresh() }) {
+                        Icon(Icons.Default.FilterAltOff, contentDescription = stringResource(R.string.selection_clear), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
         }
     ) {
@@ -1007,15 +1171,45 @@ fun CostsDistReportScreen(uiState: ReportsUiState, viewModel: ReportsViewModel, 
         onBack = onBack,
         uiState = uiState,
         viewModel = viewModel,
+        showVisibilityToggle = false,
         selector = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
-                GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                    }
+                    VisibilityToggleIconButton(uiState.showDismissed) { viewModel.toggleShowDismissed(); viewModel.refresh() }
+                    IconButton(onClick = { viewModel.selectAllEquipment(); viewModel.refresh() }) {
+                        Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.selection_all), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.invertEquipmentSelection(); viewModel.refresh() }) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.selection_invert), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.clearEquipmentSelection(); viewModel.refresh() }) {
+                        Icon(Icons.Default.FilterAltOff, contentDescription = stringResource(R.string.selection_clear), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        GenericMultiSelector(items = uiState.operationTypes, selectedIds = uiState.selectedOperationTypeIds, onToggleSelection = { viewModel.toggleOperationTypeSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_operations), placeholder = stringResource(R.string.select_operation_type), category = Category.OPERATION, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
+                    }
+                    VisibilityToggleIconButton(uiState.showDismissed) { viewModel.toggleShowDismissed(); viewModel.refresh() }
+                    IconButton(onClick = { viewModel.selectAllOperationTypes(); viewModel.refresh() }) {
+                        Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.selection_all), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.invertOperationTypeSelection(); viewModel.refresh() }) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.selection_invert), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { viewModel.clearOperationTypeSelection(); viewModel.refresh() }) {
+                        Icon(Icons.Default.FilterAltOff, contentDescription = stringResource(R.string.selection_clear), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
         }
     ) {
-        item { PieChartCard(title = "${stringResource(R.string.report_costs_dist_title)} (€) - ${stringResource(R.string.report_section_equipments)}", distribution = uiState.costDistributionByEquipment) }
-        item { PieChartCard(title = "${stringResource(R.string.report_costs_dist_title)} (€) - ${stringResource(R.string.report_section_operations)}", distribution = uiState.costDistributionByOperation) }
+        item { PieChartCard(title = "${stringResource(R.string.report_costs_dist_title)} - ${stringResource(R.string.report_section_equipments)}", distribution = uiState.costDistributionByEquipment, unit = "€") }
+        item { PieChartCard(title = "${stringResource(R.string.report_costs_dist_title)} - ${stringResource(R.string.report_section_operations)}", distribution = uiState.costDistributionByOperation, unit = "€") }
     }
 }
 
@@ -1033,7 +1227,10 @@ fun CostsAnalysisReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMod
         viewModel = viewModel,
         selector = {
             GenericMultiSelector(items = uiState.equipments, selectedIds = uiState.selectedEquipmentIds, onToggleSelection = { viewModel.toggleEquipmentSelection(it); viewModel.refresh() }, categoryColor = categoryColor, chartColors = chartColors, label = stringResource(R.string.navigation_equipments), placeholder = stringResource(R.string.select_equipment), category = Category.EQUIPMENT, getId = { it.id }, getDescription = { it.description }, getIconIdentifier = { it.iconIdentifier }, getPhotoUri = { it.photoUri })
-        }
+        },
+        onSelectAll = viewModel::selectAllEquipment,
+        onInvertSelection = viewModel::invertEquipmentSelection,
+        onClearSelection = viewModel::clearEquipmentSelection
     ) {
         item {
             EquipmentChartCard(

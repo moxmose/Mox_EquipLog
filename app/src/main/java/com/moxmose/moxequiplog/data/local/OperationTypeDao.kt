@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface OperationTypeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOperationType(operationType: OperationType)
+    suspend fun insertOperationType(operationType: OperationType): Long
 
     @Update
     suspend fun updateOperationType(operationType: OperationType)
@@ -32,4 +32,10 @@ interface OperationTypeDao {
 
     @Query("SELECT * FROM operation_types WHERE id = :id")
     suspend fun getOperationTypeById(id: Int): OperationType?
+
+    @Query("SELECT * FROM operation_types WHERE description LIKE '%(Demo)%'")
+    suspend fun getDemoOperationTypes(): List<OperationType>
+
+    @androidx.room.Delete
+    suspend fun deleteOperationTypes(operationTypes: List<OperationType>)
 }
