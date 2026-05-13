@@ -3,6 +3,7 @@ package com.moxmose.moxequiplog.ui.options
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -934,57 +935,33 @@ fun OptionsScreenContent(
 
                     HorizontalDivider()
 
-                    Text(
-                        text = stringResource(R.string.options_recalculate_accumulated),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.options_recalculate_accumulated_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Button(
-                        onClick = onRecalculateAccumulated,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Calculate, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.refresh))
-                    }
-
-                    HorizontalDivider()
-
-                    Text(
-                        text = stringResource(R.string.options_generate_demo_data),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.options_generate_demo_data_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    OutlinedButton(
-                        onClick = { showDemoDataConfirm = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.options_generate_demo_data))
-                    }
-
-                    TextButton(
-                        onClick = onDeleteDemoData,
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.options_delete_demo_data))
+                        OutlinedButton(
+                            onClick = { showDemoDataConfirm = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.options_generate_demo_data))
+                        }
+
+                        OutlinedButton(
+                            onClick = onDeleteDemoData,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.options_delete_demo_data))
+                        }
                     }
 
                     HorizontalDivider()
+                    
                     OutlinedButton(
                         onClick = { restoreLauncher.launch(arrayOf("application/octet-stream", "application/x-sqlite3", "*/*")) },
                         modifier = Modifier.fillMaxWidth(),
@@ -993,6 +970,17 @@ fun OptionsScreenContent(
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_restore_db))
+                    }
+
+                    OutlinedButton(
+                        onClick = onRecalculateAccumulated,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                    ) {
+                        Icon(Icons.Default.Calculate, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_recalculate_accumulated), style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

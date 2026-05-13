@@ -17,7 +17,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "0.4.0"
+        versionName = "0.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -32,6 +32,17 @@ android {
         }
         debug {
             enableUnitTestCoverage = true
+        }
+    }
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.all {
+            val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
+            val baseName = "MoxEquipLog"
+            val version = variant.versionName
+            val buildType = variant.buildType.name
+            output.outputFileName = "${baseName}_v${version}_${buildType}.apk"
         }
     }
     compileOptions {
