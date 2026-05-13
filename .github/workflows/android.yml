@@ -24,6 +24,13 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: Get Version Name
+      id: get_version
+      run: |
+        VERSION=$(grep "versionName =" app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+        echo "VERSION_NAME=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version $VERSION"
+
     - name: Run Unit Tests
       run: ./gradlew testDebugUnitTest
 
@@ -33,5 +40,5 @@ jobs:
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
-        name: MoxEquipLog-Debug-APK
+        name: MoxEquipLog-v${{ steps.get_version.outputs.VERSION_NAME }}-Debug
         path: app/build/outputs/apk/debug/*.apk
