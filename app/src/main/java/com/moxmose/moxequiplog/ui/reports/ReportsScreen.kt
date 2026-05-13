@@ -101,6 +101,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -173,7 +174,7 @@ enum class ReportDestination {
 @Composable
 fun ReportsScreen(viewModel: ReportsViewModel = koinViewModel(), onBack: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
-    var currentDestination by remember { mutableStateOf(ReportDestination.MENU) }
+    var currentDestination by rememberSaveable { mutableStateOf(ReportDestination.MENU) }
     BackHandler(enabled = currentDestination != ReportDestination.MENU) { currentDestination = ReportDestination.MENU }
     AnimatedContent(targetState = currentDestination, label = "ReportsNavigation") { destination ->
         when (destination) {
@@ -404,7 +405,7 @@ fun <T> GenericMultiSelector(
     getIconIdentifier: (T) -> String?,
     getPhotoUri: (T) -> String?
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
     val displayText = if (selectedIds.isEmpty()) placeholder else {
         val firstSelected = items.find { getId(it) == selectedIds.first() }?.let(getDescription)?.takeIf { it.isNotBlank() }
@@ -516,7 +517,7 @@ fun EquipmentsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMo
         if (uiState.timeGranularity == null || uiState.equipmentDistributionByPeriod.isEmpty()) {
             item { PieChartCard(title = stringResource(R.string.report_section_equipments_freq), distribution = uiState.equipmentDistribution) }
         } else {
-            items(uiState.equipmentDistributionByPeriod.keys.toList().sorted()) { period ->
+            items(uiState.equipmentDistributionByPeriod.keys.toList()) { period ->
                 PieChartCard(title = "${stringResource(R.string.report_section_equipments_freq)}: $period", distribution = uiState.equipmentDistributionByPeriod[period] ?: emptyList())
             }
         }
@@ -531,7 +532,7 @@ fun OperationsFreqReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMo
         if (uiState.timeGranularity == null || uiState.operationDistributionByPeriod.isEmpty()) {
             item { PieChartCard(title = stringResource(R.string.report_section_operations_freq), distribution = uiState.operationDistribution) }
         } else {
-            items(uiState.operationDistributionByPeriod.keys.toList().sorted()) { period ->
+            items(uiState.operationDistributionByPeriod.keys.toList()) { period ->
                 PieChartCard(title = "${stringResource(R.string.report_section_operations_freq)}: $period", distribution = uiState.operationDistributionByPeriod[period] ?: emptyList())
             }
         }
@@ -566,7 +567,7 @@ fun BenchmarkingReportScreen(uiState: ReportsUiState, viewModel: ReportsViewMode
         if (uiState.timeGranularity == null || uiState.timeGranularity == TimeGranularity.HOURS) {
             item { BenchmarkCard(data = uiState.benchmarkData, colors = chartColors) }
         } else {
-            items(uiState.benchmarkByPeriod.keys.toList().sorted()) { period ->
+            items(uiState.benchmarkByPeriod.keys.toList()) { period ->
                 BenchmarkCard(title = "${stringResource(R.string.report_benchmarking_title)}: $period", data = uiState.benchmarkByPeriod[period] ?: emptyList(), colors = chartColors)
             }
         }
@@ -919,7 +920,7 @@ fun BenchmarkCard(title: String? = null, data: List<BenchmarkData>, colors: List
 
 @Composable
 fun FilterManagementRow(savedFilters: List<ReportFilter>, activeFilterName: String?, isDirty: Boolean, onSaveNew: (String) -> Unit, onOverwrite: () -> Unit, onApply: (ReportFilter) -> Unit, onDelete: (Int) -> Unit) {
-    var showSaveDialog by remember { mutableStateOf(false) } ; var filterName by remember { mutableStateOf("") } ; var showLoadMenu by remember { mutableStateOf(false) }
+    var showSaveDialog by rememberSaveable { mutableStateOf(false) } ; var filterName by rememberSaveable { mutableStateOf("") } ; var showLoadMenu by rememberSaveable { mutableStateOf(false) }
     if (showSaveDialog) { AlertDialog(onDismissRequest = { showSaveDialog = false }, title = { Text(stringResource(R.string.save_filter)) }, text = { OutlinedTextField(value = filterName, onValueChange = { filterName = it }, label = { Text(stringResource(R.string.filter_name)) }, modifier = Modifier.fillMaxWidth(), singleLine = true) }, confirmButton = { TextButton(onClick = { if (filterName.isNotBlank()) { onSaveNew(filterName); filterName = ""; showSaveDialog = false } }) { Text(stringResource(R.string.button_add)) } }, dismissButton = { TextButton(onClick = { showSaveDialog = false }) { Text(stringResource(R.string.button_cancel)) } }) }
     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(imageVector = Icons.Default.FilterAlt, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
@@ -1320,7 +1321,7 @@ fun rememberChartColors(colorMode: String, customColors: List<String>): List<Col
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StandardFilterSection(startDate: Long?, endDate: Long?, granularity: TimeGranularity?, onDateRangeSelected: (Long?, Long?) -> Unit, onGranularitySelected: (TimeGranularity?) -> Unit, onReset: () -> Unit, onRefresh: () -> Unit, enabledGranularity: Boolean = true) {
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) } ; var showDatePickerRange by remember { mutableStateOf(false) }
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) } ; var showDatePickerRange by rememberSaveable { mutableStateOf(false) }
     if (showDatePickerRange) { val dateRangePickerState = rememberDateRangePickerState(initialSelectedStartDateMillis = startDate, initialSelectedEndDateMillis = endDate) ; DatePickerDialog(onDismissRequest = { showDatePickerRange = false }, confirmButton = { TextButton(onClick = { onDateRangeSelected(dateRangePickerState.selectedStartDateMillis, dateRangePickerState.selectedEndDateMillis) ; showDatePickerRange = false ; onRefresh() }) { Text(stringResource(R.string.button_ok)) } }, dismissButton = { TextButton(onClick = { showDatePickerRange = false }) { Text(stringResource(R.string.button_cancel)) } }) { DateRangePicker(state = dateRangePickerState, title = { Text(stringResource(R.string.date), modifier = Modifier.padding(16.dp)) }, showModeToggle = false, modifier = Modifier.fillMaxWidth().height(400.dp) ) } }
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) { 
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { 
