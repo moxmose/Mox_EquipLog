@@ -199,7 +199,7 @@ class MaintenanceManager(
     }
 
     suspend fun recalculateAllAccumulatedValues() {
-        val equipments = equipmentDao.getAllEquipments().first()
+        val equipments = equipmentDao.getAllEquipmentList().first()
         equipments.forEach { equipment ->
             recalculateAccumulatedValues(equipment.id)
         }
@@ -209,7 +209,7 @@ class MaintenanceManager(
 
     suspend fun isPhotoUsed(uri: String): Boolean {
         if (uri.isBlank()) return true
-        val inEquipments = equipmentDao.countEquipmentsUsingPhoto(uri) > 0
+        val inEquipments = equipmentDao.countEquipmentUsingPhoto(uri) > 0
         val inOperations = operationTypeDao.countOperationTypesUsingPhoto(uri) > 0
         return inEquipments || inOperations
     }

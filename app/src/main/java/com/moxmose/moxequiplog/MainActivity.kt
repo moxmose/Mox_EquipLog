@@ -48,7 +48,7 @@ import androidx.lifecycle.lifecycleScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.ui.components.AppBackground
-import com.moxmose.moxequiplog.ui.equipments.EquipmentsScreen
+import com.moxmose.moxequiplog.ui.equipment.EquipmentScreen
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogScreen
 import com.moxmose.moxequiplog.ui.operations.OperationTypeScreen
 import com.moxmose.moxequiplog.ui.options.OptionsScreen
@@ -165,7 +165,7 @@ fun MoxEquipLogApp(
             ) {
                 when (currentDestination) {
                     AppDestinations.LOGS -> MaintenanceLogScreen(onNavigateToOptions = { currentDestination = AppDestinations.OPTIONS })
-                    AppDestinations.EQUIPMENTS -> EquipmentsScreen()
+                    AppDestinations.EQUIPMENT -> EquipmentScreen()
                     AppDestinations.OPERATIONS -> OperationTypeScreen()
                     AppDestinations.REPORTS -> ReportsScreen(onBack = { currentDestination = AppDestinations.LOGS })
                     AppDestinations.OPTIONS -> OptionsScreen()
@@ -181,7 +181,7 @@ enum class AppDestinations(
     val enabled: Boolean = true
 ) {
     LOGS(R.string.navigation_logs, Icons.Default.Home),
-    EQUIPMENTS(R.string.navigation_equipments, Icons.AutoMirrored.Filled.List),
+    EQUIPMENT(R.string.navigation_equipment, Icons.AutoMirrored.Filled.List),
     OPERATIONS(R.string.navigation_operations, Icons.Default.Build),
     REPORTS(R.string.navigation_reports, Icons.Default.Assessment),
     OPTIONS(R.string.navigation_options, Icons.Default.Settings),

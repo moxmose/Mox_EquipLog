@@ -266,7 +266,7 @@ class MaintenanceLogViewModel(
         _showDismissed.value = !_showDismissed.value
     }
 
-    val allEquipments = equipmentDao.getAllEquipments()
+    val allEquipments = equipmentDao.getAllEquipmentList()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
@@ -280,7 +280,7 @@ class MaintenanceLogViewModel(
             initialValue = emptyList()
         )
 
-    val activeResettableEquipmentsCount = equipmentDao.countActiveResettableEquipments()
+    val activeResettableEquipmentsCount = equipmentDao.countActiveResettableEquipment()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),

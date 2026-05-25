@@ -54,7 +54,7 @@ class EquipmentDaoTest {
 
         equipmentDao.insertEquipment(equipment)
 
-        equipmentDao.getActiveEquipments().test {
+        equipmentDao.getActiveEquipmentList().test {
             val equipmentList = awaitItem()
             assertEquals(1, equipmentList.size)
             assertEquals("Test Equipment", equipmentList[0].description)
@@ -67,7 +67,7 @@ class EquipmentDaoTest {
         val initialEquipment = Equipment(id = 1, description = "Initial Name", displayOrder = 0)
         equipmentDao.insertEquipment(initialEquipment)
 
-        equipmentDao.getActiveEquipments().test {
+        equipmentDao.getActiveEquipmentList().test {
             assertEquals("Initial Name", awaitItem().first().description)
             cancelAndIgnoreRemainingEvents()
         }
@@ -75,7 +75,7 @@ class EquipmentDaoTest {
         val updatedEquipment = initialEquipment.copy(description = "Updated Name")
         equipmentDao.updateEquipment(updatedEquipment)
 
-        equipmentDao.getActiveEquipments().test {
+        equipmentDao.getActiveEquipmentList().test {
             val equipmentList = awaitItem()
             assertEquals(1, equipmentList.size)
             assertEquals("Updated Name", equipmentList[0].description)
@@ -88,7 +88,7 @@ class EquipmentDaoTest {
         val equipment = Equipment(id = 1, description = "Test Equipment", dismissed = false, displayOrder = 0)
         equipmentDao.insertEquipment(equipment)
 
-        equipmentDao.getActiveEquipments().test {
+        equipmentDao.getActiveEquipmentList().test {
             assertEquals(1, awaitItem().size)
             cancelAndIgnoreRemainingEvents()
         }
@@ -96,7 +96,7 @@ class EquipmentDaoTest {
         val dismissedEquipment = equipment.copy(dismissed = true)
         equipmentDao.updateEquipment(dismissedEquipment)
 
-        equipmentDao.getActiveEquipments().test {
+        equipmentDao.getActiveEquipmentList().test {
             assertEquals(0, awaitItem().size)
             cancelAndIgnoreRemainingEvents()
         }

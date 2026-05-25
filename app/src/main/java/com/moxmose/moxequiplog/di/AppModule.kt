@@ -6,7 +6,7 @@ import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.AppDatabase
-import com.moxmose.moxequiplog.ui.equipments.EquipmentsViewModel
+import com.moxmose.moxequiplog.ui.equipment.EquipmentViewModel
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.operations.OperationsTypeViewModel
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
@@ -59,7 +59,7 @@ val appModule = module {
     single<ResourceProvider> { AndroidResourceProvider(androidContext()) }
 
     // ViewModels
-    viewModelOf(::EquipmentsViewModel)
+    viewModelOf(::EquipmentViewModel)
     viewModelOf(::OperationsTypeViewModel)
     viewModelOf(::MaintenanceLogViewModel)
     viewModelOf(::OptionsViewModel)

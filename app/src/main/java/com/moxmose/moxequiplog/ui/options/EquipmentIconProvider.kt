@@ -8,10 +8,12 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.CleanHands
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Construction
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.DirectionsBoat
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.ElectricScooter
 import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.NotInterested
 import androidx.compose.material.icons.filled.PedalBike
 import androidx.compose.material.icons.filled.QuestionMark
@@ -31,6 +33,8 @@ object EquipmentIconProvider {
         "scooter" to Icons.Filled.ElectricScooter,
         "bike" to Icons.Filled.PedalBike,
         "pc" to Icons.Filled.Computer,
+        "device" to Icons.Filled.Devices,
+        "medical" to Icons.Filled.MedicalServices,
         "drone" to Icons.Filled.Flight,
         "boat" to Icons.Filled.DirectionsBoat,
         "other" to Icons.Filled.QuestionMark

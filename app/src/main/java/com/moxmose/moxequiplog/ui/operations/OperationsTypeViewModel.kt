@@ -92,7 +92,7 @@ class OperationsTypeViewModel(
 
     val allOperationTypes: StateFlow<List<OperationType>> = combine(
         operationTypeDao.getAllOperationTypes(),
-        equipmentDao.countActiveResettableEquipments()
+        equipmentDao.countActiveResettableEquipment()
     ) { types, resettableCount ->
         types.map { type ->
             if (type.isSystem && type.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
@@ -117,7 +117,7 @@ class OperationsTypeViewModel(
 
     val operationStatuses: StateFlow<Map<Int, OperationGlobalStatus>> = combine(
         activeOperationTypes,
-        equipmentDao.getActiveEquipments(),
+        equipmentDao.getActiveEquipmentList(),
         maintenanceReminderDao.getAllReminders(),
         maintenanceLogDao.getLogsCountFlow()
     ) { opTypes, equipments, reminders, _ ->

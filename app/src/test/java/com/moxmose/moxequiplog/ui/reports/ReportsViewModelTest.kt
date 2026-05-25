@@ -45,8 +45,8 @@ class ReportsViewModelTest {
         }
         
         val equipmentDao = mockk<EquipmentDao>(relaxed = true) {
-            every { getActiveEquipments() } returns flowOf(emptyList())
-            every { getAllEquipments() } returns flowOf(emptyList())
+            every { getActiveEquipmentList() } returns flowOf(emptyList())
+            every { getAllEquipmentList() } returns flowOf(emptyList())
         }
         val operationTypeDao = mockk<OperationTypeDao>(relaxed = true) {
             every { getActiveOperationTypes() } returns flowOf(emptyList())

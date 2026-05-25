@@ -29,3 +29,15 @@ data class BenchmarkData(
     val count: Int,
     val periodLabel: String? = null
 )
+
+data class PredictionDetails(
+    val equipmentId: Int,
+    val equipmentDescription: String,
+    val operationTypeId: Int,
+    val operationTypeDescription: String,
+    val predictedDate: Long,
+    val equipmentPhotoUri: String? = null,
+    val equipmentIconIdentifier: String? = null,
+    val operationTypePhotoUri: String? = null,
+    val operationTypeIconIdentifier: String? = null
+)

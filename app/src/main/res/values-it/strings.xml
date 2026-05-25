@@ -2,19 +2,19 @@
 <resources>
     <string name="app_name">Mox EquipLog</string>
     <string name="navigation_logs">Registro</string>
-    <string name="navigation_equipments">Mezzi</string>
+    <string name="navigation_equipment">Equipment</string>
     <string name="navigation_operations">Attività</string>
     <string name="navigation_reports">Report</string>
     <string name="navigation_options">Opzioni</string>
 
     <!-- Reports -->
     <string name="reports_title">Report</string>
-    <string name="report_equipments_title">Andamento Mezzi</string>
-    <string name="report_equipments_desc">Andamento valori per mezzo</string>
+    <string name="report_equipment_title">Andamento Equipment</string>
+    <string name="report_equipment_desc">Andamento valori per equipment</string>
     <string name="report_operations_title">Andamento Attività</string>
     <string name="report_operations_desc">Andamento valori per tipo attività</string>
-    <string name="report_equipments_freq_title">Frequenza Mezzi</string>
-    <string name="report_equipments_freq_desc">Frequenza manutenzioni per mezzo</string>
+    <string name="report_equipment_freq_title">Frequenza Equipment</string>
+    <string name="report_equipment_freq_desc">Frequenza manutenzioni per equipment</string>
     <string name="report_operations_freq_title">Frequenza Attività</string>
     <string name="report_operations_freq_desc">Frequenza manutenzioni per attività</string>
     <string name="report_intervals_title">Analisi Intervalli</string>
@@ -22,13 +22,13 @@
     <string name="report_heatmap_title">Heatmap Attività</string>
     <string name="report_heatmap_desc">Distribuzione temporale delle attività</string>
     <string name="report_benchmarking_title">Benchmarking</string>
-    <string name="report_benchmarking_desc">Confronto diretto tra mezzi</string>
+    <string name="report_benchmarking_desc">Confronto diretto tra equipment</string>
 
     <!-- Report Costi -->
     <string name="report_costs_trend_title">Andamento Costi</string>
-    <string name="report_costs_trend_desc">Evoluzione dei costi nel tempo per mezzo o attività</string>
+    <string name="report_costs_trend_desc">Evoluzione dei costi nel tempo per equipment o attività</string>
     <string name="report_costs_dist_title">Distribuzione Costi</string>
-    <string name="report_costs_dist_desc">Peso dei costi per mezzo e per tipo attività</string>
+    <string name="report_costs_dist_desc">Peso dei costi per equipment e per tipo attività</string>
     <string name="report_costs_analysis_title">Analisi Efficienza Costi</string>
     <string name="report_costs_analysis_desc">Costo per unità di utilizzo e altre metriche di efficienza</string>
     <string name="report_total_cost_label">Costo Totale</string>
@@ -38,28 +38,35 @@
     <string name="cost_analysis">Analisi Costi</string>
 
     <!-- Nuovi Report -->
-    <string name="report_equipments_vol_title">Volume Mezzi</string>
-    <string name="report_equipments_vol_desc">Conteggio attività per mezzo nel tempo</string>
+    <string name="report_equipment_vol_title">Volume Equipment</string>
+    <string name="report_equipment_vol_desc">Conteggio attività per equipment nel tempo</string>
     <string name="report_operations_vol_title">Volume Attività</string>
     <string name="report_operations_vol_desc">Conteggio attività per tipo nel tempo</string>
     <string name="report_combined_logs_title">Analisi Log Combinati</string>
-    <string name="report_combined_logs_desc">Andamento valori per specifiche coppie mezzo-attività</string>
+    <string name="report_combined_logs_desc">Andamento valori per specifiche coppie equipment-attività</string>
     <string name="report_volume_label">Conteggio Attività</string>
 
-    <string name="report_section_equipments">Mezzi</string>
+    <string name="report_journal_title">Libro Giornale</string>
+    <string name="report_journal_desc">Lista cronologica di log e predizioni</string>
+    <string name="journal_section">Documentazione</string>
+    <string name="report_prediction_label">PREDIZIONE</string>
+    <string name="report_log_label">LOG</string>
+    <string name="export_journal_pdf">Esporta Libro Giornale (PDF)</string>
+
+    <string name="report_section_equipment">Equipment</string>
     <string name="report_section_operations">Attività</string>
-    <string name="report_section_equipments_freq">Frequenza Mezzi</string>
+    <string name="report_section_equipment_freq">Frequenza Equipment</string>
     <string name="report_section_operations_freq">Frequenza Attività</string>
     <string name="report_value_over_time">Valori nel tempo</string>
     <string name="report_value_to_date">Valore ad oggi</string>
     <string name="report_no_data">Nessun dato disponibile</string>
-    <string name="select_equipment">Seleziona Mezzo</string>
+    <string name="select_equipment">Seleziona Equipment</string>
     <string name="select_operation_type">Seleziona Attività</string>
     <string name="um_trend">Andamento Valori</string>
-    <string name="mixed_units_warning">Attenzione: i mezzi selezionati usano unità di misura diverse.</string>
+    <string name="mixed_units_warning">Attenzione: gli equipment selezionati usano unità di misura diverse.</string>
     <string name="report_equipment_subtitle">Analisi dei valori di utilizzo</string>
     <string name="report_operation_subtitle">Frequenza e valori per singola attività</string>
-    <string name="report_equipment_freq_subtitle">Frequenza di utilizzo dei mezzi</string>
+    <string name="report_equipment_freq_subtitle">Frequenza di utilizzo degli equipment</string>
     <string name="report_operation_freq_subtitle">Frequenza delle attività svolte</string>
     <string name="report_delta_label">Delta (Differenza valore)</string>
     <string name="report_heatmap_intensity">Intensità (conteggio)</string>
@@ -122,7 +129,7 @@
     <string name="options_use_custom_colors_reports">Usa colori personalizzati nei report</string>
 
     <string name="options_units_title">Unità di Misura</string>
-    <string name="options_units_desc">Gestisci le unità di misura per i tuoi mezzi (es. km, ore, litri).</string>
+    <string name="options_units_desc">Gestisci le unità di misura per i tuoi equipment (es. km, ore, litri).</string>
     <string name="options_add_unit">Aggiungi Unità</string>
     <string name="options_unit_label_placeholder">Etichetta (es. hh)</string>
     <string name="options_unit_desc_placeholder">Descrizione (es. Ore)</string>
@@ -146,12 +153,12 @@
 
     <string name="button_about" translatable="false">Informazioni</string>
     <string name="about_dialog_title" translatable="false">Informazioni su Mox EquipLog</string>
-    <string name="about_dialog_content">Questa app aiuta a tracciare registrazioni di manutenzione per i vostri mezzi. Mantienili in forma perfetta!</string>
+    <string name="about_dialog_content">Questa app aiuta a tracciare registrazioni di manutenzione per i vostri equipment. Mantienili in forma perfetta!</string>
     <string name="about_version_label">Versione: %1$s</string>
     <string name="about_developer_label">Sviluppato da: %1$s</string>
     <string name="about_license_label">Licenza: %1$s</string>
     <string name="about_github_label">Repository GitHub</string>
-    <string name="welcome_dialog_content">Questa app ti aiuta a tracciare le manutenzioni dei tuoi mezzi. Mantienili in forma perfetta!\n\nPer un\u0027esperienza ottimale, visita la sezione Opzioni per:\n\n• Configurare Analisi Predittiva e Soglie di Costo\n• Definire le tue Unità di Misura\n• Personalizzare Immagini, Colori e Sfondi\n• Sincronizzare con Google Calendar\n\nPronto? Aggiungi i tuoi mezzi e le attività per iniziare a registrare!</string>
+    <string name="welcome_dialog_content">Questa app ti aiuta a tracciare le manutenzioni dei tuoi equipment. Mantienili in forma perfetta!\n\nPer un\u0027esperienza ottimale, visita la sezione Opzioni per:\n\n• Configurare Analisi Predittiva e Soglie di Costo\n• Definire le tue Unità di Misura\n• Personalizzare Immagini, Colori e Sfondi\n• Sincronizzare con Google Calendar\n\nPronto? Aggiungi i tuoi equipment e le attività per iniziare a registrare!</string>
     <string name="dismiss_next_time">Non mostrare più</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Personalizzazione Sfondo</string>
@@ -164,13 +171,13 @@
     <!-- Equipments & Operations -->
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
     <string name="set_as_default_and_expand_instruction">Tocca la card per espandere, la stella per il predefinito</string>
-    <string name="add_equipment">Aggiungi Mezzo</string>
+    <string name="add_equipment">Aggiungi Equipment</string>
     <string name="add_operation_type">Aggiungi Tipo di Operazione</string>
     <string name="hide_dismissed">Nascondi Dismessi</string>
     <string name="show_dismissed">Mostra Dismessi</string>
-    <string name="add_a_new_equipment">Aggiungi un nuovo Mezzo</string>
+    <string name="add_a_new_equipment">Aggiungi un nuovo Equipment</string>
     <string name="add_a_new_operation_type">Aggiungi un nuovo Tipo di Operazione</string>
-    <string name="equipment_description">Descrizione Mezzo</string>
+    <string name="equipment_description">Descrizione Equipment</string>
     <string name="operation_type_description">Descrizione Tipo di Operazione</string>
     <string name="add_image">Aggiungi immagine</string>
     <string name="button_add">Aggiungi</string>
@@ -178,14 +185,14 @@
     <string name="button_cancel">Cancella</string>
     <string name="no_image_title">Nessuna Immagine</string>
     <string name="no_image_message">Nessuna foto caricata, aggiungine una.</string>
-    <string name="full_size_equipment_photo">Foto Mezzo dimensioni grande</string>
+    <string name="full_size_equipment_photo">Foto Equipment dimensioni grande</string>
     <string name="full_size_operation_photo">Foto Operazioni dimensioni grande</string>
-    <string name="equipment_photo">Foto Mezzo</string>
+    <string name="equipment_photo">Foto Equipment</string>
     <string name="operation_type_photo">Foto Tipo di Operazione</string>
-    <string name="edit_equipment">Modifica Mezzo</string>
+    <string name="edit_equipment">Modifica Equipment</string>
     <string name="save_equipment">Salva</string>
-    <string name="dismiss_equipment">Dismetti Mezzo</string>
-    <string name="restore_equipment">Ripristina Mezzo</string>
+    <string name="dismiss_equipment">Dismetti Equipment</string>
+    <string name="restore_equipment">Ripristina Equipment</string>
     <string name="edit_operation_type">Modifica Tipo Operazione</string>
     <string name="save_operation_type">Salva</string>
     <string name="dismiss_operation_type">Dismetti Tipo di Operazione</string>
@@ -201,7 +208,7 @@
     <string name="sort_by">Ordina per</string>
     <string name="sort_direction">Direzione ordinamento</string>
     <string name="add_new_maintenance_log">Aggiungi nuova registrazione di manutenzione</string>
-    <string name="select_an_equipment">Seleziona un mezzo</string>
+    <string name="select_an_equipment">Seleziona un equipment</string>
     <string name="select_an_operation">Selezione un operazione</string>
     <string name="notes_label">Note</string>
     <string name="notes_optional">Note (opzionale)</string>
@@ -286,11 +293,11 @@
     <string name="color_id_invalid">L\'ID del colore non è valido.</string>
     <string name="delete_color_failed">Eliminazione del colore fallita.</string>
     <string name="description_invalid">La descrizione non può essere vuota.</string>
-    <string name="add_equipment_failed">Aggiunta del mezzo fallita.</string>
-    <string name="update_equipment_failed">Aggiornamento del mezzo fallito.</string>
-    <string name="update_equipments_failed">Aggiornamento dell\'ordine dei mezzi fallito.</string>
-    <string name="dismiss_equipment_failed">Dismissione del mezzo fallita.</string>
-    <string name="restore_equipment_failed">Ripristino del mezzo fallito.</string>
+    <string name="add_equipment_failed">Aggiunta dell\'equipment fallita.</string>
+    <string name="update_equipment_failed">Aggiornamento dell\'equipment fallito.</string>
+    <string name="update_equipment_order_failed">Aggiornamento dell\'ordine degli equipment fallito.</string>
+    <string name="dismiss_equipment_failed">Dismissione dell\'equipment fallita.</string>
+    <string name="restore_equipment_failed">Ripristino dell\'equipment fallito.</string>
     <string name="add_operation_type_failed">Aggiunta del tipo di operazione fallita.</string>
     <string name="update_operation_type_failed">Aggiornamento del tipo di operazione fallito.</string>
     <string name="update_operation_types_failed">Aggiornamento dell\'ordine dei tipi di operazione fallito.</string>
@@ -329,9 +336,9 @@
     <string name="options_recalculate_accumulated_desc">Ricalcola tutti i valori assoluti basandosi sullo storico dei log. Utile se sono state inserite registrazioni nel passato.</string>
     <string name="recalculate_success">Ricalcolo completato con successo.</string>
     <string name="options_generate_demo_data">Genera Dati Demo</string>
-    <string name="options_generate_demo_data_desc">Aggiunge mezzi e log fittizi per testare le funzionalità dell\'app.</string>
+    <string name="options_generate_demo_data_desc">Aggiunge equipment e log fittizi per testare le funzionalità dell\'app.</string>
     <string name="options_delete_demo_data">Elimina Dati Demo</string>
-    <string name="demo_data_confirm_msg">Verranno aggiunti nuovi mezzi e registrazioni di prova. Si consiglia di eseguire un backup prima di procedere. Continuare?</string>
+    <string name="demo_data_confirm_msg">Verranno aggiunti nuovi equipment e registrazioni di prova. Si consiglia di eseguire un backup prima di procedere. Continuare?</string>
     <string name="demo_data_success">Dati demo generati con successo.</string>
     <string name="demo_data_deleted_success">Dati demo eliminati con successo.</string>
     <string name="options_sync_calendar_default_label">Sincronizza di default</string>
@@ -346,7 +353,7 @@
     <string name="csv_export_start_label">Inizio</string>
     <string name="csv_export_end_label">Fine</string>
     <string name="csv_export_data_header">Data</string>
-    <string name="csv_export_equipment_header">Mezzo</string>
+    <string name="csv_export_equipment_header">Equipment</string>
     <string name="csv_export_operation_header">Attività</string>
     <string name="csv_export_value_header">Valore</string>
     <string name="csv_export_unit_header">Unità</string>

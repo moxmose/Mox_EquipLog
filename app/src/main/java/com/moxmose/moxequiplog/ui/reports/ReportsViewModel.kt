@@ -21,6 +21,7 @@ import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import com.moxmose.moxequiplog.data.local.PieChartPoint
+import com.moxmose.moxequiplog.data.local.PredictionDetails
 import com.moxmose.moxequiplog.data.local.ReportFilter
 import com.moxmose.moxequiplog.data.local.ReportFilterDao
 import com.moxmose.moxequiplog.data.local.TimeGranularity
@@ -38,6 +39,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -100,6 +102,10 @@ data class ReportsUiState(
     val totalCost: Double = 0.0,
     val averageCostPerLog: Double = 0.0,
     val costVsUsageData: Map<Int, List<ChartPoint>> = emptyMap(),
+
+    // Journal Data
+    val journalLogs: List<MaintenanceLogDetails> = emptyList(),
+    val predictions: List<PredictionDetails> = emptyList(),
 
     val startDate: Long? = null,
     val endDate: Long? = null,
@@ -202,7 +208,7 @@ class ReportsViewModel(
         }
 
         viewModelScope.launch {
-            _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() }
+            _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipmentList() else equipmentDao.getActiveEquipmentList() }
                 .collect { list ->
                     if (!initializedEquipments && list.isNotEmpty()) {
                         _selectedEquipmentIds.value = list.map { it.id }.toSet()
@@ -228,7 +234,7 @@ class ReportsViewModel(
 
     val uiState: StateFlow<ReportsUiState> = combine(
         combine(
-            _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipments() else equipmentDao.getActiveEquipments() }.distinctUntilChanged(),
+            _showDismissed.flatMapLatest { if (it) equipmentDao.getAllEquipmentList() else equipmentDao.getActiveEquipmentList() }.distinctUntilChanged(),
             _showDismissed.flatMapLatest { if (it) operationTypeDao.getAllOperationTypes() else operationTypeDao.getActiveOperationTypes() }.distinctUntilChanged(),
             maintenanceLogDao.getLogsWithDetails(SimpleSQLiteQuery("SELECT l.*, e.description as equipmentDescription, ot.description as operationTypeDescription, e.photoUri as equipmentPhotoUri, e.iconIdentifier as equipmentIconIdentifier, ot.photoUri as operationTypePhotoUri, ot.iconIdentifier as operationTypeIconIdentifier, e.dismissed as equipmentDismissed, ot.dismissed as operationTypeDismissed FROM maintenance_logs as l JOIN equipments as e ON l.equipmentId = e.id JOIN operation_types as ot ON l.operationTypeId = ot.id ORDER BY l.date ASC")).distinctUntilChanged(),
             measurementUnitDao.getAllUnits().distinctUntilChanged()
@@ -477,8 +483,40 @@ class ReportsViewModel(
             equipmentCostData = equipmentCostData, operationCostData = operationCostData,
             costDistributionByEquipment = costDistEquip, costDistributionByOperation = costDistOp,
             totalCost = totalCostVal, averageCostPerLog = avgCostPerLog,
-            costVsUsageData = costVsUsageData
+            costVsUsageData = costVsUsageData,
+            journalLogs = fullyFilteredLogs
         )
+    }.flatMapLatest { state ->
+        kotlinx.coroutines.flow.flow {
+            val predictions = mutableListOf<PredictionDetails>()
+            state.selectedEquipmentIds.forEach { eId ->
+                val equip = state.equipments.find { it.id == eId } ?: return@forEach
+                val trend = maintenanceManager.calculateTrend(equip)
+                state.selectedOperationTypeIds.forEach { oId ->
+                    val opType = state.operationTypes.find { it.id == oId } ?: return@forEach
+                    if (opType.isPredictable) {
+                        val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(eId, oId)
+                        if (lastLog != null) {
+                            val predictedDate = maintenanceManager.getOperationPrediction(eId, opType, lastLog, trend)
+                            if (predictedDate != null) {
+                                predictions.add(PredictionDetails(
+                                    equipmentId = eId,
+                                    equipmentDescription = equip.description,
+                                    operationTypeId = oId,
+                                    operationTypeDescription = opType.description,
+                                    predictedDate = predictedDate,
+                                    equipmentPhotoUri = equip.photoUri,
+                                    equipmentIconIdentifier = equip.iconIdentifier,
+                                    operationTypePhotoUri = opType.photoUri,
+                                    operationTypeIconIdentifier = opType.iconIdentifier
+                                ))
+                            }
+                        }
+                    }
+                }
+            }
+            emit(state.copy(predictions = predictions))
+        }
     }.distinctUntilChanged()
     .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), initialValue = ReportsUiState())
 

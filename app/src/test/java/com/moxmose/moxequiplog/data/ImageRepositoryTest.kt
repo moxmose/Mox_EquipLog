@@ -27,7 +27,7 @@ class ImageRepositoryTest {
     private lateinit var repository: ImageRepository
 
     private val defaultColors = arrayOf("#FF0000;Red", "#00FF00;Green")
-    private val defaultCategories = arrayOf("LOGS;Registro;#808080", "EQUIPMENT;Mezzi;#0000FF")
+    private val defaultCategories = arrayOf("LOGS;Registro;#808080", "EQUIPMENT;Equipment;#0000FF")
 
     @Before
     fun setup() {

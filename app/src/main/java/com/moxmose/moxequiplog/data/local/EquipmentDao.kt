@@ -16,13 +16,13 @@ interface EquipmentDao {
     suspend fun updateEquipment(equipment: Equipment)
 
     @Update
-    suspend fun updateEquipments(equipments: List<Equipment>)
+    suspend fun updateEquipmentList(equipmentList: List<Equipment>)
 
     @Query("SELECT * FROM equipments WHERE dismissed = 0 ORDER BY displayOrder ASC")
-    fun getActiveEquipments(): Flow<List<Equipment>>
+    fun getActiveEquipmentList(): Flow<List<Equipment>>
 
     @Query("SELECT * FROM equipments ORDER BY displayOrder ASC")
-    fun getAllEquipments(): Flow<List<Equipment>>
+    fun getAllEquipmentList(): Flow<List<Equipment>>
 
     @Query("SELECT * FROM equipments WHERE id = :equipmentId")
     fun getEquipmentById(equipmentId: Int): Flow<Equipment?>
@@ -31,17 +31,17 @@ interface EquipmentDao {
     suspend fun getEquipmentByIdOneShot(id: Int): Equipment?
 
     @Query("SELECT COUNT(*) FROM equipments WHERE photoUri = :uri")
-    suspend fun countEquipmentsUsingPhoto(uri: String): Int
+    suspend fun countEquipmentUsingPhoto(uri: String): Int
 
     @Query("SELECT DISTINCT photoUri FROM equipments WHERE photoUri IS NOT NULL")
     fun getAllUsedPhotos(): Flow<List<String>>
 
     @Query("SELECT COUNT(*) FROM equipments WHERE isResettable = 1 AND dismissed = 0")
-    fun countActiveResettableEquipments(): Flow<Int>
+    fun countActiveResettableEquipment(): Flow<Int>
 
     @Query("SELECT * FROM equipments WHERE description LIKE '%(Demo)%'")
-    suspend fun getDemoEquipments(): List<Equipment>
+    suspend fun getDemoEquipmentList(): List<Equipment>
 
     @androidx.room.Delete
-    suspend fun deleteEquipments(equipments: List<Equipment>)
+    suspend fun deleteEquipmentList(equipmentList: List<Equipment>)
 }

@@ -3,19 +3,19 @@
 
     <!-- Navigation -->
     <string name="navigation_logs">Logs</string>
-    <string name="navigation_equipments">Equipments</string>
+    <string name="navigation_equipment">Equipment</string>
     <string name="navigation_operations">Operations</string>
     <string name="navigation_reports">Reports</string>
     <string name="navigation_options">Options</string>
 
     <!-- Reports -->
     <string name="reports_title">Reports</string>
-    <string name="report_equipments_title">Equipments Trend</string>
-    <string name="report_equipments_desc">UM trend by equipment</string>
+    <string name="report_equipment_title">Equipment Trend</string>
+    <string name="report_equipment_desc">UM trend by equipment</string>
     <string name="report_operations_title">Operations Trend</string>
     <string name="report_operations_desc">UM trend by operation type</string>
-    <string name="report_equipments_freq_title">Equipments Frequency</string>
-    <string name="report_equipments_freq_desc">Maintenance frequency by equipment</string>
+    <string name="report_equipment_freq_title">Equipment Frequency</string>
+    <string name="report_equipment_freq_desc">Maintenance frequency by equipment</string>
     <string name="report_operations_freq_title">Operations Frequency</string>
     <string name="report_operations_freq_desc">Maintenance frequency by operation type</string>
     <string name="report_intervals_title">Interval Analysis</string>
@@ -23,7 +23,7 @@
     <string name="report_heatmap_title">Activity Heatmap</string>
     <string name="report_heatmap_desc">Temporal distribution of activities</string>
     <string name="report_benchmarking_title">Benchmarking</string>
-    <string name="report_benchmarking_desc">Direct comparison between equipments</string>
+    <string name="report_benchmarking_desc">Direct comparison between equipment</string>
 
     <!-- Cost Reports -->
     <string name="report_costs_trend_title">Costs Trend</string>
@@ -39,17 +39,24 @@
     <string name="cost_analysis">Cost Analysis</string>
 
     <!-- New Reports -->
-    <string name="report_equipments_vol_title">Equipments Volume</string>
-    <string name="report_equipments_vol_desc">Activity count per equipment over time</string>
+    <string name="report_equipment_vol_title">Equipment Volume</string>
+    <string name="report_equipment_vol_desc">Activity count per equipment over time</string>
     <string name="report_operations_vol_title">Operations Volume</string>
     <string name="report_operations_vol_desc">Activity count per operation over time</string>
     <string name="report_combined_logs_title">Combined Logs Analysis</string>
     <string name="report_combined_logs_desc">Value trends for specific equipment and operation pairs</string>
     <string name="report_volume_label">Activity Count</string>
 
-    <string name="report_section_equipments">Equipments</string>
+    <string name="report_journal_title">Journal</string>
+    <string name="report_journal_desc">Chronological list of logs and predictions</string>
+    <string name="journal_section">Documentation</string>
+    <string name="report_prediction_label">PREDICTION</string>
+    <string name="report_log_label">LOG</string>
+    <string name="export_journal_pdf">Export Journal (PDF)</string>
+
+    <string name="report_section_equipment">Equipment</string>
     <string name="report_section_operations">Operations</string>
-    <string name="report_section_equipments_freq">Equipments Frequency</string>
+    <string name="report_section_equipment_freq">Equipment Frequency</string>
     <string name="report_section_operations_freq">Operations Frequency</string>
     <string name="report_value_over_time">Values over time</string>
     <string name="report_value_to_date">Value to date</string>
@@ -57,10 +64,10 @@
     <string name="select_equipment">Select Equipment</string>
     <string name="select_operation_type">Select Operation Type</string>
     <string name="um_trend">UM Trend</string>
-    <string name="mixed_units_warning">Warning: selected equipments use different measurement units.</string>
+    <string name="mixed_units_warning">Warning: selected equipment use different measurement units.</string>
     <string name="report_equipment_subtitle">Analysis of usage values</string>
     <string name="report_operation_subtitle">Frequency and values for single operation</string>
-    <string name="report_equipment_freq_subtitle">Usage frequency of equipments</string>
+    <string name="report_equipment_freq_subtitle">Usage frequency of equipment</string>
     <string name="report_operation_freq_subtitle">Frequency of performed operations</string>
     <string name="report_delta_label">Delta (Value difference)</string>
     <string name="report_heatmap_intensity">Intensity (count)</string>
@@ -124,7 +131,7 @@
     <string name="options_use_custom_colors_reports">Use custom colors instead of Material</string>
 
     <string name="options_units_title">Measurement Units</string>
-    <string name="options_units_desc">Manage the units of measure for your equipments (e.g., km, hours, liters).</string>
+    <string name="options_units_desc">Manage the units of measure for your equipment (e.g., km, hours, liters).</string>
     <string name="options_add_unit">Add Unit</string>
     <string name="options_unit_label_placeholder">Label (e.g., hh)</string>
     <string name="options_unit_desc_placeholder">Description (e.g., Hours)</string>
@@ -148,7 +155,7 @@
 
     <string name="button_about" translatable="false">About</string>
     <string name="about_dialog_title" translatable="false">About Mox EquipLog</string>
-    <string name="about_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!</string>
+    <string name="about_dialog_content">This app helps you track maintenance logs for your equipment. Keep your equipment in perfect shape!</string>
     <string name="about_version_label">Version: %1$s</string>
     <string name="about_developer_label">Developed by: %1$s</string>
     <string name="about_license_label">License: %1$s</string>
@@ -156,7 +163,7 @@
     <string name="about_github_url" translatable="false">https://github.com/MoxMose/Mox_EquipLog</string>
     <string name="about_developer_value" translatable="false">Mosè Pittau (Mox)</string>
     <string name="about_license_value" translatable="false">Apache License 2.0</string>
-    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipments. Keep your equipments in perfect shape!\n\nTo get the best experience, visit the Options Section to:\n\n• Setup Predictive Analytics &amp; Cost Thresholds\n• Define your Measurement Units\n• Personalize with Images, Colors and Backgrounds\n• Sync with Google Calendar\n\nReady? Add your equipments and operations to start recording!</string>
+    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipment. Keep your equipment in perfect shape!\n\nTo get the best experience, visit the Options Section to:\n\n• Setup Predictive Analytics &amp; Cost Thresholds\n• Define your Measurement Units\n• Personalize with Images, Colors and Backgrounds\n• Sync with Google Calendar\n\nReady? Add your equipment and operations to start recording!</string>
     <string name="dismiss_next_time">Don\'t show again</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Background Customization</string>
@@ -166,7 +173,7 @@
     <string name="saturation">Saturation: %1$.1f</string>
     <string name="clear_background">Clear Background</string>
 
-    <!-- Equipments & Operations -->
+    <!-- Equipment & Operations -->
     <string name="hold_and_drag_to_reorder">Hold and drag items to change order</string>
     <string name="set_as_default_and_expand_instruction">Tap card to expand, Star to set default</string>
     <string name="add_equipment">Add Equipment</string>
@@ -293,7 +300,7 @@
     <string name="description_invalid">Description cannot be empty.</string>
     <string name="add_equipment_failed">Failed to add equipment.</string>
     <string name="update_equipment_failed">Failed to update equipment.</string>
-    <string name="update_equipments_failed">Failed to update equipments order.</string>
+    <string name="update_equipment_order_failed">Failed to update equipment order.</string>
     <string name="dismiss_equipment_failed">Failed to dismiss equipment.</string>
     <string name="restore_equipment_failed">Failed to restore equipment.</string>
     <string name="add_operation_type_failed">Failed to add operation type.</string>
@@ -334,7 +341,7 @@
     <string name="options_recalculate_accumulated_desc">Recalculate all absolute values based on log history. Useful if recordings were entered in the past.</string>
     <string name="recalculate_success">Recalculation completed successfully.</string>
     <string name="options_generate_demo_data">Generate Demo Data</string>
-    <string name="options_generate_demo_data_desc">Adds dummy equipments and logs to test app features.</string>
+    <string name="options_generate_demo_data_desc">Adds dummy equipment and logs to test app features.</string>
     <string name="options_delete_demo_data">Delete Demo Data</string>
     <string name="demo_data_confirm_msg">This will add new equipment and logs for testing. It is recommended to backup your database first. Proceed?</string>
     <string name="demo_data_success">Demo data generated successfully.</string>

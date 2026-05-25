@@ -1,4 +1,4 @@
-package com.moxmose.moxequiplog.ui.equipments
+package com.moxmose.moxequiplog.ui.equipment
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -109,8 +109,8 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun EquipmentsScreen(
-    viewModel: EquipmentsViewModel = koinViewModel(), 
+fun EquipmentScreen(
+    viewModel: EquipmentViewModel = koinViewModel(), 
     optionsViewModel: OptionsViewModel = koinViewModel(),
     logsViewModel: MaintenanceLogViewModel = koinViewModel()
 ) {
@@ -147,19 +147,19 @@ fun EquipmentsScreen(
     LaunchedEffect(key1 = true) {
         viewModel.uiEvents.collectLatest { event ->
             val message = when(event) {
-                is EquipmentsViewModel.UiEvent.DescriptionInvalid -> context.getString(R.string.description_invalid)
-                is EquipmentsViewModel.UiEvent.AddEquipmentFailed -> context.getString(R.string.add_equipment_failed)
-                is EquipmentsViewModel.UiEvent.UpdateEquipmentFailed -> context.getString(R.string.update_equipment_failed)
-                is EquipmentsViewModel.UiEvent.UpdateEquipmentsFailed -> context.getString(R.string.update_equipments_failed)
-                is EquipmentsViewModel.UiEvent.DismissEquipmentFailed -> context.getString(R.string.dismiss_equipment_failed)
-                is EquipmentsViewModel.UiEvent.RestoreEquipmentFailed -> context.getString(R.string.restore_equipment_failed)
-                is EquipmentsViewModel.UiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
-                is EquipmentsViewModel.UiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
-                is EquipmentsViewModel.UiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
-                is EquipmentsViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
-                is EquipmentsViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
-                is EquipmentsViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
-                is EquipmentsViewModel.UiEvent.SetDefaultFailed -> context.getString(R.string.error_unknown)
+                is EquipmentViewModel.UiEvent.DescriptionInvalid -> context.getString(R.string.description_invalid)
+                is EquipmentViewModel.UiEvent.AddEquipmentFailed -> context.getString(R.string.add_equipment_failed)
+                is EquipmentViewModel.UiEvent.UpdateEquipmentFailed -> context.getString(R.string.update_equipment_failed)
+                is EquipmentViewModel.UiEvent.UpdateEquipmentOrderFailed -> context.getString(R.string.update_equipment_order_failed)
+                is EquipmentViewModel.UiEvent.DismissEquipmentFailed -> context.getString(R.string.dismiss_equipment_failed)
+                is EquipmentViewModel.UiEvent.RestoreEquipmentFailed -> context.getString(R.string.restore_equipment_failed)
+                is EquipmentViewModel.UiEvent.AddImageFailed -> context.getString(R.string.add_image_failed)
+                is EquipmentViewModel.UiEvent.RemoveImageFailed -> context.getString(R.string.remove_image_failed)
+                is EquipmentViewModel.UiEvent.UpdateImageOrderFailed -> context.getString(R.string.update_image_order_failed)
+                is EquipmentViewModel.UiEvent.ToggleImageVisibilityFailed -> context.getString(R.string.toggle_image_visibility_failed)
+                is EquipmentViewModel.UiEvent.DatabaseCheckFailed -> context.getString(R.string.database_check_failed)
+                is EquipmentViewModel.UiEvent.PhotoUriInvalid -> context.getString(R.string.photo_uri_invalid)
+                is EquipmentViewModel.UiEvent.SetDefaultFailed -> context.getString(R.string.error_unknown)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -259,7 +259,7 @@ fun EquipmentsScreen(
         )
     }
 
-    EquipmentsScreenContent(
+    EquipmentScreenContent(
         equipments = equipmentsToShow,
         equipmentImages = equipmentImages,
         allCategories = allCategories,
@@ -293,7 +293,7 @@ fun EquipmentsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EquipmentsScreenContent(
+fun EquipmentScreenContent(
     equipments: List<Equipment>,
     equipmentImages: List<Image>,
     allCategories: List<Category>,

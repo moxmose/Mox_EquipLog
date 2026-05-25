@@ -67,7 +67,7 @@ fun AppBackground(
         else {
             val categoryId = when (currentDestination) {
                 AppDestinations.LOGS -> Category.LOGS
-                AppDestinations.EQUIPMENTS -> Category.EQUIPMENT
+                AppDestinations.EQUIPMENT -> Category.EQUIPMENT
                 AppDestinations.OPERATIONS -> Category.OPERATION
                 AppDestinations.REPORTS -> Category.REPORTS
                 AppDestinations.OPTIONS -> Category.OPTIONS

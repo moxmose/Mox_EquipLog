@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import com.moxmose.moxequiplog.data.local.Category
+import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.TimeGranularity
@@ -34,8 +36,8 @@ class OperationTypeScreenTest {
         composeTestRule.setContent {
             OperationTypeScreenContent(
                 operationTypes = operationTypes,
-                operationTypeImages = emptyList(),
-                allCategories = emptyList(),
+                operationTypeImages = emptyList<Image>(),
+                allCategories = emptyList<Category>(),
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 showDismissed = false,
@@ -43,20 +45,20 @@ class OperationTypeScreenTest {
                 showAddDialog = false,
                 onShowAddDialogChange = {},
                 onAddOperationType = { _, _, _, _, _, _, _, _, _, _ -> },
-                onUpdateOperationTypes = {},
-                onUpdateOperationType = {},
-                onDismissOperationType = {},
-                onRestoreOperationType = {},
+                onUpdateOperationTypes = { _ -> },
+                onUpdateOperationType = { _ -> },
+                onDismissOperationType = { _ -> },
+                onRestoreOperationType = { _ -> },
                 onAddImage = { _, _ -> },
                 onToggleImageVisibility = { _ -> },
                 operationCategoryColor = "#808080",
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultOperationTypeId = null,
-                onToggleDefault = {},
-                categoryColors = emptyMap(),
-                categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap(),
-                operationStatuses = emptyMap(),
+                onToggleDefault = { _ -> },
+                categoryColors = emptyMap<String, String>(),
+                categoryDefaultIcons = emptyMap<String, String?>(),
+                categoryDefaultPhotos = emptyMap<String, String?>(),
+                operationStatuses = emptyMap<Int, OperationGlobalStatus>(),
                 onAffectedAction = { _, _ -> }
             )
         }
@@ -71,9 +73,9 @@ class OperationTypeScreenTest {
 
         composeTestRule.setContent {
             OperationTypeScreenContent(
-                operationTypes = emptyList(),
-                operationTypeImages = emptyList(),
-                allCategories = emptyList(),
+                operationTypes = emptyList<OperationType>(),
+                operationTypeImages = emptyList<Image>(),
+                allCategories = emptyList<Category>(),
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 showDismissed = false,
@@ -81,20 +83,20 @@ class OperationTypeScreenTest {
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
                 onAddOperationType = { _, _, _, _, _, _, _, _, _, _ -> },
-                onUpdateOperationTypes = {},
-                onUpdateOperationType = {},
-                onDismissOperationType = {},
-                onRestoreOperationType = {},
+                onUpdateOperationTypes = { _ -> },
+                onUpdateOperationType = { _ -> },
+                onDismissOperationType = { _ -> },
+                onRestoreOperationType = { _ -> },
                 onAddImage = { _, _ -> },
                 onToggleImageVisibility = { _ -> },
                 operationCategoryColor = "#808080",
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultOperationTypeId = null,
-                onToggleDefault = {},
-                categoryColors = emptyMap(),
-                categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap(),
-                operationStatuses = emptyMap(),
+                onToggleDefault = { _ -> },
+                categoryColors = emptyMap<String, String>(),
+                categoryDefaultIcons = emptyMap<String, String?>(),
+                categoryDefaultPhotos = emptyMap<String, String?>(),
+                operationStatuses = emptyMap<Int, OperationGlobalStatus>(),
                 onAffectedAction = { _, _ -> }
             )
         }
@@ -114,11 +116,11 @@ class OperationTypeScreenTest {
             AddOperationTypeDialog(
                 onDismissRequest = {},
                 onConfirm = { desc, identifier, _, _, _, _, _, _, _, cost -> addedOperationInfo.set(Triple(desc, identifier, cost)) },
-                imageLibrary = emptyList(),
-                categories = emptyList(),
-                categoryColors = emptyMap(),
-                categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap(),
+                imageLibrary = emptyList<Image>(),
+                categories = emptyList<Category>(),
+                categoryColors = emptyMap<String, String>(),
+                categoryDefaultIcons = emptyMap<String, String?>(),
+                categoryDefaultPhotos = emptyMap<String, String?>(),
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 onAddImage = { _, _ -> },

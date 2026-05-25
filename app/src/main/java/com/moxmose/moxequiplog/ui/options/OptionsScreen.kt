@@ -100,7 +100,7 @@ import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.components.ImageSelector
 import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
 import com.moxmose.moxequiplog.ui.components.UnitItemCard
-import com.moxmose.moxequiplog.ui.equipments.TimeGranularitySelector
+import com.moxmose.moxequiplog.ui.equipment.TimeGranularitySelector
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -870,7 +870,7 @@ fun OptionsScreenContent(
             // 5. REPORTS
             OptionsSectionCard(
                 title = stringResource(R.string.options_reports_colors_title),
-                description = stringResource(R.string.report_equipments_desc)
+                description = stringResource(R.string.report_equipment_desc)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

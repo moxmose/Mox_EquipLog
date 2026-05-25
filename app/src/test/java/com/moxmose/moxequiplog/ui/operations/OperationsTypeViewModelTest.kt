@@ -70,8 +70,8 @@ class OperationsTypeViewModelTest {
             every { getAllOperationTypes() } returns allOperationTypesFlow
         }
         equipmentDao = mockk(relaxed = true) {
-            every { getActiveEquipments() } returns MutableStateFlow(emptyList())
-            every { countActiveResettableEquipments() } returns MutableStateFlow(0)
+            every { getActiveEquipmentList() } returns MutableStateFlow(emptyList())
+            every { countActiveResettableEquipment() } returns MutableStateFlow(0)
         }
         imageRepository = mockk(relaxed = true) {
             every { getImagesByCategory("OPERATION") } returns operationImagesFlow

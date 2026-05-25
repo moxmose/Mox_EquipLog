@@ -1,4 +1,4 @@
-package com.moxmose.moxequiplog.ui.equipments
+package com.moxmose.moxequiplog.ui.equipment
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
@@ -8,8 +8,11 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import junit.framework.TestCase.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -31,11 +34,11 @@ class EquipmentsScreenTest {
         )
 
         composeTestRule.setContent {
-            EquipmentsScreenContent(
+            EquipmentScreenContent(
                 equipments = equipments,
-                equipmentImages = emptyList(),
-                allCategories = emptyList(),
-                measurementUnits = emptyList(),
+                equipmentImages = emptyList<Image>(),
+                allCategories = emptyList<Category>(),
+                measurementUnits = emptyList<MeasurementUnit>(),
                 defaultUnitId = null,
                 defaultIcon = null,
                 defaultPhotoUri = null,
@@ -45,19 +48,19 @@ class EquipmentsScreenTest {
                 showAddDialog = false,
                 onShowAddDialogChange = {},
                 onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
-                onUpdateEquipments = {},
-                onUpdateEquipment = {},
-                onDismissEquipment = {},
-                onRestoreEquipment = {},
+                onUpdateEquipments = { _ -> },
+                onUpdateEquipment = { _ -> },
+                onDismissEquipment = { _ -> },
+                onRestoreEquipment = { _ -> },
                 onAddImage = { _, _ -> },
-                onToggleImageVisibility = {},
+                onToggleImageVisibility = { _ -> },
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultEquipmentId = null,
-                onToggleDefault = {},
-                categoryColors = emptyMap(),
-                categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap(),
-                equipmentStatuses = emptyMap(),
+                onToggleDefault = { _ -> },
+                categoryColors = emptyMap<String, String>(),
+                categoryDefaultIcons = emptyMap<String, String?>(),
+                categoryDefaultPhotos = emptyMap<String, String?>(),
+                equipmentStatuses = emptyMap<Int, EquipmentStatus>(),
                 onPredictionAction = { _, _ -> },
                 onPlannedAction = { _, _ -> }
             )
@@ -71,11 +74,11 @@ class EquipmentsScreenTest {
         val onShowAddDialogChangeCalled = AtomicBoolean(false)
 
         composeTestRule.setContent {
-            EquipmentsScreenContent(
-                equipments = emptyList(),
-                equipmentImages = emptyList(),
-                allCategories = emptyList(),
-                measurementUnits = emptyList(),
+            EquipmentScreenContent(
+                equipments = emptyList<Equipment>(),
+                equipmentImages = emptyList<Image>(),
+                allCategories = emptyList<Category>(),
+                measurementUnits = emptyList<MeasurementUnit>(),
                 defaultUnitId = null,
                 defaultIcon = null,
                 defaultPhotoUri = null,
@@ -85,19 +88,19 @@ class EquipmentsScreenTest {
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
                 onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
-                onUpdateEquipments = {},
-                onUpdateEquipment = {},
-                onDismissEquipment = {},
-                onRestoreEquipment = {},
+                onUpdateEquipments = { _ -> },
+                onUpdateEquipment = { _ -> },
+                onDismissEquipment = { _ -> },
+                onRestoreEquipment = { _ -> },
                 onAddImage = { _, _ -> },
-                onToggleImageVisibility = {},
+                onToggleImageVisibility = { _ -> },
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultEquipmentId = null,
-                onToggleDefault = {},
-                categoryColors = emptyMap(),
-                categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap(),
-                equipmentStatuses = emptyMap(),
+                onToggleDefault = { _ -> },
+                categoryColors = emptyMap<String, String>(),
+                categoryDefaultIcons = emptyMap<String, String?>(),
+                categoryDefaultPhotos = emptyMap<String, String?>(),
+                equipmentStatuses = emptyMap<Int, EquipmentStatus>(),
                 onPredictionAction = { _, _ -> },
                 onPlannedAction = { _, _ -> }
             )
@@ -122,16 +125,16 @@ class EquipmentsScreenTest {
                 },
                 defaultIcon = null,
                 defaultPhotoUri = null,
-                imageLibrary = emptyList(),
-                categories = emptyList(),
-                measurementUnits = emptyList(),
+                imageLibrary = emptyList<Image>(),
+                categories = emptyList<Category>(),
+                measurementUnits = emptyList<MeasurementUnit>(),
                 defaultUnitId = null,
                 equipmentCategoryColor = null,
-                categoryColors = emptyMap(),
-                categoryDefaultIcons = emptyMap(),
-                categoryDefaultPhotos = emptyMap(),
+                categoryColors = emptyMap<String, String>(),
+                categoryDefaultIcons = emptyMap<String, String?>(),
+                categoryDefaultPhotos = emptyMap<String, String?>(),
                 onAddImage = { _, _ -> },
-                onToggleImageVisibility = {}
+                onToggleImageVisibility = { _ -> }
             )
         }
 

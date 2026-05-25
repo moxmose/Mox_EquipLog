@@ -1,4 +1,4 @@
-package com.moxmose.moxequiplog.ui.equipments
+package com.moxmose.moxequiplog.ui.equipment
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import app.cash.turbine.test
@@ -6,7 +6,6 @@ import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.data.local.*
-import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -35,7 +34,7 @@ import kotlin.test.assertTrue
 @ExperimentalCoroutinesApi
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest=Config.NONE)
-class EquipmentsViewModelTest {
+class EquipmentViewModelTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
@@ -49,7 +48,7 @@ class EquipmentsViewModelTest {
     private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var maintenanceReminderDao: MaintenanceReminderDao
     private lateinit var maintenanceManager: MaintenanceManager
-    private lateinit var viewModel: EquipmentsViewModel
+    private lateinit var viewModel: EquipmentViewModel
 
     private val activeEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
     private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
@@ -61,8 +60,8 @@ class EquipmentsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         equipmentDao = mockk(relaxed = true) {
-            every { getActiveEquipments() } returns activeEquipmentsFlow
-            every { getAllEquipments() } returns allEquipmentsFlow
+            every { getActiveEquipmentList() } returns activeEquipmentsFlow
+            every { getAllEquipmentList() } returns allEquipmentsFlow
         }
         imageRepository = mockk(relaxed = true) {
             every { getImagesByCategory("EQUIPMENT") } returns equipmentImagesFlow
@@ -88,7 +87,7 @@ class EquipmentsViewModelTest {
             every { getAllReminders() } returns MutableStateFlow(emptyList())
         }
         maintenanceManager = mockk<MaintenanceManager>(relaxed = true)
-        viewModel = EquipmentsViewModel(
+        viewModel = EquipmentViewModel(
             equipmentDao,
             imageRepository,
             appSettingsManager,
@@ -168,23 +167,23 @@ class EquipmentsViewModelTest {
         launch {
             viewModel.uiEvents.test {
                 assertTrue(viewModel.isPhotoUsed(" "))
-                assertEquals(EquipmentsViewModel.UiEvent.PhotoUriInvalid, awaitItem())
+                assertEquals(EquipmentViewModel.UiEvent.PhotoUriInvalid, awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
         }
         testDispatcher.scheduler.advanceUntilIdle()
         
-        coEvery { equipmentDao.countEquipmentsUsingPhoto("used") } returns 1
+        coEvery { equipmentDao.countEquipmentUsingPhoto("used") } returns 1
         assertTrue(viewModel.isPhotoUsed("used"))
         
-        coEvery { equipmentDao.countEquipmentsUsingPhoto("free") } returns 0
+        coEvery { equipmentDao.countEquipmentUsingPhoto("free") } returns 0
         assertFalse(viewModel.isPhotoUsed("free"))
 
         launch {
             viewModel.uiEvents.test {
-                coEvery { equipmentDao.countEquipmentsUsingPhoto("err") } throws RuntimeException()
+                coEvery { equipmentDao.countEquipmentUsingPhoto("err") } throws RuntimeException()
                 assertTrue(viewModel.isPhotoUsed("err"))
-                assertEquals(EquipmentsViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
+                assertEquals(EquipmentViewModel.UiEvent.DatabaseCheckFailed, awaitItem())
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -217,7 +216,7 @@ class EquipmentsViewModelTest {
         val image: Image = mockk(relaxed = true)
 
         coEvery { equipmentDao.updateEquipment(any()) } throws RuntimeException()
-        coEvery { equipmentDao.updateEquipments(any()) } throws RuntimeException()
+        coEvery { equipmentDao.updateEquipmentList(any()) } throws RuntimeException()
         coEvery { imageRepository.addImage(any(), any()) } throws RuntimeException()
         coEvery { imageRepository.removeImage(any()) } throws RuntimeException()
         coEvery { imageRepository.updateImageOrder(any()) } throws RuntimeException()
@@ -226,34 +225,34 @@ class EquipmentsViewModelTest {
 
         viewModel.uiEvents.test {
             viewModel.updateEquipment(equipment)
-            assertEquals(EquipmentsViewModel.UiEvent.UpdateEquipmentFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.UpdateEquipmentFailed, awaitItem())
             
             viewModel.updateEquipments(listOf(equipment))
-            assertEquals(EquipmentsViewModel.UiEvent.UpdateEquipmentsFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.UpdateEquipmentOrderFailed, awaitItem())
 
             viewModel.dismissEquipment(equipment)
-            assertEquals(EquipmentsViewModel.UiEvent.DismissEquipmentFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.DismissEquipmentFailed, awaitItem())
 
             viewModel.restoreEquipment(equipment)
-            assertEquals(EquipmentsViewModel.UiEvent.RestoreEquipmentFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.RestoreEquipmentFailed, awaitItem())
 
             viewModel.addImage(mockk(), "cat")
-            assertEquals(EquipmentsViewModel.UiEvent.AddImageFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.AddImageFailed, awaitItem())
 
             viewModel.removeImage(image)
-            assertEquals(EquipmentsViewModel.UiEvent.RemoveImageFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.RemoveImageFailed, awaitItem())
 
             viewModel.updateImageOrder(listOf(image))
-            assertEquals(EquipmentsViewModel.UiEvent.UpdateImageOrderFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.UpdateImageOrderFailed, awaitItem())
 
             viewModel.toggleImageVisibility(image)
-            assertEquals(EquipmentsViewModel.UiEvent.ToggleImageVisibilityFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.ToggleImageVisibilityFailed, awaitItem())
 
             viewModel.setDefaultEquipment(1)
-            assertEquals(EquipmentsViewModel.UiEvent.SetDefaultFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.SetDefaultFailed, awaitItem())
             
             viewModel.toggleDefaultEquipment(1)
-            assertEquals(EquipmentsViewModel.UiEvent.SetDefaultFailed, awaitItem())
+            assertEquals(EquipmentViewModel.UiEvent.SetDefaultFailed, awaitItem())
         }
     }
 }

@@ -875,9 +875,9 @@ class OptionsViewModel(
     fun deleteDemoData() {
         viewModelScope.launch {
             try {
-                val demoEquips = equipmentDao.getDemoEquipments()
+                val demoEquips = equipmentDao.getDemoEquipmentList()
                 if (demoEquips.isNotEmpty()) {
-                    equipmentDao.deleteEquipments(demoEquips)
+                    equipmentDao.deleteEquipmentList(demoEquips)
                 }
                 
                 val demoOps = operationTypeDao.getDemoOperationTypes()

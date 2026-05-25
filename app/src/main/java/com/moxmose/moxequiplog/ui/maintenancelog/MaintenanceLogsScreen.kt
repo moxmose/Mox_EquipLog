@@ -1003,7 +1003,7 @@ fun MaintenanceLogDialog(
                         value = selectedEquipment?.description?.takeIf { it.isNotBlank() } ?: selectedEquipment?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_an_equipment),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text(stringResource(R.string.navigation_equipments)) },
+                        label = { Text(stringResource(R.string.navigation_equipment)) },
                         leadingIcon = {
                             ImageIcon(
                                 photoUri = selectedEquipment?.photoUri,
@@ -1575,7 +1575,7 @@ fun MaintenanceLogCard(
                             value = selectedEquipment?.description?.takeIf { it.isNotBlank() } ?: selectedEquipment?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(id = R.string.select_an_equipment),
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text(stringResource(R.string.navigation_equipments)) },
+                            label = { Text(stringResource(R.string.navigation_equipment)) },
                             leadingIcon = {
                                 ImageIcon(
                                     photoUri = selectedEquipment?.photoUri,

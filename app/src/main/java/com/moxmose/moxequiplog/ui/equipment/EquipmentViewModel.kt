@@ -1,4 +1,4 @@
-package com.moxmose.moxequiplog.ui.equipments
+package com.moxmose.moxequiplog.ui.equipment
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -58,7 +58,7 @@ data class EquipmentStatus(
     val operationStatuses: List<OperationStatus>
 )
 
-class EquipmentsViewModel(
+class EquipmentViewModel(
     private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
@@ -73,7 +73,7 @@ class EquipmentsViewModel(
         data object DescriptionInvalid : UiEvent()
         data object AddEquipmentFailed : UiEvent()
         data object UpdateEquipmentFailed : UiEvent()
-        data object UpdateEquipmentsFailed : UiEvent()
+        data object UpdateEquipmentOrderFailed : UiEvent()
         data object DismissEquipmentFailed : UiEvent()
         data object RestoreEquipmentFailed : UiEvent()
         data object AddImageFailed : UiEvent()
@@ -106,14 +106,14 @@ class EquipmentsViewModel(
     fun onPredictionAction(eqId: Int, status: OperationStatus?) { _selectedPredictionForAdd.value = if (status != null) eqId to status else null }
     fun onPlannedAction(eqId: Int, status: OperationStatus?) { _selectedPlannedForEdit.value = if (status != null) eqId to status else null }
 
-    val activeEquipments: StateFlow<List<Equipment>> = equipmentDao.getActiveEquipments()
+    val activeEquipments: StateFlow<List<Equipment>> = equipmentDao.getActiveEquipmentList()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    val allEquipments: StateFlow<List<Equipment>> = equipmentDao.getAllEquipments()
+    val allEquipments: StateFlow<List<Equipment>> = equipmentDao.getAllEquipmentList()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
@@ -377,9 +377,9 @@ class EquipmentsViewModel(
         if (equipments.isEmpty()) return
         viewModelScope.launch {
             try {
-                equipmentDao.updateEquipments(equipments)
+                equipmentDao.updateEquipmentList(equipments)
             } catch (e: Exception) {
-                _uiEvents.send(UiEvent.UpdateEquipmentsFailed)
+                _uiEvents.send(UiEvent.UpdateEquipmentOrderFailed)
             }
         }
     }
@@ -451,7 +451,7 @@ class EquipmentsViewModel(
             return true
         }
         return try {
-            equipmentDao.countEquipmentsUsingPhoto(uri) > 0
+            equipmentDao.countEquipmentUsingPhoto(uri) > 0
         } catch (e: Exception) {
             _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
