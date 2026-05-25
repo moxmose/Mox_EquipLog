@@ -18,6 +18,12 @@ interface EquipmentDao {
     @Update
     suspend fun updateEquipmentList(equipmentList: List<Equipment>)
 
+    @Query("SELECT * FROM equipments WHERE dismissed = 0 AND sectionId = :sectionId ORDER BY displayOrder ASC")
+    fun getActiveEquipmentListBySection(sectionId: Int): Flow<List<Equipment>>
+
+    @Query("SELECT * FROM equipments WHERE sectionId = :sectionId ORDER BY displayOrder ASC")
+    fun getAllEquipmentListBySection(sectionId: Int): Flow<List<Equipment>>
+
     @Query("SELECT * FROM equipments WHERE dismissed = 0 ORDER BY displayOrder ASC")
     fun getActiveEquipmentList(): Flow<List<Equipment>>
 

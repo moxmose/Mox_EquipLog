@@ -194,6 +194,10 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.RecalculateSuccess -> context.getString(R.string.recalculate_success)
                 is OptionsViewModel.OptionsUiEvent.DemoDataGenerated -> context.getString(R.string.demo_data_success)
                 is OptionsViewModel.OptionsUiEvent.DemoDataDeleted -> context.getString(R.string.demo_data_deleted_success)
+                is OptionsViewModel.OptionsUiEvent.AddSectionFailed -> "Impossibile aggiungere la sezione" // TODO: Add to strings.xml
+                is OptionsViewModel.OptionsUiEvent.UpdateSectionFailed -> "Impossibile aggiornare la sezione" // TODO: Add to strings.xml
+                is OptionsViewModel.OptionsUiEvent.DeleteSectionFailed -> "Impossibile eliminare la sezione" // TODO: Add to strings.xml
+                is OptionsViewModel.OptionsUiEvent.UpdateSectionsOrderFailed -> "Impossibile aggiornare l'ordine" // TODO: Add to strings.xml
             }
             snackbarHostState.showSnackbar(message)
             if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {

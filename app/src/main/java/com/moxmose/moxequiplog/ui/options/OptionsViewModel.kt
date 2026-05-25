@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
@@ -20,6 +21,7 @@ import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.BackupManager
@@ -50,6 +52,7 @@ data class CategoryUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 class OptionsViewModel(
     private val appSettingsManager: AppSettingsManager,
+    private val sectionRepository: SectionRepository,
     private val equipmentDao: EquipmentDao,
     private val maintenanceLogDao: MaintenanceLogDao,
     private val operationTypeDao: OperationTypeDao,
@@ -98,6 +101,10 @@ class OptionsViewModel(
         data object RecalculateSuccess : OptionsUiEvent()
         data object DemoDataGenerated : OptionsUiEvent()
         data object DemoDataDeleted : OptionsUiEvent()
+        data object AddSectionFailed : OptionsUiEvent()
+        data object UpdateSectionFailed : OptionsUiEvent()
+        data object DeleteSectionFailed : OptionsUiEvent()
+        data object UpdateSectionsOrderFailed : OptionsUiEvent()
     }
 
     private val _uiEvents = Channel<OptionsUiEvent>(Channel.BUFFERED)
@@ -177,6 +184,54 @@ class OptionsViewModel(
 
     val measurementUnits: StateFlow<List<MeasurementUnit>> = measurementUnitDao.getAllUnits()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+
+    val allSections: StateFlow<List<Section>> = sectionRepository.allSections
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
+
+    fun addSection(name: String, iconIdentifier: String?, color: String?) {
+        viewModelScope.launch {
+            try {
+                val currentList = allSections.value
+                val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
+                sectionRepository.insertSection(Section(name = name, iconIdentifier = iconIdentifier, color = color, displayOrder = nextOrder))
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.AddSectionFailed)
+            }
+        }
+    }
+
+    fun updateSection(section: Section) {
+        viewModelScope.launch {
+            try {
+                sectionRepository.updateSection(section)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSectionFailed)
+            }
+        }
+    }
+
+    fun deleteSection(section: Section) {
+        if (section.id == AppConstants.DEFAULT_SECTION_ID) return // Protect default section
+        viewModelScope.launch {
+            try {
+                sectionRepository.deleteSection(section)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.DeleteSectionFailed)
+            }
+        }
+    }
+
+    fun updateSectionsOrder(sections: List<Section>) {
+        viewModelScope.launch {
+            try {
+                sectionRepository.updateSectionList(sections.mapIndexed { index, section ->
+                    section.copy(displayOrder = index)
+                })
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSectionsOrderFailed)
+            }
+        }
+    }
         
     val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)

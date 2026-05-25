@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
@@ -17,6 +18,7 @@ import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -62,6 +65,7 @@ class EquipmentViewModel(
     private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
+    private val sectionRepository: SectionRepository,
     private val measurementUnitDao: MeasurementUnitDao,
     private val operationTypeDao: OperationTypeDao,
     private val maintenanceLogDao: MaintenanceLogDao,
@@ -106,14 +110,48 @@ class EquipmentViewModel(
     fun onPredictionAction(eqId: Int, status: OperationStatus?) { _selectedPredictionForAdd.value = if (status != null) eqId to status else null }
     fun onPlannedAction(eqId: Int, status: OperationStatus?) { _selectedPlannedForEdit.value = if (status != null) eqId to status else null }
 
-    val activeEquipments: StateFlow<List<Equipment>> = equipmentDao.getActiveEquipmentList()
+    val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = AppConstants.DEFAULT_SECTION_ID
+        )
+
+    val allSections: StateFlow<List<Section>> = sectionRepository.allSections
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    val allEquipments: StateFlow<List<Equipment>> = equipmentDao.getAllEquipmentList()
+    fun onSectionSelected(sectionId: Int) {
+        viewModelScope.launch {
+            appSettingsManager.setSelectedSectionId(sectionId)
+        }
+    }
+
+    val activeEquipments: StateFlow<List<Equipment>> = appSettingsManager.selectedSectionId
+        .flatMapLatest { sectionId ->
+            if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+                equipmentDao.getActiveEquipmentList()
+            } else {
+                equipmentDao.getActiveEquipmentListBySection(sectionId)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
+    val allEquipments: StateFlow<List<Equipment>> = appSettingsManager.selectedSectionId
+        .flatMapLatest { sectionId ->
+            if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+                equipmentDao.getAllEquipmentList()
+            } else {
+                equipmentDao.getAllEquipmentListBySection(sectionId)
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
@@ -339,6 +377,9 @@ class EquipmentViewModel(
                     }
                 }
 
+                val currentSection = selectedSectionId.value
+                val targetSectionId = if (currentSection == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else currentSection
+
                 equipmentDao.insertEquipment(
                     Equipment(
                         description = description,
@@ -346,6 +387,7 @@ class EquipmentViewModel(
                         iconIdentifier = equipmentIconIdentifier,
                         displayOrder = nextOrder,
                         unitId = unitId,
+                        sectionId = targetSectionId,
                         isResettable = isResettable,
                         usageWindow = usageWindow,
                         usageWindowUnit = usageWindowUnit,

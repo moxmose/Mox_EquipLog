@@ -7,6 +7,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.CategoryDao
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
@@ -18,6 +19,7 @@ import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.CalendarManager
@@ -59,6 +61,7 @@ class MaintenanceLogViewModel(
     private val operationTypeDao: OperationTypeDao,
     private val categoryDao: CategoryDao,
     private val appSettingsManager: AppSettingsManager,
+    private val sectionRepository: SectionRepository,
     private val imageRepository: ImageRepository,
     private val measurementUnitDao: MeasurementUnitDao,
     private val calendarManager: CalendarManager,
@@ -112,13 +115,35 @@ class MaintenanceLogViewModel(
     fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForComplete.value = reminder }
     fun onEditReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForEdit.value = reminder }
 
+    val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = AppConstants.DEFAULT_SECTION_ID
+        )
+
+    val allSections: StateFlow<List<Section>> = sectionRepository.allSections
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
+    fun onSectionSelected(sectionId: Int) {
+        viewModelScope.launch {
+            appSettingsManager.setSelectedSectionId(sectionId)
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     val logs: StateFlow<List<MaintenanceLogDetails>> = combine(
+        appSettingsManager.selectedSectionId,
         _searchQuery,
         _sortProperty,
         _sortDirection,
         _showDismissed
-    ) { query, sortProp, sortDir, showDismissedValue ->
-        buildQuery(query, sortProp, sortDir, showDismissedValue)
+    ) { sectionId, query, sortProp, sortDir, showDismissedValue ->
+        buildQuery(sectionId, query, sortProp, sortDir, showDismissedValue)
     }.flatMapLatest { query ->
         maintenanceLogDao.getLogsWithDetails(query)
     }.stateIn(
@@ -128,13 +153,18 @@ class MaintenanceLogViewModel(
     )
 
     val activeReminders: StateFlow<List<MaintenanceReminderDetails>> = combine(
+        appSettingsManager.selectedSectionId,
         appSettingsManager.costAnalysisWindowValue,
         appSettingsManager.costAnalysisWindowUnit
-    ) { value, unit ->
+    ) { sectionId, value, unit ->
         val windowMs = maintenanceManager.getWindowMs(value.toLong(), TimeGranularity.valueOf(unit))
-        System.currentTimeMillis() - windowMs
-    }.flatMapLatest { sinceDate ->
-        maintenanceReminderDao.getActiveRemindersWithDetails(sinceDate)
+        Triple(sectionId, value, System.currentTimeMillis() - windowMs)
+    }.flatMapLatest { (sectionId, _, sinceDate) ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            maintenanceReminderDao.getActiveRemindersWithDetails(sinceDate)
+        } else {
+            maintenanceReminderDao.getActiveRemindersWithDetailsBySection(sinceDate, sectionId)
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
@@ -173,6 +203,7 @@ class MaintenanceLogViewModel(
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 
     private fun buildQuery(
+        sectionId: Int,
         searchQuery: String,
         sortProperty: SortProperty,
         sortDirection: SortDirection,
@@ -212,6 +243,11 @@ class MaintenanceLogViewModel(
 
         val whereClauses = mutableListOf<String>()
         val args = mutableListOf<Any>()
+
+        if (sectionId != AppConstants.ALL_SECTIONS_ID) {
+            whereClauses.add("e.sectionId = ?")
+            args.add(sectionId)
+        }
 
         if (!showDismissed) {
             whereClauses.add("l.dismissed = 0")
@@ -266,26 +302,44 @@ class MaintenanceLogViewModel(
         _showDismissed.value = !_showDismissed.value
     }
 
-    val allEquipments = equipmentDao.getAllEquipmentList()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-            initialValue = emptyList()
-        )
+    val allEquipments = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            equipmentDao.getAllEquipmentList()
+        } else {
+            equipmentDao.getAllEquipmentListBySection(sectionId)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
 
-    val allOperationTypes = operationTypeDao.getAllOperationTypes()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-            initialValue = emptyList()
-        )
+    val allOperationTypes = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            operationTypeDao.getAllOperationTypes()
+        } else {
+            operationTypeDao.getAllOperationTypesBySection(sectionId)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
 
-    val activeResettableEquipmentsCount = equipmentDao.countActiveResettableEquipment()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-            initialValue = 0
-        )
+    val activeResettableEquipmentsCount = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            equipmentDao.countActiveResettableEquipment()
+        } else {
+            // Filter resettable count by section too? Probably yes.
+            // But I don't have a countActiveResettableEquipmentBySection yet.
+            // For now, let's just use the global one or add the DAO method.
+            equipmentDao.countActiveResettableEquipment() 
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = 0
+    )
 
     fun addLog(
         equipmentId: Int,

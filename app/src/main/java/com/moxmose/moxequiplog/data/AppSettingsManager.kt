@@ -22,6 +22,9 @@ class AppSettingsManager(
     val defaultUnitId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_unit_id")
         .map { it?.toIntOrNull() }
 
+    val selectedSectionId: Flow<Int> = appPreferenceDao.getPreferenceFlow("selected_section_id")
+        .map { it?.toIntOrNull() ?: 1 } // Default to section 1
+
     val googleAccountName: Flow<String?> = appPreferenceDao.getPreferenceFlow("google_account_name")
 
     val backgroundUri: Flow<String?> = appPreferenceDao.getPreferenceFlow("background_uri")
@@ -100,6 +103,10 @@ class AppSettingsManager(
         } else {
             appPreferenceDao.insertPreference(AppPreference("default_unit_id", id.toString()))
         }
+    }
+
+    suspend fun setSelectedSectionId(id: Int) {
+        appPreferenceDao.insertPreference(AppPreference("selected_section_id", id.toString()))
     }
 
     suspend fun setGoogleAccountName(name: String?) {
