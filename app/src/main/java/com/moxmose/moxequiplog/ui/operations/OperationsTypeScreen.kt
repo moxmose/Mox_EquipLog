@@ -89,9 +89,11 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
+import com.moxmose.moxequiplog.ui.components.SectionChipBar
 import com.moxmose.moxequiplog.ui.equipment.TimeGranularitySelector
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
@@ -111,6 +113,8 @@ fun OperationTypeScreen(
 ) {
     val activeOperationTypes by viewModel.activeOperationTypes.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
+    val allSections by viewModel.allSections.collectAsState()
+    val selectedSectionId by viewModel.selectedSectionId.collectAsState()
     val operationTypeImages by viewModel.operationImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
@@ -215,6 +219,9 @@ fun OperationTypeScreen(
         operationTypes = typesToShow,
         operationTypeImages = operationTypeImages,
         allCategories = allCategories,
+        allSections = allSections,
+        selectedSectionId = selectedSectionId,
+        onSectionSelected = viewModel::onSectionSelected,
         defaultIcon = categoryDefaultIcon,
         defaultPhotoUri = categoryDefaultPhoto,
         onAddOperationType = viewModel::addOperationType,
@@ -246,6 +253,9 @@ fun OperationTypeScreenContent(
     operationTypes: List<OperationType>,
     operationTypeImages: List<Image>,
     allCategories: List<Category>,
+    allSections: List<Section>,
+    selectedSectionId: Int,
+    onSectionSelected: (Int) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     showDismissed: Boolean,
@@ -317,6 +327,11 @@ fun OperationTypeScreenContent(
         }
 
         Column(Modifier.padding(paddingValues).fillMaxSize()) {
+            SectionChipBar(
+                sections = allSections,
+                selectedSectionId = selectedSectionId,
+                onSectionSelected = onSectionSelected
+            )
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally

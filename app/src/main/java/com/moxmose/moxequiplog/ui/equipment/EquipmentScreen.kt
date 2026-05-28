@@ -95,9 +95,11 @@ import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
+import com.moxmose.moxequiplog.ui.components.SectionChipBar
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
@@ -118,6 +120,8 @@ fun EquipmentScreen(
     val allEquipments by viewModel.allEquipments.collectAsState()
     val equipmentImages by viewModel.equipmentImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
+    val allSections by viewModel.allSections.collectAsState()
+    val selectedSectionId by viewModel.selectedSectionId.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
@@ -263,6 +267,9 @@ fun EquipmentScreen(
         equipments = equipmentsToShow,
         equipmentImages = equipmentImages,
         allCategories = allCategories,
+        allSections = allSections,
+        selectedSectionId = selectedSectionId,
+        onSectionSelected = viewModel::onSectionSelected,
         measurementUnits = measurementUnits,
         defaultUnitId = defaultUnitId,
         defaultIcon = categoryDefaultIcon,
@@ -297,6 +304,9 @@ fun EquipmentScreenContent(
     equipments: List<Equipment>,
     equipmentImages: List<Image>,
     allCategories: List<Category>,
+    allSections: List<Section>,
+    selectedSectionId: Int,
+    onSectionSelected: (Int) -> Unit,
     measurementUnits: List<MeasurementUnit>,
     defaultUnitId: Int?,
     defaultIcon: String?,
@@ -373,6 +383,11 @@ fun EquipmentScreenContent(
         }
 
         Column(Modifier.padding(paddingValues)) {
+            SectionChipBar(
+                sections = allSections,
+                selectedSectionId = selectedSectionId,
+                onSectionSelected = onSectionSelected
+            )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

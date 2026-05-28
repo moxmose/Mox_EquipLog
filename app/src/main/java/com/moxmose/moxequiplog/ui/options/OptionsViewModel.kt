@@ -126,6 +126,9 @@ class OptionsViewModel(
     private val _showUnitManagement = MutableStateFlow(false)
     val showUnitManagement = _showUnitManagement.asStateFlow()
 
+    private val _showSectionManagement = MutableStateFlow(false)
+    val showSectionManagement = _showSectionManagement.asStateFlow()
+
     private val _showRestoreConfirm = MutableStateFlow<Uri?>(null)
     val showRestoreConfirm = _showRestoreConfirm.asStateFlow()
 
@@ -135,6 +138,7 @@ class OptionsViewModel(
     fun onShowImageDialogChange(show: Boolean) { _showImageDialog.value = show }
     fun onShowBackgroundPickerChange(show: Boolean) { _showBackgroundPicker.value = show }
     fun onShowUnitManagementChange(show: Boolean) { _showUnitManagement.value = show }
+    fun onShowSectionManagementChange(show: Boolean) { _showSectionManagement.value = show }
     fun onShowRestoreConfirmChange(uri: Uri?) { _showRestoreConfirm.value = uri }
 
     init {

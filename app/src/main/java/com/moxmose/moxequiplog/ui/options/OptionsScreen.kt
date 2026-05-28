@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -91,6 +93,7 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.AddColorDialog
 import com.moxmose.moxequiplog.ui.components.ColorItemCard
@@ -99,6 +102,7 @@ import com.moxmose.moxequiplog.ui.components.GoogleAccountSelector
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.components.ImageSelector
 import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
+import com.moxmose.moxequiplog.ui.components.SectionItemCard
 import com.moxmose.moxequiplog.ui.components.UnitItemCard
 import com.moxmose.moxequiplog.ui.equipment.TimeGranularitySelector
 import com.moxmose.moxequiplog.utils.AppConstants
@@ -119,6 +123,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val username by viewModel.username.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
     val reportsColors by viewModel.reportsColors.collectAsState()
+    val allSections by viewModel.allSections.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
@@ -149,6 +154,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val showImageDialog by viewModel.showImageDialog.collectAsState()
     val showBackgroundPicker by viewModel.showBackgroundPicker.collectAsState()
     val showUnitManagement by viewModel.showUnitManagement.collectAsState()
+    val showSectionManagement by viewModel.showSectionManagement.collectAsState()
     val showRestoreConfirm by viewModel.showRestoreConfirm.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -211,7 +217,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         username = username,
         allImages = allImages,
         categoriesUiState = categoriesUiState,
+        allColors = allColors,
         reportsColors = reportsColors,
+        allSections = allSections,
         measurementUnits = measurementUnits,
         defaultUnitId = defaultUnitId,
         backgroundUri = backgroundUri,
@@ -241,6 +249,10 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onUpdateUnitsOrder = viewModel::updateMeasurementUnitsOrder,
         onDeleteUnit = viewModel::deleteMeasurementUnit,
         onToggleDefaultUnit = viewModel::toggleDefaultUnit,
+        onAddSection = viewModel::addSection,
+        onUpdateSection = viewModel::updateSection,
+        onDeleteSection = viewModel::deleteSection,
+        onUpdateSectionsOrder = viewModel::updateSectionsOrder,
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = viewModel::onShowAboutDialogChange,
@@ -251,6 +263,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onShowBackgroundPickerChange = viewModel::onShowBackgroundPickerChange,
         showUnitManagement = showUnitManagement,
         onShowUnitManagementChange = viewModel::onShowUnitManagementChange,
+        showSectionManagement = showSectionManagement,
+        onShowSectionManagementChange = viewModel::onShowSectionManagementChange,
         showRestoreConfirm = showRestoreConfirm,
         onShowRestoreConfirmChange = viewModel::onShowRestoreConfirmChange,
         onBackupDatabase = viewModel::backupDatabase,
@@ -327,7 +341,9 @@ fun OptionsScreenContent(
     username: String,
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
+    allColors: List<AppColor>,
     reportsColors: List<AppColor>,
+    allSections: List<Section>,
     measurementUnits: List<MeasurementUnit>,
     defaultUnitId: Int?,
     backgroundUri: String?,
@@ -357,6 +373,10 @@ fun OptionsScreenContent(
     onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
     onDeleteUnit: (MeasurementUnit) -> Unit,
     onToggleDefaultUnit: (Int) -> Unit,
+    onAddSection: (String, String?, String?) -> Unit,
+    onUpdateSection: (Section) -> Unit,
+    onDeleteSection: (Section) -> Unit,
+    onUpdateSectionsOrder: (List<Section>) -> Unit,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -391,6 +411,8 @@ fun OptionsScreenContent(
     onShowBackgroundPickerChange: (Boolean) -> Unit = {},
     showUnitManagement: Boolean = false,
     onShowUnitManagementChange: (Boolean) -> Unit = {},
+    showSectionManagement: Boolean = false,
+    onShowSectionManagementChange: (Boolean) -> Unit = {},
     showRestoreConfirm: Uri? = null,
     onShowRestoreConfirmChange: (Uri?) -> Unit = {}
 ) {
@@ -523,6 +545,18 @@ fun OptionsScreenContent(
             onToggleUnitVisibility = onToggleUnitVisibility,
             onDeleteUnit = onDeleteUnit,
             onToggleDefaultUnit = onToggleDefaultUnit
+        )
+    }
+
+    if (showSectionManagement) {
+        SectionManagementDialog(
+            allSections = allSections,
+            allColors = allColors,
+            onDismiss = { onShowSectionManagementChange(false) },
+            onAddSection = onAddSection,
+            onUpdateSection = onUpdateSection,
+            onDeleteSection = onDeleteSection,
+            onUpdateSectionsOrder = onUpdateSectionsOrder
         )
     }
 
@@ -742,6 +776,44 @@ fun OptionsScreenContent(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_label), tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+
+            // 9. SEZIONI (WORKSPACES)
+            OptionsSectionCard(
+                title = "Gestione Sezioni", // TODO: Add to strings.xml
+                description = "Organizza i tuoi mezzi in diversi ambienti (es. Garage, Giardino, Salute)" // TODO: Add to strings.xml
+            ) {
+                OutlinedButton(onClick = { onShowSectionManagementChange(true) }, modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (allSections.isEmpty()) {
+                                Text(stringResource(R.string.options_empty_library))
+                            } else {
+                                allSections.take(5).forEach { section ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(section.color?.let { Color(it.toColorInt()) } ?: MaterialTheme.colorScheme.primary)
+                                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = EquipmentIconProvider.getIcon(section.iconIdentifier),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -1286,6 +1358,147 @@ fun UnitManagementDialog(
                                 onUpdateUnit = onUpdateUnit, 
                                 onToggleVisibility = { onToggleUnitVisibility(unit.id) },
                                 onDeleteUnit = { onDeleteUnit(unit) }
+                            ) 
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SectionManagementDialog(
+    allSections: List<Section>,
+    allColors: List<AppColor>,
+    onDismiss: () -> Unit,
+    onAddSection: (String, String?, String?) -> Unit,
+    onUpdateSection: (Section) -> Unit,
+    onDeleteSection: (Section) -> Unit,
+    onUpdateSectionsOrder: (List<Section>) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showAddSectionDialog by remember { mutableStateOf(false) }
+    val sectionsState = remember(allSections) { allSections.toMutableStateList() }
+
+    if (showAddSectionDialog) {
+        var name by remember { mutableStateOf("") }
+        var selectedIcon by remember { mutableStateOf("build") }
+        var selectedColor by remember { mutableStateOf(allColors.firstOrNull()?.hexValue ?: "#808080") }
+
+        AlertDialog(
+            onDismissRequest = { showAddSectionDialog = false },
+            title = { Text("Aggiungi Sezione") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Nome Sezione") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text("Scegli Icona", style = MaterialTheme.typography.labelMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("build", "car", "moto", "bike", "medical", "flight").forEach { iconId ->
+                            IconButton(
+                                onClick = { selectedIcon = iconId },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .border(
+                                        width = if (selectedIcon == iconId) 2.dp else 0.dp,
+                                        color = if (selectedIcon == iconId) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                            ) {
+                                Icon(EquipmentIconProvider.getIcon(iconId), contentDescription = null)
+                            }
+                        }
+                    }
+
+                    Text("Scegli Colore", style = MaterialTheme.typography.labelMedium)
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(allColors.filter { !it.hidden }) { color ->
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(color.hexValue.toColorInt()))
+                                    .border(
+                                        width = if (selectedColor == color.hexValue) 2.dp else 0.dp,
+                                        color = if (selectedColor == color.hexValue) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { selectedColor = color.hexValue }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onAddSection(name, selectedIcon, selectedColor)
+                        showAddSectionDialog = false
+                    },
+                    enabled = name.isNotBlank()
+                ) { Text("Aggiungi") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddSectionDialog = false }) { Text("Annulla") }
+            }
+        )
+    }
+
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(modifier = Modifier.padding(16.dp), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
+            Scaffold(
+                modifier = Modifier.height(550.dp),
+                floatingActionButton = {
+                    FloatingActionButton(onClick = { showAddSectionDialog = true }) { 
+                        Icon(Icons.Default.Add, contentDescription = "Add Section") 
+                    }
+                }
+            ) { paddingValues ->
+                Column(Modifier.padding(paddingValues).padding(16.dp)) {
+                    Text(text = "Gestione Sezioni", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
+                    
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.options_info_drag_reorder),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+
+                    DraggableLazyColumn(
+                        items = sectionsState,
+                        key = { _, section -> section.id },
+                        onMove = { from, to -> sectionsState.add(to, sectionsState.removeAt(from)) },
+                        onDrop = { 
+                            onUpdateSectionsOrder(sectionsState.mapIndexed { index, section -> section.copy(displayOrder = index) }) 
+                        },
+                        itemContent = { _, section -> 
+                            SectionItemCard(
+                                section = section,
+                                allColors = allColors,
+                                onUpdateSection = onUpdateSection,
+                                onDeleteSection = onDeleteSection
                             ) 
                         }
                     )

@@ -394,4 +394,5 @@
     <string name="backup_error_db_not_found">Database file not found</string>
     <string name="backup_error_no_output_stream">Failed to open output stream</string>
     <string name="restore_error_no_input_stream">Failed to open input stream</string>
+    <string name="section_all">All</string>
 </resources>

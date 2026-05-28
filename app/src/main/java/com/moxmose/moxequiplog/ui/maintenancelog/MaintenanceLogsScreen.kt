@@ -105,7 +105,9 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.ui.components.ImageIcon
+import com.moxmose.moxequiplog.ui.components.SectionChipBar
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
@@ -123,6 +125,8 @@ fun MaintenanceLogScreen(
 ) {
     val logs by viewModel.logs.collectAsState()
     val activeReminders by viewModel.activeReminders.collectAsState()
+    val allSections by viewModel.allSections.collectAsState()
+    val selectedSectionId by viewModel.selectedSectionId.collectAsState()
     val equipments by viewModel.allEquipments.collectAsState()
     val operationTypes by viewModel.allOperationTypes.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -241,6 +245,9 @@ fun MaintenanceLogScreen(
 
     MaintenanceLogScreenContent(
         logs = logs,
+        allSections = allSections,
+        selectedSectionId = selectedSectionId,
+        onSectionSelected = viewModel::onSectionSelected,
         equipments = activeEquipments,
         operationTypes = activeOperationTypes,
         measurementUnits = measurementUnits,
@@ -572,6 +579,9 @@ fun ReminderItem(
 @Composable
 fun MaintenanceLogScreenContent(
     logs: List<MaintenanceLogDetails>,
+    allSections: List<Section>,
+    selectedSectionId: Int,
+    onSectionSelected: (Int) -> Unit,
     equipments: List<Equipment>,
     operationTypes: List<OperationType>,
     measurementUnits: List<MeasurementUnit>,
@@ -637,45 +647,51 @@ fun MaintenanceLogScreenContent(
             }
         }
     ) { paddingValues ->
-        if (showAddDialog) {
-            MaintenanceLogDialog(
-            equipments = equipments,
-            operationTypes = operationTypes,
-            measurementUnits = measurementUnits,
-            onDismissRequest = { onShowAddDialogChange(false) },
-            onConfirm = { log ->
-                onAddLog(
-                    log.equipmentId, 
-                    log.operationTypeId, 
-                    log.notes, 
-                    log.value, 
-                    log.date, 
-                    log.color, 
-                    log.resetAfter,
-                    log.cost,
-                    log.isUnplanned
-                )
-                onShowAddDialogChange(false)
-            },
-            onSchedule = { equipmentId, opTypeId, date, value, sync ->
-                    onAddReminder(equipmentId, opTypeId, date, value, sync)
-                    onShowAddDialogChange(false)
-                },
-                onEstimateDueDate = onEstimateDueDate,
-                onEstimateTargetValue = onEstimateTargetValue,
-                onGetOperationCostStats = onGetOperationCostStats,
-                defaultEquipmentId = defaultEquipmentId,
-                defaultOperationTypeId = defaultOperationTypeId,
-                equipmentCategoryColor = equipmentCategoryColor,
-                operationCategoryColor = operationCategoryColor,
-                syncCalendarByDefault = syncCalendarByDefault,
-                googleAccountName = googleAccountName,
-                costTrendThreshold = costTrendThreshold,
-                onNavigateToOptions = onNavigateToOptions
+        Column(Modifier.padding(paddingValues).fillMaxSize()) {
+            SectionChipBar(
+                sections = allSections,
+                selectedSectionId = selectedSectionId,
+                onSectionSelected = onSectionSelected
             )
-        }
+            
+            if (showAddDialog) {
+                MaintenanceLogDialog(
+                    equipments = equipments,
+                    operationTypes = operationTypes,
+                    measurementUnits = measurementUnits,
+                    onDismissRequest = { onShowAddDialogChange(false) },
+                    onConfirm = { log ->
+                        onAddLog(
+                            log.equipmentId, 
+                            log.operationTypeId, 
+                            log.notes, 
+                            log.value, 
+                            log.date, 
+                            log.color, 
+                            log.resetAfter,
+                            log.cost,
+                            log.isUnplanned
+                        )
+                        onShowAddDialogChange(false)
+                    },
+                    onSchedule = { equipmentId, opTypeId, date, value, sync ->
+                        onAddReminder(equipmentId, opTypeId, date, value, sync)
+                        onShowAddDialogChange(false)
+                    },
+                    onEstimateDueDate = onEstimateDueDate,
+                    onEstimateTargetValue = onEstimateTargetValue,
+                    onGetOperationCostStats = onGetOperationCostStats,
+                    defaultEquipmentId = defaultEquipmentId,
+                    defaultOperationTypeId = defaultOperationTypeId,
+                    equipmentCategoryColor = equipmentCategoryColor,
+                    operationCategoryColor = operationCategoryColor,
+                    syncCalendarByDefault = syncCalendarByDefault,
+                    googleAccountName = googleAccountName,
+                    costTrendThreshold = costTrendThreshold,
+                    onNavigateToOptions = onNavigateToOptions
+                )
+            }
 
-        Column(Modifier.padding(paddingValues)) {
             RemindersDashboard(
                 reminders = activeReminders,
                 measurementUnits = measurementUnits,

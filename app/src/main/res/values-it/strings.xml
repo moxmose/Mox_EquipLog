@@ -389,4 +389,5 @@
     <string name="backup_error_db_not_found">File del database non trovato</string>
     <string name="backup_error_no_output_stream">Impossibile aprire lo stream di output</string>
     <string name="restore_error_no_input_stream">Impossibile aprire lo stream di input</string>
+    <string name="section_all">Tutto</string>
 </resources>
