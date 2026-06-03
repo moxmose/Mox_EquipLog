@@ -192,12 +192,18 @@ class OptionsViewModel(
     val allSections: StateFlow<List<Section>> = sectionRepository.allSections
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
-    fun addSection(name: String, iconIdentifier: String?, color: String?) {
+    fun addSection(name: String, iconIdentifier: String?, photoUri: String?, color: String?) {
         viewModelScope.launch {
             try {
                 val currentList = allSections.value
                 val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
-                sectionRepository.insertSection(Section(name = name, iconIdentifier = iconIdentifier, color = color, displayOrder = nextOrder))
+                sectionRepository.insertSection(Section(
+                    name = name, 
+                    iconIdentifier = iconIdentifier, 
+                    photoUri = photoUri,
+                    color = color, 
+                    displayOrder = nextOrder
+                ))
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.AddSectionFailed)
             }

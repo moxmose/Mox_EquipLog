@@ -15,5 +15,6 @@ data class Category(
         const val OPERATION = "OPERATION"
         const val REPORTS = "REPORTS"
         const val OPTIONS = "OPTIONS"
+        const val SECTIONS = "SECTIONS"
     }
 }

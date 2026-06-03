@@ -208,7 +208,11 @@ fun ImagePickerDialog(
             val categoriesWithPhotos = imageLibrary.filter { it.imageType == "IMAGE" }.map { it.category }.toSet()
             categories.filter { it.id in categoriesWithPhotos }
         }
-        baseList.filter { it.id != Category.LOGS }.sortedBy { it.name }
+        baseList.filter { 
+            it.id != Category.LOGS && 
+            it.id != Category.REPORTS && 
+            it.id != Category.OPTIONS 
+        }.sortedBy { it.name }
     }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(

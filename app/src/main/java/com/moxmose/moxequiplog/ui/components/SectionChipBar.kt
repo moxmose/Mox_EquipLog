@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.R
+import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.utils.AppConstants
@@ -34,6 +35,8 @@ fun SectionChipBar(
     modifier: Modifier = Modifier,
     showAllOption: Boolean = true
 ) {
+    if (sections.size <= 1) return
+
     LazyRow(
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -52,8 +55,13 @@ fun SectionChipBar(
         }
 
         items(sections, key = { it.id }) { section ->
+            val name = if (section.id == AppConstants.DEFAULT_SECTION_ID) {
+                stringResource(R.string.section_general)
+            } else {
+                section.name
+            }
             SectionChip(
-                name = section.name,
+                name = name,
                 isSelected = selectedSectionId == section.id,
                 onClick = { onSectionSelected(section.id) },
                 iconIdentifier = section.iconIdentifier,
@@ -84,17 +92,24 @@ private fun SectionChip(
         leadingIcon = {
             val icon = if (iconIdentifier == "all") {
                 Icons.Default.AllInclusive
+            } else if (iconIdentifier != null && iconIdentifier != "none") {
+                EquipmentIconProvider.getIcon(iconIdentifier, Category.SECTIONS)
             } else {
-                EquipmentIconProvider.getIcon(iconIdentifier)
+                null
             }
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
+            
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         },
         colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = chipColor.copy(alpha = 0.2f),
+            labelColor = chipColor.copy(alpha = 0.8f),
+            iconColor = chipColor.copy(alpha = 0.8f),
+            selectedContainerColor = chipColor.copy(alpha = 0.15f),
             selectedLabelColor = chipColor,
             selectedLeadingIconColor = chipColor,
             selectedTrailingIconColor = chipColor
@@ -102,6 +117,7 @@ private fun SectionChip(
         border = FilterChipDefaults.filterChipBorder(
             enabled = true,
             selected = isSelected,
+            borderColor = chipColor.copy(alpha = 0.4f),
             selectedBorderColor = chipColor,
             selectedBorderWidth = 2.dp
         )

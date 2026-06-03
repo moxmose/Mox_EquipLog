@@ -45,22 +45,32 @@ abstract class AppDatabase : RoomDatabase() {
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
                         `name` TEXT NOT NULL, 
                         `iconIdentifier` TEXT, 
+                        `photoUri` TEXT,
                         `color` TEXT, 
-                        `displayOrder` INTEGER NOT NULL
+                        `displayOrder` INTEGER NOT NULL,
+                        `dismissed` INTEGER NOT NULL DEFAULT 0
                     )
                 """.trimIndent())
 
-                // 2. Inserisce la sezione di default "Generale"
+                // 2. Inserisce la sezione di default
                 db.execSQL(
-                    "INSERT INTO sections (id, name, iconIdentifier, color, displayOrder) VALUES (?, ?, ?, ?, ?)",
-                    arrayOf(1, "Generale", "category", "#808080", 0)
+                    "INSERT INTO sections (id, name, iconIdentifier, photoUri, color, displayOrder, dismissed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    arrayOf(
+                        AppConstants.DEFAULT_SECTION_ID, 
+                        AppConstants.DEFAULT_SECTION_NAME, 
+                        AppConstants.DEFAULT_SECTION_ICON, 
+                        null, 
+                        AppConstants.DEFAULT_SECTION_COLOR, 
+                        0,
+                        0
+                    )
                 )
 
                 // 3. Aggiunge sectionId a equipments (nullable temporaneamente o con default)
-                db.execSQL("ALTER TABLE equipments ADD COLUMN sectionId INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE equipments ADD COLUMN sectionId INTEGER NOT NULL DEFAULT ${AppConstants.DEFAULT_SECTION_ID}")
                 
                 // 4. Aggiunge sectionId a operation_types
-                db.execSQL("ALTER TABLE operation_types ADD COLUMN sectionId INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE operation_types ADD COLUMN sectionId INTEGER NOT NULL DEFAULT ${AppConstants.DEFAULT_SECTION_ID}")
             }
         }
 
@@ -80,13 +90,21 @@ abstract class AppDatabase : RoomDatabase() {
                     // Popolamento iniziale operazione di sistema (Reset)
                     db.execSQL(
                         "INSERT OR IGNORE INTO operation_types (id, description, dismissed, isSystem, displayOrder) VALUES (?, ?, ?, ?, ?)",
-                        arrayOf(AppConstants.SYSTEM_OPERATION_RESET_ID, "Reset UdM", 0, 1, -1)
+                        arrayOf(AppConstants.SYSTEM_OPERATION_RESET_ID, "Reset UoM", 0, 1, -1)
                     )
 
                     // Popolamento iniziale Sezione di default
                     db.execSQL(
-                        "INSERT INTO sections (id, name, iconIdentifier, color, displayOrder) VALUES (?, ?, ?, ?, ?)",
-                        arrayOf(1, "Generale", "category", "#808080", 0)
+                        "INSERT INTO sections (id, name, iconIdentifier, photoUri, color, displayOrder, dismissed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        arrayOf(
+                            AppConstants.DEFAULT_SECTION_ID, 
+                            AppConstants.DEFAULT_SECTION_NAME, 
+                            AppConstants.DEFAULT_SECTION_ICON, 
+                            null, 
+                            AppConstants.DEFAULT_SECTION_COLOR, 
+                            0,
+                            0
+                        )
                     )
 
                     db.setTransactionSuccessful()

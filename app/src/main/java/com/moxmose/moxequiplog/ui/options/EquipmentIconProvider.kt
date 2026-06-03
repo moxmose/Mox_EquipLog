@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.DirectionsBoat
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.ElectricScooter
 import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.NotInterested
 import androidx.compose.material.icons.filled.PedalBike
@@ -35,6 +36,7 @@ object EquipmentIconProvider {
         "pc" to Icons.Filled.Computer,
         "device" to Icons.Filled.Devices,
         "medical" to Icons.Filled.MedicalServices,
+        "garden" to Icons.Filled.Grass,
         "drone" to Icons.Filled.Flight,
         "boat" to Icons.Filled.DirectionsBoat,
         "other" to Icons.Filled.QuestionMark
@@ -52,15 +54,34 @@ object EquipmentIconProvider {
         "other" to Icons.Filled.QuestionMark
     )
 
+    val sectionIcons = mapOf(
+        "build" to Icons.Filled.Build,
+        "car" to Icons.Filled.DirectionsCar,
+        "moto" to Icons.Filled.TwoWheeler,
+        "bike" to Icons.Filled.PedalBike,
+        "medical" to Icons.Filled.MedicalServices,
+        "garden" to Icons.Filled.Grass,
+        "drone" to Icons.Filled.Flight,
+        "other" to Icons.Filled.QuestionMark
+    )
+
     fun getIcon(identifier: String?, category: String = Category.EQUIPMENT): ImageVector {
         if (identifier == null || identifier == "none") {
             return Icons.Default.NotInterested
         }
-        val iconSet = if (category == Category.OPERATION) operationIcons else equipmentIcons
+        val iconSet = when(category) {
+            Category.OPERATION -> operationIcons
+            Category.SECTIONS -> sectionIcons
+            else -> equipmentIcons
+        }
         return iconSet[identifier] ?: Icons.AutoMirrored.Filled.List // Fallback
     }
 
     fun getIconsForCategory(category: String): Map<String, ImageVector> {
-        return if (category == Category.OPERATION) operationIcons else equipmentIcons
+        return when(category) {
+            Category.OPERATION -> operationIcons
+            Category.SECTIONS -> sectionIcons
+            else -> equipmentIcons
+        }
     }
 }

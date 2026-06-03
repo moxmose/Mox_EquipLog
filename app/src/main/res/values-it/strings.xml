@@ -390,4 +390,20 @@
     <string name="backup_error_no_output_stream">Impossibile aprire lo stream di output</string>
     <string name="restore_error_no_input_stream">Impossibile aprire lo stream di input</string>
     <string name="section_all">Tutto</string>
+    <string name="section_general">Generale</string>
+    <string name="options_manage_sections">Gestione Sezioni</string>
+    <string name="options_manage_sections_desc">Organizza i tuoi equipment in diversi ambienti (es. Garage, Giardino, Salute)</string>
+    <string name="add_section">Aggiungi Sezione</string>
+    <string name="edit_section">Modifica Sezione</string>
+    <string name="delete_section">Elimina Sezione</string>
+    <string name="section_name">Nome Sezione</string>
+    <string name="select_icon">Scegli Icona</string>
+    <string name="select_color">Scegli Colore</string>
+    <string name="delete_section_confirm">Sei sicuro di voler eliminare la sezione \'%1$s\'? Tutti gli equipment associati verranno spostati nella sezione Generale.</string>
+    <string name="default_label">Predefinita</string>
+    <string name="delete_log_failed">Eliminazione registrazione fallita</string>
+    <string name="delete_reminder_failed">Eliminazione promemoria fallita</string>
+    <string name="update_reminder_failed">Aggiornamento promemoria fallito</string>
+    <string name="recalculate_reminders_failed">Ricalcolo scadenze fallito</string>
+    <string name="set_fixed_due_date">Imposta data scadenza fissa</string>
 </resources>

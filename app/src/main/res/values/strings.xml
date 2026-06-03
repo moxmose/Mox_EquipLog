@@ -395,4 +395,20 @@
     <string name="backup_error_no_output_stream">Failed to open output stream</string>
     <string name="restore_error_no_input_stream">Failed to open input stream</string>
     <string name="section_all">All</string>
+    <string name="section_general">General</string>
+    <string name="options_manage_sections">Manage Sections</string>
+    <string name="options_manage_sections_desc">Organize your equipment in different environments (e.g., Garage, Garden, Health)</string>
+    <string name="add_section">Add Section</string>
+    <string name="edit_section">Edit Section</string>
+    <string name="delete_section">Delete Section</string>
+    <string name="section_name">Section Name</string>
+    <string name="select_icon">Select Icon</string>
+    <string name="select_color">Select Color</string>
+    <string name="delete_section_confirm">Are you sure you want to delete the section \'%1$s\'? All associated equipment will be moved to the General section.</string>
+    <string name="default_label">Default</string>
+    <string name="delete_log_failed">Failed to delete log</string>
+    <string name="delete_reminder_failed">Failed to delete reminder</string>
+    <string name="update_reminder_failed">Failed to update reminder</string>
+    <string name="recalculate_reminders_failed">Failed to recalculate reminders</string>
+    <string name="set_fixed_due_date">Set fixed due date</string>
 </resources>

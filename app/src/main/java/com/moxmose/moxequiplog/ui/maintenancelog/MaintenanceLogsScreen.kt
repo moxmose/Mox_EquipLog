@@ -161,10 +161,10 @@ fun MaintenanceLogScreen(
                 is MaintenanceLogViewModel.UiEvent.UpdateLogFailed -> context.getString(R.string.update_log_failed)
                 is MaintenanceLogViewModel.UiEvent.DismissLogFailed -> context.getString(R.string.dismiss_log_failed)
                 is MaintenanceLogViewModel.UiEvent.RestoreLogFailed -> context.getString(R.string.restore_log_failed)
-                is MaintenanceLogViewModel.UiEvent.DeleteLogFailed -> "Failed to delete log"
-                is MaintenanceLogViewModel.UiEvent.DeleteReminderFailed -> "Failed to delete reminder"
-                is MaintenanceLogViewModel.UiEvent.UpdateReminderFailed -> "Failed to update reminder"
-                is MaintenanceLogViewModel.UiEvent.RecalculateRemindersFailed -> "Failed to recalculate reminders"
+                is MaintenanceLogViewModel.UiEvent.DeleteLogFailed -> context.getString(R.string.delete_log_failed)
+                is MaintenanceLogViewModel.UiEvent.DeleteReminderFailed -> context.getString(R.string.delete_reminder_failed)
+                is MaintenanceLogViewModel.UiEvent.UpdateReminderFailed -> context.getString(R.string.update_reminder_failed)
+                is MaintenanceLogViewModel.UiEvent.RecalculateRemindersFailed -> context.getString(R.string.recalculate_reminders_failed)
             }
             snackbarHostState.showSnackbar(message)
         }
@@ -1253,7 +1253,7 @@ fun MaintenanceLogDialog(
                             checked = hasFixedDate,
                             onCheckedChange = { hasFixedDate = it }
                         )
-                        Text("Set fixed due date")
+                        Text(stringResource(R.string.set_fixed_due_date))
                     }
                 }
 

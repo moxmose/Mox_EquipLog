@@ -9,6 +9,8 @@ data class Section(
     val id: Int = 0,
     val name: String,
     val iconIdentifier: String? = null,
+    val photoUri: String? = null,
     val color: String? = null,
-    val displayOrder: Int = 0
+    val displayOrder: Int = 0,
+    val dismissed: Boolean = false
 )
