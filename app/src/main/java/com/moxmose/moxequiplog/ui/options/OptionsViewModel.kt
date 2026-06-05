@@ -192,6 +192,18 @@ class OptionsViewModel(
     val allSections: StateFlow<List<Section>> = sectionRepository.allSections
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyList())
 
+    val unitUsageCounts: StateFlow<Map<Int, Int>> = equipmentDao.getAllEquipmentList()
+        .map { equipments -> 
+            equipments.groupBy { it.unitId }.mapValues { it.value.size }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
+
+    val sectionUsageCounts: StateFlow<Map<Int, Int>> = equipmentDao.getAllEquipmentList()
+        .map { equipments ->
+            equipments.groupBy { it.sectionId }.mapValues { it.value.size }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
+
     fun addSection(name: String, iconIdentifier: String?, photoUri: String?, color: String?) {
         viewModelScope.launch {
             try {

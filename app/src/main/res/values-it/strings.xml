@@ -397,7 +397,7 @@
     <string name="edit_section">Modifica Sezione</string>
     <string name="delete_section">Elimina Sezione</string>
     <string name="section_name">Nome Sezione</string>
-    <string name="select_icon">Scegli Icona</string>
+    <string name="select_icon">Scegli Icona e Colore</string>
     <string name="select_color">Scegli Colore</string>
     <string name="delete_section_confirm">Sei sicuro di voler eliminare la sezione \'%1$s\'? Tutti gli equipment associati verranno spostati nella sezione Generale.</string>
     <string name="default_label">Predefinita</string>
@@ -406,4 +406,5 @@
     <string name="update_reminder_failed">Aggiornamento promemoria fallito</string>
     <string name="recalculate_reminders_failed">Ricalcolo scadenze fallito</string>
     <string name="set_fixed_due_date">Imposta data scadenza fissa</string>
+    <string name="unit_decimal_places_abbr">p.d.</string>
 </resources>

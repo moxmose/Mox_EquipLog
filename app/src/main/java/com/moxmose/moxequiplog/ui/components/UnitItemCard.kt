@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,8 +20,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
@@ -46,6 +48,7 @@ import com.moxmose.moxequiplog.utils.AppConstants
 fun UnitItemCard(
     unit: MeasurementUnit,
     isDefault: Boolean,
+    usageCount: Int,
     onUnitSelected: () -> Unit,
     onUpdateUnit: (MeasurementUnit) -> Unit,
     onToggleVisibility: () -> Unit,
@@ -60,21 +63,14 @@ fun UnitItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable { if (!isEditing) onUnitSelected() }
+            .clickable { if (!isEditing) onUnitSelected() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isDefault) Icons.Default.Star else Icons.Default.StarBorder,
-                contentDescription = null,
-                tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-            Spacer(Modifier.width(16.dp))
-            
+        Column(modifier = Modifier.padding(12.dp)) {
             if (isEditing) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (!unit.isSystem) {
                         OutlinedTextField(
                             value = editedLabel,
@@ -91,8 +87,11 @@ fun UnitItemCard(
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
-                        Text(unit.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(unit.description, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = "[${unit.label}] ${unit.description}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
 
                     Column {
@@ -107,55 +106,125 @@ fun UnitItemCard(
                             steps = AppConstants.MAX_DECIMAL_PLACES - 1
                         )
                     }
-                }
-            } else {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(unit.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.width(8.dp))
-                        Badge(containerColor = MaterialTheme.colorScheme.tertiaryContainer) {
-                            Text(unit.decimalPlaces.toString(), style = MaterialTheme.typography.labelSmall)
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        IconButton(onClick = {
+                            onUpdateUnit(unit.copy(
+                                label = editedLabel, 
+                                description = editedDescription,
+                                decimalPlaces = editedDecimalPlaces
+                            ))
+                            isEditing = false
+                        }) {
+                            Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_unit))
+                        }
+                        IconButton(onClick = { isEditing = false }) {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                         }
                     }
-                    if (unit.description.isNotBlank()) {
-                        Text(unit.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-
-            if (isEditing) {
-                IconButton(onClick = {
-                    onUpdateUnit(unit.copy(
-                        label = editedLabel, 
-                        description = editedDescription,
-                        decimalPlaces = editedDecimalPlaces
-                    ))
-                    isEditing = false
-                }) {
-                    Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_unit))
                 }
             } else {
-                IconButton(onClick = onToggleVisibility) {
-                    Icon(
-                        imageVector = if (unit.isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = stringResource(R.string.options_show_hide)
+                // Riga 1: [km] Kilometers
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "[${unit.label}] ${unit.description}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                 }
-                IconButton(onClick = { isEditing = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.options_edit_unit))
-                }
-                if (!unit.isSystem) {
-                    IconButton(onClick = onDeleteUnit) {
-                        Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                    }
-                } else {
-                    Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Riga 2: Azioni allineate a destra con icone ridotte + info utilizzi e decimali
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Used: $usageCount",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "${stringResource(R.string.unit_decimal_places_abbr)}: ${unit.decimalPlaces}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onUnitSelected,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isDefault) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                        
+                        IconButton(
+                            onClick = onToggleVisibility,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (unit.isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = stringResource(R.string.options_show_hide),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        
+                        IconButton(
+                            onClick = { isEditing = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.options_edit_unit),
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        
+                        if (!unit.isSystem) {
+                            IconButton(
+                                onClick = onDeleteUnit,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        } else {
+                            Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Lock,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
                     }
                 }
             }

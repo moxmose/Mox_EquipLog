@@ -128,6 +128,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
+    val unitUsageCounts by viewModel.unitUsageCounts.collectAsState()
+    val sectionUsageCounts by viewModel.sectionUsageCounts.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
     
     val backgroundUri by viewModel.backgroundUri.collectAsState()
@@ -297,7 +299,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetCostAnalysisWindow = viewModel::setCostAnalysisWindow,
         costTrendThreshold = costTrendThreshold,
         onSetCostTrendThreshold = viewModel::setCostTrendThreshold,
-        onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues
+        onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues,
+        unitUsageCounts = unitUsageCounts,
+        sectionUsageCounts = sectionUsageCounts
     )
 
     colorMgmtState?.let { (mode, categoryId) ->
@@ -390,6 +394,8 @@ fun OptionsScreenContent(
     onDeleteSection: (Section) -> Unit,
     onUpdateSectionsOrder: (List<Section>) -> Unit,
     onShowColorManagerCustom: ((String) -> Unit) -> Unit,
+    unitUsageCounts: Map<Int, Int>,
+    sectionUsageCounts: Map<Int, Int>,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -551,6 +557,7 @@ fun OptionsScreenContent(
         UnitManagementDialog(
             allUnits = measurementUnits,
             defaultUnitId = defaultUnitId,
+            unitUsageCounts = unitUsageCounts,
             onDismiss = { onShowUnitManagementChange(false) },
             onAddUnit = onAddUnit,
             onUpdateUnit = onUpdateUnit,
@@ -567,6 +574,7 @@ fun OptionsScreenContent(
             allColors = allColors,
             allImages = allImages,
             categoriesUiState = categoriesUiState,
+            sectionUsageCounts = sectionUsageCounts,
             onDismiss = { onShowSectionManagementChange(false) },
             onAddSection = onAddSection,
             onUpdateSection = onUpdateSection,
@@ -1254,6 +1262,7 @@ fun UnitManagementDialog(
     onToggleUnitVisibility: (Int) -> Unit,
     onDeleteUnit: (MeasurementUnit) -> Unit,
     onToggleDefaultUnit: (Int) -> Unit,
+    unitUsageCounts: Map<Int, Int>,
     modifier: Modifier = Modifier
 ) {
     var showAddUnitDialog by remember { mutableStateOf(false) }
@@ -1374,6 +1383,7 @@ fun UnitManagementDialog(
                             UnitItemCard(
                                 unit = unit, 
                                 isDefault = unit.id == defaultUnitId,
+                                usageCount = unitUsageCounts[unit.id] ?: 0,
                                 onUnitSelected = { onToggleDefaultUnit(unit.id) },
                                 onUpdateUnit = onUpdateUnit, 
                                 onToggleVisibility = { onToggleUnitVisibility(unit.id) },
@@ -1400,6 +1410,7 @@ fun SectionManagementDialog(
     onDeleteSection: (Section) -> Unit,
     onUpdateSectionsOrder: (List<Section>) -> Unit,
     onShowColorManagerCustom: ((String) -> Unit) -> Unit,
+    sectionUsageCounts: Map<Int, Int>,
     modifier: Modifier = Modifier
 ) {
     var showAddSectionDialog by remember { mutableStateOf(false) }
@@ -1417,7 +1428,7 @@ fun SectionManagementDialog(
         var name by remember { mutableStateOf("") }
         var selectedIcon by remember { mutableStateOf<String?>("build") }
         var selectedPhotoUri by remember { mutableStateOf<String?>(null) }
-        var selectedColor by remember { mutableStateOf(allColors.firstOrNull()?.hexValue ?: "#808080") }
+        var selectedColor by remember { mutableStateOf(AppConstants.DEFAULT_SECTION_COLOR) }
         var showImagePicker by remember { mutableStateOf(false) }
 
         AlertDialog(
@@ -1435,24 +1446,17 @@ fun SectionManagementDialog(
 
                     Text(stringResource(R.string.select_icon), style = MaterialTheme.typography.labelMedium)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(
+                        ImageIcon(
+                            photoUri = selectedPhotoUri,
+                            iconIdentifier = selectedIcon,
                             modifier = Modifier
                                 .size(64.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer)
-                                .border(2.dp, Color(selectedColor.toColorInt()), CircleShape)
                                 .clickable { showImagePicker = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ImageIcon(
-                                photoUri = selectedPhotoUri,
-                                iconIdentifier = selectedIcon,
-                                modifier = Modifier.fillMaxSize(),
-                                category = Category.SECTIONS,
-                                borderColor = null,
-                                tint = Color(selectedColor.toColorInt())
-                            )
-                        }
+                            category = Category.SECTIONS,
+                            borderColor = Color(selectedColor.toColorInt()),
+                            contentPadding = 8.dp,
+                            tint = Color(selectedColor.toColorInt())
+                        )
                         
                         Box(
                             modifier = Modifier
@@ -1495,7 +1499,7 @@ fun SectionManagementDialog(
                 },
                 imageLibrary = allImages,
                 categories = allCategories,
-                categoryColors = categoryColorsMap,
+                categoryColors = categoryColorsMap.toMutableMap().apply { put(Category.SECTIONS, selectedColor) },
                 categoryDefaultIcons = categoryDefaultIconsMap,
                 categoryDefaultPhotos = categoryDefaultPhotosMap,
                 onAddImage = { _, _ -> }, // Not adding new images here
@@ -1551,6 +1555,7 @@ fun SectionManagementDialog(
                                 allColors = allColors,
                                 allImages = allImages,
                                 categoriesUiState = categoriesUiState,
+                                usageCount = sectionUsageCounts[section.id] ?: 0,
                                 onUpdateSection = onUpdateSection,
                                 onDeleteSection = onDeleteSection,
                                 onShowColorManager = { tag, callback -> 

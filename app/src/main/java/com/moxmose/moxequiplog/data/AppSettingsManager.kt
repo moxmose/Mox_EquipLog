@@ -77,6 +77,9 @@ class AppSettingsManager(
     val costTrendThreshold: Flow<Float> = appPreferenceDao.getPreferenceFlow("cost_trend_threshold")
         .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_COST_TREND_THRESHOLD }
 
+    val showDismissedSections: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("show_dismissed_sections")
+        .map { it?.toBoolean() ?: false }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -191,5 +194,9 @@ class AppSettingsManager(
 
     suspend fun setCostTrendThreshold(threshold: Float) {
         appPreferenceDao.insertPreference(AppPreference("cost_trend_threshold", threshold.toString()))
+    }
+
+    suspend fun setShowDismissedSections(show: Boolean) {
+        appPreferenceDao.insertPreference(AppPreference("show_dismissed_sections", show.toString()))
     }
 }

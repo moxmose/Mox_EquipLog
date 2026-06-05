@@ -122,6 +122,13 @@ class MaintenanceLogViewModel(
             initialValue = AppConstants.DEFAULT_SECTION_ID
         )
 
+    val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = false
+        )
+
     val allSections: StateFlow<List<Section>> = sectionRepository.allSections
         .stateIn(
             scope = viewModelScope,
@@ -132,6 +139,13 @@ class MaintenanceLogViewModel(
     fun onSectionSelected(sectionId: Int) {
         viewModelScope.launch {
             appSettingsManager.setSelectedSectionId(sectionId)
+        }
+    }
+
+    fun onToggleShowDismissedSections() {
+        viewModelScope.launch {
+            val current = showDismissedSections.value
+            appSettingsManager.setShowDismissedSections(!current)
         }
     }
 

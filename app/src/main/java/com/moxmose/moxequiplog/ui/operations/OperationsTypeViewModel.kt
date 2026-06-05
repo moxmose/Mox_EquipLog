@@ -108,9 +108,19 @@ class OperationsTypeViewModel(
             initialValue = emptyList()
         )
 
+    val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
+
     fun onSectionSelected(sectionId: Int) {
         viewModelScope.launch {
             appSettingsManager.setSelectedSectionId(sectionId)
+        }
+    }
+
+    fun onToggleShowDismissedSections() {
+        viewModelScope.launch {
+            val current = showDismissedSections.value
+            appSettingsManager.setShowDismissedSections(!current)
         }
     }
 

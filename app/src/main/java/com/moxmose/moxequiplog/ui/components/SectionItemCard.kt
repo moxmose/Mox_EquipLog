@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
@@ -39,6 +41,7 @@ fun SectionItemCard(
     allColors: List<AppColor>,
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
+    usageCount: Int,
     onUpdateSection: (Section) -> Unit,
     onDeleteSection: (Section) -> Unit,
     onShowColorManager: (String, (String) -> Unit) -> Unit,
@@ -70,56 +73,102 @@ fun SectionItemCard(
                 .padding(12.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .border(2.dp, sectionColor, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    ImageIcon(
-                        photoUri = section.photoUri,
-                        iconIdentifier = section.iconIdentifier,
-                        modifier = Modifier.fillMaxSize(),
-                        category = Category.SECTIONS,
-                        borderColor = null,
-                        contentPadding = 4.dp,
-                        tint = sectionColor
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    val name = if (section.id == AppConstants.DEFAULT_SECTION_ID) {
-                        stringResource(R.string.section_general)
-                    } else {
-                        section.name
-                    }
-                    Text(text = name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    if (section.dismissed) {
-                        Text(text = stringResource(R.string.dismissed_suffix), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-                    }
-                }
+            // Icona ridotta a sinistra (40.dp)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .border(1.dp, sectionColor.copy(alpha = 0.5f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                ImageIcon(
+                    photoUri = section.photoUri,
+                    iconIdentifier = section.iconIdentifier,
+                    modifier = Modifier.fillMaxSize(),
+                    category = Category.SECTIONS,
+                    borderColor = null,
+                    contentPadding = 6.dp,
+                    tint = sectionColor
+                )
             }
 
-            Row {
-                IconButton(onClick = {
-                    onUpdateSection(section.copy(dismissed = !section.dismissed))
-                }) {
-                    Icon(
-                        imageVector = if (section.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = null
+            // Nome e info utilizzi al centro
+            Column(modifier = Modifier.weight(1f)) {
+                val name = if (section.id == AppConstants.DEFAULT_SECTION_ID) {
+                    stringResource(R.string.section_general)
+                } else {
+                    section.name
+                }
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "Used: $usageCount",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Azioni a destra
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (section.dismissed) {
+                    Text(
+                        text = stringResource(R.string.dismissed_suffix),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                 }
-                IconButton(onClick = { showEditDialog = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_section), tint = MaterialTheme.colorScheme.primary)
+
+                IconButton(
+                    onClick = { onUpdateSection(section.copy(dismissed = !section.dismissed)) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (section.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
+                IconButton(
+                    onClick = { showEditDialog = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.edit_section),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                
                 if (section.id != AppConstants.DEFAULT_SECTION_ID) {
-                    IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_section), tint = MaterialTheme.colorScheme.error)
+                    IconButton(
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.delete_section),
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                } else {
+                    Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
                     }
                 }
             }
@@ -149,25 +198,17 @@ fun SectionItemCard(
                     Text(stringResource(R.string.select_icon), style = MaterialTheme.typography.labelMedium)
                     
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(
+                        ImageIcon(
+                            photoUri = selectedPhotoUri,
+                            iconIdentifier = selectedIcon,
                             modifier = Modifier
                                 .size(64.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer)
-                                .border(2.dp, Color(selectedColor.toColorInt()), CircleShape)
                                 .clickable { showImagePicker = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ImageIcon(
-                                photoUri = selectedPhotoUri,
-                                iconIdentifier = selectedIcon,
-                                modifier = Modifier.fillMaxSize(),
-                                category = Category.SECTIONS,
-                                borderColor = null,
-                                contentPadding = 8.dp,
-                                tint = Color(selectedColor.toColorInt())
-                            )
-                        }
+                            category = Category.SECTIONS,
+                            borderColor = Color(selectedColor.toColorInt()),
+                            contentPadding = 8.dp,
+                            tint = Color(selectedColor.toColorInt())
+                        )
                         
                         Box(
                             modifier = Modifier
@@ -217,7 +258,7 @@ fun SectionItemCard(
                 },
                 imageLibrary = allImages,
                 categories = allCategories,
-                categoryColors = categoryColorsMap,
+                categoryColors = categoryColorsMap.toMutableMap().apply { put(Category.SECTIONS, selectedColor) },
                 categoryDefaultIcons = categoryDefaultIconsMap,
                 categoryDefaultPhotos = categoryDefaultPhotosMap,
                 onAddImage = { _, _ -> },

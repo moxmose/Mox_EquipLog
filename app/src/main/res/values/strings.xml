@@ -402,7 +402,7 @@
     <string name="edit_section">Edit Section</string>
     <string name="delete_section">Delete Section</string>
     <string name="section_name">Section Name</string>
-    <string name="select_icon">Select Icon</string>
+    <string name="select_icon">Select Icon and Color</string>
     <string name="select_color">Select Color</string>
     <string name="delete_section_confirm">Are you sure you want to delete the section \'%1$s\'? All associated equipment will be moved to the General section.</string>
     <string name="default_label">Default</string>
@@ -411,4 +411,5 @@
     <string name="update_reminder_failed">Failed to update reminder</string>
     <string name="recalculate_reminders_failed">Failed to recalculate reminders</string>
     <string name="set_fixed_due_date">Set fixed due date</string>
+    <string name="unit_decimal_places_abbr">d.p.</string>
 </resources>

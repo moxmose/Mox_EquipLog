@@ -122,6 +122,7 @@ fun EquipmentScreen(
     val allCategories by viewModel.allCategories.collectAsState()
     val allSections by viewModel.allSections.collectAsState()
     val selectedSectionId by viewModel.selectedSectionId.collectAsState()
+    val showDismissedSections by viewModel.showDismissedSections.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
@@ -270,6 +271,8 @@ fun EquipmentScreen(
         allSections = allSections,
         selectedSectionId = selectedSectionId,
         onSectionSelected = viewModel::onSectionSelected,
+        showDismissedSections = showDismissedSections,
+        onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
         measurementUnits = measurementUnits,
         defaultUnitId = defaultUnitId,
         defaultIcon = categoryDefaultIcon,
@@ -307,6 +310,8 @@ fun EquipmentScreenContent(
     allSections: List<Section>,
     selectedSectionId: Int,
     onSectionSelected: (Int) -> Unit,
+    showDismissedSections: Boolean,
+    onToggleShowDismissedSections: () -> Unit,
     measurementUnits: List<MeasurementUnit>,
     defaultUnitId: Int?,
     defaultIcon: String?,
@@ -386,7 +391,9 @@ fun EquipmentScreenContent(
             SectionChipBar(
                 sections = allSections,
                 selectedSectionId = selectedSectionId,
-                onSectionSelected = onSectionSelected
+                onSectionSelected = onSectionSelected,
+                showDismissed = showDismissedSections,
+                onToggleShowDismissed = onToggleShowDismissedSections
             )
             Column(
                 modifier = Modifier

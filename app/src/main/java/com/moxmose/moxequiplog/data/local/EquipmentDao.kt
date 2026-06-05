@@ -48,6 +48,12 @@ interface EquipmentDao {
     @Query("SELECT * FROM equipments WHERE description LIKE '%(Demo)%'")
     suspend fun getDemoEquipmentList(): List<Equipment>
 
+    @Query("SELECT COUNT(*) FROM equipments WHERE unitId = :unitId")
+    fun countEquipmentsByUnit(unitId: Int): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM equipments WHERE sectionId = :sectionId")
+    fun countEquipmentsBySection(sectionId: Int): Flow<Int>
+
     @androidx.room.Delete
     suspend fun deleteEquipmentList(equipmentList: List<Equipment>)
 }

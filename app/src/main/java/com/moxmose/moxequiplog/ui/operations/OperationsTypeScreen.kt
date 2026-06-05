@@ -115,6 +115,7 @@ fun OperationTypeScreen(
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val allSections by viewModel.allSections.collectAsState()
     val selectedSectionId by viewModel.selectedSectionId.collectAsState()
+    val showDismissedSections by viewModel.showDismissedSections.collectAsState()
     val operationTypeImages by viewModel.operationImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
@@ -222,6 +223,8 @@ fun OperationTypeScreen(
         allSections = allSections,
         selectedSectionId = selectedSectionId,
         onSectionSelected = viewModel::onSectionSelected,
+        showDismissedSections = showDismissedSections,
+        onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
         defaultIcon = categoryDefaultIcon,
         defaultPhotoUri = categoryDefaultPhoto,
         onAddOperationType = viewModel::addOperationType,
@@ -256,6 +259,8 @@ fun OperationTypeScreenContent(
     allSections: List<Section>,
     selectedSectionId: Int,
     onSectionSelected: (Int) -> Unit,
+    showDismissedSections: Boolean,
+    onToggleShowDismissedSections: () -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     showDismissed: Boolean,
@@ -330,7 +335,9 @@ fun OperationTypeScreenContent(
             SectionChipBar(
                 sections = allSections,
                 selectedSectionId = selectedSectionId,
-                onSectionSelected = onSectionSelected
+                onSectionSelected = onSectionSelected,
+                showDismissed = showDismissedSections,
+                onToggleShowDismissed = onToggleShowDismissedSections
             )
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),

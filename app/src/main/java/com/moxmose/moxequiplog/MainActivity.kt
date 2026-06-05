@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
+import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.ui.components.AppBackground
 import com.moxmose.moxequiplog.ui.equipment.EquipmentScreen
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogScreen
@@ -60,6 +62,7 @@ import org.koin.android.ext.android.inject
 class MainActivity : ComponentActivity() {
     private val imageRepository: ImageRepository by inject()
     private val appSettingsManager: AppSettingsManager by inject()
+    private val maintenanceManager: MaintenanceManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,9 +75,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             MoxEquipLogTheme {
                 val showWelcome by appSettingsManager.showWelcomeAlert.collectAsStateWithLifecycle(initialValue = false)
+                val isAppEmpty by maintenanceManager.isAppEmpty().collectAsStateWithLifecycle(initialValue = false)
                 
                 MoxEquipLogApp(
                     showWelcome = showWelcome,
+                    isAppEmpty = isAppEmpty,
                     onDismissWelcome = { dontShowAgain ->
                         lifecycleScope.launch {
                             if (dontShowAgain) appSettingsManager.setShowWelcomeAlert(false)
@@ -90,9 +95,23 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MoxEquipLogApp(
     showWelcome: Boolean,
+    isAppEmpty: Boolean,
     onDismissWelcome: (Boolean) -> Unit
 ) {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.LOGS) }
+    var currentDestination by rememberSaveable { 
+        mutableStateOf(if (showWelcome || isAppEmpty) AppDestinations.OPTIONS else AppDestinations.LOGS) 
+    }
+
+    // Redirect to OPTIONS if it's a new installation or the database is completely empty
+    // This happens only once when these conditions are detected as true.
+    var initialRedirectDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(showWelcome, isAppEmpty) {
+        if (!initialRedirectDone && (showWelcome || isAppEmpty)) {
+            currentDestination = AppDestinations.OPTIONS
+            initialRedirectDone = true
+        }
+    }
+
     var welcomeVisible by remember(showWelcome) { mutableStateOf(showWelcome) }
 
     if (welcomeVisible) {

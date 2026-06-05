@@ -127,6 +127,7 @@ fun MaintenanceLogScreen(
     val activeReminders by viewModel.activeReminders.collectAsState()
     val allSections by viewModel.allSections.collectAsState()
     val selectedSectionId by viewModel.selectedSectionId.collectAsState()
+    val showDismissedSections by viewModel.showDismissedSections.collectAsState()
     val equipments by viewModel.allEquipments.collectAsState()
     val operationTypes by viewModel.allOperationTypes.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -248,6 +249,8 @@ fun MaintenanceLogScreen(
         allSections = allSections,
         selectedSectionId = selectedSectionId,
         onSectionSelected = viewModel::onSectionSelected,
+        showDismissedSections = showDismissedSections,
+        onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
         equipments = activeEquipments,
         operationTypes = activeOperationTypes,
         measurementUnits = measurementUnits,
@@ -582,6 +585,8 @@ fun MaintenanceLogScreenContent(
     allSections: List<Section>,
     selectedSectionId: Int,
     onSectionSelected: (Int) -> Unit,
+    showDismissedSections: Boolean,
+    onToggleShowDismissedSections: () -> Unit,
     equipments: List<Equipment>,
     operationTypes: List<OperationType>,
     measurementUnits: List<MeasurementUnit>,
@@ -651,7 +656,9 @@ fun MaintenanceLogScreenContent(
             SectionChipBar(
                 sections = allSections,
                 selectedSectionId = selectedSectionId,
-                onSectionSelected = onSectionSelected
+                onSectionSelected = onSectionSelected,
+                showDismissed = showDismissedSections,
+                onToggleShowDismissed = onToggleShowDismissedSections
             )
             
             if (showAddDialog) {

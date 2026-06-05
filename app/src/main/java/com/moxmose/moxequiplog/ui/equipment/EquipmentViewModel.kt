@@ -130,6 +130,13 @@ class EquipmentViewModel(
         }
     }
 
+    fun onToggleShowDismissedSections() {
+        viewModelScope.launch {
+            val current = showDismissedSections.value
+            appSettingsManager.setShowDismissedSections(!current)
+        }
+    }
+
     val activeEquipments: StateFlow<List<Equipment>> = appSettingsManager.selectedSectionId
         .flatMapLatest { sectionId ->
             if (sectionId == AppConstants.ALL_SECTIONS_ID) {
@@ -306,7 +313,10 @@ class EquipmentViewModel(
 
     val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
-        
+
+    val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
+
     val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 

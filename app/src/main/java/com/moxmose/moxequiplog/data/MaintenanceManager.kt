@@ -10,6 +10,8 @@ import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -212,6 +214,16 @@ class MaintenanceManager(
         val inEquipments = equipmentDao.countEquipmentUsingPhoto(uri) > 0
         val inOperations = operationTypeDao.countOperationTypesUsingPhoto(uri) > 0
         return inEquipments || inOperations
+    }
+
+    fun isAppEmpty(): Flow<Boolean> {
+        return combine(
+            equipmentDao.getAllEquipmentList(),
+            operationTypeDao.getAllOperationTypes(),
+            maintenanceLogDao.getLogsCountFlow()
+        ) { equipments, operations, logsCount ->
+            equipments.isEmpty() && operations.filter { !it.isSystem }.isEmpty() && logsCount == 0
+        }
     }
 
     // --- COST ANALYSIS LOGIC ---
