@@ -344,10 +344,7 @@ class MaintenanceLogViewModel(
         if (sectionId == AppConstants.ALL_SECTIONS_ID) {
             equipmentDao.countActiveResettableEquipment()
         } else {
-            // Filter resettable count by section too? Probably yes.
-            // But I don't have a countActiveResettableEquipmentBySection yet.
-            // For now, let's just use the global one or add the DAO method.
-            equipmentDao.countActiveResettableEquipment() 
+            equipmentDao.countActiveResettableEquipmentBySection(sectionId)
         }
     }.stateIn(
         scope = viewModelScope,

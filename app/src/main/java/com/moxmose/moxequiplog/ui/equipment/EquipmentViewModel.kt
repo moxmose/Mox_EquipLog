@@ -165,9 +165,16 @@ class EquipmentViewModel(
             initialValue = emptyList()
         )
 
+    private val _allActiveOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getActiveOperationTypes()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
     val equipmentStatuses: StateFlow<Map<Int, EquipmentStatus>> = combine(
         activeEquipments,
-        operationTypeDao.getAllOperationTypes(),
+        _allActiveOperationTypes,
         maintenanceReminderDao.getAllReminders(),
         maintenanceLogDao.getLogsCountFlow()
     ) { equipments, opTypes, reminders, _ ->
@@ -356,6 +363,7 @@ class EquipmentViewModel(
         description: String, 
         imageIdentifier: ImageIdentifier?, 
         unitId: Int, 
+        sectionId: Int? = null,
         isResettable: Boolean = false, 
         usageWindow: Int = 30, 
         usageWindowUnit: TimeGranularity = TimeGranularity.DAYS,
@@ -387,8 +395,10 @@ class EquipmentViewModel(
                     }
                 }
 
-                val currentSection = selectedSectionId.value
-                val targetSectionId = if (currentSection == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else currentSection
+                val targetSectionId = sectionId ?: run {
+                    val currentSection = selectedSectionId.value
+                    if (currentSection == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else currentSection
+                }
 
                 equipmentDao.insertEquipment(
                     Equipment(

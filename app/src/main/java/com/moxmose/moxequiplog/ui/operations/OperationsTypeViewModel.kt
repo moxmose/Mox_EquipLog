@@ -304,6 +304,7 @@ class OperationsTypeViewModel(
     fun addOperationType(
         description: String, 
         imageIdentifier: ImageIdentifier?,
+        sectionId: Int? = null,
         isPredictable: Boolean = false,
         intervalValue: Double? = null,
         timeoutValue: Int? = null,
@@ -334,8 +335,10 @@ class OperationsTypeViewModel(
                     }
                 }
 
-                val currentSection = selectedSectionId.value
-                val targetSectionId = if (currentSection == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else currentSection
+                val targetSectionId = sectionId ?: run {
+                    val currentSection = selectedSectionId.value
+                    if (currentSection == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else currentSection
+                }
 
                 operationTypeDao.insertOperationType(
                     OperationType(
