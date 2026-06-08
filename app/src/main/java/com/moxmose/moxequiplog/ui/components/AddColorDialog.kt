@@ -33,6 +33,9 @@ import com.github.skydoves.colorpicker.compose.ColorEnvelope
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
+import androidx.compose.ui.res.stringResource
+import com.moxmose.moxequiplog.R
+
 @Composable
 fun AddColorDialog(
     onDismiss: () -> Unit,
@@ -44,7 +47,7 @@ fun AddColorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Aggiungi un nuovo colore") },
+        title = { Text(stringResource(R.string.add_color_title)) },
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -73,7 +76,7 @@ fun AddColorDialog(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Nome del colore") },
+                        label = { Text(stringResource(R.string.color_name_label)) },
                         singleLine = true
                     )
                 }
@@ -87,12 +90,12 @@ fun AddColorDialog(
                 },
                 enabled = name.isNotBlank() && hexCode.isNotBlank()
             ) {
-                Text("Aggiungi")
+                Text(stringResource(R.string.button_add))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Annulla")
+                Text(stringResource(R.string.button_cancel))
             }
         }
     )

@@ -1414,8 +1414,13 @@ fun SectionManagementDialog(
     modifier: Modifier = Modifier
 ) {
     var showAddSectionDialog by remember { mutableStateOf(false) }
+    var showDismissed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val lazyListState = rememberLazyListState()
 
-    val sectionsState = remember(allSections) { allSections.toMutableStateList() }
+    val sectionsState = remember(allSections, showDismissed) { 
+        allSections.filter { !it.dismissed || showDismissed }.toMutableStateList() 
+    }
 
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
@@ -1519,8 +1524,17 @@ fun SectionManagementDialog(
             Scaffold(
                 modifier = Modifier.height(550.dp),
                 floatingActionButton = {
-                    FloatingActionButton(onClick = { showAddSectionDialog = true }) { 
-                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_section)) 
+                    Column(horizontalAlignment = Alignment.End) {
+                        FloatingActionButton(onClick = { showAddSectionDialog = true }) { 
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_section)) 
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        FloatingActionButton(
+                            onClick = { showDismissed = !showDismissed; scope.launch { lazyListState.animateScrollToItem(0) } }, 
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ) { 
+                            Icon(if (showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null) 
+                        }
                     }
                 }
             ) { paddingValues ->
@@ -1547,7 +1561,9 @@ fun SectionManagementDialog(
                         key = { _, section -> section.id },
                         onMove = { from, to -> sectionsState.add(to, sectionsState.removeAt(from)) },
                         onDrop = { 
-                            onUpdateSectionsOrder(sectionsState.mapIndexed { index, section -> section.copy(displayOrder = index) }) 
+                            val dismissedSections = allSections.filter { it.dismissed && !showDismissed }
+                            val fullNewList = sectionsState + dismissedSections
+                            onUpdateSectionsOrder(fullNewList.mapIndexed { index, section -> section.copy(displayOrder = index) })
                         },
                         itemContent = { _, section -> 
                             SectionItemCard(

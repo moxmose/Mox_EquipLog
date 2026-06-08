@@ -399,6 +399,8 @@
     <string name="options_manage_sections">Manage Sections</string>
     <string name="options_manage_sections_desc">Organize your equipment in different environments (e.g., Garage, Garden, Health)</string>
     <string name="add_section">Add Section</string>
+    <string name="add_color_title">Add New Color</string>
+    <string name="color_name_label">Color Name</string>
     <string name="edit_section">Edit Section</string>
     <string name="delete_section">Delete Section</string>
     <string name="section_name">Section Name</string>
