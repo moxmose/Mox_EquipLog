@@ -123,6 +123,7 @@ fun MaintenanceLogScreen(
             equipments = activeEquipments,
             operationTypes = activeOperationTypes,
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onCompleteReminder(null) },
             onConfirm = { log ->
                 viewModel.addLog(
@@ -159,6 +160,7 @@ fun MaintenanceLogScreen(
             equipments = activeEquipments,
             operationTypes = activeOperationTypes,
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onEditReminder(null) },
             onConfirm = { /* Not used in edit mode */ },
             onSchedule = { eqId, opId, date, value, sync ->
@@ -324,6 +326,7 @@ fun MaintenanceLogScreenContent(
                     equipments = equipments,
                     operationTypes = operationTypes,
                     measurementUnits = measurementUnits,
+                    allSections = allSections,
                     onDismissRequest = { onShowAddDialogChange(false) },
                     onConfirm = { log ->
                         onAddLog(

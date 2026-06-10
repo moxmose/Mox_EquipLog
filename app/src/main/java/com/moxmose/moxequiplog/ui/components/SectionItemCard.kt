@@ -45,10 +45,12 @@ fun SectionItemCard(
     onUpdateSection: (Section) -> Unit,
     onDeleteSection: (Section) -> Unit,
     onShowColorManager: (String, (String) -> Unit) -> Unit,
+    onAddImage: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showFullImageDialog by remember { mutableStateOf<String?>(null) }
 
     val sectionColor = remember(section.color) {
         try {
@@ -80,7 +82,10 @@ fun SectionItemCard(
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .border(1.dp, sectionColor.copy(alpha = 0.5f), CircleShape),
+                    .border(1.dp, sectionColor.copy(alpha = 0.5f), CircleShape)
+                    .clickable {
+                        if (section.photoUri != null) showFullImageDialog = section.photoUri
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 ImageIcon(
@@ -99,7 +104,7 @@ fun SectionItemCard(
             // Nome in alto, info utilizzi e icone in basso
             Column(modifier = Modifier.weight(1f)) {
                 val name = if (section.id == AppConstants.DEFAULT_SECTION_ID) {
-                    stringResource(R.string.section_general)
+                    stringResource(R.string.section_common)
                 } else {
                     section.name
                 }
@@ -264,7 +269,7 @@ fun SectionItemCard(
                 categoryColors = categoryColorsMap.toMutableMap().apply { put(Category.SECTIONS, selectedColor) },
                 categoryDefaultIcons = categoryDefaultIconsMap,
                 categoryDefaultPhotos = categoryDefaultPhotosMap,
-                onAddImage = { _, _ -> },
+                onAddImage = onAddImage,
                 onRemoveImage = null,
                 onUpdateImageOrder = null,
                 onToggleImageVisibility = null,
@@ -290,5 +295,9 @@ fun SectionItemCard(
                 TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.button_cancel)) }
             }
         )
+    }
+
+    showFullImageDialog?.let { uri ->
+        FullImageDialog(photoUri = uri, onDismiss = { showFullImageDialog = null })
     }
 }

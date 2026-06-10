@@ -11,6 +11,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -22,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,15 +36,39 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
+import coil.compose.AsyncImage
 import com.moxmose.moxequiplog.R
+import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
+
+@Composable
+fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onDismiss() }) {
+                Text(stringResource(R.string.button_ok))
+            }
+        },
+        modifier = Modifier.padding(16.dp),
+        text = {
+            AsyncImage(
+                model = photoUri,
+                contentDescription = stringResource(R.string.full_size_image),
+                modifier = Modifier.fillMaxWidth(),
+                contentScale = ContentScale.Fit
+            )
+        }
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,19 +112,14 @@ fun SectionSelector(
     selectedSectionId: Int,
     onSectionSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    showDismissed: Boolean? = null,
-    onToggleShowDismissed: (() -> Unit)? = null
+    showDismissed: Boolean = false
 ) {
-    var localShowDismissed by remember { mutableStateOf(false) }
-    val currentShowDismissed = showDismissed ?: localShowDismissed
-    val toggleAction = onToggleShowDismissed ?: { localShowDismissed = !localShowDismissed }
-
     var expanded by remember { mutableStateOf(false) }
     val selectedSection = allSections.find { it.id == selectedSectionId } ?: allSections.firstOrNull { it.id == 1 }
     
     val sectionName = selectedSection?.let {
         if (it.dismissed) "${it.name} ${stringResource(R.string.dismissed_suffix)}" else it.name
-    } ?: stringResource(R.string.section_general)
+    } ?: stringResource(R.string.section_common)
 
     ExposedDropdownMenuBox(
         expanded = expanded, 
@@ -112,40 +135,24 @@ fun SectionSelector(
                 val color = remember(selectedSection?.color) {
                     try { selectedSection?.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
                 }
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(color.copy(alpha = 0.2f))
-                        .border(1.dp, color, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = EquipmentIconProvider.getIcon(selectedSection?.iconIdentifier),
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = color
-                    )
-                }
+                ImageIcon(
+                    photoUri = selectedSection?.photoUri,
+                    iconIdentifier = selectedSection?.iconIdentifier,
+                    modifier = Modifier.size(24.dp),
+                    category = Category.SECTIONS,
+                    borderColor = color,
+                    contentPadding = 2.dp,
+                    tint = color
+                )
             },
             trailingIcon = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = toggleAction) {
-                        Icon(
-                            imageVector = if (currentShowDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        )
-                    }
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                }
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
             },
             modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             val filteredSections = allSections.filter { 
-                !it.dismissed || currentShowDismissed || it.id == selectedSectionId 
+                !it.dismissed || showDismissed || it.id == selectedSectionId
             }
             filteredSections.forEach { section ->
                 val alpha = if (section.dismissed) 0.5f else 1.0f
@@ -156,21 +163,15 @@ fun SectionSelector(
                             val color = remember(section.color) {
                                 try { section.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
                             }
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(color.copy(alpha = 0.2f))
-                                    .border(1.dp, color, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = EquipmentIconProvider.getIcon(section.iconIdentifier),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(12.dp),
-                                    tint = color
-                                )
-                            }
+                            ImageIcon(
+                                photoUri = section.photoUri,
+                                iconIdentifier = section.iconIdentifier,
+                                modifier = Modifier.size(24.dp),
+                                category = Category.SECTIONS,
+                                borderColor = color,
+                                contentPadding = 2.dp,
+                                tint = color
+                            )
                             Text(
                                 text = section.name,
                                 fontWeight = if (section.id == selectedSectionId) FontWeight.Bold else FontWeight.Normal,

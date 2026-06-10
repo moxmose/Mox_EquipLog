@@ -87,11 +87,21 @@ class OperationsTypeViewModel(
     private val _showAddDialog = MutableStateFlow(false)
     val showAddDialog = _showAddDialog.asStateFlow()
 
+    private val _cloningOperationType = MutableStateFlow<OperationType?>(null)
+    val cloningOperationType = _cloningOperationType.asStateFlow()
+
     private val _selectedAffectedEquipmentForAdd = MutableStateFlow<Pair<Int, EquipmentOperationStatus>?>(null)
     val selectedAffectedEquipmentForAdd = _selectedAffectedEquipmentForAdd.asStateFlow()
 
     fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
-    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
+    fun onShowAddDialogChange(show: Boolean) { 
+        _showAddDialog.value = show 
+        if (!show) _cloningOperationType.value = null
+    }
+    fun onCloneOperationType(operationType: OperationType?) {
+        _cloningOperationType.value = operationType
+        if (operationType != null) _showAddDialog.value = true
+    }
     fun onAffectedAction(opId: Int, status: EquipmentOperationStatus?) { _selectedAffectedEquipmentForAdd.value = if (status != null) opId to status else null }
 
     val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId

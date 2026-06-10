@@ -581,7 +581,8 @@ fun OptionsScreenContent(
             onUpdateSection = onUpdateSection,
             onDeleteSection = onDeleteSection,
             onUpdateSectionsOrder = onUpdateSectionsOrder,
-            onShowColorManagerCustom = onShowColorManagerCustom
+            onShowColorManagerCustom = onShowColorManagerCustom,
+            onAddImage = { uri, cat -> onAddImage(ImageIdentifier.Photo(uri), cat) }
         )
     }
 
@@ -668,7 +669,7 @@ fun OptionsScreenContent(
             )
 
             // --- SECTION: GENERAL ---
-            OptionsGroupHeader(stringResource(R.string.options_section_general))
+            OptionsGroupHeader(stringResource(R.string.options_section_common))
 
             // 6. ANALYTICS & PREDICTION
             OptionsSectionCard(
@@ -1411,6 +1412,7 @@ fun SectionManagementDialog(
     onDeleteSection: (Section) -> Unit,
     onUpdateSectionsOrder: (List<Section>) -> Unit,
     onShowColorManagerCustom: ((String) -> Unit) -> Unit,
+    onAddImage: (String, String) -> Unit,
     sectionUsageCounts: Map<Int, Int>,
     modifier: Modifier = Modifier
 ) {
@@ -1508,7 +1510,7 @@ fun SectionManagementDialog(
                 categoryColors = categoryColorsMap.toMutableMap().apply { put(Category.SECTIONS, selectedColor) },
                 categoryDefaultIcons = categoryDefaultIconsMap,
                 categoryDefaultPhotos = categoryDefaultPhotosMap,
-                onAddImage = { _, _ -> }, // Not adding new images here
+                onAddImage = onAddImage,
                 onRemoveImage = null,
                 onUpdateImageOrder = null,
                 onToggleImageVisibility = null,
@@ -1577,7 +1579,8 @@ fun SectionManagementDialog(
                                 onDeleteSection = onDeleteSection,
                                 onShowColorManager = { tag, callback -> 
                                     onShowColorManagerCustom(callback)
-                                }
+                                },
+                                onAddImage = onAddImage
                             ) 
                         }
                     )

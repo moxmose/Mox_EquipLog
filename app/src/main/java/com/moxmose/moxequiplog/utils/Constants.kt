@@ -23,7 +23,7 @@ object AppConstants {
 
     const val ALL_SECTIONS_ID = 0
     const val DEFAULT_SECTION_ID = 1
-    const val DEFAULT_SECTION_NAME = "General"
+    const val DEFAULT_SECTION_NAME = "Common"
     const val DEFAULT_SECTION_ICON = "category"
     const val DEFAULT_SECTION_COLOR = "#808080"
 }

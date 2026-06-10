@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Section
-import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.utils.AppConstants
 import androidx.core.graphics.toColorInt
 
@@ -77,6 +76,7 @@ fun SectionChipBar(
                         isSelected = selectedSectionId == AppConstants.ALL_SECTIONS_ID,
                         onClick = { onSectionSelected(AppConstants.ALL_SECTIONS_ID) },
                         iconIdentifier = "all",
+                        photoUri = null,
                         colorHex = null,
                         isDismissed = false
                     )
@@ -85,7 +85,7 @@ fun SectionChipBar(
 
             items(filteredSections, key = { it.id }) { section ->
                 val name = if (section.id == AppConstants.DEFAULT_SECTION_ID) {
-                    stringResource(R.string.section_general)
+                    stringResource(R.string.section_common)
                 } else {
                     section.name
                 }
@@ -94,6 +94,7 @@ fun SectionChipBar(
                     isSelected = selectedSectionId == section.id,
                     onClick = { onSectionSelected(section.id) },
                     iconIdentifier = section.iconIdentifier,
+                    photoUri = section.photoUri,
                     colorHex = section.color,
                     isDismissed = section.dismissed
                 )
@@ -108,6 +109,7 @@ private fun SectionChip(
     isSelected: Boolean,
     onClick: () -> Unit,
     iconIdentifier: String?,
+    photoUri: String?,
     colorHex: String?,
     isDismissed: Boolean
 ) {
@@ -125,19 +127,20 @@ private fun SectionChip(
         label = { Text(name) },
         modifier = Modifier.graphicsLayer(alpha = alpha),
         leadingIcon = {
-            val icon = if (iconIdentifier == "all") {
-                Icons.Default.AllInclusive
-            } else if (iconIdentifier != null && iconIdentifier != "none") {
-                EquipmentIconProvider.getIcon(iconIdentifier, Category.SECTIONS)
-            } else {
-                null
-            }
-            
-            if (icon != null) {
+            if (iconIdentifier == "all") {
                 Icon(
-                    imageVector = icon,
+                    imageVector = Icons.Default.AllInclusive,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
+                )
+            } else {
+                ImageIcon(
+                    photoUri = photoUri,
+                    iconIdentifier = iconIdentifier,
+                    modifier = Modifier.size(18.dp),
+                    category = Category.SECTIONS,
+                    borderColor = null,
+                    tint = if (isSelected) chipColor else chipColor.copy(alpha = 0.8f)
                 )
             }
         },

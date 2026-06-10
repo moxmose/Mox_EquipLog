@@ -35,6 +35,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.FullImageDialog
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.components.SectionSelector
@@ -57,7 +58,6 @@ fun AddOperationTypeDialog(
     allSections: List<Section>,
     selectedSectionId: Int,
     showDismissedSections: Boolean,
-    onToggleShowDismissedSections: () -> Unit,
     categoryColors: Map<String, String>,
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
@@ -65,32 +65,36 @@ fun AddOperationTypeDialog(
     defaultPhotoUri: String?,
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
-    operationCategoryColor: String
+    operationCategoryColor: String,
+    initialOperationType: OperationType? = null
 ) {
-    var description by rememberSaveable { mutableStateOf("") }
-    var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
-    var iconId by rememberSaveable { mutableStateOf<String?>(null) }
-    var sectionId by rememberSaveable(selectedSectionId) { 
-        mutableIntStateOf(if (selectedSectionId == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else selectedSectionId) 
+    val cloneSuffix = stringResource(R.string.clone_suffix)
+    var description by rememberSaveable(initialOperationType) { 
+        mutableStateOf(initialOperationType?.description?.let { "$it$cloneSuffix" } ?: "") 
     }
-    var estimatedCostStr by rememberSaveable { mutableStateOf("") }
-    var estimatedCost by rememberSaveable { mutableStateOf<Double?>(null) }
-    var isPredictable by rememberSaveable { mutableStateOf(false) }
-    var intervalValue by rememberSaveable { mutableStateOf<Double?>(null) }
-    var intervalValueStr by rememberSaveable { mutableStateOf("") }
-    var timeoutValue by rememberSaveable { mutableStateOf<Int?>(null) }
-    var timeoutValueStr by rememberSaveable { mutableStateOf("") }
-    var timeoutUnit by rememberSaveable { mutableStateOf(TimeGranularity.MONTHS) }
+    var photoUri by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.photoUri) }
+    var iconId by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.iconIdentifier) }
+    var sectionId by rememberSaveable(selectedSectionId, initialOperationType) { 
+        mutableIntStateOf(initialOperationType?.sectionId ?: if (selectedSectionId == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else selectedSectionId) 
+    }
+    var estimatedCostStr by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.estimatedCost?.toString() ?: "") }
+    var estimatedCost by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.estimatedCost) }
+    var isPredictable by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.isPredictable ?: false) }
+    var intervalValue by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.intervalValue) }
+    var intervalValueStr by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.intervalValue?.toString() ?: "") }
+    var timeoutValue by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.timeoutValue) }
+    var timeoutValueStr by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.timeoutValue?.toString() ?: "") }
+    var timeoutUnit by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.timeoutUnit ?: TimeGranularity.MONTHS) }
     
-    var useCustomVisibilityHorizon by rememberSaveable { mutableStateOf(false) }
-    var visibilityHorizon by rememberSaveable { mutableIntStateOf(30) }
-    var visibilityHorizonUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+    var useCustomVisibilityHorizon by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.useCustomVisibilityHorizon ?: false) }
+    var visibilityHorizon by rememberSaveable(initialOperationType) { mutableIntStateOf(initialOperationType?.visibilityHorizon ?: 30) }
+    var visibilityHorizonUnit by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.visibilityHorizonUnit ?: TimeGranularity.DAYS) }
 
-    var isPristine by rememberSaveable { mutableStateOf(true) }
+    var isPristine by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType == null) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
 
-    if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
+    if (isPristine && initialOperationType == null && (defaultIcon != null || defaultPhotoUri != null)) {
         LaunchedEffect(defaultIcon, defaultPhotoUri) {
             iconId = defaultIcon
             photoUri = defaultPhotoUri
@@ -143,7 +147,6 @@ fun AddOperationTypeDialog(
                     selectedSectionId = sectionId,
                     onSectionSelected = { sectionId = it },
                     showDismissed = showDismissedSections,
-                    onToggleShowDismissed = onToggleShowDismissedSections,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -235,10 +238,10 @@ fun OperationTypeCard(
     operationType: OperationType,
     allSections: List<Section>,
     showDismissedSections: Boolean,
-    onToggleShowDismissedSections: () -> Unit,
     onUpdateOperationType: (OperationType) -> Unit,
     onDismissOperationType: (OperationType) -> Unit,
     onRestoreOperationType: (OperationType) -> Unit,
+    onCloneOperationType: (OperationType) -> Unit,
     operationTypeImages: List<Image>,
     allCategories: List<Category>,
     categoryColors: Map<String, String>,
@@ -315,57 +318,109 @@ fun OperationTypeCard(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(contentAlignment = Alignment.BottomEnd) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer)
-                                .border(2.dp, operationColor, CircleShape)
-                                .clickable {
-                                    if (isEditing) showImageSelectorDialog = true
-                                    else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
-                                    else if (editedIconId == null) showNoPictureDialog = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                            else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                if (isEditing) {
+                    // Layout in MODALITÀ EDIT: Descrizione sopra, icone sotto
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .border(2.dp, operationColor, CircleShape)
+                                    .clickable { showImageSelectorDialog = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            OutlinedTextField(
+                                value = editedDescription,
+                                onValueChange = { if (it.length <= 50) editedDescription = it },
+                                label = { Text(stringResource(R.string.operation_type_description)) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
                         }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) }) { Icon(imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null) }
+                            IconButton(onClick = { onCloneOperationType(operationType) }) { Icon(imageVector = Icons.Default.ContentCopy, contentDescription = stringResource(R.string.button_clone), tint = MaterialTheme.colorScheme.secondary) }
+                            IconButton(onClick = { 
+                                onUpdateOperationType(operationType.copy(
+                                    description = editedDescription, 
+                                    iconIdentifier = editedIconId, 
+                                    photoUri = editedPhotoUri, 
+                                    sectionId = editedSectionId,
+                                    isPredictable = editedIsPredictable, 
+                                    intervalValue = editedIntervalValueStr.toDoubleOrNull(), 
+                                    timeoutValue = editedTimeoutValueStr.toIntOrNull(), 
+                                    timeoutUnit = editedTimeoutUnit, 
+                                    visibilityHorizon = editedVisibilityHorizon, 
+                                    visibilityHorizonUnit = editedVisibilityHorizonUnit, 
+                                    useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon,
+                                    estimatedCost = editedEstimatedCostStr.toDoubleOrNull()
+                                )) 
+                                isEditing = false 
+                            }) { Icon(imageVector = Icons.Filled.Done, contentDescription = null) }
+                            IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
+                            IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
+                        }
+                    }
+                } else {
+                    // Layout in MODALITÀ VISUALIZZAZIONE: Tutto su una riga (compatto)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(contentAlignment = Alignment.BottomEnd) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .border(2.dp, operationColor, CircleShape)
+                                    .clickable {
+                                        if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
+                                        else if (editedIconId == null) showNoPictureDialog = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
 
-                        // HEALTH TAGGER (Badge) - Esterno al clip per essere visibile
-                        if (!isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
-                            val overdueCount = status.affectedEquipments.count { it.isOverdue }
-                            val upcomingCount = status.affectedEquipments.count { !it.isOverdue } // Based on your current structure
+                            // HEALTH TAGGER (Badge)
+                            if (!isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
+                                val overdueCount = status.affectedEquipments.count { it.isOverdue }
+                                val upcomingCount = status.affectedEquipments.count { !it.isOverdue }
 
-                            if (overdueCount > 0 || upcomingCount > 0) {
-                                val badgeColor = if (overdueCount > 0) MaterialTheme.colorScheme.error else Color(0xFFFFB300)
-                                val badgeIcon = if (overdueCount > 0) Icons.Default.Warning else Icons.Default.Schedule
+                                if (overdueCount > 0 || upcomingCount > 0) {
+                                    val badgeColor = if (overdueCount > 0) MaterialTheme.colorScheme.error else Color(0xFFFFB300)
+                                    val badgeIcon = if (overdueCount > 0) Icons.Default.Warning else Icons.Default.Schedule
 
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .offset(x = 4.dp, y = 4.dp)
-                                        .clip(CircleShape)
-                                        .background(badgeColor)
-                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = badgeIcon,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = Color.White
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .offset(x = 4.dp, y = 4.dp)
+                                            .clip(CircleShape)
+                                            .background(badgeColor)
+                                            .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = badgeIcon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(12.dp),
+                                            tint = Color.White
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        if (isEditing) OutlinedTextField(value = editedDescription, onValueChange = { if (it.length <= 50) editedDescription = it }, label = { Text(stringResource(R.string.operation_type_description)) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        else {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
                                     text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, operationType.id), 
@@ -396,31 +451,14 @@ fun OperationTypeCard(
                                 }
                             }
                         }
-                    }
-                    Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                        if (isEditing) IconButton(onClick = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) }) { Icon(imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null) }
-                        IconButton(onClick = { 
-                            if (isEditing) { 
-                                onUpdateOperationType(operationType.copy(
-                                    description = editedDescription, 
-                                    iconIdentifier = editedIconId, 
-                                    photoUri = editedPhotoUri, 
-                                    sectionId = editedSectionId,
-                                    isPredictable = editedIsPredictable, 
-                                    intervalValue = editedIntervalValueStr.toDoubleOrNull(), 
-                                    timeoutValue = editedTimeoutValueStr.toIntOrNull(), 
-                                    timeoutUnit = editedTimeoutUnit, 
-                                    visibilityHorizon = editedVisibilityHorizon, 
-                                    visibilityHorizonUnit = editedVisibilityHorizonUnit, 
-                                    useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon,
-                                    estimatedCost = editedEstimatedCostStr.toDoubleOrNull()
-                                )) 
-                            } 
-                            isEditing = !isEditing 
-                            if (isEditing) isExpanded = true 
-                        }) { Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null) }
-                        IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
-                        IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
+                        Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { 
+                                isEditing = true
+                                isExpanded = true 
+                            }) { Icon(imageVector = Icons.Filled.Edit, contentDescription = null) }
+                            IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
+                            IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
+                        }
                     }
                 }
 
@@ -431,7 +469,6 @@ fun OperationTypeCard(
                         selectedSectionId = editedSectionId,
                         onSectionSelected = { editedSectionId = it },
                         showDismissed = showDismissedSections,
-                        onToggleShowDismissed = onToggleShowDismissedSections,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -569,9 +606,4 @@ fun OperationTypeCard(
             confirmButton = { TextButton(onClick = { showNoPictureDialog = false }) { Text(stringResource(R.string.button_ok)) } }
         )
     }
-}
-
-@Composable
-fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.button_ok)) } }, modifier = Modifier.padding(16.dp), text = { AsyncImage(model = photoUri, contentDescription = stringResource(R.string.full_size_operation_photo), modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.Fit) } )
 }

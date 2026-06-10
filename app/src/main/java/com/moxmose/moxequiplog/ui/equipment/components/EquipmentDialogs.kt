@@ -50,45 +50,50 @@ fun AddEquipmentDialog(
     allSections: List<Section>,
     selectedSectionId: Int,
     showDismissedSections: Boolean,
-    onToggleShowDismissedSections: () -> Unit,
     defaultUnitId: Int?,
     equipmentCategoryColor: String?,
     categoryColors: Map<String, String>,
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     onAddImage: (ImageIdentifier, String) -> Unit,
-    onToggleImageVisibility: (Image) -> Unit
+    onToggleImageVisibility: (Image) -> Unit,
+    initialEquipment: Equipment? = null
 ) {
-    var description by rememberSaveable { mutableStateOf("") }
-    var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
-    var iconId by rememberSaveable { mutableStateOf<String?>(null) }
-    var unitId by rememberSaveable(defaultUnitId) { mutableIntStateOf(defaultUnitId ?: 1) }
-    var sectionId by rememberSaveable(selectedSectionId) { 
-        mutableIntStateOf(if (selectedSectionId == -1) 1 else selectedSectionId) 
+    val cloneSuffix = stringResource(R.string.clone_suffix)
+    var description by rememberSaveable(initialEquipment) { 
+        mutableStateOf(initialEquipment?.description?.let { "$it$cloneSuffix" } ?: "") 
     }
-    var isResettable by rememberSaveable { mutableStateOf(false) }
+    var photoUri by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.photoUri) }
+    var iconId by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.iconIdentifier) }
+    var unitId by rememberSaveable(defaultUnitId, initialEquipment) { 
+        mutableIntStateOf(initialEquipment?.unitId ?: defaultUnitId ?: 1) 
+    }
+    var sectionId by rememberSaveable(selectedSectionId, initialEquipment) { 
+        mutableIntStateOf(initialEquipment?.sectionId ?: if (selectedSectionId == -1) 1 else selectedSectionId) 
+    }
+    var isResettable by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.isResettable ?: false) }
     
     // Predictive Settings
-    var useCustomUsageWindow by rememberSaveable { mutableStateOf(false) }
-    var usageWindow by rememberSaveable { mutableIntStateOf(30) }
-    var usageWindowUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+    var useCustomUsageWindow by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.useCustomUsageWindow ?: false) }
+    var usageWindow by rememberSaveable(initialEquipment) { mutableIntStateOf(initialEquipment?.usageWindow ?: 30) }
+    var usageWindowUnit by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.usageWindowUnit ?: TimeGranularity.DAYS) }
     
-    var manualAverageValue by rememberSaveable { mutableStateOf<Double?>(null) }
-    var manualAverageValueStr by rememberSaveable { mutableStateOf("") }
-    var manualAverageUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+    var manualAverageValue by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.manualAverageValue) }
+    var manualAverageValueStr by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.manualAverageValue?.toString() ?: "") }
+    var manualAverageUnit by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.manualAverageUnit ?: TimeGranularity.DAYS) }
     
-    var useCustomVisibilityHorizon by rememberSaveable { mutableStateOf(false) }
-    var visibilityHorizon by rememberSaveable { mutableIntStateOf(30) }
-    var visibilityHorizonUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
+    var useCustomVisibilityHorizon by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.useCustomVisibilityHorizon ?: false) }
+    var visibilityHorizon by rememberSaveable(initialEquipment) { mutableIntStateOf(initialEquipment?.visibilityHorizon ?: 30) }
+    var visibilityHorizonUnit by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.visibilityHorizonUnit ?: TimeGranularity.DAYS) }
 
-    var isPristine by rememberSaveable { mutableStateOf(true) }
+    var isPristine by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment == null) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
 
     val selectedUnit = measurementUnits.find { it.id == unitId }
     val unitLabel = selectedUnit?.label ?: ""
 
-    if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
+    if (isPristine && initialEquipment == null && (defaultIcon != null || defaultPhotoUri != null)) {
         LaunchedEffect(defaultIcon, defaultPhotoUri) {
             iconId = defaultIcon
             photoUri = defaultPhotoUri
@@ -179,7 +184,6 @@ fun AddEquipmentDialog(
                     selectedSectionId = sectionId,
                     onSectionSelected = { sectionId = it },
                     showDismissed = showDismissedSections,
-                    onToggleShowDismissed = onToggleShowDismissedSections,
                     modifier = Modifier.fillMaxWidth()
                 )
 

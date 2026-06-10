@@ -136,6 +136,7 @@ fun EquipmentScreen(
 
     val showDismissed by viewModel.showDismissed.collectAsState()
     val showAddDialog by viewModel.showAddDialog.collectAsState()
+    val cloningEquipment by viewModel.cloningEquipment.collectAsState()
     val selectedPredictionForAdd by viewModel.selectedPredictionForAdd.collectAsState()
     val selectedPlannedForEdit by viewModel.selectedPlannedForEdit.collectAsState()
 
@@ -179,6 +180,7 @@ fun EquipmentScreen(
             equipments = activeEquipments,
             operationTypes = allOperationTypes.filter { !it.dismissed },
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onPredictionAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
@@ -221,6 +223,7 @@ fun EquipmentScreen(
             equipments = activeEquipments,
             operationTypes = allOperationTypes.filter { !it.dismissed },
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onPlannedAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
@@ -287,7 +290,9 @@ fun EquipmentScreen(
         showDismissed = showDismissed,
         onToggleShowDismissed = viewModel::onToggleShowDismissed,
         showAddDialog = showAddDialog,
+        cloningEquipment = cloningEquipment,
         onShowAddDialogChange = viewModel::onShowAddDialogChange,
+        onCloneEquipment = viewModel::onCloneEquipment,
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         snackbarHostState = snackbarHostState,
@@ -321,7 +326,9 @@ fun EquipmentScreenContent(
     showDismissed: Boolean,
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
+    cloningEquipment: Equipment? = null,
     onShowAddDialogChange: (Boolean) -> Unit,
+    onCloneEquipment: (Equipment) -> Unit,
     onAddEquipment: (String, ImageIdentifier?, Int, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
@@ -376,7 +383,6 @@ fun EquipmentScreenContent(
                 allSections = allSections,
                 selectedSectionId = selectedSectionId,
                 showDismissedSections = showDismissedSections,
-                onToggleShowDismissedSections = onToggleShowDismissedSections,
                 defaultUnitId = defaultUnitId,
                 equipmentCategoryColor = equipmentCategoryColor,
                 categoryColors = categoryColors,
@@ -388,7 +394,8 @@ fun EquipmentScreenContent(
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
-                onToggleImageVisibility = onToggleImageVisibility
+                onToggleImageVisibility = onToggleImageVisibility,
+                initialEquipment = cloningEquipment
             )
         }
 
@@ -448,10 +455,10 @@ fun EquipmentScreenContent(
                         measurementUnits = measurementUnits,
                         allSections = allSections,
                         showDismissedSections = showDismissedSections,
-                        onToggleShowDismissedSections = onToggleShowDismissedSections,
                         onUpdateEquipment = onUpdateEquipment,
                         onDismissEquipment = onDismissEquipment,
                         onRestoreEquipment = onRestoreEquipment,
+                        onCloneEquipment = onCloneEquipment,
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
                         equipmentCategoryColor = equipmentCategoryColor,

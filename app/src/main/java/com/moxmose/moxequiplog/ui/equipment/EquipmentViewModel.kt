@@ -99,6 +99,9 @@ class EquipmentViewModel(
     private val _showAddDialog = MutableStateFlow(false)
     val showAddDialog = _showAddDialog.asStateFlow()
 
+    private val _cloningEquipment = MutableStateFlow<Equipment?>(null)
+    val cloningEquipment = _cloningEquipment.asStateFlow()
+
     private val _selectedPredictionForAdd = MutableStateFlow<Pair<Int, OperationStatus>?>(null)
     val selectedPredictionForAdd = _selectedPredictionForAdd.asStateFlow()
 
@@ -106,7 +109,14 @@ class EquipmentViewModel(
     val selectedPlannedForEdit = _selectedPlannedForEdit.asStateFlow()
 
     fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
-    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
+    fun onShowAddDialogChange(show: Boolean) { 
+        _showAddDialog.value = show 
+        if (!show) _cloningEquipment.value = null
+    }
+    fun onCloneEquipment(equipment: Equipment?) {
+        _cloningEquipment.value = equipment
+        if (equipment != null) _showAddDialog.value = true
+    }
     fun onPredictionAction(eqId: Int, status: OperationStatus?) { _selectedPredictionForAdd.value = if (status != null) eqId to status else null }
     fun onPlannedAction(eqId: Int, status: OperationStatus?) { _selectedPlannedForEdit.value = if (status != null) eqId to status else null }
 

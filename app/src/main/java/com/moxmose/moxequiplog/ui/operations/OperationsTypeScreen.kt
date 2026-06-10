@@ -46,6 +46,7 @@ fun OperationTypeScreen(
 
     val showDismissed by viewModel.showDismissed.collectAsState()
     val showAddDialog by viewModel.showAddDialog.collectAsState()
+    val cloningOperationType by viewModel.cloningOperationType.collectAsState()
     val selectedAffectedEquipmentForAdd by viewModel.selectedAffectedEquipmentForAdd.collectAsState()
 
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
@@ -88,6 +89,7 @@ fun OperationTypeScreen(
             equipments = activeEquipments.filter { !it.dismissed },
             operationTypes = allOperationTypes.filter { !it.dismissed },
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onAffectedAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
@@ -154,7 +156,9 @@ fun OperationTypeScreen(
         showDismissed = showDismissed,
         onToggleShowDismissed = viewModel::onToggleShowDismissed,
         showAddDialog = showAddDialog,
+        cloningOperationType = cloningOperationType,
         onShowAddDialogChange = viewModel::onShowAddDialogChange,
+        onCloneOperationType = viewModel::onCloneOperationType,
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         operationCategoryColor = categoryColor,
@@ -185,7 +189,9 @@ fun OperationTypeScreenContent(
     showDismissed: Boolean,
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
+    cloningOperationType: OperationType? = null,
     onShowAddDialogChange: (Boolean) -> Unit,
+    onCloneOperationType: (OperationType) -> Unit,
     onAddOperationType: (String, ImageIdentifier?, Int, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
     onUpdateOperationTypes: (List<OperationType>) -> Unit,
     onUpdateOperationType: (OperationType) -> Unit,
@@ -237,7 +243,6 @@ fun OperationTypeScreenContent(
                 allSections = allSections,
                 selectedSectionId = selectedSectionId,
                 showDismissedSections = showDismissedSections,
-                onToggleShowDismissedSections = onToggleShowDismissedSections,
                 categoryColors = categoryColors,
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
@@ -250,7 +255,8 @@ fun OperationTypeScreenContent(
                 },
                 onAddImage = onAddImage,
                 onToggleImageVisibility = onToggleImageVisibility,
-                operationCategoryColor = operationCategoryColor
+                operationCategoryColor = operationCategoryColor,
+                initialOperationType = cloningOperationType
             )
         }
 
@@ -293,7 +299,6 @@ fun OperationTypeScreenContent(
                         operationType = operationType,
                         allSections = allSections,
                         showDismissedSections = showDismissedSections,
-                        onToggleShowDismissedSections = onToggleShowDismissedSections,
                         onUpdateOperationType = onUpdateOperationType,
                         onDismissOperationType = onDismissOperationType,
                         onRestoreOperationType = onRestoreOperationType,
@@ -307,6 +312,7 @@ fun OperationTypeScreenContent(
                         operationCategoryColor = operationCategoryColor,
                         isDefault = operationType.id == defaultOperationTypeId,
                         onToggleDefault = { onToggleDefault(operationType.id) },
+                        onCloneOperationType = onCloneOperationType,
                         status = operationStatuses[operationType.id],
                         onAffectedAction = { onAffectedAction(operationType.id, it) },
                         expandAllTrigger = expandAllTrigger,

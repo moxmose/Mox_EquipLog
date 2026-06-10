@@ -187,6 +187,9 @@
     <string name="no_image_message">Nessuna foto caricata, aggiungine una.</string>
     <string name="full_size_equipment_photo">Foto Equipment dimensioni grande</string>
     <string name="full_size_operation_photo">Foto Operazioni dimensioni grande</string>
+    <string name="full_size_image">Immagine dimensioni originali</string>
+    <string name="button_clone">Clona</string>
+    <string name="clone_suffix"> (Copia)</string>
     <string name="equipment_photo">Foto Equipment</string>
     <string name="operation_type_photo">Foto Tipo di Operazione</string>
     <string name="edit_equipment">Modifica Equipment</string>
@@ -242,7 +245,7 @@
     <string name="options_cost_window_desc">Periodo storico utilizzato per analizzare gli incrementi di costo.</string>
     <string name="options_cost_trend_threshold">Soglia Trend Costi</string>
     <string name="options_cost_trend_threshold_desc">Percentuale di incremento del costo che attiva un avviso di efficienza.</string>
-    <string name="options_section_general">Generale</string>
+    <string name="options_section_common">Comune</string>
     <string name="options_section_appearance">Comportamento e Aspetto</string>
     <string name="options_section_system">Sistema</string>
     <string name="options_reports_colors_title">Colori Report</string>
@@ -390,7 +393,7 @@
     <string name="backup_error_no_output_stream">Impossibile aprire lo stream di output</string>
     <string name="restore_error_no_input_stream">Impossibile aprire lo stream di input</string>
     <string name="section_all">Tutto</string>
-    <string name="section_general">Generale</string>
+    <string name="section_common">Comune</string>
     <string name="options_manage_sections">Gestione Sezioni</string>
     <string name="options_manage_sections_desc">Organizza i tuoi equipment in diversi ambienti (es. Garage, Giardino, Salute)</string>
     <string name="add_section">Aggiungi Sezione</string>

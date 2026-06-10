@@ -34,6 +34,7 @@ fun MaintenanceLogDialog(
     equipments: List<Equipment>,
     operationTypes: List<OperationType>,
     measurementUnits: List<MeasurementUnit>,
+    allSections: List<Section>,
     onDismissRequest: () -> Unit,
     onConfirm: (MaintenanceLog) -> Unit,
     onSchedule: ((Int, Int, Long?, Double?, Boolean) -> Unit)? = null,
@@ -77,6 +78,16 @@ fun MaintenanceLogDialog(
     }
     var selectedOperationType by remember(defaultOperationTypeId, operationTypes) { 
         mutableStateOf(operationTypes.find { it.id == defaultOperationTypeId }) 
+    }
+
+    val filteredEquipments = remember(selectedOperationType, equipments) {
+        if (selectedOperationType == null) equipments
+        else equipments.filter { it.sectionId == selectedOperationType?.sectionId || it.sectionId == AppConstants.DEFAULT_SECTION_ID || selectedOperationType?.sectionId == AppConstants.DEFAULT_SECTION_ID }
+    }
+
+    val filteredOperationTypes = remember(selectedEquipment, operationTypes) {
+        if (selectedEquipment == null) operationTypes
+        else operationTypes.filter { it.sectionId == selectedEquipment?.sectionId || it.sectionId == AppConstants.DEFAULT_SECTION_ID || selectedEquipment?.sectionId == AppConstants.DEFAULT_SECTION_ID }
     }
 
     val unit = remember(selectedEquipment, measurementUnits) {
@@ -280,9 +291,25 @@ fun MaintenanceLogDialog(
                         expanded = isEquipmentDropdownExpanded,
                         onDismissRequest = { isEquipmentDropdownExpanded = false }
                     ) {
-                        equipments.forEach { equipment ->
+                        filteredEquipments.forEach { equipment ->
                             DropdownMenuItem(
-                                text = { Text(equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id)) },
+                                text = { 
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id),
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+                                        allSections.find { it.id == equipment.sectionId }?.let { section ->
+                                            val sectionName = if (section.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_common) else section.name
+                                            Text(
+                                                text = " ($sectionName)",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                modifier = Modifier.padding(start = 4.dp)
+                                            )
+                                        }
+                                    }
+                                },
                                 leadingIcon = {
                                     ImageIcon(
                                         photoUri = equipment.photoUri,
@@ -335,9 +362,25 @@ fun MaintenanceLogDialog(
                         expanded = isOperationDropdownExpanded,
                         onDismissRequest = { isOperationDropdownExpanded = false }
                     ) {
-                        operationTypes.filter { !it.isSystem || (selectedEquipment?.isResettable == true && it.id == AppConstants.SYSTEM_OPERATION_RESET_ID) }.forEach { operation ->
+                        filteredOperationTypes.filter { !it.isSystem || (selectedEquipment?.isResettable == true && it.id == AppConstants.SYSTEM_OPERATION_RESET_ID) }.forEach { operation ->
                             DropdownMenuItem(
-                                text = { Text(operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, operation.id)) },
+                                text = { 
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, operation.id),
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+                                        allSections.find { it.id == operation.sectionId }?.let { section ->
+                                            val sectionName = if (section.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_common) else section.name
+                                            Text(
+                                                text = " ($sectionName)",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                modifier = Modifier.padding(start = 4.dp)
+                                            )
+                                        }
+                                    }
+                                },
                                 leadingIcon = {
                                     ImageIcon(
                                         photoUri = operation.photoUri,
