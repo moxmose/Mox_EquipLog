@@ -35,6 +35,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.FullImageDialog
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
@@ -228,8 +229,23 @@ fun AddOperationTypeDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { val identifier = when { photoUri != null -> ImageIdentifier.Photo(photoUri!!) ; iconId != null -> ImageIdentifier.Icon(iconId!!) ; else -> null } ; onConfirm(description, identifier, sectionId, isPredictable, intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost) }) { Text(stringResource(R.string.button_add)) } },
-        dismissButton = { TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) } }
+        confirmButton = {
+            CommonActionButtons(
+                onConfirm = {
+                    val identifier = when {
+                        photoUri != null -> ImageIdentifier.Photo(photoUri!!)
+                        iconId != null -> ImageIdentifier.Icon(iconId!!)
+                        else -> null
+                    }
+                    onConfirm(description, identifier, sectionId, isPredictable, intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost)
+                },
+                onDismiss = onDismissRequest,
+                confirmText = stringResource(R.string.button_add),
+                confirmIcon = Icons.Default.Add,
+                isDialog = true
+            )
+        },
+        dismissButton = null
     )
 }
 
@@ -239,6 +255,7 @@ fun OperationTypeCard(
     allSections: List<Section>,
     showDismissedSections: Boolean,
     onUpdateOperationType: (OperationType) -> Unit,
+    onDeleteOperationType: (OperationType) -> Unit,
     onDismissOperationType: (OperationType) -> Unit,
     onRestoreOperationType: (OperationType) -> Unit,
     onCloneOperationType: (OperationType) -> Unit,
@@ -282,6 +299,31 @@ fun OperationTypeCard(
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.delete_operation_type)) },
+            text = { Text(stringResource(R.string.delete_operation_type_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteOperationType(operationType)
+                        showDeleteConfirmation = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.button_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            }
+        )
+    }
 
     if (showImageSelectorDialog) {
         ImagePickerDialog(
@@ -319,8 +361,8 @@ fun OperationTypeCard(
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 if (isEditing) {
-                    // Layout in MODALITÀ EDIT: Descrizione sopra, icone sotto
-                    Column {
+                    // Layout in MODALITÀ EDIT: Campi e pulsanti in basso
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
@@ -333,6 +375,25 @@ fun OperationTypeCard(
                             ) {
                                 if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                                 else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                
+                                // Star Toggle Badge
+                                IconButton(
+                                    onClick = onToggleDefault,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .align(Alignment.BottomEnd)
+                                        .offset(x = 6.dp, y = 6.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = if (isDefault) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             OutlinedTextField(
@@ -343,14 +404,65 @@ fun OperationTypeCard(
                                 singleLine = true
                             )
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) }) { Icon(imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null) }
-                            IconButton(onClick = { onCloneOperationType(operationType) }) { Icon(imageVector = Icons.Default.ContentCopy, contentDescription = stringResource(R.string.button_clone), tint = MaterialTheme.colorScheme.secondary) }
-                            IconButton(onClick = { 
+
+                        SectionSelector(
+                            allSections = allSections,
+                            selectedSectionId = editedSectionId,
+                            onSectionSelected = { editedSectionId = it },
+                            showDismissed = showDismissedSections,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        
+                        OutlinedTextField(
+                            value = editedEstimatedCostStr,
+                            onValueChange = { input ->
+                                val filtered = input.replace(',', '.')
+                                if (filtered.isEmpty() || filtered == ".") {
+                                    editedEstimatedCostStr = filtered
+                                } else {
+                                    val doubleVal = filtered.toDoubleOrNull()
+                                    if (doubleVal != null && filtered.length <= 10) {
+                                        editedEstimatedCostStr = filtered
+                                    }
+                                }
+                            },
+                            label = { Text(stringResource(R.string.cost_optional)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.bodySmall
+                        )
+
+                        Row(modifier = Modifier.fillMaxWidth().clickable { editedIsPredictable = !editedIsPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = editedIsPredictable, onCheckedChange = { editedIsPredictable = it }); Text(text = "Predictive Maintenance", style = MaterialTheme.typography.bodyMedium) }
+                        
+                        if (editedIsPredictable) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("Recurrence Intervals", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                OutlinedTextField(value = editedIntervalValueStr, onValueChange = { input -> val filtered = input.replace(',', '.'); if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) editedIntervalValueStr = filtered }, label = { Text("Usage Interval") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodySmall)
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    OutlinedTextField(value = editedTimeoutValueStr, onValueChange = { input -> if (input.isEmpty()) editedTimeoutValueStr = "" else input.toIntOrNull()?.let { editedTimeoutValueStr = input } }, label = { Text("Timeout Value") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
+                                    TimeGranularitySelector(selected = editedTimeoutUnit, onSelected = { editedTimeoutUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
+                                }
+                                
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
+                                        Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    if (editedUseCustomVisibilityHorizon) {
+                                        Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            OutlinedTextField(value = editedVisibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
+                                            TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        CommonActionButtons(
+                            onConfirm = {
                                 onUpdateOperationType(operationType.copy(
                                     description = editedDescription, 
                                     iconIdentifier = editedIconId, 
@@ -366,10 +478,18 @@ fun OperationTypeCard(
                                     estimatedCost = editedEstimatedCostStr.toDoubleOrNull()
                                 )) 
                                 isEditing = false 
-                            }) { Icon(imageVector = Icons.Filled.Done, contentDescription = null) }
-                            IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
-                            IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
-                        }
+                            },
+                            onDismiss = { isEditing = false },
+                            confirmText = stringResource(R.string.save_operation_type),
+                            confirmIcon = Icons.Default.Save,
+                            showClone = true,
+                            onClone = { onCloneOperationType(operationType) },
+                            showArchive = true,
+                            onArchive = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) },
+                            archiveIcon = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            showDelete = !operationType.isSystem,
+                            onDelete = { showDeleteConfirmation = true }
+                        )
                     }
                 } else {
                     // Layout in MODALITÀ VISUALIZZAZIONE: Tutto su una riga (compatto)
@@ -391,6 +511,26 @@ fun OperationTypeCard(
                                 else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
 
+                            // STAR BADGE (Always visible if default)
+                            if (isDefault) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .offset(x = 4.dp, y = 4.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFFFB300))
+                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+
                             // HEALTH TAGGER (Badge)
                             if (!isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
                                 val overdueCount = status.affectedEquipments.count { it.isOverdue }
@@ -403,7 +543,7 @@ fun OperationTypeCard(
                                     Box(
                                         modifier = Modifier
                                             .size(18.dp)
-                                            .offset(x = 4.dp, y = 4.dp)
+                                            .offset(x = if (isDefault) (-18).dp else 4.dp, y = 4.dp)
                                             .clip(CircleShape)
                                             .background(badgeColor)
                                             .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
@@ -427,9 +567,11 @@ fun OperationTypeCard(
                                     color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant, 
                                     maxLines = 1, 
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
+                                    modifier = Modifier.weight(1f)
                                 )
-                                // Section Badge
+                            }
+                            // Section Badge row
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
                                 val section = remember(operationType.sectionId, allSections) { allSections.find { it.id == operationType.sectionId } }
                                 if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
                                     val sectionColor = remember(section.color) {
@@ -438,8 +580,7 @@ fun OperationTypeCard(
                                     Surface(
                                         shape = CircleShape,
                                         color = sectionColor.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f)),
-                                        modifier = Modifier.padding(start = 4.dp)
+                                        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f))
                                     ) {
                                         Text(
                                             text = section.name,
@@ -451,73 +592,27 @@ fun OperationTypeCard(
                                 }
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { 
+
+                        // SINGLE ACTION ICON (Edit)
+                        IconButton(
+                            onClick = { 
                                 isEditing = true
                                 isExpanded = true 
-                            }) { Icon(imageVector = Icons.Filled.Edit, contentDescription = null) }
-                            IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
-                            IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) { 
+                            Icon(
+                                imageVector = Icons.Filled.Edit, 
+                                contentDescription = stringResource(R.string.edit_operation_type),
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
 
                 if (isEditing) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SectionSelector(
-                        allSections = allSections,
-                        selectedSectionId = editedSectionId,
-                        onSectionSelected = { editedSectionId = it },
-                        showDismissed = showDismissedSections,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = editedEstimatedCostStr,
-                        onValueChange = { input ->
-                            val filtered = input.replace(',', '.')
-                            if (filtered.isEmpty() || filtered == ".") {
-                                editedEstimatedCostStr = filtered
-                            } else {
-                                val doubleVal = filtered.toDoubleOrNull()
-                                if (doubleVal != null && filtered.length <= 10) {
-                                    editedEstimatedCostStr = filtered
-                                }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.cost_optional)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth().clickable { editedIsPredictable = !editedIsPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = editedIsPredictable, onCheckedChange = { editedIsPredictable = it }); Text(text = "Predictive Maintenance", style = MaterialTheme.typography.bodyMedium) }
-                    if (editedIsPredictable) {
-                        Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Recurrence Intervals", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                            OutlinedTextField(value = editedIntervalValueStr, onValueChange = { input -> val filtered = input.replace(',', '.'); if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) editedIntervalValueStr = filtered }, label = { Text("Usage Interval") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodySmall)
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(value = editedTimeoutValueStr, onValueChange = { input -> if (input.isEmpty()) editedTimeoutValueStr = "" else input.toIntOrNull()?.let { editedTimeoutValueStr = input } }, label = { Text("Timeout Value") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
-                                TimeGranularitySelector(selected = editedTimeoutUnit, onSelected = { editedTimeoutUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
-                            }
-                            
-                            Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
-                                    Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
-                                }
-                                if (editedUseCustomVisibilityHorizon) {
-                                    Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        OutlinedTextField(value = editedVisibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
-                                        TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
-                                    }
-                                } else {
-                                    Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
-                                }
-                            }
-                        }
-                    }
+                    // Already handled above
                 } else if (isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(text = "Upcoming for Equipments", style = MaterialTheme.typography.labelSmall, color = operationColor, fontWeight = FontWeight.Bold)

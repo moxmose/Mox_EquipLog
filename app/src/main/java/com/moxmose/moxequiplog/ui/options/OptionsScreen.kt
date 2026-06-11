@@ -97,6 +97,7 @@ import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.AddColorDialog
 import com.moxmose.moxequiplog.ui.components.ColorItemCard
+import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.GoogleAccountSelector
 import com.moxmose.moxequiplog.ui.components.ImageIcon
@@ -254,10 +255,12 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onToggleUnitVisibility = viewModel::toggleMeasurementUnitVisibility,
         onUpdateUnitsOrder = viewModel::updateMeasurementUnitsOrder,
         onDeleteUnit = viewModel::deleteMeasurementUnit,
+        onCloneUnit = viewModel::cloneMeasurementUnit,
         onToggleDefaultUnit = viewModel::toggleDefaultUnit,
         onAddSection = viewModel::addSection,
         onUpdateSection = viewModel::updateSection,
         onDeleteSection = viewModel::deleteSection,
+        onCloneSection = viewModel::cloneSection,
         onUpdateSectionsOrder = viewModel::updateSectionsOrder,
         onShowColorManagerCustom = { callback ->
             inlineColorPickerCallback = callback
@@ -332,6 +335,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
             },
             onAddColor = viewModel::addColor,
             onUpdateColor = viewModel::updateColor,
+            onDeleteColor = viewModel::deleteColor,
             onUpdateOrder = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.updateReportColorsOrder(it) else viewModel.updateColorsOrder(it) },
             onToggleVisibility = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.toggleReportColorVisibility(it) else viewModel.toggleColorVisibility(it) }
         )
@@ -389,10 +393,12 @@ fun OptionsScreenContent(
     onToggleUnitVisibility: (Int) -> Unit,
     onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
     onDeleteUnit: (MeasurementUnit) -> Unit,
+    onCloneUnit: (MeasurementUnit) -> Unit,
     onToggleDefaultUnit: (Int) -> Unit,
     onAddSection: (String, String?, String?, String?) -> Unit,
     onUpdateSection: (Section) -> Unit,
     onDeleteSection: (Section) -> Unit,
+    onCloneSection: (Section) -> Unit,
     onUpdateSectionsOrder: (List<Section>) -> Unit,
     onShowColorManagerCustom: ((String) -> Unit) -> Unit,
     unitUsageCounts: Map<Int, Int>,
@@ -462,14 +468,18 @@ fun OptionsScreenContent(
             title = { Text(stringResource(R.string.options_generate_demo_data)) },
             text = { Text(stringResource(R.string.demo_data_confirm_msg)) },
             confirmButton = {
-                TextButton(onClick = { 
-                    onGenerateDemoData()
-                    showDemoDataConfirm = false
-                }) { Text(stringResource(R.string.button_add)) }
+                CommonActionButtons(
+                    onConfirm = { 
+                        onGenerateDemoData()
+                        showDemoDataConfirm = false
+                    },
+                    onDismiss = { showDemoDataConfirm = false },
+                    confirmText = stringResource(R.string.button_add),
+                    confirmIcon = Icons.Default.Add,
+                    isDialog = true
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { showDemoDataConfirm = false }) { Text(stringResource(R.string.button_cancel)) }
-            }
+            dismissButton = null
         )
     }
 
@@ -479,14 +489,18 @@ fun OptionsScreenContent(
             title = { Text(stringResource(R.string.restore_confirm_title)) },
             text = { Text(stringResource(R.string.restore_confirm_msg)) },
             confirmButton = {
-                TextButton(onClick = { 
-                    showRestoreConfirm?.let { onRestoreDatabase(it) }
-                    onShowRestoreConfirmChange(null)
-                }) { Text(stringResource(R.string.button_ok)) }
+                CommonActionButtons(
+                    onConfirm = { 
+                        showRestoreConfirm?.let { onRestoreDatabase(it) }
+                        onShowRestoreConfirmChange(null)
+                    },
+                    onDismiss = { onShowRestoreConfirmChange(null) },
+                    confirmText = stringResource(R.string.button_ok),
+                    confirmIcon = Icons.Default.Restore,
+                    isDialog = true
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { onShowRestoreConfirmChange(null) }) { Text(stringResource(R.string.button_cancel)) }
-            }
+            dismissButton = null
         )
     }
 
@@ -562,6 +576,7 @@ fun OptionsScreenContent(
             onDismiss = { onShowUnitManagementChange(false) },
             onAddUnit = onAddUnit,
             onUpdateUnit = onUpdateUnit,
+            onCloneUnit = onCloneUnit,
             onUpdateUnitsOrder = onUpdateUnitsOrder,
             onToggleUnitVisibility = onToggleUnitVisibility,
             onDeleteUnit = onDeleteUnit,
@@ -579,6 +594,7 @@ fun OptionsScreenContent(
             onDismiss = { onShowSectionManagementChange(false) },
             onAddSection = onAddSection,
             onUpdateSection = onUpdateSection,
+            onCloneSection = onCloneSection,
             onDeleteSection = onDeleteSection,
             onUpdateSectionsOrder = onUpdateSectionsOrder,
             onShowColorManagerCustom = onShowColorManagerCustom,
@@ -1148,6 +1164,7 @@ fun ColorLibraryManagerDialog(
     onColorSelected: (String) -> Unit,
     onAddColor: (String, String) -> Unit,
     onUpdateColor: (AppColor) -> Unit,
+    onDeleteColor: (AppColor) -> Unit,
     onUpdateOrder: (List<AppColor>) -> Unit,
     onToggleVisibility: (Long) -> Unit
 ) {
@@ -1241,8 +1258,10 @@ fun ColorLibraryManagerDialog(
                                 isSelected = color.hexValue.equals(selectedHex, ignoreCase = true), 
                                 onColorSelected = { onColorSelected(color.hexValue) }, 
                                 onUpdateColor = onUpdateColor, 
+                                onDeleteColor = onDeleteColor,
                                 onToggleVisibility = { onToggleVisibility(color.id) },
-                                showReportVisibility = mode == ColorManagerMode.REPORTS_MANAGER
+                                showReportVisibility = mode == ColorManagerMode.REPORTS_MANAGER,
+                                canDelete = colorsState.size > 1
                             ) 
                         }
                     )
@@ -1260,6 +1279,7 @@ fun UnitManagementDialog(
     onDismiss: () -> Unit,
     onAddUnit: (String, String, Int) -> Unit,
     onUpdateUnit: (MeasurementUnit) -> Unit,
+    onCloneUnit: (MeasurementUnit) -> Unit,
     onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
     onToggleUnitVisibility: (Int) -> Unit,
     onDeleteUnit: (MeasurementUnit) -> Unit,
@@ -1326,19 +1346,21 @@ fun UnitManagementDialog(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
+                CommonActionButtons(
+                    onConfirm = {
                         if (!isDuplicate) {
                             onAddUnit(label, description, decimalPlaces)
                             showAddUnitDialog = false
                         }
                     },
-                    enabled = label.isNotBlank() && !isDuplicate
-                ) { Text(stringResource(R.string.button_add)) }
+                    onDismiss = { showAddUnitDialog = false },
+                    confirmText = stringResource(R.string.button_add),
+                    confirmIcon = Icons.Default.Add,
+                    confirmEnabled = label.isNotBlank() && !isDuplicate,
+                    isDialog = true
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { showAddUnitDialog = false }) { Text(stringResource(R.string.button_cancel)) }
-            }
+            dismissButton = null
         )
     }
 
@@ -1388,6 +1410,7 @@ fun UnitManagementDialog(
                                 usageCount = unitUsageCounts[unit.id] ?: 0,
                                 onUnitSelected = { onToggleDefaultUnit(unit.id) },
                                 onUpdateUnit = onUpdateUnit, 
+                                onCloneUnit = onCloneUnit,
                                 onToggleVisibility = { onToggleUnitVisibility(unit.id) },
                                 onDeleteUnit = { onDeleteUnit(unit) }
                             ) 
@@ -1409,6 +1432,7 @@ fun SectionManagementDialog(
     onDismiss: () -> Unit,
     onAddSection: (String, String?, String?, String?) -> Unit,
     onUpdateSection: (Section) -> Unit,
+    onCloneSection: (Section) -> Unit,
     onDeleteSection: (Section) -> Unit,
     onUpdateSectionsOrder: (List<Section>) -> Unit,
     onShowColorManagerCustom: ((String) -> Unit) -> Unit,
@@ -1482,17 +1506,19 @@ fun SectionManagementDialog(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
+                CommonActionButtons(
+                    onConfirm = {
                         onAddSection(name, selectedIcon, selectedPhotoUri, selectedColor)
                         showAddSectionDialog = false
                     },
-                    enabled = name.isNotBlank()
-                ) { Text(stringResource(R.string.button_add)) }
+                    onDismiss = { showAddSectionDialog = false },
+                    confirmText = stringResource(R.string.button_add),
+                    confirmIcon = Icons.Default.Add,
+                    confirmEnabled = name.isNotBlank(),
+                    isDialog = true
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { showAddSectionDialog = false }) { Text(stringResource(R.string.button_cancel)) }
-            }
+            dismissButton = null
         )
 
         if (showImagePicker) {
@@ -1576,6 +1602,7 @@ fun SectionManagementDialog(
                                 categoriesUiState = categoriesUiState,
                                 usageCount = sectionUsageCounts[section.id] ?: 0,
                                 onUpdateSection = onUpdateSection,
+                                onCloneSection = onCloneSection,
                                 onDeleteSection = onDeleteSection,
                                 onShowColorManager = { tag, callback -> 
                                     onShowColorManagerCustom(callback)

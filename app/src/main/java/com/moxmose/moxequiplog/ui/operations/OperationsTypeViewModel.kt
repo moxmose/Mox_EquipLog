@@ -414,6 +414,17 @@ class OperationsTypeViewModel(
         }
     }
 
+    fun deleteOperationType(operationType: OperationType) {
+        if (operationType.isSystem) return
+        viewModelScope.launch {
+            try {
+                operationTypeDao.deleteOperationType(operationType)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateOperationTypeFailed)
+            }
+        }
+    }
+
     fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         viewModelScope.launch {
             try {

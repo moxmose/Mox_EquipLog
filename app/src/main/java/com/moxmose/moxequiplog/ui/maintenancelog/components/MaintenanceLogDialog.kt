@@ -1,8 +1,10 @@
 package com.moxmose.moxequiplog.ui.maintenancelog.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -39,6 +42,9 @@ fun MaintenanceLogDialog(
     onConfirm: (MaintenanceLog) -> Unit,
     onSchedule: ((Int, Int, Long?, Double?, Boolean) -> Unit)? = null,
     onDeleteReminder: (() -> Unit)? = null,
+    onDeleteLog: (() -> Unit)? = null,
+    onArchive: (() -> Unit)? = null,
+    isDismissed: Boolean = false,
     onEstimateDueDate: (suspend (Int, Double) -> Long?)? = null,
     onEstimateTargetValue: (suspend (Int, Long) -> Double?)? = null,
     onGetOperationCostStats: (suspend (Int) -> Pair<Double?, Double?>)? = null,
@@ -208,14 +214,16 @@ fun MaintenanceLogDialog(
     }
 
     if (showDeleteReminderConfirmation) {
+        val isLog = onDeleteLog != null
         AlertDialog(
             onDismissRequest = { showDeleteReminderConfirmation = false },
-            title = { Text(stringResource(R.string.delete_reminder)) },
-            text = { Text("Are you sure you want to permanently delete this reminder?") },
+            title = { Text(stringResource(if (isLog) R.string.delete_log else R.string.delete_reminder)) },
+            text = { Text(stringResource(if (isLog) R.string.delete_log_confirm else R.string.delete_reminder_confirm)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         onDeleteReminder?.invoke()
+                        onDeleteLog?.invoke()
                         showDeleteReminderConfirmation = false
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
@@ -301,12 +309,20 @@ fun MaintenanceLogDialog(
                                         )
                                         allSections.find { it.id == equipment.sectionId }?.let { section ->
                                             val sectionName = if (section.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_common) else section.name
-                                            Text(
-                                                text = " ($sectionName)",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                                modifier = Modifier.padding(start = 4.dp)
-                                            )
+                                            val sColor = try { section.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = sColor.copy(alpha = 0.15f),
+                                                border = BorderStroke(1.dp, sColor.copy(alpha = 0.5f)),
+                                                modifier = Modifier.padding(start = 8.dp)
+                                            ) {
+                                                Text(
+                                                    text = sectionName,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = sColor,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 },
@@ -372,12 +388,20 @@ fun MaintenanceLogDialog(
                                         )
                                         allSections.find { it.id == operation.sectionId }?.let { section ->
                                             val sectionName = if (section.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_common) else section.name
-                                            Text(
-                                                text = " ($sectionName)",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                                modifier = Modifier.padding(start = 4.dp)
-                                            )
+                                            val sColor = try { section.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = sColor.copy(alpha = 0.15f),
+                                                border = BorderStroke(1.dp, sColor.copy(alpha = 0.5f)),
+                                                modifier = Modifier.padding(start = 8.dp)
+                                            ) {
+                                                Text(
+                                                    text = sectionName,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = sColor,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 },
@@ -615,69 +639,53 @@ fun MaintenanceLogDialog(
         },
 
         confirmButton = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = if (isEditMode && onDeleteReminder != null) Arrangement.SpaceBetween else Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isEditMode && onDeleteReminder != null) {
-                    TextButton(
-                        onClick = { showDeleteReminderConfirmation = true },
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.delete_reminder))
-                    }
-                }
-                
-                Button(
-                    onClick = {
-                        val equipment = selectedEquipment
-                        val op = selectedOperationType
-                        val targetValue = valueStr.toDoubleOrNull()
-                        val fixedDate = if (hasFixedDate) selectedDate else null
-                        
-                        if (equipment != null && op != null && (selectedTab == 0 || fixedDate != null || targetValue != null)) {
-                            if (selectedTab == 0) {
-                                onConfirm(
-                                    MaintenanceLog(
-                                        equipmentId = equipment.id,
-                                        operationTypeId = op.id,
-                                        notes = notes.takeIf { it.isNotBlank() },
-                                        value = valueStr.toDoubleOrNull(),
-                                        date = selectedDate,
-                                        resetAfter = resetAfter,
-                                        cost = costStr.toDoubleOrNull(),
-                                        isUnplanned = isUnplanned
-                                    )
+            CommonActionButtons(
+                onConfirm = {
+                    val equipment = selectedEquipment
+                    val op = selectedOperationType
+                    val targetValue = valueStr.toDoubleOrNull()
+                    val fixedDate = if (hasFixedDate) selectedDate else null
+                    
+                    if (equipment != null && op != null && (selectedTab == 0 || fixedDate != null || targetValue != null)) {
+                        if (selectedTab == 0) {
+                            onConfirm(
+                                MaintenanceLog(
+                                    equipmentId = equipment.id,
+                                    operationTypeId = op.id,
+                                    notes = notes.takeIf { it.isNotBlank() },
+                                    value = valueStr.toDoubleOrNull(),
+                                    date = selectedDate,
+                                    resetAfter = resetAfter,
+                                    cost = costStr.toDoubleOrNull(),
+                                    isUnplanned = isUnplanned
                                 )
-                            } else {
-                                onSchedule?.invoke(
-                                    equipment.id,
-                                    op.id,
-                                    fixedDate,
-                                    targetValue,
-                                    syncToCalendar
-                                )
-                            }
+                            )
+                        } else {
+                            onSchedule?.invoke(
+                                equipment.id,
+                                op.id,
+                                fixedDate,
+                                targetValue,
+                                syncToCalendar
+                            )
                         }
-                    },
-                    enabled = selectedEquipment != null && selectedOperationType != null && 
-                            (selectedTab == 0 || hasFixedDate || valueStr.isNotBlank())
-                ) {
-                    Text(
-                        if (isEditMode) stringResource(R.string.save_operation_type)
-                        else if (selectedTab == 0) stringResource(R.string.button_add) 
-                        else stringResource(R.string.schedule_maintenance)
-                    )
-                }
-            }
+                    }
+                },
+                onDismiss = onDismissRequest,
+                confirmText = if (isEditMode) stringResource(R.string.save_operation_type)
+                             else if (selectedTab == 0) stringResource(R.string.button_add) 
+                             else stringResource(R.string.schedule_maintenance),
+                confirmIcon = if (isEditMode) Icons.Default.Save else Icons.Default.Add,
+                confirmEnabled = selectedEquipment != null && selectedOperationType != null && 
+                                (selectedTab == 0 || hasFixedDate || valueStr.isNotBlank()),
+                showDelete = isEditMode && (onDeleteReminder != null || onDeleteLog != null),
+                onDelete = { showDeleteReminderConfirmation = true },
+                showArchive = isEditMode && onArchive != null,
+                onArchive = onArchive,
+                archiveIcon = if (isDismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                isDialog = true
+            )
         },
-        dismissButton = {
-            OutlinedButton(onClick = onDismissRequest) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
+        dismissButton = null
     )
 }

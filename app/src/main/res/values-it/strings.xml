@@ -401,6 +401,10 @@
     <string name="color_name_label">Nome del colore</string>
     <string name="edit_section">Modifica Sezione</string>
     <string name="delete_section">Elimina Sezione</string>
+    <string name="delete_equipment">Elimina Equipment</string>
+    <string name="delete_equipment_confirm">Sei sicuro di voler eliminare permanentemente questo equipment e tutti i suoi log?</string>
+    <string name="delete_operation_type">Elimina Attività</string>
+    <string name="delete_operation_type_confirm">Sei sicuro di voler eliminare permanentemente questa attività e tutti i suoi log?</string>
     <string name="section_name">Nome Sezione</string>
     <string name="select_icon">Scegli Icona e Colore</string>
     <string name="select_color">Scegli Colore</string>

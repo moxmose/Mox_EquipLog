@@ -476,6 +476,16 @@ class EquipmentViewModel(
         }
     }
 
+    fun deleteEquipment(equipment: Equipment) {
+        viewModelScope.launch {
+            try {
+                equipmentDao.deleteEquipment(equipment)
+            } catch (e: Exception) {
+                _uiEvents.send(UiEvent.UpdateEquipmentFailed)
+            }
+        }
+    }
+
     fun addImage(imageIdentifier: ImageIdentifier, category: String) {
         viewModelScope.launch {
             try {

@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
@@ -30,6 +31,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.components.SectionSelector
 import com.moxmose.moxequiplog.ui.components.TimeGranularitySelector
@@ -300,19 +302,21 @@ fun AddEquipmentDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = { 
+            CommonActionButtons(
+                onConfirm = {
                     val identifier = when {
                         photoUri != null -> ImageIdentifier.Photo(photoUri!!)
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
                     onConfirm(description, identifier, unitId, sectionId, isResettable, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit, visibilityHorizon, visibilityHorizonUnit, useCustomUsageWindow, useCustomVisibilityHorizon)
-                }
-            ) { Text(stringResource(R.string.button_add)) }
+                },
+                onDismiss = onDismissRequest,
+                confirmText = stringResource(R.string.button_add),
+                confirmIcon = Icons.Default.Add,
+                isDialog = true
+            )
         },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) }
-        }
+        dismissButton = null
     )
 }

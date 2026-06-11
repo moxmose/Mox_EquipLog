@@ -254,6 +254,22 @@ class OptionsViewModel(
             }
         }
     }
+
+    fun cloneSection(section: Section) {
+        viewModelScope.launch {
+            try {
+                val currentList = allSections.value
+                val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
+                sectionRepository.insertSection(section.copy(
+                    id = 0,
+                    name = "${section.name} (Copy)",
+                    displayOrder = nextOrder
+                ))
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.AddSectionFailed)
+            }
+        }
+    }
         
     val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
@@ -733,6 +749,24 @@ class OptionsViewModel(
                 measurementUnitDao.deleteUnit(unit)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.DeleteUnitFailed)
+            }
+        }
+    }
+
+    fun cloneMeasurementUnit(unit: MeasurementUnit) {
+        viewModelScope.launch {
+            try {
+                val currentList = measurementUnits.value
+                val nextOrder = if (currentList.isEmpty()) 0 else currentList.maxOf { it.displayOrder } + 1
+                measurementUnitDao.insertUnit(unit.copy(
+                    id = 0,
+                    label = "${unit.label}_copy",
+                    description = "${unit.description} (Copy)",
+                    displayOrder = nextOrder,
+                    isSystem = false
+                ))
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.AddUnitFailed)
             }
         }
     }

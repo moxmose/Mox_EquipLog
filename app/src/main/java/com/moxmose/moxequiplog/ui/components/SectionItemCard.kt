@@ -4,14 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -43,12 +41,13 @@ fun SectionItemCard(
     categoriesUiState: List<CategoryUiState>,
     usageCount: Int,
     onUpdateSection: (Section) -> Unit,
+    onCloneSection: (Section) -> Unit,
     onDeleteSection: (Section) -> Unit,
     onShowColorManager: (String, (String) -> Unit) -> Unit,
     onAddImage: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showEditDialog by remember { mutableStateOf(false) }
+    var isEditing by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
 
@@ -70,214 +69,171 @@ fun SectionItemCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
-        Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icona ridotta a sinistra (40.dp)
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .border(1.dp, sectionColor.copy(alpha = 0.5f), CircleShape)
-                    .clickable {
-                        if (section.photoUri != null) showFullImageDialog = section.photoUri
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                ImageIcon(
-                    photoUri = section.photoUri,
-                    iconIdentifier = section.iconIdentifier,
-                    modifier = Modifier.fillMaxSize(),
-                    category = Category.SECTIONS,
-                    borderColor = null,
-                    contentPadding = 6.dp,
-                    tint = sectionColor
-                )
-            }
+        Column(modifier = Modifier.padding(12.dp)) {
+            if (isEditing) {
+                var editedName by remember { mutableStateOf(section.name) }
+                var editedIcon by remember { mutableStateOf(section.iconIdentifier) }
+                var editedPhotoUri by remember { mutableStateOf(section.photoUri) }
+                var editedColor by remember { mutableStateOf(section.color ?: "#808080") }
+                var showImagePicker by remember { mutableStateOf(false) }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Nome in alto, info utilizzi e icone in basso
-            Column(modifier = Modifier.weight(1f)) {
-                val name = if (section.id == AppConstants.DEFAULT_SECTION_ID) {
-                    stringResource(R.string.section_common)
-                } else {
-                    section.name
-                }
-                
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Used: $usageCount",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // Azioni a destra
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = { onUpdateSection(section.copy(dismissed = !section.dismissed)) },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (section.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { showEditDialog = true },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.edit_section),
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        
-                        if (section.id != AppConstants.DEFAULT_SECTION_ID) {
-                            IconButton(
-                                onClick = { showDeleteConfirm = true },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = stringResource(R.string.delete_section),
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        } else {
-                            Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (showEditDialog) {
-        var name by remember { mutableStateOf(section.name) }
-        var selectedIcon by remember { mutableStateOf(section.iconIdentifier) }
-        var selectedPhotoUri by remember { mutableStateOf(section.photoUri) }
-        var selectedColor by remember { mutableStateOf(section.color ?: "#808080") }
-        var showImagePicker by remember { mutableStateOf(false) }
-
-        AlertDialog(
-            onDismissRequest = { showEditDialog = false },
-            title = { Text(stringResource(R.string.edit_section)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text(stringResource(R.string.section_name)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Text(stringResource(R.string.select_icon), style = MaterialTheme.typography.labelMedium)
-                    
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ImageIcon(
-                            photoUri = selectedPhotoUri,
-                            iconIdentifier = selectedIcon,
+                            photoUri = editedPhotoUri,
+                            iconIdentifier = editedIcon,
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(48.dp)
                                 .clickable { showImagePicker = true },
                             category = Category.SECTIONS,
-                            borderColor = Color(selectedColor.toColorInt()),
-                            contentPadding = 8.dp,
-                            tint = Color(selectedColor.toColorInt())
+                            borderColor = Color(editedColor.toColorInt()),
+                            contentPadding = 4.dp,
+                            tint = Color(editedColor.toColorInt())
+                        )
+                        
+                        OutlinedTextField(
+                            value = editedName,
+                            onValueChange = { editedName = it },
+                            label = { Text(stringResource(R.string.section_name)) },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
                         )
                         
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(Color(selectedColor.toColorInt()))
+                                .background(Color(editedColor.toColorInt()))
                                 .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
                                 .clickable { 
                                     onShowColorManager("edit_section") { newColor ->
-                                        selectedColor = newColor
+                                        editedColor = newColor
                                     }
                                 }
                         )
                     }
+
+                    CommonActionButtons(
+                        onConfirm = {
+                            onUpdateSection(section.copy(name = editedName, iconIdentifier = editedIcon, photoUri = editedPhotoUri, color = editedColor))
+                            isEditing = false
+                        },
+                        onDismiss = { isEditing = false },
+                        confirmText = stringResource(R.string.save_equipment),
+                        confirmIcon = Icons.Default.Save,
+                        showClone = true,
+                        onClone = { onCloneSection(section) },
+                        showDelete = section.id != AppConstants.DEFAULT_SECTION_ID,
+                        onDelete = { showDeleteConfirm = true },
+                        showArchive = true,
+                        onArchive = { onUpdateSection(section.copy(dismissed = !section.dismissed)) },
+                        archiveIcon = if (section.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                    )
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onUpdateSection(section.copy(name = name, iconIdentifier = selectedIcon, photoUri = selectedPhotoUri, color = selectedColor))
-                        showEditDialog = false
-                    },
-                    enabled = name.isNotBlank()
-                ) { Text(stringResource(R.string.save_equipment)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditDialog = false }) { Text(stringResource(R.string.button_cancel)) }
-            }
-        )
 
-        if (showImagePicker) {
-            val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
-            val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
-            val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
-            val allCategories = categoriesUiState.map { it.category }.filter { 
-                it.id != Category.LOGS && it.id != Category.REPORTS && it.id != Category.OPTIONS 
-            }
+                if (showImagePicker) {
+                    val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
+                    val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
+                    val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
+                    val allCategories = categoriesUiState.map { it.category }.filter { 
+                        it.id != Category.LOGS && it.id != Category.REPORTS && it.id != Category.OPTIONS 
+                    }
 
-            ImagePickerDialog(
-                onDismissRequest = { showImagePicker = false },
-                photoUri = selectedPhotoUri,
-                iconIdentifier = selectedIcon,
-                onImageSelected = { (icon, photo) ->
-                    selectedIcon = icon
-                    selectedPhotoUri = photo
-                    showImagePicker = false
-                },
-                imageLibrary = allImages,
-                categories = allCategories,
-                categoryColors = categoryColorsMap.toMutableMap().apply { put(Category.SECTIONS, selectedColor) },
-                categoryDefaultIcons = categoryDefaultIconsMap,
-                categoryDefaultPhotos = categoryDefaultPhotosMap,
-                onAddImage = onAddImage,
-                onRemoveImage = null,
-                onUpdateImageOrder = null,
-                onToggleImageVisibility = null,
-                onSetDefaultInCategory = null,
-                isPhotoUsed = null,
-                isPrefsMode = false,
-                forcedCategory = Category.SECTIONS
-            )
+                    ImagePickerDialog(
+                        onDismissRequest = { showImagePicker = false },
+                        photoUri = editedPhotoUri,
+                        iconIdentifier = editedIcon,
+                        onImageSelected = { (icon, photo) ->
+                            editedIcon = icon
+                            editedPhotoUri = photo
+                            showImagePicker = false
+                        },
+                        imageLibrary = allImages,
+                        categories = allCategories,
+                        categoryColors = categoryColorsMap.toMutableMap().apply { put(Category.SECTIONS, editedColor) },
+                        categoryDefaultIcons = categoryDefaultIconsMap,
+                        categoryDefaultPhotos = categoryDefaultPhotosMap,
+                        onAddImage = onAddImage,
+                        onRemoveImage = null,
+                        onUpdateImageOrder = null,
+                        onToggleImageVisibility = null,
+                        onSetDefaultInCategory = null,
+                        isPhotoUsed = null,
+                        isPrefsMode = false,
+                        forcedCategory = Category.SECTIONS
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .border(1.dp, sectionColor.copy(alpha = 0.5f), CircleShape)
+                            .clickable {
+                                if (section.photoUri != null) showFullImageDialog = section.photoUri
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ImageIcon(
+                            photoUri = section.photoUri,
+                            iconIdentifier = section.iconIdentifier,
+                            modifier = Modifier.fillMaxSize(),
+                            category = Category.SECTIONS,
+                            borderColor = null,
+                            contentPadding = 6.dp,
+                            tint = sectionColor
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        val name = if (section.id == AppConstants.DEFAULT_SECTION_ID) {
+                            stringResource(R.string.section_common)
+                        } else {
+                            section.name
+                        }
+                        
+                        Text(
+                            text = name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Used: $usageCount",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (section.dismissed) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.VisibilityOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+
+                    IconButton(onClick = { isEditing = true }, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.edit_section),
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
         }
     }
 

@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.utils.AppConstants
 import java.text.SimpleDateFormat
@@ -41,8 +42,6 @@ fun MaintenanceLogCard(
     onEdit: () -> Unit,
     onSave: (MaintenanceLog) -> Unit,
     onDelete: (MaintenanceLog) -> Unit,
-    onDismiss: () -> Unit,
-    onRestore: () -> Unit,
     onGetOperationCostStats: suspend (Int) -> Pair<Double?, Double?>,
     modifier: Modifier = Modifier,
     equipmentCategoryColor: String?,
@@ -416,6 +415,34 @@ fun MaintenanceLogCard(
                             Text(text = timeFormat.format(Date(editedDate)))
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    CommonActionButtons(
+                        onConfirm = {
+                            val updatedLog = logDetail.log.copy(
+                                notes = editedNotes,
+                                value = editedValueStr.toDoubleOrNull(),
+                                cost = editedCostStr.toDoubleOrNull(),
+                                isUnplanned = editedIsUnplanned,
+                                resetAfter = editedResetAfter,
+                                date = editedDate,
+                                equipmentId = selectedEquipment?.id ?: logDetail.log.equipmentId,
+                                operationTypeId = selectedOperationType?.id ?: logDetail.log.operationTypeId
+                            )
+                            onSave(updatedLog)
+                        },
+                        onDismiss = { onExpand() },
+                        confirmText = stringResource(R.string.save_log),
+                        confirmIcon = Icons.Default.Save,
+                        showDelete = true,
+                        onDelete = { showDeleteConfirmation = true },
+                        showArchive = true,
+                        archiveIcon = if (logDetail.log.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        onArchive = { 
+                            onSave(logDetail.log.copy(dismissed = !logDetail.log.dismissed))
+                        }
+                    )
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val equipmentTextAlpha = if (logDetail.equipmentDismissed) 0.5f else 1f
@@ -512,51 +539,14 @@ fun MaintenanceLogCard(
                     }
                 }
             }
-            Column {
-                IconButton(onClick = {
-                    if (isEditing) {
-                        val updatedLog = logDetail.log.copy(
-                            notes = editedNotes,
-                            value = editedValueStr.toDoubleOrNull(),
-                            cost = editedCostStr.toDoubleOrNull(),
-                            isUnplanned = editedIsUnplanned,
-                            resetAfter = editedResetAfter,
-                            date = editedDate,
-                            equipmentId = selectedEquipment?.id ?: logDetail.log.equipmentId,
-                            operationTypeId = selectedOperationType?.id ?: logDetail.log.operationTypeId
-                        )
-                        onSave(updatedLog)
-                    } else {
-                        onEdit()
-                    }
-                }) {
+            if (!isEditing) {
+                IconButton(onClick = { onEdit() }, modifier = Modifier.size(40.dp)) {
                     Icon(
-                        imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit,
-                        contentDescription = if (isEditing) stringResource(R.string.save_log) else stringResource(R.string.edit_log)
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = stringResource(R.string.edit_log),
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
-                }
-                if (isEditing) {
-                    IconButton(onClick = { showDeleteConfirmation = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.delete_log),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    IconButton(
-                        onClick = {
-                            if (logDetail.log.dismissed) {
-                                onRestore()
-                            } else {
-                                onDismiss()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (logDetail.log.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (logDetail.log.dismissed) stringResource(R.string.restore_log) else stringResource(R.string.dismiss_log)
-                        )
-                    }
                 }
             }
         }

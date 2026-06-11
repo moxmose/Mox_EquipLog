@@ -59,4 +59,7 @@ interface EquipmentDao {
 
     @androidx.room.Delete
     suspend fun deleteEquipmentList(equipmentList: List<Equipment>)
+
+    @androidx.room.Delete
+    suspend fun deleteEquipment(equipment: Equipment)
 }

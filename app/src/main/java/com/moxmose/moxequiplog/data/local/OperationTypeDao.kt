@@ -44,4 +44,7 @@ interface OperationTypeDao {
 
     @androidx.room.Delete
     suspend fun deleteOperationTypes(operationTypes: List<OperationType>)
+
+    @androidx.room.Delete
+    suspend fun deleteOperationType(operationType: OperationType)
 }

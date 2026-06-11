@@ -440,8 +440,6 @@ fun MaintenanceLogScreenContent(
                         onEdit = { onEditLog(logDetail.log) },
                         onSave = onUpdateLog,
                         onDelete = onDeleteLog,
-                        onDismiss = { onDismissLog(logDetail.log) },
-                        onRestore = { onRestoreLog(logDetail.log) },
                         onGetOperationCostStats = onGetOperationCostStats,
                         equipmentCategoryColor = equipmentCategoryColor,
                         operationCategoryColor = operationCategoryColor,

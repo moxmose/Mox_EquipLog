@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -83,20 +85,18 @@ fun AddColorDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
+            CommonActionButtons(
+                onConfirm = {
                     onAddColor(hexCode, name)
                     onDismiss()
                 },
-                enabled = name.isNotBlank() && hexCode.isNotBlank()
-            ) {
-                Text(stringResource(R.string.button_add))
-            }
+                onDismiss = onDismiss,
+                confirmText = stringResource(R.string.button_add),
+                confirmIcon = Icons.Default.Add,
+                confirmEnabled = name.isNotBlank() && hexCode.isNotBlank(),
+                isDialog = true
+            )
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
+        dismissButton = null
     )
 }

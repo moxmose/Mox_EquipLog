@@ -406,6 +406,10 @@
     <string name="color_name_label">Color Name</string>
     <string name="edit_section">Edit Section</string>
     <string name="delete_section">Delete Section</string>
+    <string name="delete_equipment">Delete Equipment</string>
+    <string name="delete_equipment_confirm">Are you sure you want to permanently delete this equipment and all its logs?</string>
+    <string name="delete_operation_type">Delete Operation Type</string>
+    <string name="delete_operation_type_confirm">Are you sure you want to permanently delete this operation type and all its logs?</string>
     <string name="section_name">Section Name</string>
     <string name="select_icon">Select Icon and Color</string>
     <string name="select_color">Select Color</string>

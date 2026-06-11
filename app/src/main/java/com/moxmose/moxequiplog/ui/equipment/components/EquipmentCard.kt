@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.FullImageDialog
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.components.SectionSelector
@@ -54,6 +55,7 @@ fun EquipmentCard(
     allSections: List<Section>,
     showDismissedSections: Boolean,
     onUpdateEquipment: (Equipment) -> Unit,
+    onDeleteEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
     onCloneEquipment: (Equipment) -> Unit,
@@ -101,6 +103,31 @@ fun EquipmentCard(
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.delete_equipment)) },
+            text = { Text(stringResource(R.string.delete_equipment_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteEquipment(equipment)
+                        showDeleteConfirmation = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.button_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            }
+        )
+    }
 
     if (showImageSelectorDialog) {
         ImagePickerDialog(
@@ -150,8 +177,8 @@ fun EquipmentCard(
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 if (isEditing) {
-                    // Layout in MODALITÀ EDIT: Descrizione sopra, icone sotto
-                    Column {
+                    // Layout in MODALITÀ EDIT: Descrizione e campi sopra
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
@@ -177,6 +204,25 @@ fun EquipmentCard(
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
                                 }
+                                
+                                // Star Toggle Badge in EDIT MODE
+                                IconButton(
+                                    onClick = onToggleDefault,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .align(Alignment.BottomEnd)
+                                        .offset(x = 6.dp, y = 6.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = if (isDefault) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             OutlinedTextField(
@@ -187,18 +233,115 @@ fun EquipmentCard(
                                 singleLine = true
                             )
                         }
+
+                        SectionSelector(
+                            allSections = allSections,
+                            selectedSectionId = editedSectionId,
+                            onSectionSelected = { editedSectionId = it },
+                            showDismissed = showDismissedSections,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        UnitSelector(
+                            measurementUnits = measurementUnits,
+                            selectedUnitId = editedUnitId,
+                            onUnitSelected = { editedUnitId = it },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxWidth().clickable { editedIsResettable = !editedIsResettable },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            IconButton(onClick = { if (equipment.dismissed) onRestoreEquipment(equipment) else onDismissEquipment(equipment) }) {
-                                Icon(imageVector = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null)
+                            Checkbox(checked = editedIsResettable, onCheckedChange = { editedIsResettable = it })
+                            Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                        }
+
+                        HorizontalDivider()
+
+                        Text(
+                            text = stringResource(R.string.predictive_maintenance_settings),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Trend Window
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomUsageWindow = !editedUseCustomUsageWindow }, verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = editedUseCustomUsageWindow, onCheckedChange = { editedUseCustomUsageWindow = it })
+                                    Text("Use custom trend window", style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (editedUseCustomUsageWindow) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        OutlinedTextField(
+                                            value = editedUsageWindow.toString(),
+                                            onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) editedUsageWindow = it } },
+                                            label = { Text("Window Value") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodySmall
+                                        )
+                                        TimeGranularitySelector(selected = editedUsageWindowUnit, onSelected = { editedUsageWindowUnit = it }, label = "Of last", modifier = Modifier.weight(1.2f))
+                                    }
+                                }
                             }
-                            IconButton(onClick = { onCloneEquipment(equipment) }) {
-                                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = stringResource(R.string.button_clone), tint = MaterialTheme.colorScheme.secondary)
+
+                            // Manual Average
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    OutlinedTextField(
+                                        value = editedManualAverageValueStr,
+                                        onValueChange = { input ->
+                                            val filtered = input.replace(',', '.')
+                                            if (filtered.isEmpty() || filtered == "." || filtered == "-") {
+                                                editedManualAverageValueStr = filtered
+                                                editedManualAverageValue = null
+                                            } else {
+                                                val doubleVal = filtered.toDoubleOrNull()
+                                                if (doubleVal != null) {
+                                                    editedManualAverageValueStr = filtered
+                                                    editedManualAverageValue = doubleVal
+                                                }
+                                            }
+                                        },
+                                        label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
+                                        placeholder = { Text("Fallback") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        modifier = Modifier.weight(1f),
+                                        textStyle = MaterialTheme.typography.bodySmall
+                                    )
+                                    TimeGranularitySelector(selected = editedManualAverageUnit, onSelected = { editedManualAverageUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
+                                }
                             }
-                            IconButton(onClick = {
+
+                            // Visibility Horizon
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
+                                    Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (editedUseCustomVisibilityHorizon) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        OutlinedTextField(
+                                            value = editedVisibilityHorizon.toString(),
+                                            onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } },
+                                            label = { Text("Event Horizon") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            modifier = Modifier.weight(1f),
+                                            textStyle = MaterialTheme.typography.bodySmall
+                                        )
+                                        TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        CommonActionButtons(
+                            onConfirm = {
                                 onUpdateEquipment(
                                     equipment.copy(
                                         description = editedDescription, 
@@ -218,17 +361,21 @@ fun EquipmentCard(
                                     )
                                 )
                                 isEditing = false
-                            }) {
-                                Icon(imageVector = Icons.Filled.Done, contentDescription = null)
-                            }
-                            IconButton(onClick = { onToggleDefault() }) {
-                                Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current)
-                            }
-                            IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
-                        }
+                            },
+                            onDismiss = { isEditing = false },
+                            confirmText = stringResource(R.string.save_equipment),
+                            confirmIcon = Icons.Default.Save,
+                            showClone = true,
+                            onClone = { onCloneEquipment(equipment) },
+                            showArchive = true,
+                            onArchive = { if (equipment.dismissed) onRestoreEquipment(equipment) else onDismissEquipment(equipment) },
+                            archiveIcon = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            showDelete = true,
+                            onDelete = { showDeleteConfirmation = true }
+                        )
                     }
                 } else {
-                    // Layout in MODALITÀ VISUALIZZAZIONE: Tutto su una riga (compatto)
+                    // Layout in MODALITÀ VISUALIZZAZIONE: Compatto
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(contentAlignment = Alignment.BottomEnd) {
                             Box(
@@ -260,6 +407,26 @@ fun EquipmentCard(
                                 }
                             }
                             
+                            // STAR BADGE (Always visible if default)
+                            if (isDefault) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .offset(x = 4.dp, y = 4.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFFFB300))
+                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+
                             // HEALTH TAGGER (Badge)
                             if (!isExpanded && status != null && status.operationStatuses.isNotEmpty()) {
                                 val overdueCount = status.operationStatuses.count { it.isOverdue }
@@ -272,7 +439,7 @@ fun EquipmentCard(
                                     Box(
                                         modifier = Modifier
                                             .size(18.dp)
-                                            .offset(x = 4.dp, y = 4.dp)
+                                            .offset(x = if (isDefault) (-18).dp else 4.dp, y = 4.dp)
                                             .clip(CircleShape)
                                             .background(badgeColor)
                                             .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
@@ -295,11 +462,18 @@ fun EquipmentCard(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
                                     text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, equipment.id),
-                                    modifier = Modifier.weight(1f, fill = false),
+                                    modifier = Modifier.weight(1f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                // Section Badge
+                            }
+                            
+                            // Section Badge & Usage Info in a second row
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 val section = remember(equipment.sectionId, allSections) { allSections.find { it.id == equipment.sectionId } }
                                 if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
                                     val sectionColor = remember(section.color) {
@@ -308,8 +482,7 @@ fun EquipmentCard(
                                     Surface(
                                         shape = CircleShape,
                                         color = sectionColor.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f)),
-                                        modifier = Modifier.padding(start = 4.dp)
+                                        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f))
                                     ) {
                                         Text(
                                             text = section.name,
@@ -319,170 +492,44 @@ fun EquipmentCard(
                                         )
                                     }
                                 }
-                            }
-                            if (status != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                if (status != null) {
                                     val displayValue = status.health.currentSessionValue ?: status.health.lastRecordedValue
                                     displayValue?.let { valStr ->
-                                        Text(text = "Last: ${String.format(Locale.US, "%.${decimalPlaces}f", valStr)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(
+                                            text = "Last: ${String.format(Locale.US, "%.${decimalPlaces}f", valStr)} $unitLabel",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                     
                                     val displayEstimated = status.health.currentSessionEstimated ?: status.health.estimatedCurrentValue
                                     displayEstimated?.let { estStr ->
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = "Now (est): ${String.format(Locale.US, "%.${decimalPlaces}f", estStr)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = equipmentColor, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            text = "Now (est): ${String.format(Locale.US, "%.${decimalPlaces}f", estStr)} $unitLabel",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = equipmentColor,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
                                 }
                             }
                         }
 
-                        Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = {
+                        // SINGLE ACTION ICON (Edit)
+                        IconButton(
+                            onClick = {
                                 isEditing = true
                                 isExpanded = true
-                            }) {
-                                Icon(imageVector = Icons.Filled.Edit, contentDescription = null)
-                            }
-                            IconButton(onClick = { onToggleDefault() }) {
-                                Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current)
-                            }
-                            IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
-                        }
-                    }
-                }
-                
-                if (isEditing) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SectionSelector(
-                        allSections = allSections,
-                        selectedSectionId = editedSectionId,
-                        onSectionSelected = { editedSectionId = it },
-                        showDismissed = showDismissedSections,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    UnitSelector(
-                        measurementUnits = measurementUnits,
-                        selectedUnitId = editedUnitId,
-                        onUnitSelected = { editedUnitId = it },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { editedIsResettable = !editedIsResettable }.padding(top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Checkbox(checked = editedIsResettable, onCheckedChange = { editedIsResettable = it })
-                        Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Text(
-                        text = stringResource(R.string.predictive_maintenance_settings),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    // Trend Window Section
-                    Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomUsageWindow = !editedUseCustomUsageWindow }, verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = editedUseCustomUsageWindow, onCheckedChange = { editedUseCustomUsageWindow = it })
-                            Text("Use custom trend window", style = MaterialTheme.typography.bodySmall)
-                        }
-                        if (editedUseCustomUsageWindow) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(start = 24.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                OutlinedTextField(
-                                    value = editedUsageWindow.toString(),
-                                    onValueChange = { input ->
-                                        input.toIntOrNull()?.let { if (it in 1..999) editedUsageWindow = it }
-                                    },
-                                    label = { Text("Window Value") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.weight(1f),
-                                    textStyle = MaterialTheme.typography.bodySmall
-                                )
-                                
-                                TimeGranularitySelector(
-                                    selected = editedUsageWindowUnit,
-                                    onSelected = { editedUsageWindowUnit = it },
-                                    label = "Of last",
-                                    modifier = Modifier.weight(1.2f)
-                                )
-                            }
-                        } else {
-                            Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
-                        }
-                    }
-
-                    // Manual Average Section
-                    Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            },
+                            modifier = Modifier.size(40.dp)
                         ) {
-                            OutlinedTextField(
-                                value = editedManualAverageValueStr,
-                                onValueChange = { input ->
-                                    val filtered = input.replace(',', '.')
-                                    if (filtered.isEmpty() || filtered == "." || filtered == "-") {
-                                        editedManualAverageValueStr = filtered
-                                        editedManualAverageValue = null
-                                    } else {
-                                        val doubleVal = filtered.toDoubleOrNull()
-                                        if (doubleVal != null) {
-                                            editedManualAverageValueStr = filtered
-                                            editedManualAverageValue = doubleVal
-                                        }
-                                    }
-                                },
-                                label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
-                                placeholder = { Text("Fallback") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                textStyle = MaterialTheme.typography.bodySmall
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = stringResource(R.string.edit_equipment),
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
-                            
-                            TimeGranularitySelector(
-                                selected = editedManualAverageUnit,
-                                onSelected = { editedManualAverageUnit = it },
-                                label = "Every",
-                                modifier = Modifier.weight(1.2f)
-                            )
-                        }
-                        Text(
-                            text = "Optional: expected usage when history is missing (fallback)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                    }
-
-                    // Visibility Horizon Section
-                    Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
-                            Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
-                        }
-                        if (editedUseCustomVisibilityHorizon) {
-                            Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(
-                                    value = editedVisibilityHorizon.toString(),
-                                    onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } },
-                                    label = { Text("Event Horizon") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.weight(1f),
-                                    textStyle = MaterialTheme.typography.bodySmall
-                                )
-                                TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
-                            }
-                        } else {
-                            Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
                         }
                     }
                 }
@@ -577,12 +624,6 @@ fun EquipmentCard(
                     }
                 }
             }
-        }
-        if (isDefault) {
-            Box(
-                modifier = Modifier.padding(end = 4.dp, bottom = 4.dp).size(24.dp).clip(CircleShape).background(equipmentColor).border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                contentAlignment = Alignment.Center
-            ) { Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White) }
         }
     }
 
