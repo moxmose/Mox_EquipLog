@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -29,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -51,6 +54,9 @@ fun CommonActionButtons(
     showArchive: Boolean = false,
     onArchive: (() -> Unit)? = null,
     archiveIcon: ImageVector = Icons.Default.Visibility,
+    showDefault: Boolean = false,
+    isDefault: Boolean = false,
+    onToggleDefault: (() -> Unit)? = null,
     isDialog: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -81,6 +87,15 @@ fun CommonActionButtons(
             if (showClone && onClone != null) {
                 IconButton(onClick = onClone) {
                     Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.button_clone), tint = MaterialTheme.colorScheme.secondary)
+                }
+            }
+            if (showDefault && onToggleDefault != null) {
+                IconButton(onClick = onToggleDefault) {
+                    Icon(
+                        imageVector = if (isDefault) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = "Default",
+                        tint = if (isDefault) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

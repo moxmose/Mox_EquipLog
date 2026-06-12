@@ -5,7 +5,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -165,15 +164,15 @@ fun EquipmentCard(
         try { equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor } catch (_: Exception) { primaryColor }
     }
 
-    Box(contentAlignment = Alignment.BottomEnd) {
+    Box(contentAlignment = Alignment.TopEnd, modifier = modifier) {
         Card(
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .animateContentSize()
                 .graphicsLayer(alpha = if (equipment.dismissed) 0.5f else 1f)
-                .then(if (isDefault) Modifier.border(3.dp, equipmentColor, MaterialTheme.shapes.medium) else Modifier)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { if (!isEditing) isExpanded = !isExpanded }),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
+                .clickable { if (!isEditing) isExpanded = !isExpanded },
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)),
+            border = if (isDefault) BorderStroke(4.dp, equipmentColor) else null
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 if (isEditing) {
@@ -202,25 +201,6 @@ fun EquipmentCard(
                                         contentDescription = null,
                                         modifier = Modifier.size(32.dp),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
-                                }
-                                
-                                // Star Toggle Badge in EDIT MODE
-                                IconButton(
-                                    onClick = onToggleDefault,
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .align(Alignment.BottomEnd)
-                                        .offset(x = 6.dp, y = 6.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                ) {
-                                    Icon(
-                                        imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isDefault) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -371,7 +351,10 @@ fun EquipmentCard(
                             onArchive = { if (equipment.dismissed) onRestoreEquipment(equipment) else onDismissEquipment(equipment) },
                             archiveIcon = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             showDelete = true,
-                            onDelete = { showDeleteConfirmation = true }
+                            onDelete = { showDeleteConfirmation = true },
+                            showDefault = true,
+                            isDefault = isDefault,
+                            onToggleDefault = onToggleDefault
                         )
                     }
                 } else {
@@ -406,54 +389,8 @@ fun EquipmentCard(
                                     )
                                 }
                             }
-                            
-                            // STAR BADGE (Always visible if default)
-                            if (isDefault) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .offset(x = 4.dp, y = 4.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFFFB300))
-                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = Color.White
-                                    )
-                                }
-                            }
 
-                            // HEALTH TAGGER (Badge)
-                            if (!isExpanded && status != null && status.operationStatuses.isNotEmpty()) {
-                                val overdueCount = status.operationStatuses.count { it.isOverdue }
-                                val upcomingCount = status.operationStatuses.count { !it.isOverdue && (it.isPlanned || it.nextPresumedDate != null) }
-
-                                if (overdueCount > 0 || upcomingCount > 0) {
-                                    val badgeColor = if (overdueCount > 0) MaterialTheme.colorScheme.error else Color(0xFFFFB300)
-                                    val badgeIcon = if (overdueCount > 0) Icons.Default.Warning else Icons.Default.Schedule
-                                    
-                                    Box(
-                                        modifier = Modifier
-                                            .size(18.dp)
-                                            .offset(x = if (isDefault) (-18).dp else 4.dp, y = 4.dp)
-                                            .clip(CircleShape)
-                                            .background(badgeColor)
-                                            .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = badgeIcon,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(12.dp),
-                                            tint = Color.White
-                                        )
-                                    }
-                                }
-                            }
+                            // HEALTH TAGGER (Badge) moved below
                         }
                         
                         Spacer(modifier = Modifier.width(8.dp))
@@ -468,12 +405,34 @@ fun EquipmentCard(
                                 )
                             }
                             
-                            // Section Badge & Usage Info in a second row
+                            // Section Badge, Status Icons & Usage Info in a second row
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                if (!isExpanded && status != null) {
+                                    val overdueCount = status.operationStatuses.count { it.isOverdue }
+                                    val upcomingCount = status.operationStatuses.count { !it.isOverdue && (it.isPlanned || it.nextPresumedDate != null) }
+
+                                    if (overdueCount > 0) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    if (upcomingCount > 0) {
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = Color(0xFFFFB300)
+                                        )
+                                    }
+                                }
+
                                 val section = remember(equipment.sectionId, allSections) { allSections.find { it.id == equipment.sectionId } }
                                 if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
                                     val sectionColor = remember(section.color) {
@@ -622,6 +581,28 @@ fun EquipmentCard(
                             }
                         }
                     }
+                }
+            }
+        }
+        
+        // DEFAULT CHECKMARK BADGE (Corner of the Card)
+        if (isDefault) {
+            Surface(
+                shape = CircleShape,
+                color = equipmentColor,
+                modifier = Modifier
+                    .size(24.dp)
+                    .offset(x = (-2).dp, y = 2.dp),
+                shadowElevation = 4.dp,
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.surface)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
+                    )
                 }
             }
         }

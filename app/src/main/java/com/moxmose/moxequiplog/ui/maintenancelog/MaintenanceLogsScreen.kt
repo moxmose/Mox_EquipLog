@@ -59,6 +59,8 @@ import com.moxmose.moxequiplog.ui.components.SectionChipBar
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogCard
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.components.RemindersDashboard
+import com.moxmose.moxequiplog.ui.maintenancelog.components.PredictionsDashboard
+import com.moxmose.moxequiplog.ui.equipment.OperationStatus
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
@@ -70,6 +72,7 @@ fun MaintenanceLogScreen(
 ) {
     val logs by viewModel.logs.collectAsState()
     val activeReminders by viewModel.activeReminders.collectAsState()
+    val automaticPredictions by viewModel.automaticPredictions.collectAsState()
     val allSections by viewModel.allSections.collectAsState()
     val selectedSectionId by viewModel.selectedSectionId.collectAsState()
     val showDismissedSections by viewModel.showDismissedSections.collectAsState()
@@ -94,6 +97,7 @@ fun MaintenanceLogScreen(
     val editingCardId by viewModel.editingCardId.collectAsState()
     val selectedReminderForComplete by viewModel.selectedReminderForComplete.collectAsState()
     val selectedReminderForEdit by viewModel.selectedReminderForEdit.collectAsState()
+    val selectedPredictionForAdd by viewModel.selectedPredictionForAdd.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -189,6 +193,48 @@ fun MaintenanceLogScreen(
         )
     }
 
+    if (selectedPredictionForAdd != null) {
+        val (eqId, status) = selectedPredictionForAdd!!
+        MaintenanceLogDialog(
+            equipments = activeEquipments,
+            operationTypes = activeOperationTypes,
+            measurementUnits = measurementUnits,
+            allSections = allSections,
+            onDismissRequest = { viewModel.onPredictionAction(0, null) },
+            onConfirm = { log ->
+                viewModel.addLog(
+                    log.equipmentId, 
+                    log.operationTypeId, 
+                    log.notes, 
+                    log.value, 
+                    log.date, 
+                    log.color, 
+                    log.resetAfter,
+                    log.cost,
+                    log.isUnplanned
+                )
+                viewModel.onPredictionAction(0, null)
+            },
+            onSchedule = { equipmentId, opTypeId, date, value, sync ->
+                viewModel.addReminder(equipmentId, opTypeId, date, value, sync)
+                viewModel.onPredictionAction(0, null)
+            },
+            onEstimateDueDate = viewModel::estimateDueDate,
+            onEstimateTargetValue = viewModel::estimateTargetValue,
+            onGetOperationCostStats = viewModel::getOperationCostStats,
+            defaultEquipmentId = eqId,
+            defaultOperationTypeId = status.operation.id,
+            initialDate = if (status.nextPresumedDate != null && status.nextPresumedDate!! > System.currentTimeMillis()) status.nextPresumedDate!! else System.currentTimeMillis(),
+            initialTab = 1,
+            equipmentCategoryColor = equipmentColor,
+            operationCategoryColor = operationColor,
+            syncCalendarByDefault = syncCalendarByDefault,
+            googleAccountName = googleAccountName,
+            costTrendThreshold = costTrendThreshold,
+            onNavigateToOptions = onNavigateToOptions
+        )
+    }
+
     MaintenanceLogScreenContent(
         logs = logs,
         allSections = allSections,
@@ -224,6 +270,7 @@ fun MaintenanceLogScreen(
         onDismissLog = viewModel::dismissLog,
         onRestoreLog = viewModel::restoreLog,
         activeReminders = activeReminders,
+        automaticPredictions = automaticPredictions,
         snackbarHostState = snackbarHostState,
         defaultEquipmentId = defaultEquipmentId,
         defaultOperationTypeId = defaultOperationTypeId,
@@ -231,6 +278,7 @@ fun MaintenanceLogScreen(
         operationCategoryColor = operationColor,
         onCompleteReminder = viewModel::onCompleteReminder,
         onEditReminder = viewModel::onEditReminder,
+        onPredictionAction = viewModel::onPredictionAction,
         syncCalendarByDefault = syncCalendarByDefault,
         googleAccountName = googleAccountName,
         costTrendThreshold = costTrendThreshold,
@@ -276,6 +324,7 @@ fun MaintenanceLogScreenContent(
     onRestoreLog: (MaintenanceLog) -> Unit,
     modifier: Modifier = Modifier,
     activeReminders: List<MaintenanceReminderDetails> = emptyList(),
+    automaticPredictions: List<Pair<Equipment, OperationStatus>> = emptyList(),
     snackbarHostState: SnackbarHostState,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
@@ -283,6 +332,7 @@ fun MaintenanceLogScreenContent(
     operationCategoryColor: String?,
     onCompleteReminder: (MaintenanceReminderDetails) -> Unit,
     onEditReminder: (MaintenanceReminderDetails) -> Unit,
+    onPredictionAction: (Int, OperationStatus) -> Unit,
     syncCalendarByDefault: Boolean,
     googleAccountName: String?,
     costTrendThreshold: Float,
@@ -369,6 +419,13 @@ fun MaintenanceLogScreenContent(
                 onEdit = onEditReminder,
                 onRefresh = onRefreshReminders,
                 costTrendThreshold = costTrendThreshold
+            )
+
+            PredictionsDashboard(
+                predictions = automaticPredictions,
+                equipmentCategoryColor = equipmentCategoryColor,
+                operationCategoryColor = operationCategoryColor,
+                onPredictionClick = { equipment, status -> onPredictionAction(equipment.id, status) }
             )
             Row(
                 modifier = Modifier

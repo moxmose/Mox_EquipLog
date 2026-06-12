@@ -19,12 +19,15 @@ import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.CalendarManager
 import com.moxmose.moxequiplog.utils.ResourceProvider
 import com.moxmose.moxequiplog.utils.UiConstants
+import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.ui.equipment.OperationStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -109,11 +112,17 @@ class MaintenanceLogViewModel(
     private val _selectedReminderForEdit = MutableStateFlow<MaintenanceReminderDetails?>(null)
     val selectedReminderForEdit = _selectedReminderForEdit.asStateFlow()
 
+    private val _selectedPredictionForAdd = MutableStateFlow<Pair<Int, OperationStatus>?>(null)
+    val selectedPredictionForAdd = _selectedPredictionForAdd.asStateFlow()
+
     fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
     fun onCardExpanded(id: Int) { _expandedCardId.value = if (_expandedCardId.value == id) null else id }
     fun onEditLog(log: MaintenanceLog) { _editingCardId.value = log.id }
     fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForComplete.value = reminder }
     fun onEditReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForEdit.value = reminder }
+    fun onPredictionAction(eqId: Int, status: OperationStatus?) { 
+        _selectedPredictionForAdd.value = if (status != null) eqId to status else null 
+    }
 
     val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
         .stateIn(
@@ -166,6 +175,30 @@ class MaintenanceLogViewModel(
         initialValue = emptyList()
     )
 
+    val allEquipments: StateFlow<List<Equipment>> = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            equipmentDao.getAllEquipmentList()
+        } else {
+            equipmentDao.getAllEquipmentListBySection(sectionId)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
+
+    val allOperationTypes: StateFlow<List<OperationType>> = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            operationTypeDao.getAllOperationTypes()
+        } else {
+            operationTypeDao.getAllOperationTypesBySection(sectionId)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
+
     val activeReminders: StateFlow<List<MaintenanceReminderDetails>> = combine(
         appSettingsManager.selectedSectionId,
         appSettingsManager.costAnalysisWindowValue,
@@ -179,6 +212,61 @@ class MaintenanceLogViewModel(
         } else {
             maintenanceReminderDao.getActiveRemindersWithDetailsBySection(sinceDate, sectionId)
         }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
+
+    // Automatic Predictions Flow
+    val automaticPredictions: StateFlow<List<Pair<Equipment, OperationStatus>>> = combine(
+        allEquipments,
+        allOperationTypes,
+        maintenanceReminderDao.getAllReminders(),
+        appSettingsManager.defaultVisibilityHorizonValue,
+        appSettingsManager.defaultVisibilityHorizonUnit
+    ) { equipments, opTypes, reminders, globalHorizonVal, globalHorizonUnitStr ->
+        val now = System.currentTimeMillis()
+        val globalHorizonUnit = TimeGranularity.valueOf(globalHorizonUnitStr)
+        
+        val allPredictions = mutableListOf<Pair<Equipment, OperationStatus>>()
+        
+        equipments.filter { !it.dismissed }.forEach { equipment ->
+            val trend = maintenanceManager.calculateTrend(equipment)
+            
+            opTypes.filter { it.isPredictable && !it.dismissed }.forEach { opType ->
+                // Check if there's already a manual reminder
+                val hasManualReminder = reminders.any { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
+                
+                if (!hasManualReminder) {
+                    val lastLogForOp = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
+                    if (lastLogForOp != null) {
+                        val nextPresumedDate = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend)
+                        
+                        if (nextPresumedDate != null) {
+                            val horizonValue = if (equipment.useCustomUsageWindow) equipment.visibilityHorizon else globalHorizonVal
+                            val horizonUnit = if (equipment.useCustomUsageWindow) equipment.visibilityHorizonUnit else globalHorizonUnit
+                            val horizonMs = maintenanceManager.getWindowMs(horizonValue.toLong(), horizonUnit)
+                            
+                            // Include if overdue or within horizon
+                            if (nextPresumedDate < now || nextPresumedDate <= now + horizonMs) {
+                                allPredictions.add(
+                                    Pair(equipment, OperationStatus(
+                                        operation = opType,
+                                        lastLogDate = lastLogForOp.date,
+                                        lastLogValue = lastLogForOp.value,
+                                        nextPresumedDate = nextPresumedDate,
+                                        isOverdue = nextPresumedDate < now,
+                                        isPlanned = false
+                                    ))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        allPredictions.sortedBy { it.second.nextPresumedDate ?: Long.MAX_VALUE }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
@@ -315,30 +403,6 @@ class MaintenanceLogViewModel(
     fun onShowDismissedToggled() {
         _showDismissed.value = !_showDismissed.value
     }
-
-    val allEquipments = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
-        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
-            equipmentDao.getAllEquipmentList()
-        } else {
-            equipmentDao.getAllEquipmentListBySection(sectionId)
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-        initialValue = emptyList()
-    )
-
-    val allOperationTypes = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
-        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
-            operationTypeDao.getAllOperationTypes()
-        } else {
-            operationTypeDao.getAllOperationTypesBySection(sectionId)
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-        initialValue = emptyList()
-    )
 
     val activeResettableEquipmentsCount = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
         if (sectionId == AppConstants.ALL_SECTIONS_ID) {
