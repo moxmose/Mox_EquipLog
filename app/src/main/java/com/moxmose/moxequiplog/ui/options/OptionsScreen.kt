@@ -476,7 +476,7 @@ fun OptionsScreenContent(
                     onDismiss = { showDemoDataConfirm = false },
                     confirmText = stringResource(R.string.button_add),
                     confirmIcon = Icons.Default.Add,
-                    isDialog = true
+                    compactMode = true
                 )
             },
             dismissButton = null
@@ -497,7 +497,7 @@ fun OptionsScreenContent(
                     onDismiss = { onShowRestoreConfirmChange(null) },
                     confirmText = stringResource(R.string.button_ok),
                     confirmIcon = Icons.Default.Restore,
-                    isDialog = true
+                    compactMode = true
                 )
             },
             dismissButton = null
@@ -1261,7 +1261,8 @@ fun ColorLibraryManagerDialog(
                                 onDeleteColor = onDeleteColor,
                                 onToggleVisibility = { onToggleVisibility(color.id) },
                                 showReportVisibility = mode == ColorManagerMode.REPORTS_MANAGER,
-                                canDelete = colorsState.size > 1
+                                canDelete = colorsState.size > 1,
+                                compactMode = true
                             ) 
                         }
                     )
@@ -1357,7 +1358,7 @@ fun UnitManagementDialog(
                     confirmText = stringResource(R.string.button_add),
                     confirmIcon = Icons.Default.Add,
                     confirmEnabled = label.isNotBlank() && !isDuplicate,
-                    isDialog = true
+                    compactMode = true
                 )
             },
             dismissButton = null
@@ -1412,7 +1413,8 @@ fun UnitManagementDialog(
                                 onUpdateUnit = onUpdateUnit, 
                                 onCloneUnit = onCloneUnit,
                                 onToggleVisibility = { onToggleUnitVisibility(unit.id) },
-                                onDeleteUnit = { onDeleteUnit(unit) }
+                                onDeleteUnit = { onDeleteUnit(unit) },
+                                compactMode = true
                             ) 
                         }
                     )
@@ -1515,7 +1517,7 @@ fun SectionManagementDialog(
                     confirmText = stringResource(R.string.button_add),
                     confirmIcon = Icons.Default.Add,
                     confirmEnabled = name.isNotBlank(),
-                    isDialog = true
+                    compactMode = true
                 )
             },
             dismissButton = null
@@ -1607,7 +1609,8 @@ fun SectionManagementDialog(
                                 onShowColorManager = { tag, callback -> 
                                     onShowColorManagerCustom(callback)
                                 },
-                                onAddImage = onAddImage
+                                onAddImage = onAddImage,
+                                compactMode = true
                             ) 
                         }
                     )

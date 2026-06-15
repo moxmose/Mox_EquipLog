@@ -94,7 +94,7 @@ fun AddColorDialog(
                 confirmText = stringResource(R.string.button_add),
                 confirmIcon = Icons.Default.Add,
                 confirmEnabled = name.isNotBlank() && hexCode.isNotBlank(),
-                isDialog = true
+                compactMode = true
             )
         },
         dismissButton = null

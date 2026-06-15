@@ -387,7 +387,7 @@ fun AddEquipmentDialog(
                 onDismiss = onDismissRequest,
                 confirmText = stringResource(R.string.button_add),
                 confirmIcon = Icons.Default.Add,
-                isDialog = true
+                compactMode = true
             )
         },
         dismissButton = null

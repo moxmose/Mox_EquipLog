@@ -57,73 +57,87 @@ fun CommonActionButtons(
     showDefault: Boolean = false,
     isDefault: Boolean = false,
     onToggleDefault: (() -> Unit)? = null,
-    isDialog: Boolean = false,
+    compactMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val horizontalSpacing = if (isDialog) 4.dp else 8.dp
-    val buttonPadding = if (isDialog) PaddingValues(horizontal = 8.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding
+    val hasSecondaryActions = showDelete || showClone || showArchive || showDefault
+    val useCompactLayout = compactMode && hasSecondaryActions
+    
+    val horizontalSpacing = if (useCompactLayout) 4.dp else 8.dp
+    val buttonPadding = if (useCompactLayout) PaddingValues(horizontal = 8.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding
 
     FlowRow(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start,
+        // Usiamo End come allineamento predefinito per le righe del FlowRow
+        horizontalArrangement = Arrangement.spacedBy(horizontalSpacing, Alignment.End),
         verticalArrangement = Arrangement.Center,
         maxItemsInEachRow = Int.MAX_VALUE
     ) {
-        // Left side actions (Secondary - Icons only to save space)
-        Row(
-            modifier = Modifier.padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            if (showDelete && onDelete != null) {
-                IconButton(onClick = onDelete) {
-                    Icon(deleteIcon, contentDescription = stringResource(R.string.button_delete), tint = MaterialTheme.colorScheme.error)
+        // Blocco Sinistro: Icone (Azioni Secondarie)
+        if (hasSecondaryActions) {
+            Row(
+                modifier = Modifier
+                    .padding(vertical = 4.dp)
+                    // Il weight(1f) è fondamentale: spinge i bottoni a destra se sulla stessa riga,
+                    // o espande le icone a sinistra se i bottoni vanno a capo.
+                    .weight(1f),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (showDelete && onDelete != null) {
+                    IconButton(onClick = onDelete) {
+                        Icon(deleteIcon, contentDescription = stringResource(R.string.button_delete), tint = MaterialTheme.colorScheme.error)
+                    }
                 }
-            }
-            if (showArchive && onArchive != null) {
-                IconButton(onClick = onArchive) {
-                    Icon(archiveIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (showArchive && onArchive != null) {
+                    IconButton(onClick = onArchive) {
+                        Icon(archiveIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-            }
-            if (showClone && onClone != null) {
-                IconButton(onClick = onClone) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.button_clone), tint = MaterialTheme.colorScheme.secondary)
+                if (showClone && onClone != null) {
+                    IconButton(onClick = onClone) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.button_clone), tint = MaterialTheme.colorScheme.secondary)
+                    }
                 }
-            }
-            if (showDefault && onToggleDefault != null) {
-                IconButton(onClick = onToggleDefault) {
-                    Icon(
-                        imageVector = if (isDefault) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = "Default",
-                        tint = if (isDefault) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                if (showDefault && onToggleDefault != null) {
+                    IconButton(onClick = onToggleDefault) {
+                        Icon(
+                            imageVector = if (isDefault) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = "Default",
+                            tint = if (isDefault) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
 
-        // Right side actions (Primary - Icon + Text)
+        // Blocco Destro: Pulsanti Primari (Uniti in un Row per non separarsi mai)
         Row(
-            modifier = Modifier
-                .padding(vertical = 4.dp)
-                .weight(1f), // Occupa lo spazio rimanente sulla riga corrente
-            horizontalArrangement = Arrangement.spacedBy(horizontalSpacing, Alignment.End), // Allinea il contenuto a destra
+            modifier = Modifier.padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedButton(
                 onClick = onDismiss,
                 contentPadding = buttonPadding
             ) {
-                Icon(dismissIcon ?: Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(if (isDialog) 4.dp else 8.dp))
-                Text(dismissText)
+                if (!useCompactLayout) {
+                    Icon(dismissIcon ?: Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(dismissText, style = if (useCompactLayout) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium)
             }
+            
             Button(
                 onClick = onConfirm,
                 enabled = confirmEnabled,
                 contentPadding = buttonPadding
             ) {
-                Icon(confirmIcon ?: Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(if (isDialog) 4.dp else 8.dp))
-                Text(confirmText)
+                if (!useCompactLayout) {
+                    Icon(confirmIcon ?: Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(confirmText, style = if (useCompactLayout) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium)
             }
         }
     }

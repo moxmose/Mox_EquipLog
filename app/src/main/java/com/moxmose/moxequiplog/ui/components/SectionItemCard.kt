@@ -45,7 +45,8 @@ fun SectionItemCard(
     onDeleteSection: (Section) -> Unit,
     onShowColorManager: (String, (String) -> Unit) -> Unit,
     onAddImage: (String, String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compactMode: Boolean = false
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -127,7 +128,8 @@ fun SectionItemCard(
                         onDelete = { showDeleteConfirm = true },
                         showArchive = true,
                         onArchive = { onUpdateSection(section.copy(dismissed = !section.dismissed)) },
-                        archiveIcon = if (section.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                        archiveIcon = if (section.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        compactMode = compactMode
                     )
                 }
 

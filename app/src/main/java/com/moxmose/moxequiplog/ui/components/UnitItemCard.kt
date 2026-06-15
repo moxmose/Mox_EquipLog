@@ -36,7 +36,8 @@ fun UnitItemCard(
     onUpdateUnit: (MeasurementUnit) -> Unit,
     onCloneUnit: (MeasurementUnit) -> Unit,
     onToggleVisibility: () -> Unit,
-    onDeleteUnit: () -> Unit
+    onDeleteUnit: () -> Unit,
+    compactMode: Boolean = false
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editedLabel by remember(unit.label) { mutableStateOf(unit.label) }
@@ -134,7 +135,8 @@ fun UnitItemCard(
                         onDelete = onDeleteUnit,
                         showArchive = true,
                         onArchive = onToggleVisibility,
-                        archiveIcon = if (unit.isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                        archiveIcon = if (unit.isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        compactMode = compactMode
                     )
                 }
             } else {

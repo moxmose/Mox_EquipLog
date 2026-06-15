@@ -759,7 +759,7 @@ fun MaintenanceLogDialog(
                 showArchive = isEditMode && onArchive != null,
                 onArchive = onArchive,
                 archiveIcon = if (isDismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                isDialog = true
+                compactMode = true
             )
         },
         dismissButton = null

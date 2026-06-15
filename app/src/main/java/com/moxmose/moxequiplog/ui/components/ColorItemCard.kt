@@ -33,7 +33,8 @@ fun ColorItemCard(
     onDeleteColor: (AppColor) -> Unit,
     onToggleVisibility: () -> Unit,
     showReportVisibility: Boolean = false,
-    canDelete: Boolean = true
+    canDelete: Boolean = true,
+    compactMode: Boolean = false
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -106,7 +107,8 @@ fun ColorItemCard(
                     onDelete = { showDeleteConfirm = true },
                     showArchive = true,
                     onArchive = onToggleVisibility,
-                    archiveIcon = if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                    archiveIcon = if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    compactMode = compactMode
                 )
             }
         }
