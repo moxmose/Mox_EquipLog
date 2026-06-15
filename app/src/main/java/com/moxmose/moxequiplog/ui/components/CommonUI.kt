@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -57,11 +58,14 @@ fun CommonActionButtons(
     showDefault: Boolean = false,
     isDefault: Boolean = false,
     onToggleDefault: (() -> Unit)? = null,
+    showUndo: Boolean = false,
+    onUndo: (() -> Unit)? = null,
+    undoIcon: ImageVector = Icons.Default.Undo,
     compactMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val hasSecondaryActions = showDelete || showClone || showArchive || showDefault
-    val useCompactLayout = compactMode && hasSecondaryActions
+    val hasSecondaryActions = showDelete || showClone || showArchive || showDefault || showUndo
+    val useCompactLayout = compactMode
     
     val horizontalSpacing = if (useCompactLayout) 4.dp else 8.dp
     val buttonPadding = if (useCompactLayout) PaddingValues(horizontal = 8.dp, vertical = 8.dp) else ButtonDefaults.ContentPadding
@@ -97,6 +101,11 @@ fun CommonActionButtons(
                 if (showClone && onClone != null) {
                     IconButton(onClick = onClone) {
                         Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.button_clone), tint = MaterialTheme.colorScheme.secondary)
+                    }
+                }
+                if (showUndo && onUndo != null) {
+                    IconButton(onClick = onUndo) {
+                        Icon(undoIcon, contentDescription = stringResource(R.string.filter_reset), tint = MaterialTheme.colorScheme.secondary)
                     }
                 }
                 if (showDefault && onToggleDefault != null) {

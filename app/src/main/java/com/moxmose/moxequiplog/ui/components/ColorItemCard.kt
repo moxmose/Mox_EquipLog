@@ -95,12 +95,18 @@ fun ColorItemCard(
 
             if (isEditing) {
                 Spacer(modifier = Modifier.height(12.dp))
+                val isDirty = editedName != color.name || editedHex != color.hexValue
                 CommonActionButtons(
                     onConfirm = {
                         onUpdateColor(color.copy(name = editedName, hexValue = editedHex))
                         isEditing = false
                     },
-                    onDismiss = { isEditing = false },
+                    onDismiss = { 
+                        isEditing = false
+                        // Resetting local state to ensure reversibility when re-entering edit mode
+                        editedName = color.name
+                        editedHex = color.hexValue
+                    },
                     confirmText = stringResource(R.string.save_equipment),
                     confirmIcon = Icons.Default.Save,
                     showDelete = !color.isDefault && canDelete,
@@ -108,6 +114,11 @@ fun ColorItemCard(
                     showArchive = true,
                     onArchive = onToggleVisibility,
                     archiveIcon = if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    showUndo = isDirty,
+                    onUndo = {
+                        editedName = color.name
+                        editedHex = color.hexValue
+                    },
                     compactMode = compactMode
                 )
             }

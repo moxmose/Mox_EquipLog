@@ -117,6 +117,8 @@ fun UnitItemCard(
                     
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    val isDirty = editedLabel != unit.label || editedDescription != unit.description || editedDecimalPlaces != unit.decimalPlaces
+
                     CommonActionButtons(
                         onConfirm = {
                             onUpdateUnit(unit.copy(
@@ -126,7 +128,13 @@ fun UnitItemCard(
                             ))
                             isEditing = false
                         },
-                        onDismiss = { isEditing = false },
+                        onDismiss = { 
+                            isEditing = false
+                            // Reverting local state
+                            editedLabel = unit.label
+                            editedDescription = unit.description
+                            editedDecimalPlaces = unit.decimalPlaces
+                        },
                         confirmText = stringResource(R.string.save_equipment),
                         confirmIcon = Icons.Default.Save,
                         showClone = true,
@@ -136,6 +144,12 @@ fun UnitItemCard(
                         showArchive = true,
                         onArchive = onToggleVisibility,
                         archiveIcon = if (unit.isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        showUndo = isDirty,
+                        onUndo = {
+                            editedLabel = unit.label
+                            editedDescription = unit.description
+                            editedDecimalPlaces = unit.decimalPlaces
+                        },
                         compactMode = compactMode
                     )
                 }

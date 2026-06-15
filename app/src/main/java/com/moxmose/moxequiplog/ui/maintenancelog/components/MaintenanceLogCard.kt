@@ -457,6 +457,8 @@ fun MaintenanceLogCard(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    val isDirty = currentLog != logDetail.log
+
                     CommonActionButtons(
                         onConfirm = {
                             onSaveEdit(draft)
@@ -470,7 +472,9 @@ fun MaintenanceLogCard(
                         archiveIcon = if (logDetail.log.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         onArchive = { 
                             onSave(logDetail.log.copy(dismissed = !logDetail.log.dismissed))
-                        }
+                        },
+                        showUndo = isDirty,
+                        onUndo = { onUpdateDraft(logDetail.log) }
                     )
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {

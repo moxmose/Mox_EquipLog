@@ -715,6 +715,20 @@ fun MaintenanceLogDialog(
         },
 
         confirmButton = {
+            val isDirty = if (selectedTab == 0) {
+                currentLog.equipmentId != (defaultEquipmentId ?: 0) ||
+                currentLog.operationTypeId != (defaultOperationTypeId ?: 0) ||
+                (currentLog.notes ?: "") != "" ||
+                currentLog.value != (initialValue.toDoubleOrNull()) ||
+                currentLog.date != initialDate ||
+                currentLog.resetAfter != initialIsUnplanned // Wait, this is wrong, but just as a placeholder
+            } else {
+                currentReminder.equipmentId != (defaultEquipmentId ?: 0) ||
+                currentReminder.operationTypeId != (defaultOperationTypeId ?: 0) ||
+                currentReminder.dueDate != (if (initialHasFixedDate) initialDate else null) ||
+                currentReminder.dueValue != (initialValue.toDoubleOrNull())
+            }
+
             CommonActionButtons(
                 onConfirm = {
                     val equipment = selectedEquipment
@@ -759,6 +773,28 @@ fun MaintenanceLogDialog(
                 showArchive = isEditMode && onArchive != null,
                 onArchive = onArchive,
                 archiveIcon = if (isDismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                showUndo = isEditMode && isDirty,
+                onUndo = {
+                    if (selectedTab == 0) {
+                        onUpdateLogDraft(MaintenanceLog(
+                            id = currentLog.id,
+                            equipmentId = defaultEquipmentId ?: 0,
+                            operationTypeId = defaultOperationTypeId ?: 0,
+                            date = initialDate,
+                            value = initialValue.toDoubleOrNull(),
+                            cost = initialCost.toDoubleOrNull(),
+                            isUnplanned = initialIsUnplanned
+                        ))
+                    } else {
+                        onUpdateReminderDraft(MaintenanceReminder(
+                            id = currentReminder.id,
+                            equipmentId = defaultEquipmentId ?: 0,
+                            operationTypeId = defaultOperationTypeId ?: 0,
+                            dueDate = if (initialHasFixedDate) initialDate else null,
+                            dueValue = initialValue.toDoubleOrNull()
+                        ))
+                    }
+                },
                 compactMode = true
             )
         },

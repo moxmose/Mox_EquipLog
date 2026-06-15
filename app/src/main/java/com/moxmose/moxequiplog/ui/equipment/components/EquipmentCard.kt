@@ -399,6 +399,8 @@ fun EquipmentCard(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        val isDirty = draft.equipment != equipment || draft.isDefault != isDefault
+
                         CommonActionButtons(
                             onConfirm = {
                                 onSaveEdit(draft)
@@ -415,7 +417,9 @@ fun EquipmentCard(
                             onDelete = { showDeleteConfirmation = true },
                             showDefault = true,
                             isDefault = isDefault,
-                            onToggleDefault = onToggleDefault
+                            onToggleDefault = onToggleDefault,
+                            showUndo = isDirty,
+                            onUndo = { onUpdateDraft(EquipmentDraft(equipment, isDefault)) }
                         )
                     }
                 } else {

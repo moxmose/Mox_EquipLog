@@ -114,6 +114,8 @@ fun SectionItemCard(
                         )
                     }
 
+                    val isDirty = editedName != section.name || editedIcon != section.iconIdentifier || editedPhotoUri != section.photoUri || editedColor != (section.color ?: "#808080")
+
                     CommonActionButtons(
                         onConfirm = {
                             onUpdateSection(section.copy(name = editedName, iconIdentifier = editedIcon, photoUri = editedPhotoUri, color = editedColor))
@@ -129,6 +131,13 @@ fun SectionItemCard(
                         showArchive = true,
                         onArchive = { onUpdateSection(section.copy(dismissed = !section.dismissed)) },
                         archiveIcon = if (section.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        showUndo = isDirty,
+                        onUndo = {
+                            editedName = section.name
+                            editedIcon = section.iconIdentifier
+                            editedPhotoUri = section.photoUri
+                            editedColor = section.color ?: "#808080"
+                        },
                         compactMode = compactMode
                     )
                 }
