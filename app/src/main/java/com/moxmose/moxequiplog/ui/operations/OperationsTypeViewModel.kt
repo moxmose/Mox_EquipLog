@@ -16,10 +16,13 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDao
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.OperationTypeDraft
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,11 +99,17 @@ class OperationsTypeViewModel(
     fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
     fun onShowAddDialogChange(show: Boolean) { 
         _showAddDialog.value = show 
-        if (!show) _cloningOperationType.value = null
+        if (!show) {
+            _cloningOperationType.value = null
+            cancelAddDraft()
+        }
     }
     fun onCloneOperationType(operationType: OperationType?) {
         _cloningOperationType.value = operationType
-        if (operationType != null) _showAddDialog.value = true
+        if (operationType != null) {
+            _showAddDialog.value = true
+            updateAddDraft(OperationTypeDraft(operationType = operationType.copy(id = 0), isDefault = false))
+        }
     }
     fun onAffectedAction(opId: Int, status: EquipmentOperationStatus?) { _selectedAffectedEquipmentForAdd.value = if (status != null) opId to status else null }
 
@@ -285,6 +294,26 @@ class OperationsTypeViewModel(
     val globalVisibilityHorizonUnit: StateFlow<TimeGranularity> = appSettingsManager.defaultVisibilityHorizonUnit
         .map { TimeGranularity.valueOf(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), TimeGranularity.valueOf(UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT))
+
+    val allDrafts: StateFlow<Map<Int, OperationTypeDraft>> = appSettingsManager.getAllDraftsFlow("operation")
+        .map { draftsMap ->
+            draftsMap.mapValues { (_, json) ->
+                try {
+                    Json.decodeFromString<OperationTypeDraft>(json)
+                } catch (e: Exception) {
+                    null
+                }
+            }.filterValues { it != null }.mapValues { it.value!! }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
+
+    val addDraft: StateFlow<OperationTypeDraft?> = appSettingsManager.getDraftFlow("operation", 0)
+        .map { json ->
+            try {
+                json?.let { Json.decodeFromString<OperationTypeDraft>(it) }
+            } catch (e: Exception) {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     fun setDefaultOperationType(id: Int?) {
         viewModelScope.launch {
@@ -476,6 +505,69 @@ class OperationsTypeViewModel(
         } catch (e: Exception) {
             _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
+        }
+    }
+
+    // --- Draft Management ---
+    fun startEditing(operationType: OperationType) {
+        viewModelScope.launch {
+            val isCurrentlyDefault = defaultOperationTypeId.value == operationType.id
+            val draft = OperationTypeDraft(operationType = operationType, isDefault = isCurrentlyDefault)
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("operation", operationType.id, json)
+        }
+    }
+
+    fun toggleDefaultInDraft(id: Int) {
+        viewModelScope.launch {
+            val drafts = allDrafts.value
+            drafts[id]?.let { draft ->
+                val updated = draft.copy(isDefault = !draft.isDefault)
+                updateDraft(updated)
+            }
+        }
+    }
+
+    fun updateDraft(draft: OperationTypeDraft) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("operation", draft.operationType.id, json)
+        }
+    }
+
+    fun cancelEditing(id: Int) {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("operation", id)
+        }
+    }
+
+    fun saveEditing(draft: OperationTypeDraft) {
+        viewModelScope.launch {
+            updateOperationType(draft.operationType)
+
+            // Sync default status if changed in draft
+            val currentDefaultId = defaultOperationTypeId.value
+            if (draft.isDefault && currentDefaultId != draft.operationType.id) {
+                appSettingsManager.setDefaultOperationTypeId(draft.operationType.id)
+            } else if (!draft.isDefault && currentDefaultId == draft.operationType.id) {
+                appSettingsManager.setDefaultOperationTypeId(null)
+            }
+
+            appSettingsManager.deleteDraft("operation", draft.operationType.id)
+        }
+    }
+
+    // --- Add Draft Management ---
+    fun updateAddDraft(draft: OperationTypeDraft) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("operation", 0, json)
+        }
+    }
+
+    fun cancelAddDraft() {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("operation", 0)
         }
     }
 }

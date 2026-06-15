@@ -51,6 +51,7 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
+import com.moxmose.moxequiplog.data.local.MaintenanceReminder
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
@@ -95,9 +96,12 @@ fun MaintenanceLogScreen(
     val showAddDialog by viewModel.showAddDialog.collectAsState()
     val expandedCardId by viewModel.expandedCardId.collectAsState()
     val editingCardId by viewModel.editingCardId.collectAsState()
+    val allDrafts by viewModel.allDrafts.collectAsState()
     val selectedReminderForComplete by viewModel.selectedReminderForComplete.collectAsState()
     val selectedReminderForEdit by viewModel.selectedReminderForEdit.collectAsState()
     val selectedPredictionForAdd by viewModel.selectedPredictionForAdd.collectAsState()
+    val logAddDraft by viewModel.logAddDraft.collectAsState()
+    val reminderAddDraft by viewModel.reminderAddDraft.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -118,14 +122,14 @@ fun MaintenanceLogScreen(
         }
     }
 
-    val activeEquipments = remember(allEquipments) { allEquipments.filter { !it.dismissed }.sortedBy { it.displayOrder } }
-    val activeOperationTypes = remember(allOperationTypes) { allOperationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
+    val activeEquipmentsList = remember(allEquipments) { allEquipments.filter { !it.dismissed }.sortedBy { it.displayOrder } }
+    val activeOperationTypesList = remember(allOperationTypes) { allOperationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
 
     if (selectedReminderForComplete != null) {
         val details = selectedReminderForComplete!!
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = activeOperationTypes,
+            equipments = activeEquipmentsList,
+            operationTypes = activeOperationTypesList,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onCompleteReminder(null) },
@@ -153,7 +157,11 @@ fun MaintenanceLogScreen(
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
             costTrendThreshold = costTrendThreshold,
-            onNavigateToOptions = onNavigateToOptions
+            onNavigateToOptions = onNavigateToOptions,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = viewModel::updateLogAddDraft,
+            onUpdateReminderDraft = viewModel::updateReminderAddDraft
         )
     }
 
@@ -161,8 +169,8 @@ fun MaintenanceLogScreen(
         val reminderDetails = selectedReminderForEdit!!
         val reminder = reminderDetails.reminder
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = activeOperationTypes,
+            equipments = activeEquipmentsList,
+            operationTypes = activeOperationTypesList,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onEditReminder(null) },
@@ -189,15 +197,19 @@ fun MaintenanceLogScreen(
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
             costTrendThreshold = costTrendThreshold,
-            onNavigateToOptions = onNavigateToOptions
+            onNavigateToOptions = onNavigateToOptions,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = viewModel::updateLogAddDraft,
+            onUpdateReminderDraft = viewModel::updateReminderAddDraft
         )
     }
 
     if (selectedPredictionForAdd != null) {
         val (eqId, status) = selectedPredictionForAdd!!
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = activeOperationTypes,
+            equipments = activeEquipmentsList,
+            operationTypes = activeOperationTypesList,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onPredictionAction(0, null) },
@@ -231,7 +243,11 @@ fun MaintenanceLogScreen(
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
             costTrendThreshold = costTrendThreshold,
-            onNavigateToOptions = onNavigateToOptions
+            onNavigateToOptions = onNavigateToOptions,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = viewModel::updateLogAddDraft,
+            onUpdateReminderDraft = viewModel::updateReminderAddDraft
         )
     }
 
@@ -242,8 +258,8 @@ fun MaintenanceLogScreen(
         onSectionSelected = viewModel::onSectionSelected,
         showDismissedSections = showDismissedSections,
         onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
-        equipments = activeEquipments,
-        operationTypes = activeOperationTypes,
+        equipments = activeEquipmentsList,
+        operationTypes = activeOperationTypesList,
         measurementUnits = measurementUnits,
         searchQuery = searchQuery,
         onSearchQueryChange = viewModel::onSearchQueryChanged,
@@ -264,7 +280,11 @@ fun MaintenanceLogScreen(
         expandedCardId = expandedCardId,
         onCardExpanded = viewModel::onCardExpanded,
         editingCardId = editingCardId,
-        onEditLog = viewModel::onEditLog,
+        allDrafts = allDrafts,
+        onStartEdit = viewModel::startEditing,
+        onCancelEdit = viewModel::cancelEditing,
+        onUpdateDraft = viewModel::updateDraft,
+        onSaveEdit = viewModel::saveEditing,
         onUpdateLog = viewModel::updateLog,
         onDeleteLog = viewModel::deleteLog,
         onDismissLog = viewModel::dismissLog,
@@ -282,7 +302,11 @@ fun MaintenanceLogScreen(
         syncCalendarByDefault = syncCalendarByDefault,
         googleAccountName = googleAccountName,
         costTrendThreshold = costTrendThreshold,
-        onNavigateToOptions = onNavigateToOptions
+        onNavigateToOptions = onNavigateToOptions,
+        logAddDraft = logAddDraft,
+        reminderAddDraft = reminderAddDraft,
+        onUpdateLogDraft = viewModel::updateLogAddDraft,
+        onUpdateReminderDraft = viewModel::updateReminderAddDraft
     )
 }
 
@@ -317,7 +341,11 @@ fun MaintenanceLogScreenContent(
     expandedCardId: Int?,
     onCardExpanded: (Int) -> Unit,
     editingCardId: Int?,
-    onEditLog: (MaintenanceLog) -> Unit,
+    allDrafts: Map<Int, MaintenanceLog> = emptyMap(),
+    onStartEdit: (MaintenanceLog) -> Unit,
+    onCancelEdit: (Int) -> Unit,
+    onUpdateDraft: (MaintenanceLog) -> Unit,
+    onSaveEdit: (MaintenanceLog) -> Unit,
     onUpdateLog: (MaintenanceLog) -> Unit,
     onDeleteLog: (MaintenanceLog) -> Unit,
     onDismissLog: (MaintenanceLog) -> Unit,
@@ -336,6 +364,10 @@ fun MaintenanceLogScreenContent(
     syncCalendarByDefault: Boolean,
     googleAccountName: String?,
     costTrendThreshold: Float,
+    logAddDraft: MaintenanceLog?,
+    reminderAddDraft: MaintenanceReminder?,
+    onUpdateLogDraft: (MaintenanceLog) -> Unit,
+    onUpdateReminderDraft: (MaintenanceReminder) -> Unit,
     onNavigateToOptions: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
@@ -406,7 +438,11 @@ fun MaintenanceLogScreenContent(
                     syncCalendarByDefault = syncCalendarByDefault,
                     googleAccountName = googleAccountName,
                     costTrendThreshold = costTrendThreshold,
-                    onNavigateToOptions = onNavigateToOptions
+                    onNavigateToOptions = onNavigateToOptions,
+                    logDraft = logAddDraft,
+                    reminderDraft = reminderAddDraft,
+                    onUpdateLogDraft = onUpdateLogDraft,
+                    onUpdateReminderDraft = onUpdateReminderDraft
                 )
             }
 
@@ -492,9 +528,12 @@ fun MaintenanceLogScreenContent(
                         operationTypes = operationTypes,
                         measurementUnits = measurementUnits,
                         isExpanded = logDetail.log.id == expandedCardId,
-                        isEditing = logDetail.log.id == editingCardId,
+                        draft = allDrafts[logDetail.log.id],
+                        onStartEdit = { onStartEdit(logDetail.log) },
+                        onCancelEdit = { onCancelEdit(logDetail.log.id) },
+                        onUpdateDraft = onUpdateDraft,
+                        onSaveEdit = onSaveEdit,
                         onExpand = { onCardExpanded(logDetail.log.id) },
-                        onEdit = { onEditLog(logDetail.log) },
                         onSave = onUpdateLog,
                         onDelete = onDeleteLog,
                         onGetOperationCostStats = onGetOperationCostStats,

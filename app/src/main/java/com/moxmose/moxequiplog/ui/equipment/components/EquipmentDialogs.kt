@@ -59,48 +59,52 @@ fun AddEquipmentDialog(
     categoryDefaultPhotos: Map<String, String?>,
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
-    initialEquipment: Equipment? = null
+    initialEquipment: Equipment? = null,
+    draft: EquipmentDraft? = null,
+    onUpdateDraft: (EquipmentDraft) -> Unit = {}
 ) {
-    val cloneSuffix = stringResource(R.string.clone_suffix)
-    var description by rememberSaveable(initialEquipment) { 
-        mutableStateOf(initialEquipment?.description?.let { "$it$cloneSuffix" } ?: "") 
+    val currentEquipment = draft?.equipment ?: initialEquipment ?: Equipment(
+        description = "",
+        unitId = defaultUnitId ?: 1,
+        sectionId = if (selectedSectionId == -1) 1 else selectedSectionId,
+        iconIdentifier = defaultIcon,
+        photoUri = defaultPhotoUri
+    )
+
+    var description by remember(currentEquipment.description) { 
+        mutableStateOf(currentEquipment.description) 
     }
-    var photoUri by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.photoUri) }
-    var iconId by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.iconIdentifier) }
-    var unitId by rememberSaveable(defaultUnitId, initialEquipment) { 
-        mutableIntStateOf(initialEquipment?.unitId ?: defaultUnitId ?: 1) 
+    var photoUri by remember(currentEquipment.photoUri) { mutableStateOf(currentEquipment.photoUri) }
+    var iconId by remember(currentEquipment.iconIdentifier) { mutableStateOf(currentEquipment.iconIdentifier) }
+    var unitId by remember(currentEquipment.unitId) { 
+        mutableIntStateOf(currentEquipment.unitId) 
     }
-    var sectionId by rememberSaveable(selectedSectionId, initialEquipment) { 
-        mutableIntStateOf(initialEquipment?.sectionId ?: if (selectedSectionId == -1) 1 else selectedSectionId) 
+    var sectionId by remember(currentEquipment.sectionId) { 
+        mutableIntStateOf(currentEquipment.sectionId) 
     }
-    var isResettable by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.isResettable ?: false) }
+    var isResettable by remember(currentEquipment.isResettable) { mutableStateOf(currentEquipment.isResettable) }
     
     // Predictive Settings
-    var useCustomUsageWindow by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.useCustomUsageWindow ?: false) }
-    var usageWindow by rememberSaveable(initialEquipment) { mutableIntStateOf(initialEquipment?.usageWindow ?: 30) }
-    var usageWindowUnit by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.usageWindowUnit ?: TimeGranularity.DAYS) }
+    var useCustomUsageWindow by remember(currentEquipment.useCustomUsageWindow) { mutableStateOf(currentEquipment.useCustomUsageWindow) }
+    var usageWindow by remember(currentEquipment.usageWindow) { mutableIntStateOf(currentEquipment.usageWindow) }
+    var usageWindowUnit by remember(currentEquipment.usageWindowUnit) { mutableStateOf(currentEquipment.usageWindowUnit) }
     
-    var manualAverageValue by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.manualAverageValue) }
-    var manualAverageValueStr by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.manualAverageValue?.toString() ?: "") }
-    var manualAverageUnit by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.manualAverageUnit ?: TimeGranularity.DAYS) }
+    var manualAverageValue by remember(currentEquipment.manualAverageValue) { mutableStateOf(currentEquipment.manualAverageValue) }
+    var manualAverageValueStr by remember(currentEquipment.manualAverageValue) { mutableStateOf(currentEquipment.manualAverageValue?.toString() ?: "") }
+    var manualAverageUnit by remember(currentEquipment.manualAverageUnit) { mutableStateOf(currentEquipment.manualAverageUnit) }
     
-    var useCustomVisibilityHorizon by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.useCustomVisibilityHorizon ?: false) }
-    var visibilityHorizon by rememberSaveable(initialEquipment) { mutableIntStateOf(initialEquipment?.visibilityHorizon ?: 30) }
-    var visibilityHorizonUnit by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment?.visibilityHorizonUnit ?: TimeGranularity.DAYS) }
+    var useCustomVisibilityHorizon by remember(currentEquipment.useCustomVisibilityHorizon) { mutableStateOf(currentEquipment.useCustomVisibilityHorizon) }
+    var visibilityHorizon by remember(currentEquipment.visibilityHorizon) { mutableIntStateOf(currentEquipment.visibilityHorizon) }
+    var visibilityHorizonUnit by remember(currentEquipment.visibilityHorizonUnit) { mutableStateOf(currentEquipment.visibilityHorizonUnit) }
 
-    var isPristine by rememberSaveable(initialEquipment) { mutableStateOf(initialEquipment == null) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
 
     val selectedUnit = measurementUnits.find { it.id == unitId }
     val unitLabel = selectedUnit?.label ?: ""
 
-    if (isPristine && initialEquipment == null && (defaultIcon != null || defaultPhotoUri != null)) {
-        LaunchedEffect(defaultIcon, defaultPhotoUri) {
-            iconId = defaultIcon
-            photoUri = defaultPhotoUri
-        }
-    }
+    // Helper to update draft
+    val updateDraft = { updated: Equipment -> onUpdateDraft(EquipmentDraft(equipment = updated, isDefault = draft?.isDefault ?: false)) }
 
     if (showImageSelectorDialog) {
         ImagePickerDialog(
@@ -108,10 +112,10 @@ fun AddEquipmentDialog(
             photoUri = photoUri,
             iconIdentifier = iconId,
             onImageSelected = { (newIconId, newPhotoUri) ->
-                isPristine = false
                 iconId = newIconId
                 photoUri = newPhotoUri
                 showImageSelectorDialog = false
+                updateDraft(currentEquipment.copy(iconIdentifier = newIconId, photoUri = newPhotoUri))
             },
             imageLibrary = imageLibrary,
             categories = categories,
@@ -174,7 +178,12 @@ fun AddEquipmentDialog(
                     }
                     OutlinedTextField(
                         value = description,
-                        onValueChange = { if (it.length <= 50) description = it },
+                        onValueChange = { 
+                            if (it.length <= 50) {
+                                description = it
+                                updateDraft(currentEquipment.copy(description = it))
+                            }
+                        },
                         label = { Text(stringResource(R.string.equipment_description)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true
@@ -184,7 +193,10 @@ fun AddEquipmentDialog(
                 SectionSelector(
                     allSections = allSections,
                     selectedSectionId = sectionId,
-                    onSectionSelected = { sectionId = it },
+                    onSectionSelected = { 
+                        sectionId = it 
+                        updateDraft(currentEquipment.copy(sectionId = it))
+                    },
                     showDismissed = showDismissedSections,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -192,16 +204,25 @@ fun AddEquipmentDialog(
                 UnitSelector(
                     measurementUnits = measurementUnits,
                     selectedUnitId = unitId,
-                    onUnitSelected = { unitId = it },
+                    onUnitSelected = { 
+                        unitId = it 
+                        updateDraft(currentEquipment.copy(unitId = it))
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable { isResettable = !isResettable },
+                    modifier = Modifier.fillMaxWidth().clickable { 
+                        isResettable = !isResettable 
+                        updateDraft(currentEquipment.copy(isResettable = isResettable))
+                    },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Checkbox(checked = isResettable, onCheckedChange = { isResettable = it })
+                    Checkbox(checked = isResettable, onCheckedChange = { 
+                        isResettable = it 
+                        updateDraft(currentEquipment.copy(isResettable = it))
+                    })
                     Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
                 }
 
@@ -228,20 +249,41 @@ fun AddEquipmentDialog(
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         // Trend Window Section
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth().clickable { useCustomUsageWindow = !useCustomUsageWindow }, verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = useCustomUsageWindow, onCheckedChange = { useCustomUsageWindow = it })
+                            Row(modifier = Modifier.fillMaxWidth().clickable { 
+                                useCustomUsageWindow = !useCustomUsageWindow 
+                                updateDraft(currentEquipment.copy(useCustomUsageWindow = useCustomUsageWindow))
+                            }, verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = useCustomUsageWindow, onCheckedChange = { 
+                                    useCustomUsageWindow = it 
+                                    updateDraft(currentEquipment.copy(useCustomUsageWindow = it))
+                                })
                                 Text("Use custom trend window", style = MaterialTheme.typography.bodySmall)
                             }
                             if (useCustomUsageWindow) {
                                 Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     OutlinedTextField(
                                         value = usageWindow.toString(),
-                                        onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it } },
+                                        onValueChange = { input -> 
+                                            input.toIntOrNull()?.let { 
+                                                if (it in 1..999) {
+                                                    usageWindow = it 
+                                                    updateDraft(currentEquipment.copy(usageWindow = it))
+                                                }
+                                            } 
+                                        },
                                         label = { Text("Window Value") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.weight(1f)
                                     )
-                                    TimeGranularitySelector(selected = usageWindowUnit, onSelected = { usageWindowUnit = it }, label = "Of last", modifier = Modifier.weight(1.2f))
+                                    TimeGranularitySelector(
+                                        selected = usageWindowUnit, 
+                                        onSelected = { 
+                                            usageWindowUnit = it 
+                                            updateDraft(currentEquipment.copy(usageWindowUnit = it))
+                                        }, 
+                                        label = "Of last", 
+                                        modifier = Modifier.weight(1.2f)
+                                    )
                                 }
                             } else {
                                 Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
@@ -258,11 +300,13 @@ fun AddEquipmentDialog(
                                         if (filtered.isEmpty() || filtered == "." || filtered == "-") {
                                             manualAverageValueStr = filtered
                                             manualAverageValue = null
+                                            updateDraft(currentEquipment.copy(manualAverageValue = null))
                                         } else {
                                             val doubleVal = filtered.toDoubleOrNull()
                                             if (doubleVal != null) {
                                                 manualAverageValueStr = filtered
                                                 manualAverageValue = doubleVal
+                                                updateDraft(currentEquipment.copy(manualAverageValue = doubleVal))
                                             }
                                         }
                                     },
@@ -271,27 +315,56 @@ fun AddEquipmentDialog(
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     modifier = Modifier.weight(1f)
                                 )
-                                TimeGranularitySelector(selected = manualAverageUnit, onSelected = { manualAverageUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
+                                TimeGranularitySelector(
+                                    selected = manualAverageUnit, 
+                                    onSelected = { 
+                                        manualAverageUnit = it 
+                                        updateDraft(currentEquipment.copy(manualAverageUnit = it))
+                                    }, 
+                                    label = "Every", 
+                                    modifier = Modifier.weight(1.2f)
+                                )
                             }
                             Text(text = "Optional: expected usage when history is missing (fallback)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
                         // Visibility Horizon Row
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth().clickable { useCustomVisibilityHorizon = !useCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = useCustomVisibilityHorizon, onCheckedChange = { useCustomVisibilityHorizon = it })
+                            Row(modifier = Modifier.fillMaxWidth().clickable { 
+                                useCustomVisibilityHorizon = !useCustomVisibilityHorizon 
+                                updateDraft(currentEquipment.copy(useCustomVisibilityHorizon = useCustomVisibilityHorizon))
+                            }, verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = useCustomVisibilityHorizon, onCheckedChange = { 
+                                    useCustomVisibilityHorizon = it 
+                                    updateDraft(currentEquipment.copy(useCustomVisibilityHorizon = it))
+                                })
                                 Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
                             }
                             if (useCustomVisibilityHorizon) {
                                 Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     OutlinedTextField(
                                         value = visibilityHorizon.toString(),
-                                        onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } },
+                                        onValueChange = { input -> 
+                                            input.toIntOrNull()?.let { 
+                                                if (it in 1..999) {
+                                                    visibilityHorizon = it 
+                                                    updateDraft(currentEquipment.copy(visibilityHorizon = it))
+                                                }
+                                            } 
+                                        },
                                         label = { Text("Event Horizon") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.weight(1f)
                                     )
-                                    TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                    TimeGranularitySelector(
+                                        selected = visibilityHorizonUnit, 
+                                        onSelected = { 
+                                            visibilityHorizonUnit = it 
+                                            updateDraft(currentEquipment.copy(visibilityHorizonUnit = it))
+                                        }, 
+                                        label = "Future span", 
+                                        modifier = Modifier.weight(1.2f)
+                                    )
                                 }
                             } else {
                                 Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))

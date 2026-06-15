@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "operation_types",
@@ -17,6 +18,7 @@ import androidx.room.PrimaryKey
     ],
     indices = [androidx.room.Index(value = ["sectionId"])]
 )
+@Serializable
 data class OperationType(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

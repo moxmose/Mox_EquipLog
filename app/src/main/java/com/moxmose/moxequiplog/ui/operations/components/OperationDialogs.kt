@@ -54,40 +54,44 @@ fun AddOperationTypeDialog(
     onAddImage: (ImageIdentifier, String) -> Unit,
     onToggleImageVisibility: (Image) -> Unit,
     operationCategoryColor: String,
-    initialOperationType: OperationType? = null
+    initialOperationType: OperationType? = null,
+    draft: OperationTypeDraft? = null,
+    onUpdateDraft: (OperationTypeDraft) -> Unit = {}
 ) {
     val cloneSuffix = stringResource(R.string.clone_suffix)
-    var description by rememberSaveable(initialOperationType) { 
-        mutableStateOf(initialOperationType?.description?.let { "$it$cloneSuffix" } ?: "") 
-    }
-    var photoUri by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.photoUri) }
-    var iconId by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.iconIdentifier) }
-    var sectionId by rememberSaveable(selectedSectionId, initialOperationType) { 
-        mutableIntStateOf(initialOperationType?.sectionId ?: if (selectedSectionId == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else selectedSectionId) 
-    }
-    var estimatedCostStr by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.estimatedCost?.toString() ?: "") }
-    var estimatedCost by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.estimatedCost) }
-    var isPredictable by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.isPredictable ?: false) }
-    var intervalValue by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.intervalValue) }
-    var intervalValueStr by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.intervalValue?.toString() ?: "") }
-    var timeoutValue by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.timeoutValue) }
-    var timeoutValueStr by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.timeoutValue?.toString() ?: "") }
-    var timeoutUnit by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.timeoutUnit ?: TimeGranularity.MONTHS) }
-    
-    var useCustomVisibilityHorizon by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.useCustomVisibilityHorizon ?: false) }
-    var visibilityHorizon by rememberSaveable(initialOperationType) { mutableIntStateOf(initialOperationType?.visibilityHorizon ?: 30) }
-    var visibilityHorizonUnit by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType?.visibilityHorizonUnit ?: TimeGranularity.DAYS) }
+    val currentOperationType = draft?.operationType ?: initialOperationType ?: OperationType(
+        description = "",
+        sectionId = if (selectedSectionId == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else selectedSectionId,
+        iconIdentifier = defaultIcon,
+        photoUri = defaultPhotoUri
+    )
 
-    var isPristine by rememberSaveable(initialOperationType) { mutableStateOf(initialOperationType == null) }
+    var description by remember(currentOperationType.description) { 
+        mutableStateOf(currentOperationType.description) 
+    }
+    var photoUri by remember(currentOperationType.photoUri) { mutableStateOf(currentOperationType.photoUri) }
+    var iconId by remember(currentOperationType.iconIdentifier) { mutableStateOf(currentOperationType.iconIdentifier) }
+    var sectionId by remember(currentOperationType.sectionId) { 
+        mutableIntStateOf(currentOperationType.sectionId) 
+    }
+    var estimatedCostStr by remember(currentOperationType.estimatedCost) { mutableStateOf(currentOperationType.estimatedCost?.toString() ?: "") }
+    var estimatedCost by remember(currentOperationType.estimatedCost) { mutableStateOf(currentOperationType.estimatedCost) }
+    var isPredictable by remember(currentOperationType.isPredictable) { mutableStateOf(currentOperationType.isPredictable) }
+    var intervalValue by remember(currentOperationType.intervalValue) { mutableStateOf(currentOperationType.intervalValue) }
+    var intervalValueStr by remember(currentOperationType.intervalValue) { mutableStateOf(currentOperationType.intervalValue?.toString() ?: "") }
+    var timeoutValue by remember(currentOperationType.timeoutValue) { mutableStateOf(currentOperationType.timeoutValue) }
+    var timeoutValueStr by remember(currentOperationType.timeoutValue) { mutableStateOf(currentOperationType.timeoutValue?.toString() ?: "") }
+    var timeoutUnit by remember(currentOperationType.timeoutUnit) { mutableStateOf(currentOperationType.timeoutUnit ?: TimeGranularity.MONTHS) }
+    
+    var useCustomVisibilityHorizon by remember(currentOperationType.useCustomVisibilityHorizon) { mutableStateOf(currentOperationType.useCustomVisibilityHorizon) }
+    var visibilityHorizon by remember(currentOperationType.visibilityHorizon) { mutableIntStateOf(currentOperationType.visibilityHorizon) }
+    var visibilityHorizonUnit by remember(currentOperationType.visibilityHorizonUnit) { mutableStateOf(currentOperationType.visibilityHorizonUnit) }
+
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
 
-    if (isPristine && initialOperationType == null && (defaultIcon != null || defaultPhotoUri != null)) {
-        LaunchedEffect(defaultIcon, defaultPhotoUri) {
-            iconId = defaultIcon
-            photoUri = defaultPhotoUri
-        }
-    }
+    // Helper to update draft
+    val updateDraft = { updated: OperationType -> onUpdateDraft(OperationTypeDraft(operationType = updated, isDefault = draft?.isDefault ?: false)) }
 
     if (showImageSelectorDialog) {
         ImagePickerDialog(
@@ -95,10 +99,10 @@ fun AddOperationTypeDialog(
             photoUri = photoUri,
             iconIdentifier = iconId,
             onImageSelected = { (newIconId, newPhotoUri) ->
-                isPristine = false
                 iconId = newIconId
                 photoUri = newPhotoUri
                 showImageSelectorDialog = false
+                updateDraft(currentOperationType.copy(iconIdentifier = newIconId, photoUri = newPhotoUri))
             },
             imageLibrary = imageLibrary,
             categories = categories,
@@ -127,13 +131,27 @@ fun AddOperationTypeDialog(
                         if (photoUri != null) AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                         else Icon(imageVector = EquipmentIconProvider.getIcon(iconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                     }
-                    OutlinedTextField(value = description, onValueChange = { if (it.length <= 50) description = it }, label = { Text(stringResource(R.string.operation_type_description)) }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(
+                        value = description, 
+                        onValueChange = { 
+                            if (it.length <= 50) {
+                                description = it
+                                updateDraft(currentOperationType.copy(description = it))
+                            }
+                        }, 
+                        label = { Text(stringResource(R.string.operation_type_description)) }, 
+                        modifier = Modifier.weight(1f), 
+                        singleLine = true
+                    )
                 }
 
                 SectionSelector(
                     allSections = allSections,
                     selectedSectionId = sectionId,
-                    onSectionSelected = { sectionId = it },
+                    onSectionSelected = { 
+                        sectionId = it 
+                        updateDraft(currentOperationType.copy(sectionId = it))
+                    },
                     showDismissed = showDismissedSections,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -145,11 +163,13 @@ fun AddOperationTypeDialog(
                         if (filtered.isEmpty() || filtered == ".") {
                             estimatedCostStr = filtered
                             estimatedCost = null
+                            updateDraft(currentOperationType.copy(estimatedCost = null))
                         } else {
                             val doubleVal = filtered.toDoubleOrNull()
                             if (doubleVal != null && filtered.length <= 10) {
                                 estimatedCostStr = filtered
                                 estimatedCost = doubleVal
+                                updateDraft(currentOperationType.copy(estimatedCost = doubleVal))
                             }
                         }
                     },
@@ -159,19 +179,67 @@ fun AddOperationTypeDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Row(modifier = Modifier.fillMaxWidth().clickable { isPredictable = !isPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = isPredictable, onCheckedChange = { isPredictable = it }); Text(text = "Automatic Maintenance Prediction", style = MaterialTheme.typography.bodyMedium) }
+                Row(modifier = Modifier.fillMaxWidth().clickable { 
+                    isPredictable = !isPredictable 
+                    updateDraft(currentOperationType.copy(isPredictable = isPredictable))
+                }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                    Checkbox(checked = isPredictable, onCheckedChange = { 
+                        isPredictable = it 
+                        updateDraft(currentOperationType.copy(isPredictable = it))
+                    })
+                    Text(text = "Automatic Maintenance Prediction", style = MaterialTheme.typography.bodyMedium) 
+                }
 
                 if (isPredictable) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Default Recurrence Intervals", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            OutlinedTextField(value = intervalValueStr, onValueChange = { input -> val filtered = input.replace(',', '.'); if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) { intervalValueStr = filtered; intervalValue = filtered.toDoubleOrNull() } }, label = { Text("Usage Interval") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(
+                                value = intervalValueStr, 
+                                onValueChange = { input -> 
+                                    val filtered = input.replace(',', '.')
+                                    if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) { 
+                                        intervalValueStr = filtered
+                                        intervalValue = filtered.toDoubleOrNull()
+                                        updateDraft(currentOperationType.copy(intervalValue = intervalValue))
+                                    } 
+                                }, 
+                                label = { Text("Usage Interval") }, 
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                                modifier = Modifier.fillMaxWidth()
+                            )
                             Text("Recurrence by usage (km, hours, etc. based on equipment)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(value = timeoutValueStr, onValueChange = { input -> if (input.isEmpty()) { timeoutValueStr = ""; timeoutValue = null } else { input.toIntOrNull()?.let { timeoutValueStr = input; timeoutValue = it } } }, label = { Text("Timeout Value") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
-                                TimeGranularitySelector(selected = timeoutUnit, onSelected = { timeoutUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
+                                OutlinedTextField(
+                                    value = timeoutValueStr, 
+                                    onValueChange = { input -> 
+                                        if (input.isEmpty()) { 
+                                            timeoutValueStr = ""
+                                            timeoutValue = null 
+                                            updateDraft(currentOperationType.copy(timeoutValue = null))
+                                        } else { 
+                                            input.toIntOrNull()?.let { 
+                                                timeoutValueStr = input
+                                                timeoutValue = it 
+                                                updateDraft(currentOperationType.copy(timeoutValue = it))
+                                            } 
+                                        } 
+                                    }, 
+                                    label = { Text("Timeout Value") }, 
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TimeGranularitySelector(
+                                    selected = timeoutUnit, 
+                                    onSelected = { 
+                                        timeoutUnit = it 
+                                        updateDraft(currentOperationType.copy(timeoutUnit = it))
+                                    }, 
+                                    label = "Every", 
+                                    modifier = Modifier.weight(1.2f)
+                                )
                             }
                             Text("Maximum time allowed between maintenances", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -197,14 +265,41 @@ fun AddOperationTypeDialog(
 
                         if (showAdvancedSettings) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth().clickable { useCustomVisibilityHorizon = !useCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = useCustomVisibilityHorizon, onCheckedChange = { useCustomVisibilityHorizon = it })
+                                Row(modifier = Modifier.fillMaxWidth().clickable { 
+                                    useCustomVisibilityHorizon = !useCustomVisibilityHorizon 
+                                    updateDraft(currentOperationType.copy(useCustomVisibilityHorizon = useCustomVisibilityHorizon))
+                                }, verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = useCustomVisibilityHorizon, onCheckedChange = { 
+                                        useCustomVisibilityHorizon = it 
+                                        updateDraft(currentOperationType.copy(useCustomVisibilityHorizon = it))
+                                    })
                                     Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
                                 }
                                 if (useCustomVisibilityHorizon) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        OutlinedTextField(value = visibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f) )
-                                        TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                        OutlinedTextField(
+                                            value = visibilityHorizon.toString(), 
+                                            onValueChange = { input -> 
+                                                input.toIntOrNull()?.let { 
+                                                    if (it in 1..999) {
+                                                        visibilityHorizon = it 
+                                                        updateDraft(currentOperationType.copy(visibilityHorizon = it))
+                                                    }
+                                                } 
+                                            }, 
+                                            label = { Text("Event Horizon") }, 
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                                            modifier = Modifier.weight(1f) 
+                                        )
+                                        TimeGranularitySelector(
+                                            selected = visibilityHorizonUnit, 
+                                            onSelected = { 
+                                                visibilityHorizonUnit = it 
+                                                updateDraft(currentOperationType.copy(visibilityHorizonUnit = it))
+                                            }, 
+                                            label = "Future span", 
+                                            modifier = Modifier.weight(1.2f)
+                                        )
                                     }
                                 } else {
                                     Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))

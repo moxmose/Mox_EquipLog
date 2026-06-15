@@ -37,27 +37,34 @@ fun MaintenanceLogCard(
     operationTypes: List<OperationType>,
     measurementUnits: List<MeasurementUnit>,
     isExpanded: Boolean,
-    isEditing: Boolean,
     onExpand: () -> Unit,
-    onEdit: () -> Unit,
     onSave: (MaintenanceLog) -> Unit,
     onDelete: (MaintenanceLog) -> Unit,
     onGetOperationCostStats: suspend (Int) -> Pair<Double?, Double?>,
     modifier: Modifier = Modifier,
     equipmentCategoryColor: String?,
     operationCategoryColor: String?,
-    costTrendThreshold: Float
+    costTrendThreshold: Float,
+    draft: MaintenanceLog? = null,
+    onStartEdit: () -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    onUpdateDraft: (MaintenanceLog) -> Unit = {},
+    onSaveEdit: (MaintenanceLog) -> Unit = {}
 ) {
-    var editedNotes by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.notes ?: "") }
-    var editedValueStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.value?.toString() ?: "") }
-    var editedCostStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.cost?.toString() ?: "") }
-    var editedIsUnplanned by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.isUnplanned) }
-    var editedResetAfter by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.resetAfter) }
-    var editedDate by remember(logDetail, isEditing) { mutableLongStateOf(logDetail.log.date) }
+    val currentLog = draft ?: logDetail.log
+    val actualIsEditing = draft != null
+
+    var editedNotes by remember(currentLog.notes) { mutableStateOf(currentLog.notes ?: "") }
+    var editedValueStr by remember(currentLog.value) { mutableStateOf(currentLog.value?.toString() ?: "") }
+    var editedCostStr by remember(currentLog.cost) { mutableStateOf(currentLog.cost?.toString() ?: "") }
+    var editedIsUnplanned by remember(currentLog.isUnplanned) { mutableStateOf(currentLog.isUnplanned) }
+    var editedResetAfter by remember(currentLog.resetAfter) { mutableStateOf(currentLog.resetAfter) }
+    var editedDate by remember(currentLog.date) { mutableLongStateOf(currentLog.date) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    var selectedEquipment by remember(logDetail, isEditing) { mutableStateOf(equipments.find { it.id == logDetail.log.equipmentId }) }
-    var selectedOperationType by remember(logDetail, isEditing) { mutableStateOf(operationTypes.find { it.id == logDetail.log.operationTypeId }) }
+    var selectedEquipment by remember(currentLog.equipmentId) { mutableStateOf(equipments.find { it.id == currentLog.equipmentId }) }
+    var selectedOperationType by remember(currentLog.operationTypeId) { mutableStateOf(operationTypes.find { it.id == currentLog.operationTypeId }) }
+    
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -65,8 +72,11 @@ fun MaintenanceLogCard(
     var lastCost by remember { mutableStateOf<Double?>(null) }
     var avgCost by remember { mutableStateOf<Double?>(null) }
 
+    // Helper to update draft
+    val updateDraft = { updated: MaintenanceLog -> if (actualIsEditing) onUpdateDraft(updated) }
+
     LaunchedEffect(selectedOperationType) {
-        if (isEditing) {
+        if (actualIsEditing) {
             selectedOperationType?.id?.let { opId ->
                 onGetOperationCostStats(opId).let { (last, avg) ->
                     lastCost = last
@@ -119,6 +129,7 @@ fun MaintenanceLogCard(
                             calendar.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY))
                             calendar.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE))
                             editedDate = calendar.timeInMillis
+                            draft?.let { updateDraft(it.copy(date = editedDate)) }
                         }
                         showDatePicker = false
                     }
@@ -154,6 +165,7 @@ fun MaintenanceLogCard(
                             set(Calendar.MINUTE, timePickerState.minute)
                         }
                         editedDate = newCalendar.timeInMillis
+                        draft?.let { updateDraft(it.copy(date = editedDate)) }
                         showTimePicker = false
                     }
                 ) {
@@ -208,7 +220,7 @@ fun MaintenanceLogCard(
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (isEditing) {
+                if (actualIsEditing && draft != null) {
                     ExposedDropdownMenuBox(
                         expanded = isEquipmentDropdownExpanded,
                         onExpandedChange = { isEquipmentDropdownExpanded = it }
@@ -255,9 +267,13 @@ fun MaintenanceLogCard(
                                         isEquipmentDropdownExpanded = false
                                         if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
                                             selectedOperationType = null
+                                            updateDraft(draft.copy(equipmentId = equipment.id, operationTypeId = 0))
+                                        } else {
+                                            updateDraft(draft.copy(equipmentId = equipment.id))
                                         }
                                         if (!equipment.isResettable) {
                                             editedResetAfter = false
+                                            updateDraft(draft.copy(resetAfter = false))
                                         }
                                     }
                                 )
@@ -308,8 +324,10 @@ fun MaintenanceLogCard(
                                     onClick = {
                                         selectedOperationType = operation
                                         isOperationDropdownExpanded = false
+                                        updateDraft(draft.copy(operationTypeId = operation.id))
                                         if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
                                             editedResetAfter = true
+                                            updateDraft(draft.copy(resetAfter = true))
                                         }
                                     }
                                 )
@@ -322,12 +340,14 @@ fun MaintenanceLogCard(
                             val filtered = input.replace(',', '.')
                             if (filtered.isEmpty() || filtered == "." || filtered == "-") {
                                 editedValueStr = filtered
+                                updateDraft(draft.copy(value = null))
                             } else {
                                 val doubleVal = filtered.toDoubleOrNull()
                                 if (doubleVal != null && filtered.length <= 10) {
                                     val dotIndex = filtered.indexOf('.')
                                     if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
                                         editedValueStr = filtered
+                                        updateDraft(draft.copy(value = doubleVal))
                                     }
                                 }
                             }
@@ -342,12 +362,18 @@ fun MaintenanceLogCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = isResettable) { editedResetAfter = !editedResetAfter },
+                            .clickable(enabled = isResettable) { 
+                                editedResetAfter = !editedResetAfter 
+                                updateDraft(draft.copy(resetAfter = editedResetAfter))
+                            },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = editedResetAfter && isResettable,
-                            onCheckedChange = { editedResetAfter = it },
+                            onCheckedChange = { 
+                                editedResetAfter = it
+                                updateDraft(draft.copy(resetAfter = it))
+                            },
                             enabled = isResettable
                         )
                         Text(
@@ -358,7 +384,12 @@ fun MaintenanceLogCard(
 
                     OutlinedTextField(
                         value = editedNotes,
-                        onValueChange = { if (it.length <= 200) editedNotes = it },
+                        onValueChange = { 
+                            if (it.length <= 200) {
+                                editedNotes = it
+                                updateDraft(draft.copy(notes = it))
+                            }
+                        },
                         label = { Text(stringResource(R.string.notes_optional)) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -368,10 +399,12 @@ fun MaintenanceLogCard(
                             val filtered = input.replace(',', '.')
                             if (filtered.isEmpty() || filtered == ".") {
                                 editedCostStr = filtered
+                                updateDraft(draft.copy(cost = null))
                             } else {
                                 val doubleVal = filtered.toDoubleOrNull()
                                 if (doubleVal != null && filtered.length <= 10) {
                                     editedCostStr = filtered
+                                    updateDraft(draft.copy(cost = doubleVal))
                                 }
                             }
                         },
@@ -398,12 +431,18 @@ fun MaintenanceLogCard(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { editedIsUnplanned = !editedIsUnplanned },
+                        modifier = Modifier.fillMaxWidth().clickable { 
+                            editedIsUnplanned = !editedIsUnplanned 
+                            updateDraft(draft.copy(isUnplanned = editedIsUnplanned))
+                        },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = editedIsUnplanned,
-                            onCheckedChange = { editedIsUnplanned = it }
+                            onCheckedChange = { 
+                                editedIsUnplanned = it
+                                updateDraft(draft.copy(isUnplanned = it))
+                            }
                         )
                         Text(stringResource(R.string.unplanned_intervention))
                     }
@@ -420,19 +459,9 @@ fun MaintenanceLogCard(
 
                     CommonActionButtons(
                         onConfirm = {
-                            val updatedLog = logDetail.log.copy(
-                                notes = editedNotes,
-                                value = editedValueStr.toDoubleOrNull(),
-                                cost = editedCostStr.toDoubleOrNull(),
-                                isUnplanned = editedIsUnplanned,
-                                resetAfter = editedResetAfter,
-                                date = editedDate,
-                                equipmentId = selectedEquipment?.id ?: logDetail.log.equipmentId,
-                                operationTypeId = selectedOperationType?.id ?: logDetail.log.operationTypeId
-                            )
-                            onSave(updatedLog)
+                            onSaveEdit(draft)
                         },
-                        onDismiss = { onExpand() },
+                        onDismiss = { onCancelEdit() },
                         confirmText = stringResource(R.string.save_log),
                         confirmIcon = Icons.Default.Save,
                         showDelete = true,
@@ -539,8 +568,8 @@ fun MaintenanceLogCard(
                     }
                 }
             }
-            if (!isEditing) {
-                IconButton(onClick = { onEdit() }, modifier = Modifier.size(40.dp)) {
+            if (!actualIsEditing) {
+                IconButton(onClick = { onStartEdit() }, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = stringResource(R.string.edit_log),

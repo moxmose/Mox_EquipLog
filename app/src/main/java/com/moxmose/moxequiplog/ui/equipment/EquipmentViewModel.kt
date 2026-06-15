@@ -9,6 +9,7 @@ import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
+import com.moxmose.moxequiplog.data.local.EquipmentDraft
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
@@ -22,6 +23,8 @@ import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -111,11 +114,17 @@ class EquipmentViewModel(
     fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
     fun onShowAddDialogChange(show: Boolean) { 
         _showAddDialog.value = show 
-        if (!show) _cloningEquipment.value = null
+        if (!show) {
+            _cloningEquipment.value = null
+            cancelAddDraft()
+        }
     }
     fun onCloneEquipment(equipment: Equipment?) {
         _cloningEquipment.value = equipment
-        if (equipment != null) _showAddDialog.value = true
+        if (equipment != null) {
+            _showAddDialog.value = true
+            updateAddDraft(EquipmentDraft(equipment = equipment.copy(id = 0), isDefault = false))
+        }
     }
     fun onPredictionAction(eqId: Int, status: OperationStatus?) { _selectedPredictionForAdd.value = if (status != null) eqId to status else null }
     fun onPlannedAction(eqId: Int, status: OperationStatus?) { _selectedPlannedForEdit.value = if (status != null) eqId to status else null }
@@ -344,6 +353,26 @@ class EquipmentViewModel(
         .map { TimeGranularity.valueOf(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), TimeGranularity.valueOf(UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT))
 
+    val allDrafts: StateFlow<Map<Int, EquipmentDraft>> = appSettingsManager.getAllDraftsFlow("equipment")
+        .map { draftsMap ->
+            draftsMap.mapValues { (_, json) ->
+                try {
+                    Json.decodeFromString<EquipmentDraft>(json)
+                } catch (e: Exception) {
+                    null
+                }
+            }.filterValues { it != null }.mapValues { it.value!! }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
+
+    val addDraft: StateFlow<EquipmentDraft?> = appSettingsManager.getDraftFlow("equipment", 0)
+        .map { json ->
+            try {
+                json?.let { Json.decodeFromString<EquipmentDraft>(it) }
+            } catch (e: Exception) {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
     fun setDefaultEquipment(id: Int?) {
         viewModelScope.launch {
             try {
@@ -537,6 +566,79 @@ class EquipmentViewModel(
         } catch (e: Exception) {
             _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
+        }
+    }
+
+    // --- Draft Management ---
+    fun getEquipmentDraft(id: Int): Flow<EquipmentDraft?> {
+        return appSettingsManager.getDraftFlow("equipment", id).map { json ->
+            try {
+                json?.let { Json.decodeFromString<EquipmentDraft>(it) }
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    fun startEditing(equipment: Equipment) {
+        viewModelScope.launch {
+            val isCurrentlyDefault = defaultEquipmentId.value == equipment.id
+            val draft = EquipmentDraft(equipment = equipment, isDefault = isCurrentlyDefault)
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("equipment", equipment.id, json)
+        }
+    }
+
+    fun toggleDefaultInDraft(id: Int) {
+        viewModelScope.launch {
+            val drafts = allDrafts.value
+            drafts[id]?.let { draft ->
+                val updated = draft.copy(isDefault = !draft.isDefault)
+                updateDraft(updated)
+            }
+        }
+    }
+
+    fun updateDraft(draft: EquipmentDraft) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("equipment", draft.equipment.id, json)
+        }
+    }
+
+    fun cancelEditing(id: Int) {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("equipment", id)
+        }
+    }
+
+    fun saveEditing(draft: EquipmentDraft) {
+        viewModelScope.launch {
+            updateEquipment(draft.equipment)
+            
+            // Sync default status if changed in draft
+            val currentDefaultId = defaultEquipmentId.value
+            if (draft.isDefault && currentDefaultId != draft.equipment.id) {
+                appSettingsManager.setDefaultEquipmentId(draft.equipment.id)
+            } else if (!draft.isDefault && currentDefaultId == draft.equipment.id) {
+                appSettingsManager.setDefaultEquipmentId(null)
+            }
+            
+            appSettingsManager.deleteDraft("equipment", draft.equipment.id)
+        }
+    }
+
+    // --- Add Draft Management ---
+    fun updateAddDraft(draft: EquipmentDraft) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("equipment", 0, json)
+        }
+    }
+
+    fun cancelAddDraft() {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("equipment", 0)
         }
     }
 }

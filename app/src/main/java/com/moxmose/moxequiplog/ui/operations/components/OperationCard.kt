@@ -69,33 +69,43 @@ fun OperationTypeCard(
     status: OperationGlobalStatus? = null,
     onAffectedAction: (EquipmentOperationStatus) -> Unit,
     expandAllTrigger: Int = 0,
-    collapseAllTrigger: Int = 0
+    collapseAllTrigger: Int = 0,
+    draft: OperationTypeDraft? = null,
+    onStartEdit: () -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    onUpdateDraft: (OperationTypeDraft) -> Unit = {},
+    onSaveEdit: (OperationTypeDraft) -> Unit = {}
 ) {
-    var isEditing by remember { mutableStateOf(false) }
+    val isEditing = draft != null
     var isExpanded by rememberSaveable { mutableStateOf(false) }
     
     LaunchedEffect(expandAllTrigger) { if (expandAllTrigger > 0) isExpanded = true }
     LaunchedEffect(collapseAllTrigger) { if (collapseAllTrigger > 0) isExpanded = false }
 
-    var editedDescription by remember(operationType.description) { mutableStateOf(operationType.description) }
-    var editedIconId by remember(operationType.iconIdentifier) { mutableStateOf(operationType.iconIdentifier) }
-    var editedPhotoUri by remember(operationType.photoUri) { mutableStateOf(operationType.photoUri) }
-    var editedSectionId by remember(operationType.sectionId) { mutableIntStateOf(operationType.sectionId) }
-    var editedIsPredictable by remember(operationType.isPredictable) { mutableStateOf(operationType.isPredictable) }
+    val currentOperationType = draft?.operationType ?: operationType
+
+    var editedDescription by remember(currentOperationType.description) { mutableStateOf(currentOperationType.description) }
+    var editedIconId by remember(currentOperationType.iconIdentifier) { mutableStateOf(currentOperationType.iconIdentifier) }
+    var editedPhotoUri by remember(currentOperationType.photoUri) { mutableStateOf(currentOperationType.photoUri) }
+    var editedSectionId by remember(currentOperationType.sectionId) { mutableIntStateOf(currentOperationType.sectionId) }
+    var editedIsPredictable by remember(currentOperationType.isPredictable) { mutableStateOf(currentOperationType.isPredictable) }
     
-    var editedUseCustomVisibilityHorizon by remember(operationType.useCustomVisibilityHorizon) { mutableStateOf(operationType.useCustomVisibilityHorizon) }
-    var editedIntervalValueStr by remember(operationType.intervalValue) { mutableStateOf(operationType.intervalValue?.toString() ?: "") }
-    var editedTimeoutValueStr by remember(operationType.timeoutValue) { mutableStateOf(operationType.timeoutValue?.toString() ?: "") }
-    var editedTimeoutUnit by remember(operationType.timeoutUnit) { mutableStateOf(operationType.timeoutUnit ?: TimeGranularity.MONTHS) }
-    var editedVisibilityHorizon by remember(operationType.visibilityHorizon) { mutableIntStateOf(operationType.visibilityHorizon) }
-    var editedVisibilityHorizonUnit by remember(operationType.visibilityHorizonUnit) { mutableStateOf(operationType.visibilityHorizonUnit) }
-    var editedEstimatedCostStr by remember(operationType.estimatedCost) { mutableStateOf(operationType.estimatedCost?.toString() ?: "") }
+    var editedUseCustomVisibilityHorizon by remember(currentOperationType.useCustomVisibilityHorizon) { mutableStateOf(currentOperationType.useCustomVisibilityHorizon) }
+    var editedIntervalValueStr by remember(currentOperationType.intervalValue) { mutableStateOf(currentOperationType.intervalValue?.toString() ?: "") }
+    var editedTimeoutValueStr by remember(currentOperationType.timeoutValue) { mutableStateOf(currentOperationType.timeoutValue?.toString() ?: "") }
+    var editedTimeoutUnit by remember(currentOperationType.timeoutUnit) { mutableStateOf(currentOperationType.timeoutUnit ?: TimeGranularity.MONTHS) }
+    var editedVisibilityHorizon by remember(currentOperationType.visibilityHorizon) { mutableIntStateOf(currentOperationType.visibilityHorizon) }
+    var editedVisibilityHorizonUnit by remember(currentOperationType.visibilityHorizonUnit) { mutableStateOf(currentOperationType.visibilityHorizonUnit) }
+    var editedEstimatedCostStr by remember(currentOperationType.estimatedCost) { mutableStateOf(currentOperationType.estimatedCost?.toString() ?: "") }
 
     val context = LocalContext.current
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    // Helper to update draft
+    val updateDraft = { updated: OperationTypeDraft -> if (isEditing) onUpdateDraft(updated) }
 
     if (showDeleteConfirmation) {
         AlertDialog(
@@ -130,6 +140,7 @@ fun OperationTypeCard(
                 editedIconId = newIconId
                 editedPhotoUri = newPhotoUri
                 showImageSelectorDialog = false
+                draft?.let { updateDraft(it.copy(operationType = it.operationType.copy(iconIdentifier = newIconId, photoUri = newPhotoUri))) }
             },
             imageLibrary = operationTypeImages,
             categories = allCategories,
@@ -157,7 +168,7 @@ fun OperationTypeCard(
             border = if (isDefault) BorderStroke(4.dp, operationColor) else null
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                if (isEditing) {
+                if (isEditing && draft != null) {
                     // Layout in MODALITÀ EDIT: Campi e pulsanti in basso
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -176,7 +187,12 @@ fun OperationTypeCard(
                             Spacer(modifier = Modifier.width(12.dp))
                             OutlinedTextField(
                                 value = editedDescription,
-                                onValueChange = { if (it.length <= 50) editedDescription = it },
+                                onValueChange = { 
+                                    if (it.length <= 50) {
+                                        editedDescription = it
+                                        updateDraft(draft.copy(operationType = draft.operationType.copy(description = it)))
+                                    }
+                                },
                                 label = { Text(stringResource(R.string.operation_type_description)) },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true
@@ -186,7 +202,10 @@ fun OperationTypeCard(
                         SectionSelector(
                             allSections = allSections,
                             selectedSectionId = editedSectionId,
-                            onSectionSelected = { editedSectionId = it },
+                            onSectionSelected = { 
+                                editedSectionId = it 
+                                updateDraft(draft.copy(operationType = draft.operationType.copy(sectionId = it)))
+                            },
                             showDismissed = showDismissedSections,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -197,10 +216,12 @@ fun OperationTypeCard(
                                 val filtered = input.replace(',', '.')
                                 if (filtered.isEmpty() || filtered == ".") {
                                     editedEstimatedCostStr = filtered
+                                    updateDraft(draft.copy(operationType = draft.operationType.copy(estimatedCost = null)))
                                 } else {
                                     val doubleVal = filtered.toDoubleOrNull()
                                     if (doubleVal != null && filtered.length <= 10) {
                                         editedEstimatedCostStr = filtered
+                                        updateDraft(draft.copy(operationType = draft.operationType.copy(estimatedCost = doubleVal)))
                                     }
                                 }
                             },
@@ -211,26 +232,99 @@ fun OperationTypeCard(
                             textStyle = MaterialTheme.typography.bodySmall
                         )
 
-                        Row(modifier = Modifier.fillMaxWidth().clickable { editedIsPredictable = !editedIsPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = editedIsPredictable, onCheckedChange = { editedIsPredictable = it }); Text(text = "Predictive Maintenance", style = MaterialTheme.typography.bodyMedium) }
+                        Row(modifier = Modifier.fillMaxWidth().clickable { 
+                            editedIsPredictable = !editedIsPredictable
+                            updateDraft(draft.copy(operationType = draft.operationType.copy(isPredictable = editedIsPredictable)))
+                        }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                            Checkbox(checked = editedIsPredictable, onCheckedChange = { 
+                                editedIsPredictable = it
+                                updateDraft(draft.copy(operationType = draft.operationType.copy(isPredictable = it)))
+                            })
+                            Text(text = "Predictive Maintenance", style = MaterialTheme.typography.bodyMedium) 
+                        }
                         
                         if (editedIsPredictable) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text("Recurrence Intervals", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                                OutlinedTextField(value = editedIntervalValueStr, onValueChange = { input -> val filtered = input.replace(',', '.'); if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) editedIntervalValueStr = filtered }, label = { Text("Usage Interval") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodySmall)
+                                OutlinedTextField(
+                                    value = editedIntervalValueStr, 
+                                    onValueChange = { input -> 
+                                        val filtered = input.replace(',', '.')
+                                        if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) {
+                                            editedIntervalValueStr = filtered
+                                            updateDraft(draft.copy(operationType = draft.operationType.copy(intervalValue = filtered.toDoubleOrNull())))
+                                        }
+                                    }, 
+                                    label = { Text("Usage Interval") }, 
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                                    modifier = Modifier.fillMaxWidth(), 
+                                    textStyle = MaterialTheme.typography.bodySmall
+                                )
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    OutlinedTextField(value = editedTimeoutValueStr, onValueChange = { input -> if (input.isEmpty()) editedTimeoutValueStr = "" else input.toIntOrNull()?.let { editedTimeoutValueStr = input } }, label = { Text("Timeout Value") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
-                                    TimeGranularitySelector(selected = editedTimeoutUnit, onSelected = { editedTimeoutUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
+                                    OutlinedTextField(
+                                        value = editedTimeoutValueStr, 
+                                        onValueChange = { input -> 
+                                            if (input.isEmpty()) {
+                                                editedTimeoutValueStr = ""
+                                                updateDraft(draft.copy(operationType = draft.operationType.copy(timeoutValue = null)))
+                                            } else {
+                                                input.toIntOrNull()?.let { 
+                                                    editedTimeoutValueStr = input
+                                                    updateDraft(draft.copy(operationType = draft.operationType.copy(timeoutValue = it)))
+                                                }
+                                            }
+                                        }, 
+                                        label = { Text("Timeout Value") }, 
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                                        modifier = Modifier.weight(1f), 
+                                        textStyle = MaterialTheme.typography.bodySmall
+                                    )
+                                    TimeGranularitySelector(
+                                        selected = editedTimeoutUnit, 
+                                        onSelected = { 
+                                            editedTimeoutUnit = it
+                                            updateDraft(draft.copy(operationType = draft.operationType.copy(timeoutUnit = it)))
+                                        }, 
+                                        label = "Every", 
+                                        modifier = Modifier.weight(1.2f)
+                                    )
                                 }
                                 
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                                        Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
+                                    Row(modifier = Modifier.fillMaxWidth().clickable { 
+                                        editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon
+                                        updateDraft(draft.copy(operationType = draft.operationType.copy(useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon)))
+                                    }, verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { 
+                                            editedUseCustomVisibilityHorizon = it
+                                            updateDraft(draft.copy(operationType = draft.operationType.copy(useCustomVisibilityHorizon = it)))
+                                        })
                                         Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
                                     }
                                     if (editedUseCustomVisibilityHorizon) {
                                         Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            OutlinedTextField(value = editedVisibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
-                                            TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                            OutlinedTextField(
+                                                value = editedVisibilityHorizon.toString(), 
+                                                onValueChange = { input -> 
+                                                    input.toIntOrNull()?.let { 
+                                                        editedVisibilityHorizon = it
+                                                        updateDraft(draft.copy(operationType = draft.operationType.copy(visibilityHorizon = it)))
+                                                    } 
+                                                }, 
+                                                label = { Text("Event Horizon") }, 
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                                                modifier = Modifier.weight(1f), 
+                                                textStyle = MaterialTheme.typography.bodySmall
+                                            )
+                                            TimeGranularitySelector(
+                                                selected = editedVisibilityHorizonUnit, 
+                                                onSelected = { 
+                                                    editedVisibilityHorizonUnit = it
+                                                    updateDraft(draft.copy(operationType = draft.operationType.copy(visibilityHorizonUnit = it)))
+                                                }, 
+                                                label = "Future span", 
+                                                modifier = Modifier.weight(1.2f)
+                                            )
                                         }
                                     }
                                 }
@@ -241,23 +335,9 @@ fun OperationTypeCard(
 
                         CommonActionButtons(
                             onConfirm = {
-                                onUpdateOperationType(operationType.copy(
-                                    description = editedDescription, 
-                                    iconIdentifier = editedIconId, 
-                                    photoUri = editedPhotoUri, 
-                                    sectionId = editedSectionId,
-                                    isPredictable = editedIsPredictable, 
-                                    intervalValue = editedIntervalValueStr.toDoubleOrNull(), 
-                                    timeoutValue = editedTimeoutValueStr.toIntOrNull(), 
-                                    timeoutUnit = editedTimeoutUnit, 
-                                    visibilityHorizon = editedVisibilityHorizon, 
-                                    visibilityHorizonUnit = editedVisibilityHorizonUnit, 
-                                    useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon,
-                                    estimatedCost = editedEstimatedCostStr.toDoubleOrNull()
-                                )) 
-                                isEditing = false 
+                                onSaveEdit(draft)
                             },
-                            onDismiss = { isEditing = false },
+                            onDismiss = { onCancelEdit() },
                             confirmText = stringResource(R.string.save_operation_type),
                             confirmIcon = Icons.Default.Save,
                             showClone = true,
@@ -283,13 +363,13 @@ fun OperationTypeCard(
                                     .background(MaterialTheme.colorScheme.secondaryContainer)
                                     .border(2.dp, operationColor, CircleShape)
                                     .clickable {
-                                        if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
-                                        else if (editedIconId == null) showNoPictureDialog = true
+                                        if (operationType.photoUri != null) showFullImageDialog = operationType.photoUri
+                                        else if (operationType.iconIdentifier == null) showNoPictureDialog = true
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                                else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                if (operationType.photoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(operationType.photoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                else Icon(imageVector = EquipmentIconProvider.getIcon(operationType.iconIdentifier, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
 
                             // HEALTH TAGGER (Badge) moved below
@@ -298,8 +378,8 @@ fun OperationTypeCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, operationType.id), 
-                                    color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant, 
+                                    text = if (operationType.description.isNotBlank()) operationType.description else stringResource(R.string.id_no_description, operationType.id), 
+                                    color = if (operationType.description.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant, 
                                     maxLines = 1, 
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
@@ -357,7 +437,7 @@ fun OperationTypeCard(
                         // SINGLE ACTION ICON (Edit)
                         IconButton(
                             onClick = { 
-                                isEditing = true
+                                onStartEdit()
                                 isExpanded = true 
                             },
                             modifier = Modifier.size(40.dp)

@@ -39,6 +39,8 @@ fun OperationTypeScreen(
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     val operationStatuses by viewModel.operationStatuses.collectAsState()
+    val allDrafts by viewModel.allDrafts.collectAsState()
+    val addDraft by viewModel.addDraft.collectAsState()
     
     val categoryColor by viewModel.categoryColor.collectAsState()
     val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
@@ -48,6 +50,8 @@ fun OperationTypeScreen(
     val showAddDialog by viewModel.showAddDialog.collectAsState()
     val cloningOperationType by viewModel.cloningOperationType.collectAsState()
     val selectedAffectedEquipmentForAdd by viewModel.selectedAffectedEquipmentForAdd.collectAsState()
+    val logAddDraft by logsViewModel.logAddDraft.collectAsState()
+    val reminderAddDraft by logsViewModel.reminderAddDraft.collectAsState()
 
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
@@ -131,7 +135,11 @@ fun OperationTypeScreen(
             equipmentCategoryColor = categoryColorsMap[Category.EQUIPMENT],
             operationCategoryColor = categoryColor,
             syncCalendarByDefault = syncCalendarByDefault,
-            googleAccountName = googleAccountName
+            googleAccountName = googleAccountName,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = logsViewModel::updateLogAddDraft,
+            onUpdateReminderDraft = logsViewModel::updateReminderAddDraft
         )
     }
 
@@ -170,6 +178,14 @@ fun OperationTypeScreen(
         categoryDefaultIcons = categoryDefaultIconsMap,
         categoryDefaultPhotos = categoryDefaultPhotosMap,
         operationStatuses = operationStatuses,
+        allDrafts = allDrafts,
+        addDraft = addDraft,
+        onUpdateAddDraft = viewModel::updateAddDraft,
+        onStartEdit = viewModel::startEditing,
+        onCancelEdit = viewModel::cancelEditing,
+        onToggleDefaultInDraft = viewModel::toggleDefaultInDraft,
+        onUpdateDraft = viewModel::updateDraft,
+        onSaveEdit = viewModel::saveEditing,
         onAffectedAction = viewModel::onAffectedAction
     )
 }
@@ -209,6 +225,14 @@ fun OperationTypeScreenContent(
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     operationStatuses: Map<Int, OperationGlobalStatus> = emptyMap(),
+    allDrafts: Map<Int, OperationTypeDraft> = emptyMap(),
+    addDraft: OperationTypeDraft? = null,
+    onUpdateAddDraft: (OperationTypeDraft) -> Unit,
+    onStartEdit: (OperationType) -> Unit,
+    onCancelEdit: (Int) -> Unit,
+    onToggleDefaultInDraft: (Int) -> Unit,
+    onUpdateDraft: (OperationTypeDraft) -> Unit,
+    onSaveEdit: (OperationTypeDraft) -> Unit,
     onAffectedAction: (Int, EquipmentOperationStatus) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -258,7 +282,9 @@ fun OperationTypeScreenContent(
                 onAddImage = onAddImage,
                 onToggleImageVisibility = onToggleImageVisibility,
                 operationCategoryColor = operationCategoryColor,
-                initialOperationType = cloningOperationType
+                initialOperationType = cloningOperationType,
+                draft = addDraft,
+                onUpdateDraft = onUpdateAddDraft
             )
         }
 
@@ -297,6 +323,7 @@ fun OperationTypeScreenContent(
                 },
                 modifier = Modifier.fillMaxSize(),
                 itemContent = { _, operationType ->
+                    val draft = allDrafts[operationType.id]
                     OperationTypeCard(
                         operationType = operationType,
                         allSections = allSections,
@@ -313,9 +340,17 @@ fun OperationTypeScreenContent(
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
                         operationCategoryColor = operationCategoryColor,
-                        isDefault = operationType.id == defaultOperationTypeId,
-                        onToggleDefault = { onToggleDefault(operationType.id) },
+                        isDefault = draft?.isDefault ?: (operationType.id == defaultOperationTypeId),
+                        onToggleDefault = { 
+                            if (draft != null) onToggleDefaultInDraft(operationType.id)
+                            else onToggleDefault(operationType.id)
+                        },
                         onCloneOperationType = onCloneOperationType,
+                        draft = draft,
+                        onStartEdit = { onStartEdit(operationType) },
+                        onCancelEdit = { onCancelEdit(operationType.id) },
+                        onUpdateDraft = onUpdateDraft,
+                        onSaveEdit = onSaveEdit,
                         status = operationStatuses[operationType.id],
                         onAffectedAction = { onAffectedAction(operationType.id, it) },
                         expandAllTrigger = expandAllTrigger,

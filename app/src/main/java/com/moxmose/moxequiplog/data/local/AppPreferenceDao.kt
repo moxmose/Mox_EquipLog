@@ -17,6 +17,9 @@ interface AppPreferenceDao {
     @Query("SELECT value FROM app_preferences WHERE `key` = :key")
     fun getPreferenceFlow(key: String): Flow<String?>
 
+    @Query("SELECT * FROM app_preferences WHERE `key` LIKE :prefix || '%'")
+    fun getPreferencesByPrefixFlow(prefix: String): Flow<List<AppPreference>>
+
     @Query("SELECT * FROM app_preferences")
     fun getAllPreferences(): Flow<List<AppPreference>>
     

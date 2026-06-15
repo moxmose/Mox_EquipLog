@@ -199,4 +199,23 @@ class AppSettingsManager(
     suspend fun setShowDismissedSections(show: Boolean) {
         appPreferenceDao.insertPreference(AppPreference("show_dismissed_sections", show.toString()))
     }
+
+    // --- Draft Management ---
+    fun getDraftFlow(type: String, id: Int): Flow<String?> = 
+        appPreferenceDao.getPreferenceFlow("draft_${type}_$id")
+
+    fun getAllDraftsFlow(type: String): Flow<Map<Int, String>> =
+        appPreferenceDao.getPreferencesByPrefixFlow("draft_${type}_").map { prefs ->
+            prefs.associate { 
+                it.key.substringAfterLast("_").toInt() to (it.value ?: "")
+            }
+        }
+
+    suspend fun saveDraft(type: String, id: Int, json: String) {
+        appPreferenceDao.insertPreference(AppPreference("draft_${type}_$id", json))
+    }
+
+    suspend fun deleteDraft(type: String, id: Int) {
+        appPreferenceDao.deletePreference("draft_${type}_$id")
+    }
 }

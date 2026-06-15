@@ -92,6 +92,7 @@ import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.EquipmentDraft
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
@@ -103,7 +104,6 @@ import com.moxmose.moxequiplog.ui.equipment.components.AddEquipmentDialog
 import com.moxmose.moxequiplog.ui.equipment.components.EquipmentCard
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
-import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
@@ -128,6 +128,8 @@ fun EquipmentScreen(
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
     val equipmentStatuses by viewModel.equipmentStatuses.collectAsState()
+    val allDrafts by viewModel.allDrafts.collectAsState()
+    val addDraft by viewModel.addDraft.collectAsState()
     val allOperationTypes by logsViewModel.allOperationTypes.collectAsState()
     
     val categoryColor by viewModel.categoryColor.collectAsState()
@@ -139,6 +141,8 @@ fun EquipmentScreen(
     val cloningEquipment by viewModel.cloningEquipment.collectAsState()
     val selectedPredictionForAdd by viewModel.selectedPredictionForAdd.collectAsState()
     val selectedPlannedForEdit by viewModel.selectedPlannedForEdit.collectAsState()
+    val logAddDraft by logsViewModel.logAddDraft.collectAsState()
+    val reminderAddDraft by logsViewModel.reminderAddDraft.collectAsState()
 
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
@@ -213,7 +217,11 @@ fun EquipmentScreen(
             equipmentCategoryColor = categoryColor,
             operationCategoryColor = categoryColorsMap[Category.OPERATION],
             syncCalendarByDefault = syncCalendarByDefault,
-            googleAccountName = googleAccountName
+            googleAccountName = googleAccountName,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = logsViewModel::updateLogAddDraft,
+            onUpdateReminderDraft = logsViewModel::updateReminderAddDraft
         )
     }
 
@@ -264,7 +272,11 @@ fun EquipmentScreen(
             equipmentCategoryColor = categoryColor,
             operationCategoryColor = categoryColorsMap[Category.OPERATION],
             syncCalendarByDefault = syncCalendarByDefault,
-            googleAccountName = googleAccountName
+            googleAccountName = googleAccountName,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = logsViewModel::updateLogAddDraft,
+            onUpdateReminderDraft = logsViewModel::updateReminderAddDraft
         )
     }
 
@@ -303,6 +315,14 @@ fun EquipmentScreen(
         categoryDefaultIcons = categoryDefaultIconsMap,
         categoryDefaultPhotos = categoryDefaultPhotosMap,
         equipmentStatuses = equipmentStatuses,
+        allDrafts = allDrafts,
+        addDraft = addDraft,
+        onUpdateAddDraft = viewModel::updateAddDraft,
+        onStartEdit = viewModel::startEditing,
+        onCancelEdit = viewModel::cancelEditing,
+        onToggleDefaultInDraft = viewModel::toggleDefaultInDraft,
+        onUpdateDraft = viewModel::updateDraft,
+        onSaveEdit = viewModel::saveEditing,
         onPredictionAction = viewModel::onPredictionAction,
         onPlannedAction = viewModel::onPlannedAction
     )
@@ -345,6 +365,14 @@ fun EquipmentScreenContent(
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     equipmentStatuses: Map<Int, EquipmentStatus> = emptyMap(),
+    allDrafts: Map<Int, EquipmentDraft> = emptyMap(),
+    addDraft: EquipmentDraft? = null,
+    onUpdateAddDraft: (EquipmentDraft) -> Unit,
+    onStartEdit: (Equipment) -> Unit,
+    onCancelEdit: (Int) -> Unit,
+    onToggleDefaultInDraft: (Int) -> Unit,
+    onUpdateDraft: (EquipmentDraft) -> Unit,
+    onSaveEdit: (EquipmentDraft) -> Unit,
     onPredictionAction: (Int, OperationStatus) -> Unit,
     onPlannedAction: (Int, OperationStatus) -> Unit,
     modifier: Modifier = Modifier
@@ -397,7 +425,9 @@ fun EquipmentScreenContent(
                 },
                 onAddImage = onAddImage,
                 onToggleImageVisibility = onToggleImageVisibility,
-                initialEquipment = cloningEquipment
+                initialEquipment = cloningEquipment,
+                draft = addDraft,
+                onUpdateDraft = onUpdateAddDraft
             )
         }
 
@@ -450,6 +480,7 @@ fun EquipmentScreenContent(
                 },
                 modifier = Modifier.fillMaxSize(),
                 itemContent = { _, equipment ->
+                    val draft = allDrafts[equipment.id]
                     EquipmentCard(
                         equipment = equipment,
                         equipmentImages = equipmentImages,
@@ -462,11 +493,19 @@ fun EquipmentScreenContent(
                         onDismissEquipment = onDismissEquipment,
                         onRestoreEquipment = onRestoreEquipment,
                         onCloneEquipment = onCloneEquipment,
+                        draft = draft,
+                        onStartEdit = { onStartEdit(equipment) },
+                        onCancelEdit = { onCancelEdit(equipment.id) },
+                        onUpdateDraft = onUpdateDraft,
+                        onSaveEdit = onSaveEdit,
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
                         equipmentCategoryColor = equipmentCategoryColor,
-                        isDefault = equipment.id == defaultEquipmentId,
-                        onToggleDefault = { onToggleDefault(equipment.id) },
+                        isDefault = draft?.isDefault ?: (equipment.id == defaultEquipmentId),
+                        onToggleDefault = { 
+                            if (draft != null) onToggleDefaultInDraft(equipment.id)
+                            else onToggleDefault(equipment.id)
+                        },
                         status = equipmentStatuses[equipment.id],
                         onPredictionAction = { onPredictionAction(equipment.id, it) },
                         onPlannedAction = { onPlannedAction(equipment.id, it) },

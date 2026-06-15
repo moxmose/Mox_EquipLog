@@ -28,6 +28,8 @@ import com.moxmose.moxequiplog.utils.ResourceProvider
 import com.moxmose.moxequiplog.utils.UiConstants
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.ui.equipment.OperationStatus
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -115,13 +118,32 @@ class MaintenanceLogViewModel(
     private val _selectedPredictionForAdd = MutableStateFlow<Pair<Int, OperationStatus>?>(null)
     val selectedPredictionForAdd = _selectedPredictionForAdd.asStateFlow()
 
-    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
     fun onCardExpanded(id: Int) { _expandedCardId.value = if (_expandedCardId.value == id) null else id }
     fun onEditLog(log: MaintenanceLog) { _editingCardId.value = log.id }
-    fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForComplete.value = reminder }
     fun onEditReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForEdit.value = reminder }
+
     fun onPredictionAction(eqId: Int, status: OperationStatus?) { 
         _selectedPredictionForAdd.value = if (status != null) eqId to status else null 
+        if (status == null) {
+            cancelLogAddDraft()
+            cancelReminderAddDraft()
+        }
+    }
+
+    fun onShowAddDialogChange(show: Boolean) { 
+        _showAddDialog.value = show 
+        if (!show) {
+            cancelLogAddDraft()
+            cancelReminderAddDraft()
+        }
+    }
+
+    fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { 
+        _selectedReminderForComplete.value = reminder 
+        if (reminder == null) {
+            cancelLogAddDraft()
+            cancelReminderAddDraft()
+        }
     }
 
     val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
@@ -302,6 +324,35 @@ class MaintenanceLogViewModel(
     val costTrendThreshold: StateFlow<Float> = appSettingsManager.costTrendThreshold
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_TREND_THRESHOLD)
 
+    val allDrafts: StateFlow<Map<Int, MaintenanceLog>> = appSettingsManager.getAllDraftsFlow("log")
+        .map { draftsMap ->
+            draftsMap.mapValues { (_, json) ->
+                try {
+                    Json.decodeFromString<MaintenanceLog>(json)
+                } catch (e: Exception) {
+                    null
+                }
+            }.filterValues { it != null }.mapValues { it.value!! }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
+
+    val logAddDraft: StateFlow<MaintenanceLog?> = appSettingsManager.getDraftFlow("log", 0)
+        .map { json ->
+            try {
+                json?.let { Json.decodeFromString<MaintenanceLog>(it) }
+            } catch (e: Exception) {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val reminderAddDraft: StateFlow<MaintenanceReminder?> = appSettingsManager.getDraftFlow("reminder", 0)
+        .map { json ->
+            try {
+                json?.let { Json.decodeFromString<MaintenanceReminder>(it) }
+            } catch (e: Exception) {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 
     private fun buildQuery(
@@ -456,6 +507,7 @@ class MaintenanceLogViewModel(
                         }
                     }
                 }
+                cancelLogAddDraft()
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.AddLogFailed)
             }
@@ -500,6 +552,7 @@ class MaintenanceLogViewModel(
                     calendarEventId = calendarEventId
                 )
                 maintenanceReminderDao.insertReminder(reminder)
+                cancelReminderAddDraft()
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.AddLogFailed)
             }
@@ -562,6 +615,8 @@ class MaintenanceLogViewModel(
                     calendarEventId = calendarEventId
                 )
                 maintenanceReminderDao.updateReminder(updatedReminder)
+                // If it was an edit from a prediction/reminder, we might have a draft to clear
+                cancelReminderAddDraft()
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.UpdateReminderFailed)
             }
@@ -577,6 +632,62 @@ class MaintenanceLogViewModel(
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.UpdateLogFailed)
             }
+        }
+    }
+
+    // --- Draft Management ---
+    fun startEditing(log: MaintenanceLog) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(log)
+            appSettingsManager.saveDraft("log", log.id, json)
+            onEditLog(log)
+        }
+    }
+
+    fun updateDraft(log: MaintenanceLog) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(log)
+            appSettingsManager.saveDraft("log", log.id, json)
+        }
+    }
+
+    fun cancelEditing(id: Int) {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("log", id)
+            _editingCardId.value = null
+        }
+    }
+
+    fun updateLogAddDraft(log: MaintenanceLog) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(log)
+            appSettingsManager.saveDraft("log", 0, json)
+        }
+    }
+
+    fun cancelLogAddDraft() {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("log", 0)
+        }
+    }
+
+    fun updateReminderAddDraft(reminder: MaintenanceReminder) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(reminder)
+            appSettingsManager.saveDraft("reminder", 0, json)
+        }
+    }
+
+    fun cancelReminderAddDraft() {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("reminder", 0)
+        }
+    }
+
+    fun saveEditing(log: MaintenanceLog) {
+        viewModelScope.launch {
+            updateLog(log)
+            appSettingsManager.deleteDraft("log", log.id)
         }
     }
 

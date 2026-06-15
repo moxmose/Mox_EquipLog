@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "equipments",
@@ -26,6 +27,7 @@ import androidx.room.PrimaryKey
         androidx.room.Index(value = ["sectionId"])
     ]
 )
+@Serializable
 data class Equipment(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

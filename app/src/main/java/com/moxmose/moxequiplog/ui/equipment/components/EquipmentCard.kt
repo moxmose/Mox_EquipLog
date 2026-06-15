@@ -71,38 +71,49 @@ fun EquipmentCard(
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     expandAllTrigger: Int = 0,
-    collapseAllTrigger: Int = 0
+    collapseAllTrigger: Int = 0,
+    draft: EquipmentDraft? = null,
+    onStartEdit: () -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    onUpdateDraft: (EquipmentDraft) -> Unit = {},
+    onSaveEdit: (EquipmentDraft) -> Unit = {}
 ) {
-    var isEditing by remember { mutableStateOf(false) }
+    val isEditing = draft != null
     var isExpanded by rememberSaveable { mutableStateOf(false) }
     
     LaunchedEffect(expandAllTrigger) { if (expandAllTrigger > 0) isExpanded = true }
     LaunchedEffect(collapseAllTrigger) { if (collapseAllTrigger > 0) isExpanded = false }
 
-    var editedDescription by remember(equipment.description) { mutableStateOf(equipment.description) }
-    var editedUnitId by remember(equipment.unitId) { mutableIntStateOf(equipment.unitId) }
-    var editedSectionId by remember(equipment.sectionId) { mutableIntStateOf(equipment.sectionId) }
-    var editedIconId by remember(equipment.iconIdentifier) { mutableStateOf(equipment.iconIdentifier) }
-    var editedPhotoUri by remember(equipment.photoUri) { mutableStateOf(equipment.photoUri) }
-    var editedIsResettable by remember(equipment.isResettable) { mutableStateOf(equipment.isResettable) }
+    // Use draft values if editing, otherwise original equipment values
+    val currentEquipment = draft?.equipment ?: equipment
+
+    var editedDescription by remember(currentEquipment.description) { mutableStateOf(currentEquipment.description) }
+    var editedUnitId by remember(currentEquipment.unitId) { mutableIntStateOf(currentEquipment.unitId) }
+    var editedSectionId by remember(currentEquipment.sectionId) { mutableIntStateOf(currentEquipment.sectionId) }
+    var editedIconId by remember(currentEquipment.iconIdentifier) { mutableStateOf(currentEquipment.iconIdentifier) }
+    var editedPhotoUri by remember(currentEquipment.photoUri) { mutableStateOf(currentEquipment.photoUri) }
+    var editedIsResettable by remember(currentEquipment.isResettable) { mutableStateOf(currentEquipment.isResettable) }
     
     // Predictive Settings
-    var editedUseCustomUsageWindow by remember(equipment.useCustomUsageWindow) { mutableStateOf(equipment.useCustomUsageWindow) }
-    var editedUsageWindow by remember(equipment.usageWindow) { mutableIntStateOf(equipment.usageWindow) }
-    var editedUsageWindowUnit by remember(equipment.usageWindowUnit) { mutableStateOf(equipment.usageWindowUnit) }
+    var editedUseCustomUsageWindow by remember(currentEquipment.useCustomUsageWindow) { mutableStateOf(currentEquipment.useCustomUsageWindow) }
+    var editedUsageWindow by remember(currentEquipment.usageWindow) { mutableIntStateOf(currentEquipment.usageWindow) }
+    var editedUsageWindowUnit by remember(currentEquipment.usageWindowUnit) { mutableStateOf(currentEquipment.usageWindowUnit) }
     
-    var editedManualAverageValue by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue) }
-    var editedManualAverageValueStr by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue?.toString() ?: "") }
-    var editedManualAverageUnit by remember(equipment.manualAverageUnit) { mutableStateOf(equipment.manualAverageUnit) }
+    var editedManualAverageValue by remember(currentEquipment.manualAverageValue) { mutableStateOf(currentEquipment.manualAverageValue) }
+    var editedManualAverageValueStr by remember(currentEquipment.manualAverageValue) { mutableStateOf(currentEquipment.manualAverageValue?.toString() ?: "") }
+    var editedManualAverageUnit by remember(currentEquipment.manualAverageUnit) { mutableStateOf(currentEquipment.manualAverageUnit) }
     
-    var editedUseCustomVisibilityHorizon by remember(equipment.useCustomVisibilityHorizon) { mutableStateOf(equipment.useCustomVisibilityHorizon) }
-    var editedVisibilityHorizon by remember(equipment.visibilityHorizon) { mutableIntStateOf(equipment.visibilityHorizon) }
-    var editedVisibilityHorizonUnit by remember(equipment.visibilityHorizonUnit) { mutableStateOf(equipment.visibilityHorizonUnit) }
+    var editedUseCustomVisibilityHorizon by remember(currentEquipment.useCustomVisibilityHorizon) { mutableStateOf(currentEquipment.useCustomVisibilityHorizon) }
+    var editedVisibilityHorizon by remember(currentEquipment.visibilityHorizon) { mutableIntStateOf(currentEquipment.visibilityHorizon) }
+    var editedVisibilityHorizonUnit by remember(currentEquipment.visibilityHorizonUnit) { mutableStateOf(currentEquipment.visibilityHorizonUnit) }
     
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    // Helper to update draft
+    val updateDraft = { updated: EquipmentDraft -> if (isEditing) onUpdateDraft(updated) }
 
     if (showDeleteConfirmation) {
         AlertDialog(
@@ -137,6 +148,7 @@ fun EquipmentCard(
                 editedIconId = newIconId
                 editedPhotoUri = newPhotoUri
                 showImageSelectorDialog = false
+                draft?.let { updateDraft(it.copy(equipment = it.equipment.copy(iconIdentifier = newIconId, photoUri = newPhotoUri))) }
             },
             imageLibrary = equipmentImages,
             categories = allCategories,
@@ -154,7 +166,7 @@ fun EquipmentCard(
         )
     }
 
-    val unit = measurementUnits.find { it.id == editedUnitId }
+    val unit = measurementUnits.find { it.id == currentEquipment.unitId }
     val unitLabel = unit?.label ?: ""
     val decimalPlaces = unit?.decimalPlaces ?: 0
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
@@ -175,7 +187,7 @@ fun EquipmentCard(
             border = if (isDefault) BorderStroke(4.dp, equipmentColor) else null
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                if (isEditing) {
+                if (isEditing && draft != null) {
                     // Layout in MODALITÀ EDIT: Descrizione e campi sopra
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -207,7 +219,12 @@ fun EquipmentCard(
                             Spacer(modifier = Modifier.width(12.dp))
                             OutlinedTextField(
                                 value = editedDescription,
-                                onValueChange = { if (it.length <= 50) editedDescription = it },
+                                onValueChange = { 
+                                    if (it.length <= 50) {
+                                        editedDescription = it
+                                        updateDraft(draft.copy(equipment = draft.equipment.copy(description = it)))
+                                    }
+                                },
                                 label = { Text(stringResource(R.string.equipment_description)) },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true
@@ -217,7 +234,10 @@ fun EquipmentCard(
                         SectionSelector(
                             allSections = allSections,
                             selectedSectionId = editedSectionId,
-                            onSectionSelected = { editedSectionId = it },
+                            onSectionSelected = { 
+                                editedSectionId = it
+                                updateDraft(draft.copy(equipment = draft.equipment.copy(sectionId = it)))
+                            },
                             showDismissed = showDismissedSections,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -225,16 +245,25 @@ fun EquipmentCard(
                         UnitSelector(
                             measurementUnits = measurementUnits,
                             selectedUnitId = editedUnitId,
-                            onUnitSelected = { editedUnitId = it },
+                            onUnitSelected = { 
+                                editedUnitId = it
+                                updateDraft(draft.copy(equipment = draft.equipment.copy(unitId = it)))
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
 
                         Row(
-                            modifier = Modifier.fillMaxWidth().clickable { editedIsResettable = !editedIsResettable },
+                            modifier = Modifier.fillMaxWidth().clickable { 
+                                editedIsResettable = !editedIsResettable
+                                updateDraft(draft.copy(equipment = draft.equipment.copy(isResettable = editedIsResettable)))
+                            },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Checkbox(checked = editedIsResettable, onCheckedChange = { editedIsResettable = it })
+                            Checkbox(checked = editedIsResettable, onCheckedChange = { 
+                                editedIsResettable = it
+                                updateDraft(draft.copy(equipment = draft.equipment.copy(isResettable = it)))
+                            })
                             Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
                         }
 
@@ -249,21 +278,42 @@ fun EquipmentCard(
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             // Trend Window
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomUsageWindow = !editedUseCustomUsageWindow }, verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = editedUseCustomUsageWindow, onCheckedChange = { editedUseCustomUsageWindow = it })
+                                Row(modifier = Modifier.fillMaxWidth().clickable { 
+                                    editedUseCustomUsageWindow = !editedUseCustomUsageWindow
+                                    updateDraft(draft.copy(equipment = draft.equipment.copy(useCustomUsageWindow = editedUseCustomUsageWindow)))
+                                }, verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = editedUseCustomUsageWindow, onCheckedChange = { 
+                                        editedUseCustomUsageWindow = it
+                                        updateDraft(draft.copy(equipment = draft.equipment.copy(useCustomUsageWindow = it)))
+                                    })
                                     Text("Use custom trend window", style = MaterialTheme.typography.bodySmall)
                                 }
                                 if (editedUseCustomUsageWindow) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                         OutlinedTextField(
                                             value = editedUsageWindow.toString(),
-                                            onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) editedUsageWindow = it } },
+                                            onValueChange = { input -> 
+                                                input.toIntOrNull()?.let { 
+                                                    if (it in 1..999) {
+                                                        editedUsageWindow = it
+                                                        updateDraft(draft.copy(equipment = draft.equipment.copy(usageWindow = it)))
+                                                    }
+                                                } 
+                                            },
                                             label = { Text("Window Value") },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                             modifier = Modifier.weight(1f),
                                             textStyle = MaterialTheme.typography.bodySmall
                                         )
-                                        TimeGranularitySelector(selected = editedUsageWindowUnit, onSelected = { editedUsageWindowUnit = it }, label = "Of last", modifier = Modifier.weight(1.2f))
+                                        TimeGranularitySelector(
+                                            selected = editedUsageWindowUnit, 
+                                            onSelected = { 
+                                                editedUsageWindowUnit = it
+                                                updateDraft(draft.copy(equipment = draft.equipment.copy(usageWindowUnit = it)))
+                                            }, 
+                                            label = "Of last", 
+                                            modifier = Modifier.weight(1.2f)
+                                        )
                                     }
                                 }
                             }
@@ -278,11 +328,13 @@ fun EquipmentCard(
                                             if (filtered.isEmpty() || filtered == "." || filtered == "-") {
                                                 editedManualAverageValueStr = filtered
                                                 editedManualAverageValue = null
+                                                updateDraft(draft.copy(equipment = draft.equipment.copy(manualAverageValue = null)))
                                             } else {
                                                 val doubleVal = filtered.toDoubleOrNull()
                                                 if (doubleVal != null) {
                                                     editedManualAverageValueStr = filtered
                                                     editedManualAverageValue = doubleVal
+                                                    updateDraft(draft.copy(equipment = draft.equipment.copy(manualAverageValue = doubleVal)))
                                                 }
                                             }
                                         },
@@ -292,27 +344,54 @@ fun EquipmentCard(
                                         modifier = Modifier.weight(1f),
                                         textStyle = MaterialTheme.typography.bodySmall
                                     )
-                                    TimeGranularitySelector(selected = editedManualAverageUnit, onSelected = { editedManualAverageUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
+                                    TimeGranularitySelector(
+                                        selected = editedManualAverageUnit, 
+                                        onSelected = { 
+                                            editedManualAverageUnit = it
+                                            updateDraft(draft.copy(equipment = draft.equipment.copy(manualAverageUnit = it)))
+                                        }, 
+                                        label = "Every", 
+                                        modifier = Modifier.weight(1.2f)
+                                    )
                                 }
                             }
 
                             // Visibility Horizon
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
+                                Row(modifier = Modifier.fillMaxWidth().clickable { 
+                                    editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon
+                                    updateDraft(draft.copy(equipment = draft.equipment.copy(useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon)))
+                                }, verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { 
+                                        editedUseCustomVisibilityHorizon = it
+                                        updateDraft(draft.copy(equipment = draft.equipment.copy(useCustomVisibilityHorizon = it)))
+                                    })
                                     Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
                                 }
                                 if (editedUseCustomVisibilityHorizon) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                         OutlinedTextField(
                                             value = editedVisibilityHorizon.toString(),
-                                            onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } },
+                                            onValueChange = { input -> 
+                                                input.toIntOrNull()?.let { 
+                                                    editedVisibilityHorizon = it
+                                                    updateDraft(draft.copy(equipment = draft.equipment.copy(visibilityHorizon = it)))
+                                                } 
+                                            },
                                             label = { Text("Event Horizon") },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                             modifier = Modifier.weight(1f),
                                             textStyle = MaterialTheme.typography.bodySmall
                                         )
-                                        TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
+                                        TimeGranularitySelector(
+                                            selected = editedVisibilityHorizonUnit, 
+                                            onSelected = { 
+                                                editedVisibilityHorizonUnit = it
+                                                updateDraft(draft.copy(equipment = draft.equipment.copy(visibilityHorizonUnit = it)))
+                                            }, 
+                                            label = "Future span", 
+                                            modifier = Modifier.weight(1.2f)
+                                        )
                                     }
                                 }
                             }
@@ -322,27 +401,9 @@ fun EquipmentCard(
 
                         CommonActionButtons(
                             onConfirm = {
-                                onUpdateEquipment(
-                                    equipment.copy(
-                                        description = editedDescription, 
-                                        unitId = editedUnitId,
-                                        sectionId = editedSectionId,
-                                        iconIdentifier = editedIconId,
-                                        photoUri = editedPhotoUri,
-                                        isResettable = editedIsResettable,
-                                        usageWindow = editedUsageWindow,
-                                        usageWindowUnit = editedUsageWindowUnit,
-                                        manualAverageValue = editedManualAverageValue,
-                                        manualAverageUnit = editedManualAverageUnit,
-                                        visibilityHorizon = editedVisibilityHorizon,
-                                        visibilityHorizonUnit = editedVisibilityHorizonUnit,
-                                        useCustomUsageWindow = editedUseCustomUsageWindow,
-                                        useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon
-                                    )
-                                )
-                                isEditing = false
+                                onSaveEdit(draft)
                             },
-                            onDismiss = { isEditing = false },
+                            onDismiss = { onCancelEdit() },
                             confirmText = stringResource(R.string.save_equipment),
                             confirmIcon = Icons.Default.Save,
                             showClone = true,
@@ -368,21 +429,21 @@ fun EquipmentCard(
                                     .background(MaterialTheme.colorScheme.secondaryContainer)
                                     .border(2.dp, equipmentColor, CircleShape)
                                     .clickable {
-                                        if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
-                                        else if (editedIconId == null) showNoPictureDialog = true
+                                        if (equipment.photoUri != null) showFullImageDialog = equipment.photoUri
+                                        else if (equipment.iconIdentifier == null) showNoPictureDialog = true
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (editedPhotoUri != null) {
+                                if (equipment.photoUri != null) {
                                     AsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current).data(editedPhotoUri).crossfade(true).build(),
+                                        model = ImageRequest.Builder(LocalContext.current).data(equipment.photoUri).crossfade(true).build(),
                                         contentDescription = null,
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop
                                     )
                                 } else {
                                     Icon(
-                                        imageVector = EquipmentIconProvider.getIcon(editedIconId),
+                                        imageVector = EquipmentIconProvider.getIcon(equipment.iconIdentifier),
                                         contentDescription = null,
                                         modifier = Modifier.size(32.dp),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer
@@ -398,7 +459,7 @@ fun EquipmentCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, equipment.id),
+                                    text = if (equipment.description.isNotBlank()) equipment.description else stringResource(R.string.id_no_description, equipment.id),
                                     modifier = Modifier.weight(1f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -478,7 +539,7 @@ fun EquipmentCard(
                         // SINGLE ACTION ICON (Edit)
                         IconButton(
                             onClick = {
-                                isEditing = true
+                                onStartEdit()
                                 isExpanded = true
                             },
                             modifier = Modifier.size(40.dp)

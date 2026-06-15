@@ -99,20 +99,20 @@ fun MoxEquipLogApp(
     onDismissWelcome: (Boolean) -> Unit
 ) {
     var currentDestination by rememberSaveable { 
-        mutableStateOf(if (showWelcome || isAppEmpty) AppDestinations.OPTIONS else AppDestinations.LOGS) 
+        mutableStateOf(if (isAppEmpty) AppDestinations.OPTIONS else AppDestinations.LOGS) 
     }
 
-    // Redirect to OPTIONS if it's a new installation or the database is completely empty
-    // This happens only once when these conditions are detected as true.
+    // Redirect based on whether the app is empty (has no equipment/logs)
     var initialRedirectDone by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(showWelcome, isAppEmpty) {
-        if (!initialRedirectDone && (showWelcome || isAppEmpty)) {
-            currentDestination = AppDestinations.OPTIONS
+    LaunchedEffect(isAppEmpty) {
+        if (!initialRedirectDone) {
+            currentDestination = if (isAppEmpty) AppDestinations.OPTIONS else AppDestinations.LOGS
             initialRedirectDone = true
         }
     }
 
-    var welcomeVisible by remember(showWelcome) { mutableStateOf(showWelcome) }
+    // Show welcome alert only if it's not dismissed AND the app is currently empty
+    var welcomeVisible by remember(showWelcome, isAppEmpty) { mutableStateOf(showWelcome && isAppEmpty) }
 
     if (welcomeVisible) {
         var dontShowAgain by remember { mutableStateOf(false) }

@@ -63,7 +63,11 @@ fun MaintenanceLogDialog(
     googleAccountName: String? = null,
     costTrendThreshold: Float = UiConstants.DEFAULT_COST_TREND_THRESHOLD,
     initialTab: Int? = null,
-    onNavigateToOptions: () -> Unit = {}
+    onNavigateToOptions: () -> Unit = {},
+    logDraft: MaintenanceLog? = null,
+    reminderDraft: MaintenanceReminder? = null,
+    onUpdateLogDraft: (MaintenanceLog) -> Unit = {},
+    onUpdateReminderDraft: (MaintenanceReminder) -> Unit = {}
 ) {
     val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -71,19 +75,40 @@ fun MaintenanceLogDialog(
     var selectedTab by remember(isEditMode, initialTab) { 
         mutableIntStateOf(initialTab ?: if (isEditMode) 1 else 0) 
     } // 0: Completed, 1: Planned
-    var notes by remember { mutableStateOf("") }
-    var valueStr by remember { mutableStateOf(initialValue) }
-    var costStr by remember { mutableStateOf(initialCost) }
-    var isUnplanned by remember { mutableStateOf(initialIsUnplanned) }
+
+    // Use drafts if present
+    val currentLog = logDraft ?: MaintenanceLog(
+        equipmentId = defaultEquipmentId ?: 0,
+        operationTypeId = defaultOperationTypeId ?: 0,
+        date = initialDate,
+        value = initialValue.toDoubleOrNull(),
+        cost = initialCost.toDoubleOrNull(),
+        isUnplanned = initialIsUnplanned
+    )
+    val currentReminder = reminderDraft ?: MaintenanceReminder(
+        equipmentId = defaultEquipmentId ?: 0,
+        operationTypeId = defaultOperationTypeId ?: 0,
+        dueDate = if (initialHasFixedDate) initialDate else null,
+        dueValue = initialValue.toDoubleOrNull()
+    )
+
+    var notes by remember(currentLog.notes) { mutableStateOf(currentLog.notes ?: "") }
+    var valueStr by remember(currentLog.value, currentReminder.dueValue) { 
+        mutableStateOf(if (selectedTab == 0) currentLog.value?.toString() ?: initialValue else currentReminder.dueValue?.toString() ?: initialValue) 
+    }
+    var costStr by remember(currentLog.cost) { mutableStateOf(currentLog.cost?.toString() ?: initialCost) }
+    var isUnplanned by remember(currentLog.isUnplanned) { mutableStateOf(currentLog.isUnplanned) }
     var syncToCalendar by remember(syncCalendarByDefault, initialSyncToCalendar) { 
         mutableStateOf(initialSyncToCalendar ?: syncCalendarByDefault) 
     }
     
-    var selectedEquipment by remember(defaultEquipmentId, equipments) { 
-        mutableStateOf(equipments.find { it.id == defaultEquipmentId }) 
+    var selectedEquipment by remember(currentLog.equipmentId, currentReminder.equipmentId, equipments) { 
+        val id = if (selectedTab == 0) currentLog.equipmentId else currentReminder.equipmentId
+        mutableStateOf(equipments.find { it.id == (if (id == 0) defaultEquipmentId else id) } ?: equipments.find { it.id == defaultEquipmentId }) 
     }
-    var selectedOperationType by remember(defaultOperationTypeId, operationTypes) { 
-        mutableStateOf(operationTypes.find { it.id == defaultOperationTypeId }) 
+    var selectedOperationType by remember(currentLog.operationTypeId, currentReminder.operationTypeId, operationTypes) { 
+        val id = if (selectedTab == 0) currentLog.operationTypeId else currentReminder.operationTypeId
+        mutableStateOf(operationTypes.find { it.id == (if (id == 0) defaultOperationTypeId else id) } ?: operationTypes.find { it.id == defaultOperationTypeId }) 
     }
 
     val filteredEquipments = remember(selectedOperationType, equipments) {
@@ -104,18 +129,42 @@ fun MaintenanceLogDialog(
     
     var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
     var isOperationDropdownExpanded by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableLongStateOf(initialDate) }
-    var hasFixedDate by remember(isEditMode, initialHasFixedDate) { 
-        mutableStateOf(if (isEditMode) initialHasFixedDate else true) 
+    var selectedDate by remember(currentLog.date, currentReminder.dueDate) { 
+        mutableLongStateOf(if (selectedTab == 0) currentLog.date else currentReminder.dueDate ?: initialDate) 
+    }
+    var hasFixedDate by remember(currentReminder.dueDate, initialHasFixedDate) { 
+        mutableStateOf(if (selectedTab == 1) currentReminder.dueDate != null else initialHasFixedDate) 
     }
     
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteReminderConfirmation by remember { mutableStateOf(false) }
-    var resetAfter by remember { mutableStateOf(false) }
+    var resetAfter by remember(currentLog.resetAfter) { mutableStateOf(currentLog.resetAfter) }
 
     var lastCost by remember { mutableStateOf<Double?>(null) }
     var avgCost by remember { mutableStateOf<Double?>(null) }
+
+    // Helper to update drafts
+    val updateLogDraft = {
+        onUpdateLogDraft(currentLog.copy(
+            equipmentId = selectedEquipment?.id ?: 0,
+            operationTypeId = selectedOperationType?.id ?: 0,
+            notes = notes,
+            value = valueStr.toDoubleOrNull(),
+            cost = costStr.toDoubleOrNull(),
+            isUnplanned = isUnplanned,
+            date = selectedDate,
+            resetAfter = resetAfter
+        ))
+    }
+    val updateReminderDraft = {
+        onUpdateReminderDraft(currentReminder.copy(
+            equipmentId = selectedEquipment?.id ?: 0,
+            operationTypeId = selectedOperationType?.id ?: 0,
+            dueDate = if (hasFixedDate) selectedDate else null,
+            dueValue = valueStr.toDoubleOrNull()
+        ))
+    }
 
     LaunchedEffect(selectedOperationType) {
         selectedOperationType?.id?.let { opId ->
@@ -161,6 +210,7 @@ fun MaintenanceLogDialog(
                             calendar.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY))
                             calendar.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE))
                             selectedDate = calendar.timeInMillis
+                            if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
                         }
                         showDatePicker = false
                     }
@@ -196,6 +246,7 @@ fun MaintenanceLogDialog(
                             set(Calendar.MINUTE, timePickerState.minute)
                         }
                         selectedDate = newCalendar.timeInMillis
+                        if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
                         showTimePicker = false
                     }
                 ) {
@@ -345,6 +396,7 @@ fun MaintenanceLogDialog(
                                     if (!equipment.isResettable) {
                                         resetAfter = false
                                     }
+                                    if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
                                 }
                             )
                         }
@@ -355,7 +407,7 @@ fun MaintenanceLogDialog(
                     onExpandedChange = { isOperationDropdownExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedOperationType?.description?.takeIf { it.isNotBlank() } ?: selectedOperationType?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_an_operation),
+                        value = selectedOperationType?.description?.takeIf { it.isNotBlank() } ?: selectedOperationType?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(id = R.string.select_an_operation),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(stringResource(R.string.navigation_operations)) },
@@ -422,6 +474,7 @@ fun MaintenanceLogDialog(
                                         resetAfter = true
                                         valueStr = "0"
                                     }
+                                    if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
                                 }
                             )
                         }
@@ -443,6 +496,7 @@ fun MaintenanceLogDialog(
                                 }
                             }
                         }
+                        if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
                     },
                     label = { Text(if (selectedTab == 0) stringResource(R.string.value_optional, unitLabel) else stringResource(R.string.target_value, unitLabel)) },
                     readOnly = selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID,
@@ -457,6 +511,7 @@ fun MaintenanceLogDialog(
                                             isEstimating = true
                                             onEstimateDueDate(eqId, target)?.let { estimated ->
                                                 selectedDate = estimated
+                                                updateReminderDraft()
                                             }
                                             isEstimating = false
                                         }
@@ -478,6 +533,7 @@ fun MaintenanceLogDialog(
                             .clickable(enabled = isResettable && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) { 
                                 resetAfter = !resetAfter
                                 if (resetAfter) valueStr = "0"
+                                updateLogDraft()
                             },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -486,6 +542,7 @@ fun MaintenanceLogDialog(
                             onCheckedChange = { 
                                 resetAfter = it 
                                 if (it) valueStr = "0"
+                                updateLogDraft()
                             },
                             enabled = isResettable && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID
                         )
@@ -507,6 +564,7 @@ fun MaintenanceLogDialog(
                                     costStr = filtered
                                 }
                             }
+                            updateLogDraft()
                         },
                         label = { Text(stringResource(R.string.cost_optional)) },
                         supportingText = {
@@ -532,19 +590,30 @@ fun MaintenanceLogDialog(
                     )
 
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { isUnplanned = !isUnplanned },
+                        modifier = Modifier.fillMaxWidth().clickable { 
+                            isUnplanned = !isUnplanned 
+                            updateLogDraft()
+                        },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = isUnplanned,
-                            onCheckedChange = { isUnplanned = it }
+                            onCheckedChange = { 
+                                isUnplanned = it 
+                                updateLogDraft()
+                            }
                         )
                         Text(stringResource(R.string.unplanned_intervention))
                     }
 
                     OutlinedTextField(
                         value = notes,
-                        onValueChange = { if (it.length <= 200) notes = it },
+                        onValueChange = { 
+                            if (it.length <= 200) {
+                                notes = it 
+                                updateLogDraft()
+                            }
+                        },
                         label = { Text(stringResource(R.string.notes_optional)) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -552,12 +621,18 @@ fun MaintenanceLogDialog(
 
                 if (selectedTab == 1) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            hasFixedDate = !hasFixedDate
+                            updateReminderDraft()
+                        },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = hasFixedDate,
-                            onCheckedChange = { hasFixedDate = it }
+                            onCheckedChange = { 
+                                hasFixedDate = it 
+                                updateReminderDraft()
+                            }
                         )
                         Text(stringResource(R.string.set_fixed_due_date))
                     }
@@ -604,6 +679,7 @@ fun MaintenanceLogDialog(
                                 isEstimating = true
                                 onEstimateTargetValue(eqId, selectedDate)?.let { estimated ->
                                     valueStr = String.format(Locale.US, "%.${decimalPlaces}f", estimated)
+                                    updateReminderDraft()
                                 }
                                 isEstimating = false
                             }
