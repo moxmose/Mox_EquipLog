@@ -87,11 +87,26 @@ fun OperationTypeScreen(
         }
     }
 
+    val operationTypesToShow = remember(allOperationTypes, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allOperationTypes.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
+    val equipmentsToShow = remember(activeEquipments, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        activeEquipments.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
+
     if (selectedAffectedEquipmentForAdd != null) {
         val (opId, status) = selectedAffectedEquipmentForAdd!!
         MaintenanceLogDialog(
-            equipments = activeEquipments.filter { !it.dismissed },
-            operationTypes = allOperationTypes.filter { !it.dismissed },
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onAffectedAction(0, null) },
@@ -143,10 +158,8 @@ fun OperationTypeScreen(
         )
     }
 
-    val typesToShow = if (showDismissed) allOperationTypes else activeOperationTypes
-
     OperationTypeScreenContent(
-        operationTypes = typesToShow,
+        operationTypes = operationTypesToShow,
         operationTypeImages = operationTypeImages,
         allCategories = allCategories,
         allSections = allSections,

@@ -176,13 +176,26 @@ fun EquipmentScreen(
         }
     }
 
-    val equipmentsToShow = if (showDismissed) allEquipments else activeEquipments
+    val equipmentsToShow = remember(allEquipments, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allEquipments.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
+    val operationTypesToShow = remember(allOperationTypes, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allOperationTypes.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
 
     if (selectedPredictionForAdd != null) {
         val (eqId, opStatus) = selectedPredictionForAdd!!
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = allOperationTypes.filter { !it.dismissed },
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onPredictionAction(0, null) },
@@ -228,8 +241,8 @@ fun EquipmentScreen(
     if (selectedPlannedForEdit != null) {
         val (eqId, opStatus) = selectedPlannedForEdit!!
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = allOperationTypes.filter { !it.dismissed },
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onPlannedAction(0, null) },

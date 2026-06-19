@@ -122,14 +122,26 @@ fun MaintenanceLogScreen(
         }
     }
 
-    val activeEquipmentsList = remember(allEquipments) { allEquipments.filter { !it.dismissed }.sortedBy { it.displayOrder } }
-    val activeOperationTypesList = remember(allOperationTypes) { allOperationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
+    val equipmentsToShow = remember(allEquipments, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allEquipments.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
+    val operationTypesToShow = remember(allOperationTypes, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allOperationTypes.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
 
     if (selectedReminderForComplete != null) {
         val details = selectedReminderForComplete!!
         MaintenanceLogDialog(
-            equipments = activeEquipmentsList,
-            operationTypes = activeOperationTypesList,
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onCompleteReminder(null) },
@@ -169,8 +181,8 @@ fun MaintenanceLogScreen(
         val reminderDetails = selectedReminderForEdit!!
         val reminder = reminderDetails.reminder
         MaintenanceLogDialog(
-            equipments = activeEquipmentsList,
-            operationTypes = activeOperationTypesList,
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onEditReminder(null) },
@@ -208,8 +220,8 @@ fun MaintenanceLogScreen(
     if (selectedPredictionForAdd != null) {
         val (eqId, status) = selectedPredictionForAdd!!
         MaintenanceLogDialog(
-            equipments = activeEquipmentsList,
-            operationTypes = activeOperationTypesList,
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onPredictionAction(0, null) },
@@ -258,8 +270,8 @@ fun MaintenanceLogScreen(
         onSectionSelected = viewModel::onSectionSelected,
         showDismissedSections = showDismissedSections,
         onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
-        equipments = activeEquipmentsList,
-        operationTypes = activeOperationTypesList,
+        equipments = equipmentsToShow,
+        operationTypes = operationTypesToShow,
         measurementUnits = measurementUnits,
         searchQuery = searchQuery,
         onSearchQueryChange = viewModel::onSearchQueryChanged,
