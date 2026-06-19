@@ -163,7 +163,7 @@ fun OperationTypeCard(
 
     Box(contentAlignment = Alignment.TopEnd, modifier = modifier) {
         Card(
-            modifier = Modifier.fillMaxWidth().animateContentSize().graphicsLayer(alpha = if (operationType.dismissed) 0.5f else 1f).clickable { if (!isEditing) isExpanded = !isExpanded },
+            modifier = Modifier.fillMaxWidth().animateContentSize().graphicsLayer(alpha = if (currentOperationType.dismissed) 0.5f else 1f).clickable { if (!isEditing) isExpanded = !isExpanded },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)),
             border = if (isDefault) BorderStroke(4.dp, operationColor) else null
         ) {
@@ -333,6 +333,8 @@ fun OperationTypeCard(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        val isDirty = draft.operationType != operationType || draft.isDefault != isDefault
+
                         CommonActionButtons(
                             onConfirm = {
                                 onSaveEdit(draft)
@@ -343,13 +345,17 @@ fun OperationTypeCard(
                             showClone = true,
                             onClone = { onCloneOperationType(operationType) },
                             showArchive = true,
-                            onArchive = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) },
-                            archiveIcon = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            onArchive = { 
+                                updateDraft(draft.copy(operationType = draft.operationType.copy(dismissed = !draft.operationType.dismissed)))
+                            },
+                            archiveIcon = if (draft.operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             showDelete = !operationType.isSystem,
                             onDelete = { showDeleteConfirmation = true },
                             showDefault = true,
-                            isDefault = isDefault,
-                            onToggleDefault = onToggleDefault
+                            isDefault = draft.isDefault,
+                            onToggleDefault = onToggleDefault,
+                            showUndo = isDirty,
+                            onUndo = { onUpdateDraft(OperationTypeDraft(operationType, isDefault)) }
                         )
                     }
                 } else {

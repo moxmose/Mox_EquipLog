@@ -59,6 +59,7 @@ fun MaintenanceLogCard(
     var editedCostStr by remember(currentLog.cost) { mutableStateOf(currentLog.cost?.toString() ?: "") }
     var editedIsUnplanned by remember(currentLog.isUnplanned) { mutableStateOf(currentLog.isUnplanned) }
     var editedResetAfter by remember(currentLog.resetAfter) { mutableStateOf(currentLog.resetAfter) }
+    var editedDismissed by remember(currentLog.dismissed) { mutableStateOf(currentLog.dismissed) }
     var editedDate by remember(currentLog.date) { mutableLongStateOf(currentLog.date) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -95,7 +96,7 @@ fun MaintenanceLogCard(
     val unitLabel = unit?.label ?: "Km"
     val decimalPlaces = unit?.decimalPlaces ?: 0
 
-    val cardAlpha = if (logDetail.log.dismissed) 0.5f else 1f
+    val cardAlpha = if (currentLog.dismissed) 0.5f else 1f
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
     val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
@@ -469,9 +470,9 @@ fun MaintenanceLogCard(
                         showDelete = true,
                         onDelete = { showDeleteConfirmation = true },
                         showArchive = true,
-                        archiveIcon = if (logDetail.log.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        archiveIcon = if (currentLog.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         onArchive = { 
-                            onSave(logDetail.log.copy(dismissed = !logDetail.log.dismissed))
+                            updateDraft(currentLog.copy(dismissed = !currentLog.dismissed))
                         },
                         showUndo = isDirty,
                         onUndo = { onUpdateDraft(logDetail.log) }

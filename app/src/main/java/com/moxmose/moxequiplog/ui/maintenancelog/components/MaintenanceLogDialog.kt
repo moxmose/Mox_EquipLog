@@ -140,6 +140,7 @@ fun MaintenanceLogDialog(
     var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteReminderConfirmation by remember { mutableStateOf(false) }
     var resetAfter by remember(currentLog.resetAfter) { mutableStateOf(currentLog.resetAfter) }
+    var editedDismissed by remember(currentLog.dismissed, isDismissed) { mutableStateOf(if (isEditMode) isDismissed else currentLog.dismissed) }
 
     var lastCost by remember { mutableStateOf<Double?>(null) }
     var avgCost by remember { mutableStateOf<Double?>(null) }
@@ -154,7 +155,8 @@ fun MaintenanceLogDialog(
             cost = costStr.toDoubleOrNull(),
             isUnplanned = isUnplanned,
             date = selectedDate,
-            resetAfter = resetAfter
+            resetAfter = resetAfter,
+            dismissed = editedDismissed
         ))
     }
     val updateReminderDraft = {
@@ -721,7 +723,8 @@ fun MaintenanceLogDialog(
                 (currentLog.notes ?: "") != "" ||
                 currentLog.value != (initialValue.toDoubleOrNull()) ||
                 currentLog.date != initialDate ||
-                currentLog.resetAfter != initialIsUnplanned // Wait, this is wrong, but just as a placeholder
+                currentLog.resetAfter != initialIsUnplanned ||
+                currentLog.dismissed != editedDismissed
             } else {
                 currentReminder.equipmentId != (defaultEquipmentId ?: 0) ||
                 currentReminder.operationTypeId != (defaultOperationTypeId ?: 0) ||
@@ -747,7 +750,8 @@ fun MaintenanceLogDialog(
                                     date = selectedDate,
                                     resetAfter = resetAfter,
                                     cost = costStr.toDoubleOrNull(),
-                                    isUnplanned = isUnplanned
+                                    isUnplanned = isUnplanned,
+                                    dismissed = editedDismissed
                                 )
                             )
                         } else {
@@ -770,9 +774,12 @@ fun MaintenanceLogDialog(
                                 (selectedTab == 0 || hasFixedDate || valueStr.isNotBlank()),
                 showDelete = isEditMode && (onDeleteReminder != null || onDeleteLog != null),
                 onDelete = { showDeleteReminderConfirmation = true },
-                showArchive = isEditMode && onArchive != null,
-                onArchive = onArchive,
-                archiveIcon = if (isDismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                showArchive = isEditMode && (onArchive != null || selectedTab == 0),
+                onArchive = { 
+                    editedDismissed = !editedDismissed
+                    updateLogDraft()
+                },
+                archiveIcon = if (editedDismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                 showUndo = isEditMode && isDirty,
                 onUndo = {
                     if (selectedTab == 0) {

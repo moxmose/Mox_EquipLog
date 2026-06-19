@@ -63,6 +63,7 @@ fun EquipmentCard(
     equipmentCategoryColor: String?,
     isDefault: Boolean,
     onToggleDefault: () -> Unit,
+    originalIsDefault: Boolean = false,
     modifier: Modifier = Modifier,
     status: EquipmentStatus? = null,
     onPredictionAction: (OperationStatus) -> Unit,
@@ -181,7 +182,7 @@ fun EquipmentCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .animateContentSize()
-                .graphicsLayer(alpha = if (equipment.dismissed) 0.5f else 1f)
+                .graphicsLayer(alpha = if (currentEquipment.dismissed) 0.5f else 1f)
                 .clickable { if (!isEditing) isExpanded = !isExpanded },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)),
             border = if (isDefault) BorderStroke(4.dp, equipmentColor) else null
@@ -399,7 +400,7 @@ fun EquipmentCard(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        val isDirty = draft.equipment != equipment || draft.isDefault != isDefault
+                        val isDirty = draft.equipment != equipment || draft.isDefault != originalIsDefault
 
                         CommonActionButtons(
                             onConfirm = {
@@ -411,15 +412,17 @@ fun EquipmentCard(
                             showClone = true,
                             onClone = { onCloneEquipment(equipment) },
                             showArchive = true,
-                            onArchive = { if (equipment.dismissed) onRestoreEquipment(equipment) else onDismissEquipment(equipment) },
-                            archiveIcon = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            onArchive = { 
+                                updateDraft(draft.copy(equipment = draft.equipment.copy(dismissed = !draft.equipment.dismissed)))
+                            },
+                            archiveIcon = if (currentEquipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             showDelete = true,
                             onDelete = { showDeleteConfirmation = true },
                             showDefault = true,
-                            isDefault = isDefault,
+                            isDefault = draft.isDefault,
                             onToggleDefault = onToggleDefault,
                             showUndo = isDirty,
-                            onUndo = { onUpdateDraft(EquipmentDraft(equipment, isDefault)) }
+                            onUndo = { onUpdateDraft(EquipmentDraft(equipment, originalIsDefault)) }
                         )
                     }
                 } else {

@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.R
@@ -40,13 +41,19 @@ fun ColorItemCard(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var editedName by remember(color.name) { mutableStateOf(color.name) }
     var editedHex by remember(color.hexValue) { mutableStateOf(color.hexValue) }
+    var editedHidden by remember(color.hidden) { mutableStateOf(color.hidden) }
+    var editedReportHidden by remember(color.reportHidden) { mutableStateOf(color.reportHidden) }
 
     val isHidden = if (showReportVisibility) color.reportHidden else color.hidden
+    val currentEditedHidden = if (showReportVisibility) editedReportHidden else editedHidden
+
+    val cardAlpha = if (isEditing) (if (currentEditedHidden) 0.5f else 1f) else (if (isHidden) 0.5f else 1f)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .graphicsLayer(alpha = cardAlpha)
             .clickable { if (!isEditing) onColorSelected() }
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -95,10 +102,10 @@ fun ColorItemCard(
 
             if (isEditing) {
                 Spacer(modifier = Modifier.height(12.dp))
-                val isDirty = editedName != color.name || editedHex != color.hexValue
+                val isDirty = editedName != color.name || editedHex != color.hexValue || editedHidden != color.hidden || editedReportHidden != color.reportHidden
                 CommonActionButtons(
                     onConfirm = {
-                        onUpdateColor(color.copy(name = editedName, hexValue = editedHex))
+                        onUpdateColor(color.copy(name = editedName, hexValue = editedHex, hidden = editedHidden, reportHidden = editedReportHidden))
                         isEditing = false
                     },
                     onDismiss = { 
@@ -106,18 +113,25 @@ fun ColorItemCard(
                         // Resetting local state to ensure reversibility when re-entering edit mode
                         editedName = color.name
                         editedHex = color.hexValue
+                        editedHidden = color.hidden
+                        editedReportHidden = color.reportHidden
                     },
                     confirmText = stringResource(R.string.save_equipment),
                     confirmIcon = Icons.Default.Save,
                     showDelete = !color.isDefault && canDelete,
                     onDelete = { showDeleteConfirm = true },
                     showArchive = true,
-                    onArchive = onToggleVisibility,
-                    archiveIcon = if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    onArchive = {
+                        if (showReportVisibility) editedReportHidden = !editedReportHidden
+                        else editedHidden = !editedHidden
+                    },
+                    archiveIcon = if (currentEditedHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                     showUndo = isDirty,
                     onUndo = {
                         editedName = color.name
                         editedHex = color.hexValue
+                        editedHidden = color.hidden
+                        editedReportHidden = color.reportHidden
                     },
                     compactMode = compactMode
                 )

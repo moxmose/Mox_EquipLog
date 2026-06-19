@@ -52,6 +52,12 @@ fun SectionItemCard(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
 
+    var editedName by remember(section.name) { mutableStateOf(section.name) }
+    var editedIcon by remember(section.iconIdentifier) { mutableStateOf(section.iconIdentifier) }
+    var editedPhotoUri by remember(section.photoUri) { mutableStateOf(section.photoUri) }
+    var editedColor by remember(section.color) { mutableStateOf(section.color ?: "#808080") }
+    var editedDismissed by remember(section.dismissed) { mutableStateOf(section.dismissed) }
+
     val sectionColor = remember(section.color) {
         try {
             section.color?.let { Color(it.toColorInt()) } ?: Color.Gray
@@ -60,7 +66,7 @@ fun SectionItemCard(
         }
     }
 
-    val cardAlpha = if (section.dismissed) 0.5f else 1f
+    val cardAlpha = if (isEditing) (if (editedDismissed) 0.5f else 1f) else (if (section.dismissed) 0.5f else 1f)
 
     Card(
         modifier = modifier
@@ -72,10 +78,6 @@ fun SectionItemCard(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             if (isEditing) {
-                var editedName by remember { mutableStateOf(section.name) }
-                var editedIcon by remember { mutableStateOf(section.iconIdentifier) }
-                var editedPhotoUri by remember { mutableStateOf(section.photoUri) }
-                var editedColor by remember { mutableStateOf(section.color ?: "#808080") }
                 var showImagePicker by remember { mutableStateOf(false) }
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -114,11 +116,11 @@ fun SectionItemCard(
                         )
                     }
 
-                    val isDirty = editedName != section.name || editedIcon != section.iconIdentifier || editedPhotoUri != section.photoUri || editedColor != (section.color ?: "#808080")
+                    val isDirty = editedName != section.name || editedIcon != section.iconIdentifier || editedPhotoUri != section.photoUri || editedColor != (section.color ?: "#808080") || editedDismissed != section.dismissed
 
                     CommonActionButtons(
                         onConfirm = {
-                            onUpdateSection(section.copy(name = editedName, iconIdentifier = editedIcon, photoUri = editedPhotoUri, color = editedColor))
+                            onUpdateSection(section.copy(name = editedName, iconIdentifier = editedIcon, photoUri = editedPhotoUri, color = editedColor, dismissed = editedDismissed))
                             isEditing = false
                         },
                         onDismiss = { isEditing = false },
@@ -129,14 +131,15 @@ fun SectionItemCard(
                         showDelete = section.id != AppConstants.DEFAULT_SECTION_ID,
                         onDelete = { showDeleteConfirm = true },
                         showArchive = true,
-                        onArchive = { onUpdateSection(section.copy(dismissed = !section.dismissed)) },
-                        archiveIcon = if (section.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        onArchive = { editedDismissed = !editedDismissed },
+                        archiveIcon = if (editedDismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         showUndo = isDirty,
                         onUndo = {
                             editedName = section.name
                             editedIcon = section.iconIdentifier
                             editedPhotoUri = section.photoUri
                             editedColor = section.color ?: "#808080"
+                            editedDismissed = section.dismissed
                         },
                         compactMode = compactMode
                     )

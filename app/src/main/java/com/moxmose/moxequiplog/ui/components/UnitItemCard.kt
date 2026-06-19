@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,11 +44,15 @@ fun UnitItemCard(
     var editedLabel by remember(unit.label) { mutableStateOf(unit.label) }
     var editedDescription by remember(unit.description) { mutableStateOf(unit.description) }
     var editedDecimalPlaces by remember(unit.decimalPlaces) { mutableIntStateOf(unit.decimalPlaces) }
+    var editedIsHidden by remember(unit.isHidden) { mutableStateOf(unit.isHidden) }
+
+    val cardAlpha = if (isEditing) (if (editedIsHidden) 0.5f else 1f) else (if (unit.isHidden) 0.5f else 1f)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .graphicsLayer(alpha = cardAlpha)
             .clickable { if (!isEditing) onUnitSelected() },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -117,14 +122,15 @@ fun UnitItemCard(
                     
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    val isDirty = editedLabel != unit.label || editedDescription != unit.description || editedDecimalPlaces != unit.decimalPlaces
+                    val isDirty = editedLabel != unit.label || editedDescription != unit.description || editedDecimalPlaces != unit.decimalPlaces || editedIsHidden != unit.isHidden
 
                     CommonActionButtons(
                         onConfirm = {
                             onUpdateUnit(unit.copy(
                                 label = editedLabel, 
                                 description = editedDescription,
-                                decimalPlaces = editedDecimalPlaces
+                                decimalPlaces = editedDecimalPlaces,
+                                isHidden = editedIsHidden
                             ))
                             isEditing = false
                         },
@@ -134,6 +140,7 @@ fun UnitItemCard(
                             editedLabel = unit.label
                             editedDescription = unit.description
                             editedDecimalPlaces = unit.decimalPlaces
+                            editedIsHidden = unit.isHidden
                         },
                         confirmText = stringResource(R.string.save_equipment),
                         confirmIcon = Icons.Default.Save,
@@ -142,13 +149,14 @@ fun UnitItemCard(
                         showDelete = !unit.isSystem,
                         onDelete = onDeleteUnit,
                         showArchive = true,
-                        onArchive = onToggleVisibility,
-                        archiveIcon = if (unit.isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        onArchive = { editedIsHidden = !editedIsHidden },
+                        archiveIcon = if (editedIsHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         showUndo = isDirty,
                         onUndo = {
                             editedLabel = unit.label
                             editedDescription = unit.description
                             editedDecimalPlaces = unit.decimalPlaces
+                            editedIsHidden = unit.isHidden
                         },
                         compactMode = compactMode
                     )

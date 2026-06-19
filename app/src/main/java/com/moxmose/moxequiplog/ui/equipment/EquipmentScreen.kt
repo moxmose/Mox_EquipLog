@@ -481,6 +481,7 @@ fun EquipmentScreenContent(
                 modifier = Modifier.fillMaxSize(),
                 itemContent = { _, equipment ->
                     val draft = allDrafts[equipment.id]
+                    val isOrigDefault = equipment.id == defaultEquipmentId
                     EquipmentCard(
                         equipment = equipment,
                         equipmentImages = equipmentImages,
@@ -501,7 +502,8 @@ fun EquipmentScreenContent(
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
                         equipmentCategoryColor = equipmentCategoryColor,
-                        isDefault = draft?.isDefault ?: (equipment.id == defaultEquipmentId),
+                        isDefault = draft?.isDefault ?: isOrigDefault,
+                        originalIsDefault = isOrigDefault,
                         onToggleDefault = { 
                             if (draft != null) onToggleDefaultInDraft(equipment.id)
                             else onToggleDefault(equipment.id)
