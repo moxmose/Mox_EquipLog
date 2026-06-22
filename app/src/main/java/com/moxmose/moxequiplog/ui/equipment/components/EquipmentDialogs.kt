@@ -37,6 +37,7 @@ import com.moxmose.moxequiplog.ui.components.SectionSelector
 import com.moxmose.moxequiplog.ui.components.TimeGranularitySelector
 import com.moxmose.moxequiplog.ui.components.UnitSelector
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
+import com.moxmose.moxequiplog.utils.AppConstants
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,7 +67,7 @@ fun AddEquipmentDialog(
     val currentEquipment = draft?.equipment ?: initialEquipment ?: Equipment(
         description = "",
         unitId = defaultUnitId ?: 1,
-        sectionId = if (selectedSectionId == -1) 1 else selectedSectionId,
+        sectionId = if (selectedSectionId == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else selectedSectionId,
         iconIdentifier = defaultIcon,
         photoUri = defaultPhotoUri
     )

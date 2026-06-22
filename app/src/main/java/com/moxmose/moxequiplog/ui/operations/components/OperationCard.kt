@@ -65,6 +65,8 @@ fun OperationTypeCard(
     operationCategoryColor: String,
     isDefault: Boolean,
     onToggleDefault: () -> Unit,
+    showDefault: Boolean = true,
+    defaultEnabled: Boolean = true,
     modifier: Modifier = Modifier,
     status: OperationGlobalStatus? = null,
     onAffectedAction: (EquipmentOperationStatus) -> Unit,
@@ -351,9 +353,10 @@ fun OperationTypeCard(
                             archiveIcon = if (draft.operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             showDelete = !operationType.isSystem,
                             onDelete = { showDeleteConfirmation = true },
-                            showDefault = true,
+                            showDefault = showDefault,
                             isDefault = draft.isDefault,
                             onToggleDefault = onToggleDefault,
+                            defaultEnabled = defaultEnabled,
                             showUndo = isDirty,
                             onUndo = { onUpdateDraft(OperationTypeDraft(operationType, isDefault)) }
                         )

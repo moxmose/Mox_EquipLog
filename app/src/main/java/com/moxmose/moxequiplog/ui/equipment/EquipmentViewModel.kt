@@ -337,8 +337,13 @@ class EquipmentViewModel(
     val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto(Category.EQUIPMENT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
-    val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultEquipmentId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections
+    ) { sectionId, sections ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) null
+        else sections.find { it.id == sectionId }?.defaultEquipmentId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
@@ -374,9 +379,12 @@ class EquipmentViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     fun setDefaultEquipment(id: Int?) {
+        val sectionId = selectedSectionId.value
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) return
+        
         viewModelScope.launch {
             try {
-                appSettingsManager.setDefaultEquipmentId(id)
+                sectionRepository.updateSectionDefaultEquipment(sectionId, id)
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.SetDefaultFailed)
             }
@@ -384,13 +392,16 @@ class EquipmentViewModel(
     }
 
     fun toggleDefaultEquipment(id: Int) {
+        val sectionId = selectedSectionId.value
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) return
+
         viewModelScope.launch {
             try {
                 val currentDefault = defaultEquipmentId.value
                 if (currentDefault == id) {
-                    appSettingsManager.setDefaultEquipmentId(null)
+                    sectionRepository.updateSectionDefaultEquipment(sectionId, null)
                 } else {
-                    appSettingsManager.setDefaultEquipmentId(id)
+                    sectionRepository.updateSectionDefaultEquipment(sectionId, id)
                 }
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.SetDefaultFailed)
@@ -582,7 +593,8 @@ class EquipmentViewModel(
 
     fun startEditing(equipment: Equipment) {
         viewModelScope.launch {
-            val isCurrentlyDefault = defaultEquipmentId.value == equipment.id
+            val section = allSections.value.find { it.id == equipment.sectionId }
+            val isCurrentlyDefault = section?.defaultEquipmentId == equipment.id
             val draft = EquipmentDraft(equipment = equipment, isDefault = isCurrentlyDefault)
             val json = Json.encodeToString(draft)
             appSettingsManager.saveDraft("equipment", equipment.id, json)
@@ -617,11 +629,14 @@ class EquipmentViewModel(
             updateEquipment(draft.equipment)
             
             // Sync default status if changed in draft
-            val currentDefaultId = defaultEquipmentId.value
+            val sectionId = draft.equipment.sectionId
+            val section = allSections.value.find { it.id == sectionId }
+            val currentDefaultId = section?.defaultEquipmentId
+            
             if (draft.isDefault && currentDefaultId != draft.equipment.id) {
-                appSettingsManager.setDefaultEquipmentId(draft.equipment.id)
+                sectionRepository.updateSectionDefaultEquipment(sectionId, draft.equipment.id)
             } else if (!draft.isDefault && currentDefaultId == draft.equipment.id) {
-                appSettingsManager.setDefaultEquipmentId(null)
+                sectionRepository.updateSectionDefaultEquipment(sectionId, null)
             }
             
             appSettingsManager.deleteDraft("equipment", draft.equipment.id)

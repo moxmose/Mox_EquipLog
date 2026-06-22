@@ -285,8 +285,13 @@ class OperationsTypeViewModel(
     val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto(Category.OPERATION)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
-    val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultOperationTypeId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections
+    ) { sectionId, sections ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) null
+        else sections.find { it.id == sectionId }?.defaultOperationTypeId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
@@ -316,9 +321,12 @@ class OperationsTypeViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     fun setDefaultOperationType(id: Int?) {
+        val sectionId = selectedSectionId.value
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) return
+
         viewModelScope.launch {
             try {
-                appSettingsManager.setDefaultOperationTypeId(id)
+                sectionRepository.updateSectionDefaultOperationType(sectionId, id)
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.SetDefaultFailed)
             }
@@ -326,13 +334,16 @@ class OperationsTypeViewModel(
     }
 
     fun toggleDefaultOperationType(id: Int) {
+        val sectionId = selectedSectionId.value
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) return
+
         viewModelScope.launch {
             try {
                 val currentDefault = defaultOperationTypeId.value
                 if (currentDefault == id) {
-                    appSettingsManager.setDefaultOperationTypeId(null)
+                    sectionRepository.updateSectionDefaultOperationType(sectionId, null)
                 } else {
-                    appSettingsManager.setDefaultOperationTypeId(id)
+                    sectionRepository.updateSectionDefaultOperationType(sectionId, id)
                 }
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.SetDefaultFailed)
@@ -511,7 +522,8 @@ class OperationsTypeViewModel(
     // --- Draft Management ---
     fun startEditing(operationType: OperationType) {
         viewModelScope.launch {
-            val isCurrentlyDefault = defaultOperationTypeId.value == operationType.id
+            val section = allSections.value.find { it.id == operationType.sectionId }
+            val isCurrentlyDefault = section?.defaultOperationTypeId == operationType.id
             val draft = OperationTypeDraft(operationType = operationType, isDefault = isCurrentlyDefault)
             val json = Json.encodeToString(draft)
             appSettingsManager.saveDraft("operation", operationType.id, json)
@@ -546,11 +558,14 @@ class OperationsTypeViewModel(
             updateOperationType(draft.operationType)
 
             // Sync default status if changed in draft
-            val currentDefaultId = defaultOperationTypeId.value
+            val sectionId = draft.operationType.sectionId
+            val section = allSections.value.find { it.id == sectionId }
+            val currentDefaultId = section?.defaultOperationTypeId
+
             if (draft.isDefault && currentDefaultId != draft.operationType.id) {
-                appSettingsManager.setDefaultOperationTypeId(draft.operationType.id)
+                sectionRepository.updateSectionDefaultOperationType(sectionId, draft.operationType.id)
             } else if (!draft.isDefault && currentDefaultId == draft.operationType.id) {
-                appSettingsManager.setDefaultOperationTypeId(null)
+                sectionRepository.updateSectionDefaultOperationType(sectionId, null)
             }
 
             appSettingsManager.deleteDraft("operation", draft.operationType.id)

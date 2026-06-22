@@ -98,6 +98,7 @@ import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.SectionChipBar
 import com.moxmose.moxequiplog.ui.equipment.components.AddEquipmentDialog
@@ -494,7 +495,7 @@ fun EquipmentScreenContent(
                 modifier = Modifier.fillMaxSize(),
                 itemContent = { _, equipment ->
                     val draft = allDrafts[equipment.id]
-                    val isOrigDefault = equipment.id == defaultEquipmentId
+                    val isOrigDefault = equipment.id == allSections.find { it.id == equipment.sectionId }?.defaultEquipmentId
                     EquipmentCard(
                         equipment = equipment,
                         equipmentImages = equipmentImages,
@@ -517,6 +518,8 @@ fun EquipmentScreenContent(
                         equipmentCategoryColor = equipmentCategoryColor,
                         isDefault = draft?.isDefault ?: isOrigDefault,
                         originalIsDefault = isOrigDefault,
+                        showDefault = true,
+                        defaultEnabled = selectedSectionId != AppConstants.ALL_SECTIONS_ID,
                         onToggleDefault = { 
                             if (draft != null) onToggleDefaultInDraft(equipment.id)
                             else onToggleDefault(equipment.id)

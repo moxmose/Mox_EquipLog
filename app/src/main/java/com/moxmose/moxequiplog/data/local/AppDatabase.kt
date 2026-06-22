@@ -48,13 +48,20 @@ abstract class AppDatabase : RoomDatabase() {
                         `photoUri` TEXT,
                         `color` TEXT, 
                         `displayOrder` INTEGER NOT NULL,
-                        `dismissed` INTEGER NOT NULL DEFAULT 0
+                        `dismissed` INTEGER NOT NULL DEFAULT 0,
+                        `defaultUnitId` INTEGER NOT NULL DEFAULT 1,
+                        `defaultUsageWindow` INTEGER NOT NULL DEFAULT 30,
+                        `defaultUsageWindowUnit` TEXT NOT NULL DEFAULT 'DAYS',
+                        `defaultVisibilityHorizon` INTEGER NOT NULL DEFAULT 30,
+                        `defaultVisibilityHorizonUnit` TEXT NOT NULL DEFAULT 'DAYS',
+                        `defaultEquipmentId` INTEGER,
+                        `defaultOperationTypeId` INTEGER
                     )
                 """.trimIndent())
 
                 // 2. Inserisce la sezione di default
                 db.execSQL(
-                    "INSERT INTO sections (id, name, iconIdentifier, photoUri, color, displayOrder, dismissed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO sections (id, name, iconIdentifier, photoUri, color, displayOrder, dismissed, defaultUnitId, defaultUsageWindow, defaultUsageWindowUnit, defaultVisibilityHorizon, defaultVisibilityHorizonUnit, defaultEquipmentId, defaultOperationTypeId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     arrayOf(
                         AppConstants.DEFAULT_SECTION_ID, 
                         AppConstants.DEFAULT_SECTION_NAME, 
@@ -62,7 +69,14 @@ abstract class AppDatabase : RoomDatabase() {
                         null, 
                         AppConstants.DEFAULT_SECTION_COLOR, 
                         0,
-                        0
+                        0,
+                        1,
+                        30,
+                        "DAYS",
+                        30,
+                        "DAYS",
+                        null,
+                        null
                     )
                 )
 
@@ -95,7 +109,7 @@ abstract class AppDatabase : RoomDatabase() {
 
                     // Popolamento iniziale Sezione di default
                     db.execSQL(
-                        "INSERT INTO sections (id, name, iconIdentifier, photoUri, color, displayOrder, dismissed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO sections (id, name, iconIdentifier, photoUri, color, displayOrder, dismissed, defaultUnitId, defaultUsageWindow, defaultUsageWindowUnit, defaultVisibilityHorizon, defaultVisibilityHorizonUnit, defaultEquipmentId, defaultOperationTypeId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         arrayOf(
                             AppConstants.DEFAULT_SECTION_ID, 
                             AppConstants.DEFAULT_SECTION_NAME, 
@@ -103,7 +117,14 @@ abstract class AppDatabase : RoomDatabase() {
                             null, 
                             AppConstants.DEFAULT_SECTION_COLOR, 
                             0,
-                            0
+                            0,
+                            1,
+                            30,
+                            "DAYS",
+                            30,
+                            "DAYS",
+                            null,
+                            null
                         )
                     )
 

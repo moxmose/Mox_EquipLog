@@ -63,6 +63,8 @@ fun EquipmentCard(
     equipmentCategoryColor: String?,
     isDefault: Boolean,
     onToggleDefault: () -> Unit,
+    showDefault: Boolean = true,
+    defaultEnabled: Boolean = true,
     originalIsDefault: Boolean = false,
     modifier: Modifier = Modifier,
     status: EquipmentStatus? = null,
@@ -418,9 +420,10 @@ fun EquipmentCard(
                             archiveIcon = if (currentEquipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             showDelete = true,
                             onDelete = { showDeleteConfirmation = true },
-                            showDefault = true,
+                            showDefault = showDefault,
                             isDefault = draft.isDefault,
                             onToggleDefault = onToggleDefault,
+                            defaultEnabled = defaultEnabled,
                             showUndo = isDirty,
                             onUndo = { onUpdateDraft(EquipmentDraft(equipment, originalIsDefault)) }
                         )

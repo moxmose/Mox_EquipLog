@@ -58,6 +58,7 @@ fun CommonActionButtons(
     showDefault: Boolean = false,
     isDefault: Boolean = false,
     onToggleDefault: (() -> Unit)? = null,
+    defaultEnabled: Boolean = true,
     showUndo: Boolean = false,
     onUndo: (() -> Unit)? = null,
     undoIcon: ImageVector = Icons.Default.Undo,
@@ -109,11 +110,13 @@ fun CommonActionButtons(
                     }
                 }
                 if (showDefault && onToggleDefault != null) {
-                    IconButton(onClick = onToggleDefault) {
+                    IconButton(onClick = onToggleDefault, enabled = defaultEnabled) {
                         Icon(
                             imageVector = if (isDefault) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = "Default",
-                            tint = if (isDefault) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (!defaultEnabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                   else if (isDefault) Color(0xFFFFB300) 
+                                   else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

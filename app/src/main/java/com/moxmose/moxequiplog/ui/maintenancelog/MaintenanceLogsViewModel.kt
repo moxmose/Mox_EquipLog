@@ -309,11 +309,21 @@ class MaintenanceLogViewModel(
             initialValue = emptyList()
         )
 
-    val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultEquipmentId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections
+    ) { sectionId, sections ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) null
+        else sections.find { it.id == sectionId }?.defaultEquipmentId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
         
-    val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultOperationTypeId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections
+    ) { sectionId, sections ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) null
+        else sections.find { it.id == sectionId }?.defaultOperationTypeId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)

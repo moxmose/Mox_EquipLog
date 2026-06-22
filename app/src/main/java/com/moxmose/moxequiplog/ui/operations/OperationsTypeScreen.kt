@@ -21,6 +21,7 @@ import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.operations.components.AddOperationTypeDialog
 import com.moxmose.moxequiplog.ui.operations.components.OperationTypeCard
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import com.moxmose.moxequiplog.utils.AppConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
 
@@ -337,6 +338,7 @@ fun OperationTypeScreenContent(
                 modifier = Modifier.fillMaxSize(),
                 itemContent = { _, operationType ->
                     val draft = allDrafts[operationType.id]
+                    val isOrigDefault = operationType.id == allSections.find { it.id == operationType.sectionId }?.defaultOperationTypeId
                     OperationTypeCard(
                         operationType = operationType,
                         allSections = allSections,
@@ -353,7 +355,9 @@ fun OperationTypeScreenContent(
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
                         operationCategoryColor = operationCategoryColor,
-                        isDefault = draft?.isDefault ?: (operationType.id == defaultOperationTypeId),
+                        isDefault = draft?.isDefault ?: isOrigDefault,
+                        showDefault = true,
+                        defaultEnabled = selectedSectionId != AppConstants.ALL_SECTIONS_ID,
                         onToggleDefault = { 
                             if (draft != null) onToggleDefaultInDraft(operationType.id)
                             else onToggleDefault(operationType.id)

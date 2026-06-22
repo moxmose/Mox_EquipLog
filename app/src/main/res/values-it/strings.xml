@@ -170,7 +170,7 @@
 
     <!-- Equipments & Operations -->
     <string name="hold_and_drag_to_reorder">Tieni premuto e trascina per cambiare l\'ordine</string>
-    <string name="set_as_default_and_expand_instruction">Tocca la card per espandere, la stella per il predefinito</string>
+    <string name="set_as_default_and_expand_instruction">Tocca per espandere. Filtra per sezione per cambiare predefinito.</string>
     <string name="add_equipment">Aggiungi Equipment</string>
     <string name="add_operation_type">Aggiungi Tipo di Operazione</string>
     <string name="hide_dismissed">Nascondi Dismessi</string>
