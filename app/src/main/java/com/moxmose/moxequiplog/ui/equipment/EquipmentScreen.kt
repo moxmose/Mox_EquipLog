@@ -364,7 +364,7 @@ fun EquipmentScreenContent(
     cloningEquipment: Equipment? = null,
     onShowAddDialogChange: (Boolean) -> Unit,
     onCloneEquipment: (Equipment) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?, Int, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int, Int, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDeleteEquipment: (Equipment) -> Unit,
@@ -433,8 +433,8 @@ fun EquipmentScreenContent(
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier, unitId, sectionId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon ->
-                    onAddEquipment(desc, identifier, unitId, sectionId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon)
+                onConfirm = { desc, identifier, unitId, sectionId, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon ->
+                    onAddEquipment(desc, identifier, unitId, sectionId, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,

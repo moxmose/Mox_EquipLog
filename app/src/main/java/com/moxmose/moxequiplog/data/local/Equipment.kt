@@ -42,8 +42,6 @@ data class Equipment(
     val unitId: Int = 1,
     @ColumnInfo(defaultValue = "1")
     val sectionId: Int = 1,
-    @ColumnInfo(defaultValue = "0")
-    val isResettable: Boolean = false,
     @ColumnInfo(defaultValue = "30")
     val usageWindow: Int = 30,
     @ColumnInfo(defaultValue = "DAYS")

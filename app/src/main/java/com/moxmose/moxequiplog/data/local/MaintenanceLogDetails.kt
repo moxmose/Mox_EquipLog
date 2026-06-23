@@ -12,8 +12,10 @@ data class MaintenanceLogDetails(
     val operationTypeIconIdentifier: String?,
     val equipmentDismissed: Boolean,
     val operationTypeDismissed: Boolean,
-    val equipmentIsResettable: Boolean = false,
+    val operationTypeIsResettable: Boolean = false,
     val operationTypeIsSystem: Boolean = false,
+    val equipmentUnitId: Int = 1,
+    val operationTypeUnitId: Int = 1,
     val previousLogValue: Double? = null,
     val previousLogIsSystem: Boolean = false
 )

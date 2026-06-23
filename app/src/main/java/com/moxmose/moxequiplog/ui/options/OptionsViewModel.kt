@@ -204,7 +204,7 @@ class OptionsViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
 
-    fun addSection(name: String, iconIdentifier: String?, photoUri: String?, color: String?) {
+    fun addSection(name: String, iconIdentifier: String?, photoUri: String?, color: String?, defaultUnitId: Int = 1) {
         viewModelScope.launch {
             try {
                 val currentList = allSections.value
@@ -214,7 +214,8 @@ class OptionsViewModel(
                     iconIdentifier = iconIdentifier, 
                     photoUri = photoUri,
                     color = color, 
-                    displayOrder = nextOrder
+                    displayOrder = nextOrder,
+                    defaultUnitId = defaultUnitId
                 ))
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.AddSectionFailed)

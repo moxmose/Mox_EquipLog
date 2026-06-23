@@ -143,22 +143,11 @@ class OperationsTypeViewModel(
         }
     }
 
-    val allOperationTypes: StateFlow<List<OperationType>> = combine(
-        appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
-            if (sectionId == AppConstants.ALL_SECTIONS_ID) {
-                operationTypeDao.getAllOperationTypes()
-            } else {
-                operationTypeDao.getAllOperationTypesBySection(sectionId)
-            }
-        },
-        equipmentDao.countActiveResettableEquipment()
-    ) { types, resettableCount ->
-        types.map { type ->
-            if (type.isSystem && type.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
-                type.copy(dismissed = resettableCount == 0)
-            } else {
-                type
-            }
+    val allOperationTypes: StateFlow<List<OperationType>> = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            operationTypeDao.getAllOperationTypes()
+        } else {
+            operationTypeDao.getAllOperationTypesBySection(sectionId)
         }
     }.stateIn(
         scope = viewModelScope,
@@ -355,6 +344,8 @@ class OperationsTypeViewModel(
         description: String, 
         imageIdentifier: ImageIdentifier?,
         sectionId: Int? = null,
+        unitId: Int = 1,
+        isResettable: Boolean = false,
         isPredictable: Boolean = false,
         intervalValue: Double? = null,
         timeoutValue: Int? = null,
@@ -397,6 +388,8 @@ class OperationsTypeViewModel(
                         iconIdentifier = operationIconIdentifier,
                         displayOrder = nextOrder,
                         sectionId = targetSectionId,
+                        unitId = unitId,
+                        isResettable = isResettable,
                         isPredictable = isPredictable,
                         intervalValue = intervalValue,
                         timeoutValue = timeoutValue,

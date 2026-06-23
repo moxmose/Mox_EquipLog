@@ -121,8 +121,9 @@ fun MaintenanceLogDialog(
         else operationTypes.filter { it.sectionId == selectedEquipment?.sectionId || it.sectionId == AppConstants.DEFAULT_SECTION_ID || selectedEquipment?.sectionId == AppConstants.DEFAULT_SECTION_ID }
     }
 
-    val unit = remember(selectedEquipment, measurementUnits) {
-        measurementUnits.find { it.id == selectedEquipment?.unitId }
+    val unit = remember(selectedOperationType, selectedEquipment, measurementUnits) {
+        measurementUnits.find { it.id == selectedOperationType?.unitId }
+            ?: measurementUnits.find { it.id == selectedEquipment?.unitId }
     }
     val unitLabel = unit?.label ?: "Km"
     val decimalPlaces = unit?.decimalPlaces ?: 0
@@ -392,10 +393,10 @@ fun MaintenanceLogDialog(
                                 onClick = {
                                     selectedEquipment = equipment
                                     isEquipmentDropdownExpanded = false
-                                    if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
-                                        selectedOperationType = null
+                                    if (selectedOperationType?.isSystem == true && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                        // Allowed
                                     }
-                                    if (!equipment.isResettable) {
+                                    if (selectedOperationType?.isResettable != true && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) {
                                         resetAfter = false
                                     }
                                     if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
@@ -432,7 +433,7 @@ fun MaintenanceLogDialog(
                         expanded = isOperationDropdownExpanded,
                         onDismissRequest = { isOperationDropdownExpanded = false }
                     ) {
-                        filteredOperationTypes.filter { !it.isSystem || (selectedEquipment?.isResettable == true && it.id == AppConstants.SYSTEM_OPERATION_RESET_ID) }.forEach { operation ->
+                        filteredOperationTypes.forEach { operation ->
                             DropdownMenuItem(
                                 text = { 
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -472,9 +473,11 @@ fun MaintenanceLogDialog(
                                 onClick = {
                                     selectedOperationType = operation
                                     isOperationDropdownExpanded = false
-                                    if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                    if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID || operation.isResettable) {
                                         resetAfter = true
-                                        valueStr = "0"
+                                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) valueStr = "0"
+                                    } else {
+                                        resetAfter = false
                                     }
                                     if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
                                 }
@@ -528,13 +531,13 @@ fun MaintenanceLogDialog(
                 )
 
                 if (selectedTab == 0) {
-                    val isResettable = selectedEquipment?.isResettable == true
+                    val isResettable = selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = isResettable && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) { 
+                            .clickable(enabled = isResettable) { 
                                 resetAfter = !resetAfter
-                                if (resetAfter) valueStr = "0"
+                                if (resetAfter && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) valueStr = "0"
                                 updateLogDraft()
                             },
                         verticalAlignment = Alignment.CenterVertically
@@ -543,10 +546,10 @@ fun MaintenanceLogDialog(
                             checked = resetAfter && isResettable,
                             onCheckedChange = { 
                                 resetAfter = it 
-                                if (it) valueStr = "0"
+                                if (it && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) valueStr = "0"
                                 updateLogDraft()
                             },
-                            enabled = isResettable && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID
+                            enabled = isResettable
                         )
                         Text(
                             text = stringResource(R.string.reset_counter_after),

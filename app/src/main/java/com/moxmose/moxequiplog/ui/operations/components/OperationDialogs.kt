@@ -40,10 +40,11 @@ import com.moxmose.moxequiplog.utils.AppConstants
 @Composable
 fun AddOperationTypeDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int, Int, Boolean, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
     imageLibrary: List<Image>,
     categories: List<Category>,
     allSections: List<Section>,
+    measurementUnits: List<MeasurementUnit>,
     selectedSectionId: Int,
     showDismissedSections: Boolean,
     categoryColors: Map<String, String>,
@@ -63,7 +64,8 @@ fun AddOperationTypeDialog(
         description = "",
         sectionId = if (selectedSectionId == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else selectedSectionId,
         iconIdentifier = defaultIcon,
-        photoUri = defaultPhotoUri
+        photoUri = defaultPhotoUri,
+        unitId = allSections.find { it.id == selectedSectionId }?.defaultUnitId ?: 1
     )
 
     var description by remember(currentOperationType.description) { 
@@ -73,6 +75,12 @@ fun AddOperationTypeDialog(
     var iconId by remember(currentOperationType.iconIdentifier) { mutableStateOf(currentOperationType.iconIdentifier) }
     var sectionId by remember(currentOperationType.sectionId) { 
         mutableIntStateOf(currentOperationType.sectionId) 
+    }
+    var unitId by remember(currentOperationType.unitId) {
+        mutableIntStateOf(currentOperationType.unitId)
+    }
+    var isResettable by remember(currentOperationType.isResettable) {
+        mutableStateOf(currentOperationType.isResettable)
     }
     var estimatedCostStr by remember(currentOperationType.estimatedCost) { mutableStateOf(currentOperationType.estimatedCost?.toString() ?: "") }
     var estimatedCost by remember(currentOperationType.estimatedCost) { mutableStateOf(currentOperationType.estimatedCost) }
@@ -156,6 +164,50 @@ fun AddOperationTypeDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Unit Selector
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = measurementUnits.find { it.id == unitId }?.let { "${it.label} (${it.description})" } ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.measurement_unit)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        measurementUnits.filter { !it.isHidden }.forEach { unit ->
+                            DropdownMenuItem(
+                                text = { Text("${unit.label} (${unit.description})") },
+                                onClick = {
+                                    unitId = unit.id
+                                    updateDraft(currentOperationType.copy(unitId = unit.id))
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth().clickable { 
+                    isResettable = !isResettable
+                    updateDraft(currentOperationType.copy(isResettable = isResettable))
+                }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                    Checkbox(checked = isResettable, onCheckedChange = { 
+                        isResettable = it 
+                        updateDraft(currentOperationType.copy(isResettable = it))
+                    })
+                    Text(text = stringResource(R.string.operation_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                }
+
                 OutlinedTextField(
                     value = estimatedCostStr,
                     onValueChange = { input ->
@@ -194,6 +246,7 @@ fun AddOperationTypeDialog(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Default Recurrence Intervals", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            val currentUnit = measurementUnits.find { it.id == unitId }?.label ?: ""
                             OutlinedTextField(
                                 value = intervalValueStr, 
                                 onValueChange = { input -> 
@@ -206,9 +259,10 @@ fun AddOperationTypeDialog(
                                 }, 
                                 label = { Text("Usage Interval") }, 
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                suffix = { Text(currentUnit) }
                             )
-                            Text("Recurrence by usage (km, hours, etc. based on equipment)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Recurrence by usage ($currentUnit)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -319,7 +373,8 @@ fun AddOperationTypeDialog(
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
-                    onConfirm(description, identifier, sectionId, isPredictable, intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost)
+                    onConfirm(description, identifier, sectionId, unitId, isResettable, isPredictable,
+                            intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost)
                 },
                 onDismiss = onDismissRequest,
                 confirmText = stringResource(R.string.button_add),

@@ -203,6 +203,8 @@
     <string name="drag_to_reorder">Trascina per riordinare</string>
     <string name="id_no_description">id:%1$d - senza descrizione</string>
     <string name="measurement_unit">Unità di Misura</string>
+    <string name="default_measurement_unit">Unità di misura predefinita</string>
+    <string name="operation_is_resettable">L\'attività azzera il contatore</string>
     <string name="equipment_is_resettable">UdM azzerabile</string>
 
     <!-- Maintenance Logs -->

@@ -164,6 +164,7 @@ fun OperationTypeScreen(
         operationTypeImages = operationTypeImages,
         allCategories = allCategories,
         allSections = allSections,
+        measurementUnits = measurementUnits,
         selectedSectionId = selectedSectionId,
         onSectionSelected = viewModel::onSectionSelected,
         showDismissedSections = showDismissedSections,
@@ -211,6 +212,7 @@ fun OperationTypeScreenContent(
     operationTypeImages: List<Image>,
     allCategories: List<Category>,
     allSections: List<Section>,
+    measurementUnits: List<MeasurementUnit>,
     selectedSectionId: Int,
     onSectionSelected: (Int) -> Unit,
     showDismissedSections: Boolean,
@@ -223,7 +225,7 @@ fun OperationTypeScreenContent(
     cloningOperationType: OperationType? = null,
     onShowAddDialogChange: (Boolean) -> Unit,
     onCloneOperationType: (OperationType) -> Unit,
-    onAddOperationType: (String, ImageIdentifier?, Int, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
+    onAddOperationType: (String, ImageIdentifier?, Int, Int, Boolean, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
     onUpdateOperationTypes: (List<OperationType>) -> Unit,
     onUpdateOperationType: (OperationType) -> Unit,
     onDeleteOperationType: (OperationType) -> Unit,
@@ -281,6 +283,7 @@ fun OperationTypeScreenContent(
                 imageLibrary = operationTypeImages,
                 categories = allCategories,
                 allSections = allSections,
+                measurementUnits = measurementUnits,
                 selectedSectionId = selectedSectionId,
                 showDismissedSections = showDismissedSections,
                 categoryColors = categoryColors,
@@ -289,8 +292,8 @@ fun OperationTypeScreenContent(
                 defaultIcon = defaultIcon,
                 defaultPhotoUri = defaultPhotoUri,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { description, identifier, sectionId, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost ->
-                    onAddOperationType(description, identifier, sectionId, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost)
+                onConfirm = { description, identifier, sectionId, unitId, isResettable, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost ->
+                    onAddOperationType(description, identifier, sectionId, unitId, isResettable, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -342,6 +345,7 @@ fun OperationTypeScreenContent(
                     OperationTypeCard(
                         operationType = operationType,
                         allSections = allSections,
+                        measurementUnits = measurementUnits,
                         showDismissedSections = showDismissedSections,
                         onUpdateOperationType = onUpdateOperationType,
                         onDeleteOperationType = onDeleteOperationType,

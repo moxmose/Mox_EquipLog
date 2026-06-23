@@ -28,16 +28,19 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.ui.options.CategoryUiState
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.AppConstants.DEFAULT_SECTION_COLOR
 
 @Composable
 fun SectionItemCard(
     section: Section,
     allColors: List<AppColor>,
     allImages: List<Image>,
+    allUnits: List<MeasurementUnit>,
     categoriesUiState: List<CategoryUiState>,
     usageCount: Int,
     onUpdateSection: (Section) -> Unit,
@@ -57,6 +60,7 @@ fun SectionItemCard(
     var editedPhotoUri by remember(section.photoUri) { mutableStateOf(section.photoUri) }
     var editedColor by remember(section.color) { mutableStateOf(section.color ?: "#808080") }
     var editedDismissed by remember(section.dismissed) { mutableStateOf(section.dismissed) }
+    var editedDefaultUnitId by remember(section.defaultUnitId) { mutableIntStateOf(section.defaultUnitId) }
 
     val sectionColor = remember(section.color) {
         try {
@@ -116,11 +120,31 @@ fun SectionItemCard(
                         )
                     }
 
-                    val isDirty = editedName != section.name || editedIcon != section.iconIdentifier || editedPhotoUri != section.photoUri || editedColor != (section.color ?: "#808080") || editedDismissed != section.dismissed
+                    UnitSelector(
+                        measurementUnits = allUnits,
+                        selectedUnitId = editedDefaultUnitId,
+                        onUnitSelected = { id -> editedDefaultUnitId = id },
+                        label = stringResource(R.string.default_measurement_unit),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    val isDirty = editedName != section.name || 
+                                 editedIcon != section.iconIdentifier || 
+                                 editedPhotoUri != section.photoUri || 
+                                 editedColor != (section.color ?: DEFAULT_SECTION_COLOR) ||
+                                 editedDismissed != section.dismissed ||
+                                 editedDefaultUnitId != section.defaultUnitId
 
                     CommonActionButtons(
                         onConfirm = {
-                            onUpdateSection(section.copy(name = editedName, iconIdentifier = editedIcon, photoUri = editedPhotoUri, color = editedColor, dismissed = editedDismissed))
+                            onUpdateSection(section.copy(
+                                name = editedName, 
+                                iconIdentifier = editedIcon, 
+                                photoUri = editedPhotoUri, 
+                                color = editedColor, 
+                                dismissed = editedDismissed,
+                                defaultUnitId = editedDefaultUnitId
+                            ))
                             isEditing = false
                         },
                         onDismiss = { isEditing = false },
@@ -140,6 +164,7 @@ fun SectionItemCard(
                             editedPhotoUri = section.photoUri
                             editedColor = section.color ?: "#808080"
                             editedDismissed = section.dismissed
+                            editedDefaultUnitId = section.defaultUnitId
                         },
                         compactMode = compactMode
                     )

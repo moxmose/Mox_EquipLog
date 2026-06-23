@@ -42,12 +42,6 @@ interface EquipmentDao {
     @Query("SELECT DISTINCT photoUri FROM equipments WHERE photoUri IS NOT NULL")
     fun getAllUsedPhotos(): Flow<List<String>>
 
-    @Query("SELECT COUNT(*) FROM equipments WHERE isResettable = 1 AND dismissed = 0")
-    fun countActiveResettableEquipment(): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM equipments WHERE isResettable = 1 AND dismissed = 0 AND sectionId = :sectionId")
-    fun countActiveResettableEquipmentBySection(sectionId: Int): Flow<Int>
-
     @Query("SELECT * FROM equipments WHERE description LIKE '%(Demo)%'")
     suspend fun getDemoEquipmentList(): List<Equipment>
 

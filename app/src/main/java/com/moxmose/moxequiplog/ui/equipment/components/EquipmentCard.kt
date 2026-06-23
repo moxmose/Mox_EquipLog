@@ -95,7 +95,6 @@ fun EquipmentCard(
     var editedSectionId by remember(currentEquipment.sectionId) { mutableIntStateOf(currentEquipment.sectionId) }
     var editedIconId by remember(currentEquipment.iconIdentifier) { mutableStateOf(currentEquipment.iconIdentifier) }
     var editedPhotoUri by remember(currentEquipment.photoUri) { mutableStateOf(currentEquipment.photoUri) }
-    var editedIsResettable by remember(currentEquipment.isResettable) { mutableStateOf(currentEquipment.isResettable) }
     
     // Predictive Settings
     var editedUseCustomUsageWindow by remember(currentEquipment.useCustomUsageWindow) { mutableStateOf(currentEquipment.useCustomUsageWindow) }
@@ -254,21 +253,6 @@ fun EquipmentCard(
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable { 
-                                editedIsResettable = !editedIsResettable
-                                updateDraft(draft.copy(equipment = draft.equipment.copy(isResettable = editedIsResettable)))
-                            },
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Checkbox(checked = editedIsResettable, onCheckedChange = { 
-                                editedIsResettable = it
-                                updateDraft(draft.copy(equipment = draft.equipment.copy(isResettable = it)))
-                            })
-                            Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
-                        }
 
                         HorizontalDivider()
 

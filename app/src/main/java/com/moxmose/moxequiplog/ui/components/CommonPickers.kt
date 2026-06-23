@@ -199,7 +199,8 @@ fun UnitSelector(
     measurementUnits: List<MeasurementUnit>,
     selectedUnitId: Int,
     onUnitSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    label: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedUnit = measurementUnits.find { it.id == selectedUnitId }
@@ -215,7 +216,7 @@ fun UnitSelector(
             } else "",
             onValueChange = {},
             readOnly = true,
-            label = { Text(stringResource(R.string.measurement_unit)) },
+            label = { Text(label ?: stringResource(R.string.measurement_unit)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
         )

@@ -266,13 +266,14 @@ fun MaintenanceLogCard(
                                     onClick = {
                                         selectedEquipment = equipment
                                         isEquipmentDropdownExpanded = false
-                                        if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
-                                            selectedOperationType = null
-                                            updateDraft(draft.copy(equipmentId = equipment.id, operationTypeId = 0))
+                                        if (selectedOperationType?.isSystem == true && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                            // Reset system operation is always allowed if selectedEquipment is not null
+                                            updateDraft(draft.copy(equipmentId = equipment.id))
                                         } else {
                                             updateDraft(draft.copy(equipmentId = equipment.id))
                                         }
-                                        if (!equipment.isResettable) {
+                                        // Reset is allowed only if operation type allows it
+                                        if (selectedOperationType?.isResettable != true) {
                                             editedResetAfter = false
                                             updateDraft(draft.copy(resetAfter = false))
                                         }
@@ -309,7 +310,7 @@ fun MaintenanceLogCard(
                             expanded = isOperationDropdownExpanded,
                             onDismissRequest = { isOperationDropdownExpanded = false }
                         ) {
-                            operationTypes.filter { !it.isSystem || (selectedEquipment?.isResettable == true && it.id == AppConstants.SYSTEM_OPERATION_RESET_ID) }.forEach { operation ->
+                            operationTypes.forEach { operation ->
                                 DropdownMenuItem(
                                     text = { Text(operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, operation.id)) },
                                     leadingIcon = {
@@ -326,9 +327,12 @@ fun MaintenanceLogCard(
                                         selectedOperationType = operation
                                         isOperationDropdownExpanded = false
                                         updateDraft(draft.copy(operationTypeId = operation.id))
-                                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID || operation.isResettable) {
                                             editedResetAfter = true
                                             updateDraft(draft.copy(resetAfter = true))
+                                        } else {
+                                            editedResetAfter = false
+                                            updateDraft(draft.copy(resetAfter = false))
                                         }
                                     }
                                 )
@@ -359,7 +363,7 @@ fun MaintenanceLogCard(
                         modifier = Modifier.fillMaxWidth()
                     )
                     
-                    val isResettable = selectedEquipment?.isResettable == true
+                    val isResettable = selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

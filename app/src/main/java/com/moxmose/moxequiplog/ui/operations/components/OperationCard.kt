@@ -45,10 +45,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OperationTypeCard(
     operationType: OperationType,
     allSections: List<Section>,
+    measurementUnits: List<MeasurementUnit>,
     showDismissedSections: Boolean,
     onUpdateOperationType: (OperationType) -> Unit,
     onDeleteOperationType: (OperationType) -> Unit,
@@ -90,6 +92,8 @@ fun OperationTypeCard(
     var editedIconId by remember(currentOperationType.iconIdentifier) { mutableStateOf(currentOperationType.iconIdentifier) }
     var editedPhotoUri by remember(currentOperationType.photoUri) { mutableStateOf(currentOperationType.photoUri) }
     var editedSectionId by remember(currentOperationType.sectionId) { mutableIntStateOf(currentOperationType.sectionId) }
+    var editedUnitId by remember(currentOperationType.unitId) { mutableIntStateOf(currentOperationType.unitId) }
+    var editedIsResettable by remember(currentOperationType.isResettable) { mutableStateOf(currentOperationType.isResettable) }
     var editedIsPredictable by remember(currentOperationType.isPredictable) { mutableStateOf(currentOperationType.isPredictable) }
     
     var editedUseCustomVisibilityHorizon by remember(currentOperationType.useCustomVisibilityHorizon) { mutableStateOf(currentOperationType.useCustomVisibilityHorizon) }
@@ -171,7 +175,6 @@ fun OperationTypeCard(
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 if (isEditing && draft != null) {
-                    // Layout in MODALITÀ EDIT: Campi e pulsanti in basso
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
@@ -201,16 +204,51 @@ fun OperationTypeCard(
                             )
                         }
 
-                        SectionSelector(
-                            allSections = allSections,
-                            selectedSectionId = editedSectionId,
-                            onSectionSelected = { 
-                                editedSectionId = it 
-                                updateDraft(draft.copy(operationType = draft.operationType.copy(sectionId = it)))
-                            },
-                            showDismissed = showDismissedSections,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionSelector(
+                                allSections = allSections,
+                                selectedSectionId = editedSectionId,
+                                onSectionSelected = { 
+                                    editedSectionId = it 
+                                    updateDraft(draft.copy(operationType = draft.operationType.copy(sectionId = it)))
+                                },
+                                showDismissed = showDismissedSections,
+                                modifier = Modifier.weight(1f)
+                            )
+                            
+                            var unitExpanded by remember { mutableStateOf(false) }
+                            ExposedDropdownMenuBox(
+                                expanded = unitExpanded,
+                                onExpandedChange = { unitExpanded = !unitExpanded },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = measurementUnits.find { it.id == editedUnitId }?.label ?: "",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(stringResource(R.string.measurement_unit)) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitExpanded) },
+                                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                    textStyle = MaterialTheme.typography.bodySmall
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = unitExpanded,
+                                    onDismissRequest = { unitExpanded = false }
+                                ) {
+                                    measurementUnits.filter { !it.isHidden }.forEach { unit ->
+                                        DropdownMenuItem(
+                                            text = { Text("${unit.label} (${unit.description})") },
+                                            onClick = {
+                                                editedUnitId = unit.id
+                                                updateDraft(draft.copy(operationType = draft.operationType.copy(unitId = unit.id)))
+                                                unitExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         
                         OutlinedTextField(
                             value = editedEstimatedCostStr,
@@ -235,6 +273,17 @@ fun OperationTypeCard(
                         )
 
                         Row(modifier = Modifier.fillMaxWidth().clickable { 
+                            editedIsResettable = !editedIsResettable
+                            updateDraft(draft.copy(operationType = draft.operationType.copy(isResettable = editedIsResettable)))
+                        }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                            Checkbox(checked = editedIsResettable, onCheckedChange = { 
+                                editedIsResettable = it
+                                updateDraft(draft.copy(operationType = draft.operationType.copy(isResettable = it)))
+                            })
+                            Text(text = stringResource(R.string.operation_is_resettable), style = MaterialTheme.typography.bodyMedium) 
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth().clickable { 
                             editedIsPredictable = !editedIsPredictable
                             updateDraft(draft.copy(operationType = draft.operationType.copy(isPredictable = editedIsPredictable)))
                         }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
@@ -248,6 +297,7 @@ fun OperationTypeCard(
                         if (editedIsPredictable) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text("Recurrence Intervals", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                val currentUnit = measurementUnits.find { it.id == editedUnitId }?.label ?: ""
                                 OutlinedTextField(
                                     value = editedIntervalValueStr, 
                                     onValueChange = { input -> 
@@ -260,7 +310,8 @@ fun OperationTypeCard(
                                     label = { Text("Usage Interval") }, 
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
                                     modifier = Modifier.fillMaxWidth(), 
-                                    textStyle = MaterialTheme.typography.bodySmall
+                                    textStyle = MaterialTheme.typography.bodySmall,
+                                    suffix = { Text(currentUnit) }
                                 )
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     OutlinedTextField(
@@ -362,7 +413,6 @@ fun OperationTypeCard(
                         )
                     }
                 } else {
-                    // Layout in MODALITÀ VISUALIZZAZIONE: Tutto su una riga (compatto)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(contentAlignment = Alignment.BottomEnd) {
                             Box(
@@ -380,8 +430,6 @@ fun OperationTypeCard(
                                 if (operationType.photoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(operationType.photoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                                 else Icon(imageVector = EquipmentIconProvider.getIcon(operationType.iconIdentifier, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
-
-                            // HEALTH TAGGER (Badge) moved below
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -393,8 +441,22 @@ fun OperationTypeCard(
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
+                                
+                                val unitLabel = measurementUnits.find { it.id == operationType.unitId }?.label
+                                if (unitLabel != null) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    ) {
+                                        Text(
+                                            text = unitLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                             }
-                            // Section Badge & Status Icons row
                             Row(
                                 verticalAlignment = Alignment.CenterVertically, 
                                 modifier = Modifier.padding(top = 4.dp),
@@ -443,7 +505,6 @@ fun OperationTypeCard(
                             }
                         }
 
-                        // SINGLE ACTION ICON (Edit)
                         IconButton(
                             onClick = { 
                                 onStartEdit()
@@ -461,15 +522,13 @@ fun OperationTypeCard(
                     }
                 }
 
-                if (isEditing) {
-                    // Already handled above
-                } else if (isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
+                if (!isEditing && isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(text = "Upcoming for Equipments", style = MaterialTheme.typography.labelSmall, color = operationColor, fontWeight = FontWeight.Bold)
                     Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         status.affectedEquipments.sortedBy { it.nextPresumedDate ?: Long.MAX_VALUE }.forEach { eqStatus ->
                             val hasInconsistency = eqStatus.isPlanned && eqStatus.predictedDate != null && 
-                                    eqStatus.predictedDate < (eqStatus.nextPresumedDate ?: Long.MAX_VALUE) - 86400000L // 1 day buffer
+                                    eqStatus.predictedDate < (eqStatus.nextPresumedDate ?: Long.MAX_VALUE) - 86400000L
 
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
@@ -484,7 +543,6 @@ fun OperationTypeCard(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     
-                                    // Equipment Icon
                                     val eqColor = remember(eqStatus.equipment.color, categoryColors) {
                                         try { 
                                             eqStatus.equipment.color?.toColorInt()?.let { Color(it) } 
@@ -538,7 +596,6 @@ fun OperationTypeCard(
             }
         }
 
-        // DEFAULT CHECKMARK BADGE (Corner of the Card)
         if (isDefault) {
             Surface(
                 shape = CircleShape,

@@ -386,8 +386,10 @@ class MaintenanceLogViewModel(
                 ot.iconIdentifier as operationTypeIconIdentifier,
                 e.dismissed as equipmentDismissed,
                 ot.dismissed as operationTypeDismissed,
-                e.isResettable as equipmentIsResettable,
+                ot.isResettable as operationTypeIsResettable,
                 ot.isSystem as operationTypeIsSystem,
+                e.unitId as equipmentUnitId,
+                ot.unitId as operationTypeUnitId,
                 (SELECT l2.value FROM maintenance_logs l2 
                  JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
                  WHERE l2.equipmentId = l.equipmentId 
@@ -464,18 +466,6 @@ class MaintenanceLogViewModel(
     fun onShowDismissedToggled() {
         _showDismissed.value = !_showDismissed.value
     }
-
-    val activeResettableEquipmentsCount = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
-        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
-            equipmentDao.countActiveResettableEquipment()
-        } else {
-            equipmentDao.countActiveResettableEquipmentBySection(sectionId)
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-        initialValue = 0
-    )
 
     fun addLog(
         equipmentId: Int,

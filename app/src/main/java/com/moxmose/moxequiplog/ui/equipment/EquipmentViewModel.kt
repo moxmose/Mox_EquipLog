@@ -348,8 +348,14 @@ class EquipmentViewModel(
     val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
 
-    val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultUnitId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections,
+        appSettingsManager.defaultUnitId
+    ) { sectionId, sections, globalDefault ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) globalDefault
+        else sections.find { it.id == sectionId }?.defaultUnitId ?: globalDefault
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
@@ -414,7 +420,6 @@ class EquipmentViewModel(
         imageIdentifier: ImageIdentifier?, 
         unitId: Int, 
         sectionId: Int? = null,
-        isResettable: Boolean = false, 
         usageWindow: Int = 30, 
         usageWindowUnit: TimeGranularity = TimeGranularity.DAYS,
         manualAverageValue: Double? = null,
@@ -458,7 +463,6 @@ class EquipmentViewModel(
                         displayOrder = nextOrder,
                         unitId = unitId,
                         sectionId = targetSectionId,
-                        isResettable = isResettable,
                         usageWindow = usageWindow,
                         usageWindowUnit = usageWindowUnit,
                         manualAverageValue = manualAverageValue,

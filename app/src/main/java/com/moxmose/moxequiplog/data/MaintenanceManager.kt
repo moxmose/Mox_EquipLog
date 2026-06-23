@@ -36,10 +36,8 @@ class MaintenanceManager(
         val windowMs = getWindowMs(equipment.usageWindow.toLong(), equipment.usageWindowUnit)
         val sinceDate = System.currentTimeMillis() - windowMs
         
-        // Escludiamo i log con lo stesso timestamp per evitare divisioni per zero
-        val logs = maintenanceLogDao.getLogsSince(equipment.id, sinceDate)
-            .filter { it.value != null }
-            .sortedBy { it.date }
+        // Use the new DAO method that already filters by unit and null value
+        val logs = maintenanceLogDao.getValueLogsSince(equipment.id, sinceDate)
 
         val manualAvg = getDailyManualAverage(equipment)
         if (logs.size < 2) return manualAvg
@@ -142,7 +140,10 @@ class MaintenanceManager(
             }
         }
 
-        val usagePrediction = if (opType.intervalValue != null && trend != null && trend > 0) {
+        val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId)
+        val isSameUnit = equipment?.unitId == opType.unitId
+
+        val usagePrediction = if (isSameUnit && opType.intervalValue != null && trend != null && trend > 0) {
             val lastValueLog = maintenanceLogDao.getLastValueLogForEquipment(equipmentId)
             
             // Il target si calcola sempre rispetto a quando è stata fatta l'ultima manutenzione specifica
@@ -175,26 +176,32 @@ class MaintenanceManager(
     // --- ACCUMULATED VALUES RECALCULATION ---
 
     suspend fun recalculateAccumulatedValues(equipmentId: Int) {
-        val allLogs = maintenanceLogDao.getAllLogsForEquipment(equipmentId)
+        val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId) ?: return
+        val allLogs = maintenanceLogDao.getAllLogsForEquipmentWithUnit(equipmentId)
         if (allLogs.isEmpty()) return
 
         val updatedLogs = mutableListOf<MaintenanceLog>()
         var currentAccumulated = 0.0
         var lastValue: Double? = null
 
-        allLogs.forEach { log ->
-            val delta = when {
-                log.value == null -> 0.0
-                lastValue == null -> log.value
-                log.value >= lastValue -> log.value - lastValue
-                else -> log.value // Reset rilevato (valore sceso)
+        allLogs.forEach { logWithUnit ->
+            val log = logWithUnit.log
+            
+            // Only accumulate if the unit matches the equipment's primary unit
+            if (logWithUnit.operationTypeUnitId == equipment.unitId) {
+                val delta = when {
+                    log.value == null -> 0.0
+                    lastValue == null -> log.value
+                    log.value >= lastValue -> log.value - lastValue
+                    else -> log.value // Reset rilevato (valore sceso)
+                }
+                
+                currentAccumulated += delta
+                lastValue = if (log.resetAfter) null else log.value
             }
             
-            currentAccumulated += delta
             val updatedLog = log.copy(accumulatedValue = currentAccumulated)
             updatedLogs.add(updatedLog)
-            
-            lastValue = if (log.resetAfter) null else log.value
         }
         
         maintenanceLogDao.updateLogs(updatedLogs)

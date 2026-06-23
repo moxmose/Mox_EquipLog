@@ -1,6 +1,7 @@
 package com.moxmose.moxequiplog.data.local
 
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
@@ -54,4 +55,9 @@ data class MaintenanceLog(
     val accumulatedValue: Double = 0.0,
     @ColumnInfo(defaultValue = "false")
     val resetAfter: Boolean = false
+)
+
+data class MaintenanceLogWithUnit(
+    @Embedded val log: MaintenanceLog,
+    val operationTypeUnitId: Int
 )

@@ -26,17 +26,43 @@ interface MaintenanceLogDao {
     @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId AND date < :date ORDER BY date DESC LIMIT 1")
     suspend fun getLastLogBefore(equipmentId: Int, date: Long): MaintenanceLog?
 
-    @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId AND date >= :sinceDate ORDER BY date ASC")
-    suspend fun getLogsSince(equipmentId: Int, sinceDate: Long): List<MaintenanceLog>
+    @Query("""
+        SELECT l.* FROM maintenance_logs l
+        JOIN operation_types ot ON l.operationTypeId = ot.id
+        JOIN equipments e ON l.equipmentId = e.id
+        WHERE l.equipmentId = :equipmentId 
+        AND l.date >= :sinceDate 
+        AND l.value IS NOT NULL
+        AND ot.unitId = e.unitId
+        ORDER BY l.date ASC
+    """)
+    suspend fun getValueLogsSince(equipmentId: Int, sinceDate: Long): List<MaintenanceLog>
 
     @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId AND operationTypeId = :operationTypeId ORDER BY date DESC LIMIT 1")
     suspend fun getLastLogForEquipmentAndOperation(equipmentId: Int, operationTypeId: Int): MaintenanceLog?
 
-    @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId AND value IS NOT NULL ORDER BY date DESC LIMIT 1")
+    @Query("""
+        SELECT l.* FROM maintenance_logs l
+        JOIN operation_types ot ON l.operationTypeId = ot.id
+        JOIN equipments e ON l.equipmentId = e.id
+        WHERE l.equipmentId = :equipmentId 
+        AND l.value IS NOT NULL 
+        AND ot.unitId = e.unitId
+        ORDER BY l.date DESC LIMIT 1
+    """)
     suspend fun getLastValueLogForEquipment(equipmentId: Int): MaintenanceLog?
 
     @Query("SELECT * FROM maintenance_logs WHERE equipmentId = :equipmentId ORDER BY date ASC, timestamp ASC")
     suspend fun getAllLogsForEquipment(equipmentId: Int): List<MaintenanceLog>
+
+    @Query("""
+        SELECT l.*, ot.unitId as operationTypeUnitId 
+        FROM maintenance_logs l 
+        JOIN operation_types ot ON l.operationTypeId = ot.id 
+        WHERE l.equipmentId = :equipmentId 
+        ORDER BY l.date ASC, l.timestamp ASC
+    """)
+    suspend fun getAllLogsForEquipmentWithUnit(equipmentId: Int): List<MaintenanceLogWithUnit>
 
     @Query("SELECT SUM(cost) FROM maintenance_logs WHERE equipmentId = :equipmentId AND date >= :sinceDate")
     suspend fun getTotalCostForEquipmentSince(equipmentId: Int, sinceDate: Long): Double?

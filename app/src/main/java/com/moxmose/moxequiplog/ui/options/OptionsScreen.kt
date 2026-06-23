@@ -107,6 +107,7 @@ import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
 import com.moxmose.moxequiplog.ui.components.SectionItemCard
 import com.moxmose.moxequiplog.ui.components.TimeGranularitySelector
 import com.moxmose.moxequiplog.ui.components.UnitItemCard
+import com.moxmose.moxequiplog.ui.components.UnitSelector
 //import com.moxmose.moxequiplog.ui.equipment.TimeGranularitySelector
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -395,7 +396,7 @@ fun OptionsScreenContent(
     onDeleteUnit: (MeasurementUnit) -> Unit,
     onCloneUnit: (MeasurementUnit) -> Unit,
     onToggleDefaultUnit: (Int) -> Unit,
-    onAddSection: (String, String?, String?, String?) -> Unit,
+    onAddSection: (String, String?, String?, String?, Int) -> Unit,
     onUpdateSection: (Section) -> Unit,
     onDeleteSection: (Section) -> Unit,
     onCloneSection: (Section) -> Unit,
@@ -589,6 +590,7 @@ fun OptionsScreenContent(
             allSections = allSections,
             allColors = allColors,
             allImages = allImages,
+            allUnits = measurementUnits,
             categoriesUiState = categoriesUiState,
             sectionUsageCounts = sectionUsageCounts,
             onDismiss = { onShowSectionManagementChange(false) },
@@ -1430,9 +1432,10 @@ fun SectionManagementDialog(
     allSections: List<Section>,
     allColors: List<AppColor>,
     allImages: List<Image>,
+    allUnits: List<MeasurementUnit>,
     categoriesUiState: List<CategoryUiState>,
     onDismiss: () -> Unit,
-    onAddSection: (String, String?, String?, String?) -> Unit,
+    onAddSection: (String, String?, String?, String?, Int) -> Unit,
     onUpdateSection: (Section) -> Unit,
     onCloneSection: (Section) -> Unit,
     onDeleteSection: (Section) -> Unit,
@@ -1463,6 +1466,7 @@ fun SectionManagementDialog(
         var selectedIcon by remember { mutableStateOf<String?>("build") }
         var selectedPhotoUri by remember { mutableStateOf<String?>(null) }
         var selectedColor by remember { mutableStateOf(AppConstants.DEFAULT_SECTION_COLOR) }
+        var selectedUnitId by remember { mutableIntStateOf(1) }
         var showImagePicker by remember { mutableStateOf(false) }
 
         AlertDialog(
@@ -1475,6 +1479,14 @@ fun SectionManagementDialog(
                         onValueChange = { name = it },
                         label = { Text(stringResource(R.string.section_name)) },
                         singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    UnitSelector(
+                        measurementUnits = allUnits,
+                        selectedUnitId = selectedUnitId,
+                        onUnitSelected = { id -> selectedUnitId = id },
+                        label = stringResource(R.string.default_measurement_unit),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -1510,7 +1522,7 @@ fun SectionManagementDialog(
             confirmButton = {
                 CommonActionButtons(
                     onConfirm = {
-                        onAddSection(name, selectedIcon, selectedPhotoUri, selectedColor)
+                        onAddSection(name, selectedIcon, selectedPhotoUri, selectedColor, selectedUnitId)
                         showAddSectionDialog = false
                     },
                     onDismiss = { showAddSectionDialog = false },
@@ -1601,6 +1613,7 @@ fun SectionManagementDialog(
                                 section = section,
                                 allColors = allColors,
                                 allImages = allImages,
+                                allUnits = allUnits,
                                 categoriesUiState = categoriesUiState,
                                 usageCount = sectionUsageCounts[section.id] ?: 0,
                                 onUpdateSection = onUpdateSection,

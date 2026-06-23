@@ -14,9 +14,18 @@ import kotlinx.serialization.Serializable
             parentColumns = ["id"],
             childColumns = ["sectionId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = MeasurementUnit::class,
+            parentColumns = ["id"],
+            childColumns = ["unitId"],
+            onDelete = ForeignKey.SET_DEFAULT
         )
     ],
-    indices = [androidx.room.Index(value = ["sectionId"])]
+    indices = [
+        androidx.room.Index(value = ["sectionId"]),
+        androidx.room.Index(value = ["unitId"])
+    ]
 )
 @Serializable
 data class OperationType(
@@ -31,6 +40,10 @@ data class OperationType(
     val displayOrder: Int = 0,
     @ColumnInfo(defaultValue = "1")
     val sectionId: Int = 1,
+    @ColumnInfo(defaultValue = "1")
+    val unitId: Int = 1,
+    @ColumnInfo(defaultValue = "0")
+    val isResettable: Boolean = false,
     @ColumnInfo(defaultValue = "0")
     val isSystem: Boolean = false,
     @ColumnInfo(defaultValue = "0")

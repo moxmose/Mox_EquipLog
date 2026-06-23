@@ -103,8 +103,8 @@ abstract class AppDatabase : RoomDatabase() {
                     
                     // Popolamento iniziale operazione di sistema (Reset)
                     db.execSQL(
-                        "INSERT OR IGNORE INTO operation_types (id, description, dismissed, isSystem, displayOrder) VALUES (?, ?, ?, ?, ?)",
-                        arrayOf(AppConstants.SYSTEM_OPERATION_RESET_ID, "Reset UoM", 0, 1, -1)
+                        "INSERT OR IGNORE INTO operation_types (id, description, dismissed, isSystem, displayOrder, unitId, isResettable) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        arrayOf(AppConstants.SYSTEM_OPERATION_RESET_ID, "Reset UoM", 0, 1, -1, 1, 1)
                     )
 
                     // Popolamento iniziale Sezione di default

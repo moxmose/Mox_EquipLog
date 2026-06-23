@@ -208,6 +208,8 @@
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="id_no_description">id:%1$d - no description</string>
     <string name="measurement_unit">Measurement Unit</string>
+    <string name="default_measurement_unit">Default Unit of Measure</string>
+    <string name="operation_is_resettable">Operation resets counter</string>
     <string name="equipment_is_resettable">UoM is resettable</string>
 
     <!-- Maintenance Logs -->
