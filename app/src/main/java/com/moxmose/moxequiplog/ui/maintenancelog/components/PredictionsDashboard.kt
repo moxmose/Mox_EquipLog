@@ -19,7 +19,9 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.ui.components.ImageIcon
+import com.moxmose.moxequiplog.ui.components.SectionBadge
 import com.moxmose.moxequiplog.ui.equipment.OperationStatus
+import com.moxmose.moxequiplog.utils.AppConstants
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -147,6 +149,13 @@ fun PredictionItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (status.equipmentSectionId != null && status.equipmentSectionId != AppConstants.DEFAULT_SECTION_ID) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        SectionBadge(
+                            name = status.equipmentSectionName ?: "",
+                            colorHex = status.equipmentSectionColor
+                        )
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ImageIcon(
@@ -164,6 +173,13 @@ fun PredictionItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (status.operationSectionId != null && status.operationSectionId != AppConstants.DEFAULT_SECTION_ID) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        SectionBadge(
+                            name = status.operationSectionName ?: "",
+                            colorHex = status.operationSectionColor
+                        )
+                    }
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {

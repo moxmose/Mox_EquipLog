@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -25,6 +26,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.ImageIcon
+import com.moxmose.moxequiplog.ui.components.SectionBadge
 import com.moxmose.moxequiplog.utils.AppConstants
 import java.text.SimpleDateFormat
 import java.util.*
@@ -500,6 +502,13 @@ fun MaintenanceLogCard(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.graphicsLayer(alpha = equipmentTextAlpha)
                         )
+                        if (logDetail.equipmentSectionId != null && logDetail.equipmentSectionId != AppConstants.DEFAULT_SECTION_ID) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            SectionBadge(
+                                name = logDetail.equipmentSectionName ?: "",
+                                colorHex = logDetail.equipmentSectionColor
+                            )
+                        }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val operationTypeAlpha = if (logDetail.operationTypeDismissed) 0.5f else 1f
@@ -519,6 +528,13 @@ fun MaintenanceLogCard(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.graphicsLayer(alpha = operationTypeAlpha).weight(1f)
                         )
+                        if (logDetail.operationSectionId != null && logDetail.operationSectionId != AppConstants.DEFAULT_SECTION_ID) {
+                            SectionBadge(
+                                name = logDetail.operationSectionName ?: "",
+                                colorHex = logDetail.operationSectionColor,
+                                modifier = Modifier.padding(start = 6.dp)
+                            )
+                        }
                         if (logDetail.log.isUnplanned) {
                             Surface(
                                 shape = MaterialTheme.shapes.extraSmall,

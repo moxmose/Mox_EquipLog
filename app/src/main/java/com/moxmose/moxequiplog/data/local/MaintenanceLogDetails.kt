@@ -17,5 +17,11 @@ data class MaintenanceLogDetails(
     val equipmentUnitId: Int = 1,
     val operationTypeUnitId: Int = 1,
     val previousLogValue: Double? = null,
-    val previousLogIsSystem: Boolean = false
+    val previousLogIsSystem: Boolean = false,
+    val equipmentSectionId: Int? = null,
+    val equipmentSectionName: String? = null,
+    val equipmentSectionColor: String? = null,
+    val operationSectionId: Int? = null,
+    val operationSectionName: String? = null,
+    val operationSectionColor: String? = null
 )

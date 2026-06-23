@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
@@ -23,6 +24,8 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.ui.components.ImageIcon
+import com.moxmose.moxequiplog.ui.components.SectionBadge
+import com.moxmose.moxequiplog.utils.AppConstants
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -176,6 +179,13 @@ fun ReminderItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (details.equipmentSectionId != null && details.equipmentSectionId != AppConstants.DEFAULT_SECTION_ID) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        SectionBadge(
+                            name = details.equipmentSectionName ?: "",
+                            colorHex = details.equipmentSectionColor
+                        )
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ImageIcon(
@@ -193,6 +203,13 @@ fun ReminderItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (details.operationSectionId != null && details.operationSectionId != AppConstants.DEFAULT_SECTION_ID) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        SectionBadge(
+                            name = details.operationSectionName ?: "",
+                            colorHex = details.operationSectionColor
+                        )
+                    }
                 }
                 
                 if (fixedDate != null) {

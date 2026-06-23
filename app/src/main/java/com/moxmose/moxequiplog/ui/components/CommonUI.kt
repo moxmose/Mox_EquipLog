@@ -36,7 +36,40 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.remember
+import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
+
+@Composable
+fun SectionBadge(
+    name: String,
+    colorHex: String?,
+    modifier: Modifier = Modifier
+) {
+    val sectionColor = remember(colorHex) {
+        try {
+            colorHex?.toColorInt()?.let { Color(it) } ?: Color.Gray
+        } catch (_: Exception) {
+            Color.Gray
+        }
+    }
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = sectionColor.copy(alpha = 0.15f),
+        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f))
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelSmall,
+            color = sectionColor,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
 
 @Composable
 fun CommonActionButtons(

@@ -242,12 +242,17 @@ class MaintenanceLogViewModel(
 
     // Automatic Predictions Flow
     val automaticPredictions: StateFlow<List<Pair<Equipment, OperationStatus>>> = combine(
-        allEquipments,
-        allOperationTypes,
-        maintenanceReminderDao.getAllReminders(),
-        appSettingsManager.defaultVisibilityHorizonValue,
-        appSettingsManager.defaultVisibilityHorizonUnit
-    ) { equipments, opTypes, reminders, globalHorizonVal, globalHorizonUnitStr ->
+        combine(
+            allEquipments,
+            allOperationTypes,
+            maintenanceReminderDao.getAllReminders()
+        ) { e, ot, r -> Triple(e, ot, r) },
+        combine(
+            appSettingsManager.defaultVisibilityHorizonValue,
+            appSettingsManager.defaultVisibilityHorizonUnit,
+            allSections
+        ) { v, u, s -> Triple(v, u, s) }
+    ) { (equipments, opTypes, reminders), (globalHorizonVal, globalHorizonUnitStr, sections) ->
         val now = System.currentTimeMillis()
         val globalHorizonUnit = TimeGranularity.valueOf(globalHorizonUnitStr)
         
@@ -255,8 +260,10 @@ class MaintenanceLogViewModel(
         
         equipments.filter { !it.dismissed }.forEach { equipment ->
             val trend = maintenanceManager.calculateTrend(equipment)
+            val eSection = sections.find { it.id == equipment.sectionId }
             
             opTypes.filter { it.isPredictable && !it.dismissed }.forEach { opType ->
+                val oSection = sections.find { it.id == opType.sectionId }
                 // Check if there's already a manual reminder
                 val hasManualReminder = reminders.any { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
                 
@@ -279,7 +286,13 @@ class MaintenanceLogViewModel(
                                         lastLogValue = lastLogForOp.value,
                                         nextPresumedDate = nextPresumedDate,
                                         isOverdue = nextPresumedDate < now,
-                                        isPlanned = false
+                                        isPlanned = false,
+                                        equipmentSectionId = eSection?.id,
+                                        equipmentSectionName = eSection?.name,
+                                        equipmentSectionColor = eSection?.color,
+                                        operationSectionId = oSection?.id,
+                                        operationSectionName = oSection?.name,
+                                        operationSectionColor = oSection?.color
                                     ))
                                 )
                             }
@@ -400,17 +413,26 @@ class MaintenanceLogViewModel(
                  JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
                  WHERE l2.equipmentId = l.equipmentId 
                  AND (l2.date < l.date OR (l2.date = l.date AND l2.id < l.id))
-                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogIsSystem
+                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogIsSystem,
+                e.sectionId as equipmentSectionId,
+                se.name as equipmentSectionName,
+                se.color as equipmentSectionColor,
+                ot.sectionId as operationSectionId,
+                so.name as operationSectionName,
+                so.color as operationSectionColor
             FROM maintenance_logs as l
             JOIN equipments as e ON l.equipmentId = e.id
             JOIN operation_types as ot ON l.operationTypeId = ot.id
+            JOIN sections as se ON e.sectionId = se.id
+            JOIN sections as so ON ot.sectionId = so.id
         """
 
         val whereClauses = mutableListOf<String>()
         val args = mutableListOf<Any>()
 
         if (sectionId != AppConstants.ALL_SECTIONS_ID) {
-            whereClauses.add("e.sectionId = ?")
+            whereClauses.add("(e.sectionId = ? OR ot.sectionId = ?)")
+            args.add(sectionId)
             args.add(sectionId)
         }
 

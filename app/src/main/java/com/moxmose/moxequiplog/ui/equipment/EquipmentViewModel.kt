@@ -47,7 +47,13 @@ data class OperationStatus(
     val isPlanned: Boolean = false,
     val reminderId: Int? = null,
     val plannedValue: Double? = null,
-    val predictedDate: Long? = null
+    val predictedDate: Long? = null,
+    val equipmentSectionId: Int? = null,
+    val equipmentSectionName: String? = null,
+    val equipmentSectionColor: String? = null,
+    val operationSectionId: Int? = null,
+    val operationSectionName: String? = null,
+    val operationSectionColor: String? = null
 )
 
 data class EquipmentHealth(

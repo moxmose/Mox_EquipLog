@@ -15,5 +15,11 @@ data class MaintenanceReminderDetails(
     val unitId: Int?,
     val operationTypeEstimatedCost: Double?,
     val lastLogCost: Double?,
-    val averageCost: Double?
+    val averageCost: Double?,
+    val equipmentSectionId: Int? = null,
+    val equipmentSectionName: String? = null,
+    val equipmentSectionColor: String? = null,
+    val operationSectionId: Int? = null,
+    val operationSectionName: String? = null,
+    val operationSectionColor: String? = null
 )
