@@ -57,6 +57,7 @@ import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.ui.components.SectionChipBar
+import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogCard
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.components.RemindersDashboard
@@ -407,12 +408,12 @@ fun MaintenanceLogScreenContent(
         }
     ) { paddingValues ->
         Column(Modifier.padding(paddingValues).fillMaxSize()) {
-            SectionChipBar(
-                sections = allSections,
+            UnifiedSectionSelector(
+                allSections = allSections,
                 selectedSectionId = selectedSectionId,
                 onSectionSelected = onSectionSelected,
-                showDismissed = showDismissedSections,
-                onToggleShowDismissed = onToggleShowDismissedSections
+                showDismissedSections = showDismissedSections,
+                onToggleShowDismissedSections = onToggleShowDismissedSections
             )
             
             if (showAddDialog) {
@@ -539,6 +540,7 @@ fun MaintenanceLogScreenContent(
                         equipments = equipments,
                         operationTypes = operationTypes,
                         measurementUnits = measurementUnits,
+                        allSections = allSections,
                         isExpanded = logDetail.log.id == expandedCardId,
                         draft = allDrafts[logDetail.log.id],
                         onStartEdit = { onStartEdit(logDetail.log) },

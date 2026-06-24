@@ -16,6 +16,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.SectionChipBar
+import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
 import com.moxmose.moxequiplog.ui.operations.components.AddOperationTypeDialog
@@ -306,12 +307,12 @@ fun OperationTypeScreenContent(
         }
 
         Column(Modifier.padding(paddingValues).fillMaxSize()) {
-            SectionChipBar(
-                sections = allSections,
+            UnifiedSectionSelector(
+                allSections = allSections,
                 selectedSectionId = selectedSectionId,
                 onSectionSelected = onSectionSelected,
-                showDismissed = showDismissedSections,
-                onToggleShowDismissed = onToggleShowDismissedSections
+                showDismissedSections = showDismissedSections,
+                onToggleShowDismissedSections = onToggleShowDismissedSections
             )
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),

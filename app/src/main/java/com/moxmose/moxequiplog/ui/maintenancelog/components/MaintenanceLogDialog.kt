@@ -25,6 +25,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.ImageIcon
+import com.moxmose.moxequiplog.ui.components.SelectionDropdown
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.launch
@@ -128,8 +129,6 @@ fun MaintenanceLogDialog(
     val unitLabel = unit?.label ?: "Km"
     val decimalPlaces = unit?.decimalPlaces ?: 0
     
-    var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
-    var isOperationDropdownExpanded by remember { mutableStateOf(false) }
     var selectedDate by remember(currentLog.date, currentReminder.dueDate) { 
         mutableLongStateOf(if (selectedTab == 0) currentLog.date else currentReminder.dueDate ?: initialDate) 
     }
@@ -325,166 +324,53 @@ fun MaintenanceLogDialog(
                     }
                 }
 
-                ExposedDropdownMenuBox(
-                    expanded = isEquipmentDropdownExpanded,
-                    onExpandedChange = { isEquipmentDropdownExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = selectedEquipment?.description?.takeIf { it.isNotBlank() } ?: selectedEquipment?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_an_equipment),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.navigation_equipment)) },
-                        leadingIcon = {
-                            ImageIcon(
-                                photoUri = selectedEquipment?.photoUri,
-                                iconIdentifier = selectedEquipment?.iconIdentifier,
-                                modifier = Modifier.size(24.dp),
-                                category = Category.EQUIPMENT,
-                                borderColor = eColor,
-                                contentPadding = 2.dp
-                            )
-                        },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isEquipmentDropdownExpanded) },
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = isEquipmentDropdownExpanded,
-                        onDismissRequest = { isEquipmentDropdownExpanded = false }
-                    ) {
-                        filteredEquipments.forEach { equipment ->
-                            DropdownMenuItem(
-                                text = { 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id),
-                                            modifier = Modifier.weight(1f, fill = false)
-                                        )
-                                        allSections.find { it.id == equipment.sectionId }?.let { section ->
-                                            val sectionName = if (section.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_common) else section.name
-                                            val sColor = try { section.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = sColor.copy(alpha = 0.15f),
-                                                border = BorderStroke(1.dp, sColor.copy(alpha = 0.5f)),
-                                                modifier = Modifier.padding(start = 8.dp)
-                                            ) {
-                                                Text(
-                                                    text = sectionName,
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = sColor,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                },
-                                leadingIcon = {
-                                    ImageIcon(
-                                        photoUri = equipment.photoUri,
-                                        iconIdentifier = equipment.iconIdentifier,
-                                        modifier = Modifier.size(24.dp),
-                                        category = Category.EQUIPMENT,
-                                        borderColor = eColor,
-                                        contentPadding = 2.dp
-                                    )
-                                },
-                                onClick = {
-                                    selectedEquipment = equipment
-                                    isEquipmentDropdownExpanded = false
-                                    if (selectedOperationType?.isSystem == true && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
-                                        // Allowed
-                                    }
-                                    if (selectedOperationType?.isResettable != true && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) {
-                                        resetAfter = false
-                                    }
-                                    if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
-                                }
-                            )
+                SelectionDropdown(
+                    label = stringResource(R.string.navigation_equipment),
+                    selectedItem = selectedEquipment,
+                    items = filteredEquipments,
+                    allSections = allSections,
+                    onItemSelected = { equipment ->
+                        selectedEquipment = equipment
+                        if (selectedOperationType?.isSystem == true && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                            // Allowed
                         }
-                    }
-                }
-                ExposedDropdownMenuBox(
-                    expanded = isOperationDropdownExpanded,
-                    onExpandedChange = { isOperationDropdownExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = selectedOperationType?.description?.takeIf { it.isNotBlank() } ?: selectedOperationType?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(id = R.string.select_an_operation),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.navigation_operations)) },
-                        leadingIcon = {
-                            ImageIcon(
-                                photoUri = selectedOperationType?.photoUri,
-                                iconIdentifier = selectedOperationType?.iconIdentifier,
-                                modifier = Modifier.size(24.dp),
-                                category = Category.OPERATION,
-                                borderColor = oColor,
-                                contentPadding = 2.dp
-                            )
-                        },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOperationDropdownExpanded) },
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = isOperationDropdownExpanded,
-                        onDismissRequest = { isOperationDropdownExpanded = false }
-                    ) {
-                        filteredOperationTypes.forEach { operation ->
-                            DropdownMenuItem(
-                                text = { 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, operation.id),
-                                            modifier = Modifier.weight(1f, fill = false)
-                                        )
-                                        allSections.find { it.id == operation.sectionId }?.let { section ->
-                                            val sectionName = if (section.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_common) else section.name
-                                            val sColor = try { section.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = sColor.copy(alpha = 0.15f),
-                                                border = BorderStroke(1.dp, sColor.copy(alpha = 0.5f)),
-                                                modifier = Modifier.padding(start = 8.dp)
-                                            ) {
-                                                Text(
-                                                    text = sectionName,
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = sColor,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                },
-                                leadingIcon = {
-                                    ImageIcon(
-                                        photoUri = operation.photoUri,
-                                        iconIdentifier = operation.iconIdentifier,
-                                        modifier = Modifier.size(24.dp),
-                                        category = Category.OPERATION,
-                                        borderColor = oColor,
-                                        contentPadding = 2.dp
-                                    )
-                                },
-                                onClick = {
-                                    selectedOperationType = operation
-                                    isOperationDropdownExpanded = false
-                                    if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID || operation.isResettable) {
-                                        resetAfter = true
-                                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) valueStr = "0"
-                                    } else {
-                                        resetAfter = false
-                                    }
-                                    if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
-                                }
-                            )
+                        if (selectedOperationType?.isResettable != true && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                            resetAfter = false
                         }
-                    }
-                }
+                        if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
+                    },
+                    itemDescription = { it.description.takeIf { d -> d.isNotBlank() } ?: stringResource(R.string.id_no_description, it.id) },
+                    itemPhotoUri = { it.photoUri },
+                    itemIconIdentifier = { it.iconIdentifier },
+                    itemSectionId = { it.sectionId },
+                    category = Category.EQUIPMENT,
+                    categoryColor = eColor,
+                    placeholder = stringResource(R.string.select_an_equipment)
+                )
+
+                SelectionDropdown(
+                    label = stringResource(R.string.navigation_operations),
+                    selectedItem = selectedOperationType,
+                    items = filteredOperationTypes,
+                    allSections = allSections,
+                    onItemSelected = { operation ->
+                        selectedOperationType = operation
+                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID || operation.isResettable) {
+                            resetAfter = true
+                            if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) valueStr = "0"
+                        } else {
+                            resetAfter = false
+                        }
+                        if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
+                    },
+                    itemDescription = { it.description.takeIf { d -> d.isNotBlank() } ?: stringResource(R.string.id_no_description, it.id) },
+                    itemPhotoUri = { it.photoUri },
+                    itemIconIdentifier = { it.iconIdentifier },
+                    itemSectionId = { it.sectionId },
+                    category = Category.OPERATION,
+                    categoryColor = oColor,
+                    placeholder = stringResource(R.string.select_an_operation)
+                )
 
                 OutlinedTextField(
                     value = valueStr,

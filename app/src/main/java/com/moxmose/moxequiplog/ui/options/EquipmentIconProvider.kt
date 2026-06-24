@@ -2,6 +2,7 @@ package com.moxmose.moxequiplog.ui.options
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Checklist
@@ -55,6 +56,7 @@ object EquipmentIconProvider {
     )
 
     val sectionIcons = mapOf(
+        "all" to Icons.Filled.AllInclusive,
         "build" to Icons.Filled.Build,
         "car" to Icons.Filled.DirectionsCar,
         "moto" to Icons.Filled.TwoWheeler,

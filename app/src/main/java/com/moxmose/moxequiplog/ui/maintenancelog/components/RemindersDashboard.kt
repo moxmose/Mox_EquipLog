@@ -177,13 +177,14 @@ fun ReminderItem(
                         text = details.equipmentDescription.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, details.reminder.equipmentId),
                         style = MaterialTheme.typography.labelLarge,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (details.equipmentSectionId != null && details.equipmentSectionId != AppConstants.DEFAULT_SECTION_ID) {
-                        Spacer(modifier = Modifier.width(6.dp))
                         SectionBadge(
                             name = details.equipmentSectionName ?: "",
-                            colorHex = details.equipmentSectionColor
+                            colorHex = details.equipmentSectionColor,
+                            modifier = Modifier.padding(start = 6.dp)
                         )
                     }
                 }
@@ -201,13 +202,14 @@ fun ReminderItem(
                         text = details.operationTypeDescription.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, details.reminder.operationTypeId),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (details.operationSectionId != null && details.operationSectionId != AppConstants.DEFAULT_SECTION_ID) {
-                        Spacer(modifier = Modifier.width(6.dp))
                         SectionBadge(
                             name = details.operationSectionName ?: "",
-                            colorHex = details.operationSectionColor
+                            colorHex = details.operationSectionColor,
+                            modifier = Modifier.padding(start = 6.dp)
                         )
                     }
                 }

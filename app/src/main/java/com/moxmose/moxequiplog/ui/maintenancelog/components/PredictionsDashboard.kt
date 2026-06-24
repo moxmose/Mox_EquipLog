@@ -147,13 +147,14 @@ fun PredictionItem(
                         text = equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id),
                         style = MaterialTheme.typography.labelLarge,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (status.equipmentSectionId != null && status.equipmentSectionId != AppConstants.DEFAULT_SECTION_ID) {
-                        Spacer(modifier = Modifier.width(6.dp))
                         SectionBadge(
                             name = status.equipmentSectionName ?: "",
-                            colorHex = status.equipmentSectionColor
+                            colorHex = status.equipmentSectionColor,
+                            modifier = Modifier.padding(start = 6.dp)
                         )
                     }
                 }
@@ -171,13 +172,14 @@ fun PredictionItem(
                         text = status.operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, status.operation.id),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (status.operationSectionId != null && status.operationSectionId != AppConstants.DEFAULT_SECTION_ID) {
-                        Spacer(modifier = Modifier.width(6.dp))
                         SectionBadge(
                             name = status.operationSectionName ?: "",
-                            colorHex = status.operationSectionColor
+                            colorHex = status.operationSectionColor,
+                            modifier = Modifier.padding(start = 6.dp)
                         )
                     }
                 }

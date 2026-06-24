@@ -34,6 +34,7 @@ import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.FullImageDialog
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
+import com.moxmose.moxequiplog.ui.components.SectionBadge
 import com.moxmose.moxequiplog.ui.components.SectionSelector
 import com.moxmose.moxequiplog.ui.components.TimeGranularitySelector
 import com.moxmose.moxequiplog.ui.components.UnitSelector
@@ -454,13 +455,20 @@ fun EquipmentCard(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
                                     text = if (equipment.description.isNotBlank()) equipment.description else stringResource(R.string.id_no_description, equipment.id),
-                                    modifier = Modifier.weight(1f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                
+                                val section = remember(equipment.sectionId, allSections) { allSections.find { it.id == equipment.sectionId } }
+                                if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
+                                    SectionBadge(
+                                        name = section.name,
+                                        colorHex = section.color
+                                    )
+                                }
                             }
                             
-                            // Section Badge, Status Icons & Usage Info in a second row
+                            // Status Icons & Usage Info in a second row
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -484,25 +492,6 @@ fun EquipmentCard(
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
                                             tint = Color(0xFFFFB300)
-                                        )
-                                    }
-                                }
-
-                                val section = remember(equipment.sectionId, allSections) { allSections.find { it.id == equipment.sectionId } }
-                                if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
-                                    val sectionColor = remember(section.color) {
-                                        try { section.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
-                                    }
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = sectionColor.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f))
-                                    ) {
-                                        Text(
-                                            text = section.name,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = sectionColor,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
                                     }
                                 }

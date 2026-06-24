@@ -35,6 +35,7 @@ import com.moxmose.moxequiplog.ui.components.CommonActionButtons
 import com.moxmose.moxequiplog.ui.components.FullImageDialog
 import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
+import com.moxmose.moxequiplog.ui.components.SectionBadge
 import com.moxmose.moxequiplog.ui.components.SectionSelector
 import com.moxmose.moxequiplog.ui.components.TimeGranularitySelector
 import com.moxmose.moxequiplog.ui.operations.EquipmentOperationStatus
@@ -438,10 +439,17 @@ fun OperationTypeCard(
                                     text = if (operationType.description.isNotBlank()) operationType.description else stringResource(R.string.id_no_description, operationType.id), 
                                     color = if (operationType.description.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant, 
                                     maxLines = 1, 
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 
+                                val section = remember(operationType.sectionId, allSections) { allSections.find { it.id == operationType.sectionId } }
+                                if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
+                                    SectionBadge(
+                                        name = section.name,
+                                        colorHex = section.color
+                                    )
+                                }
+
                                 val unitLabel = measurementUnits.find { it.id == operationType.unitId }?.label
                                 if (unitLabel != null) {
                                     Surface(
@@ -480,25 +488,6 @@ fun OperationTypeCard(
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
                                             tint = Color(0xFFFFB300)
-                                        )
-                                    }
-                                }
-                                
-                                val section = remember(operationType.sectionId, allSections) { allSections.find { it.id == operationType.sectionId } }
-                                if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
-                                    val sectionColor = remember(section.color) {
-                                        try { section.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
-                                    }
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = sectionColor.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, sectionColor.copy(alpha = 0.5f))
-                                    ) {
-                                        Text(
-                                            text = section.name,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = sectionColor,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
                                     }
                                 }

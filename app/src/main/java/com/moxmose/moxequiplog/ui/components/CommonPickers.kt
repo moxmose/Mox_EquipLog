@@ -105,7 +105,6 @@ fun formatTimeGranularity(granularity: TimeGranularity): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SectionSelector(
     allSections: List<Section>,
@@ -114,83 +113,29 @@ fun SectionSelector(
     modifier: Modifier = Modifier,
     showDismissed: Boolean = false
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedSection = allSections.find { it.id == selectedSectionId } ?: allSections.firstOrNull { it.id == 1 }
-    
-    val sectionName = selectedSection?.let {
-        if (it.dismissed) "${it.name} ${stringResource(R.string.dismissed_suffix)}" else it.name
-    } ?: stringResource(R.string.section_common)
-
-    ExposedDropdownMenuBox(
-        expanded = expanded, 
-        onExpandedChange = { expanded = it },
-        modifier = modifier
-    ) {
-        OutlinedTextField(
-            value = sectionName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.options_manage_sections)) },
-            leadingIcon = {
-                val color = remember(selectedSection?.color) {
-                    try { selectedSection?.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
-                }
-                ImageIcon(
-                    photoUri = selectedSection?.photoUri,
-                    iconIdentifier = selectedSection?.iconIdentifier,
-                    modifier = Modifier.size(24.dp),
-                    category = Category.SECTIONS,
-                    borderColor = color,
-                    contentPadding = 2.dp,
-                    tint = color
-                )
-            },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-            },
-            modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            val filteredSections = allSections.filter { 
-                !it.dismissed || showDismissed || it.id == selectedSectionId
-            }
-            filteredSections.forEach { section ->
-                val alpha = if (section.dismissed) 0.5f else 1.0f
-                DropdownMenuItem(
-                    modifier = Modifier.graphicsLayer(alpha = alpha),
-                    text = { 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            val color = remember(section.color) {
-                                try { section.color?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
-                            }
-                            ImageIcon(
-                                photoUri = section.photoUri,
-                                iconIdentifier = section.iconIdentifier,
-                                modifier = Modifier.size(24.dp),
-                                category = Category.SECTIONS,
-                                borderColor = color,
-                                contentPadding = 2.dp,
-                                tint = color
-                            )
-                            Text(
-                                text = section.name,
-                                fontWeight = if (section.id == selectedSectionId) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            if (section.dismissed) {
-                                Text(
-                                    text = " ${stringResource(R.string.dismissed_suffix)}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    },
-                    onClick = { onSectionSelected(section.id); expanded = false }
-                )
-            }
+    val selectedSection = allSections.find { it.id == selectedSectionId }
+    val filteredSections = remember(allSections, showDismissed, selectedSectionId) {
+        allSections.filter { 
+            !it.dismissed || showDismissed || it.id == selectedSectionId
         }
     }
+
+    SelectionDropdown(
+        label = stringResource(R.string.options_manage_sections),
+        selectedItem = selectedSection,
+        items = filteredSections,
+        allSections = allSections,
+        onItemSelected = { onSectionSelected(it.id) },
+        itemDescription = { it.name },
+        itemPhotoUri = { it.photoUri },
+        itemIconIdentifier = { it.iconIdentifier },
+        itemSectionId = { it.id },
+        category = Category.SECTIONS,
+        categoryColor = Color.Gray,
+        showSectionBadge = false,
+        isDismissed = { it.dismissed },
+        modifier = modifier
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

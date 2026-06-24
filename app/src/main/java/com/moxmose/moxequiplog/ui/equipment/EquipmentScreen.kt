@@ -101,6 +101,7 @@ import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.SectionChipBar
+import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
 import com.moxmose.moxequiplog.ui.equipment.components.AddEquipmentDialog
 import com.moxmose.moxequiplog.ui.equipment.components.EquipmentCard
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
@@ -446,12 +447,12 @@ fun EquipmentScreenContent(
         }
 
         Column(Modifier.padding(paddingValues)) {
-            SectionChipBar(
-                sections = allSections,
+            UnifiedSectionSelector(
+                allSections = allSections,
                 selectedSectionId = selectedSectionId,
                 onSectionSelected = onSectionSelected,
-                showDismissed = showDismissedSections,
-                onToggleShowDismissed = onToggleShowDismissedSections
+                showDismissedSections = showDismissedSections,
+                onToggleShowDismissedSections = onToggleShowDismissedSections
             )
             Column(
                 modifier = Modifier
