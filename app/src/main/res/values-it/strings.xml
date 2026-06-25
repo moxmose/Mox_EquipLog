@@ -398,6 +398,10 @@
     <string name="section_common">Comune</string>
     <string name="options_manage_sections">Gestione Sezioni</string>
     <string name="options_manage_sections_desc">Organizza i tuoi equipment in diversi ambienti (es. Garage, Giardino, Salute)</string>
+    <string name="options_section_selector_style">Stile Filtro Sezioni</string>
+    <string name="options_section_selector_style_desc">Scegli come filtrare le sezioni nella parte superiore delle schermate.</string>
+    <string name="options_selector_chips">Chips</string>
+    <string name="options_selector_dropdown">Menu</string>
     <string name="add_section">Aggiungi Sezione</string>
     <string name="add_color_title">Aggiungi nuovo colore</string>
     <string name="color_name_label">Nome del colore</string>

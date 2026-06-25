@@ -60,12 +60,12 @@ fun <T> SelectionDropdown(
                 )
             },
             suffix = {
-                if (showSectionBadge) {
+                if (showSectionBadge && allSections.size > 1) {
                     selectedItem?.let { item ->
                         val sectionId = itemSectionId(item)
                         allSections.find { it.id == sectionId }?.let { section ->
                             SectionBadge(
-                                name = if (section.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_all) else section.name,
+                                name = section.name,
                                 colorHex = section.color
                             )
                         }
@@ -91,16 +91,19 @@ fun <T> SelectionDropdown(
                 DropdownMenuItem(
                     modifier = Modifier.graphicsLayer(alpha = if (dismissed) 0.5f else 1f),
                     text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text(
                                 text = itemDescription(item).takeIf { it.isNotBlank() } ?: "",
-                                modifier = Modifier.weight(1f, fill = false)
+                                modifier = Modifier.weight(1f)
                             )
-                            if (showSectionBadge) {
+                            if (showSectionBadge && allSections.size > 1) {
                                 val sectionId = itemSectionId(item)
                                 allSections.find { it.id == sectionId }?.let { section ->
                                     SectionBadge(
-                                        name = if (section.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_all) else section.name,
+                                        name = section.name,
                                         colorHex = section.color,
                                         modifier = Modifier.padding(start = 8.dp)
                                     )

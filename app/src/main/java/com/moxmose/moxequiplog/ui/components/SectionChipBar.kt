@@ -30,6 +30,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.UiConstants
 import androidx.core.graphics.toColorInt
 
 @Composable
@@ -170,64 +171,77 @@ fun UnifiedSectionSelector(
     showDismissedSections: Boolean,
     onToggleShowDismissedSections: () -> Unit,
     modifier: Modifier = Modifier,
-    showAllOption: Boolean = true
+    showAllOption: Boolean = true,
+    selectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE
 ) {
-    val allWithOption = remember(allSections, showAllOption) {
-        if (showAllOption) {
-            val allOption = Section(
-                id = AppConstants.ALL_SECTIONS_ID,
-                name = "", // Handled by itemDescription
-                iconIdentifier = "all",
-                color = "#808080"
-            )
-            listOf(allOption) + allSections
-        } else allSections
-    }
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        val selectedSection = allWithOption.find { it.id == selectedSectionId }
-        val filteredSections = remember(allWithOption, showDismissedSections, selectedSectionId) {
-            val sections = if (showDismissedSections) allWithOption else allWithOption.filter { !it.dismissed || it.id == AppConstants.ALL_SECTIONS_ID }
-            // Ensure selected section is always in the list even if dismissed
-            if (selectedSection != null && !sections.any { it.id == selectedSection.id }) {
-                (sections + selectedSection).sortedBy { it.id }
-            } else sections
+    if (selectorType == UiConstants.SECTION_SELECTOR_CHIPS) {
+        SectionChipBar(
+            sections = allSections,
+            selectedSectionId = selectedSectionId,
+            onSectionSelected = onSectionSelected,
+            showDismissed = showDismissedSections,
+            onToggleShowDismissed = onToggleShowDismissedSections,
+            modifier = modifier,
+            showAllOption = showAllOption
+        )
+    } else {
+        val allWithOption = remember(allSections, showAllOption) {
+            if (showAllOption) {
+                val allOption = Section(
+                    id = AppConstants.ALL_SECTIONS_ID,
+                    name = "", // Handled by itemDescription
+                    iconIdentifier = "all",
+                    color = "#808080"
+                )
+                listOf(allOption) + allSections
+            } else allSections
         }
 
-        SelectionDropdown(
-            label = stringResource(R.string.options_manage_sections),
-            selectedItem = selectedSection,
-            items = filteredSections,
-            allSections = allSections,
-            onItemSelected = { onSectionSelected(it.id) },
-            itemDescription = { 
-                if (it.id == AppConstants.ALL_SECTIONS_ID) stringResource(R.string.section_all)
-                else if (it.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_common)
-                else it.name 
-            },
-            itemPhotoUri = { it.photoUri },
-            itemIconIdentifier = { it.iconIdentifier },
-            itemSectionId = { it.id },
-            category = Category.SECTIONS,
-            categoryColor = Color.Gray,
-            showSectionBadge = false,
-            isDismissed = { it.dismissed },
-            placeholder = stringResource(R.string.section_all),
-            modifier = Modifier.weight(1f)
-        )
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val selectedSection = allWithOption.find { it.id == selectedSectionId }
+            val filteredSections = remember(allWithOption, showDismissedSections, selectedSectionId) {
+                val sections = if (showDismissedSections) allWithOption else allWithOption.filter { !it.dismissed || it.id == AppConstants.ALL_SECTIONS_ID }
+                // Ensure selected section is always in the list even if dismissed
+                if (selectedSection != null && !sections.any { it.id == selectedSection.id }) {
+                    (sections + selectedSection).sortedBy { it.id }
+                } else sections
+            }
 
-        IconButton(onClick = onToggleShowDismissedSections) {
-            Icon(
-                imageVector = if (showDismissedSections) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+            SelectionDropdown(
+                label = stringResource(R.string.options_manage_sections),
+                selectedItem = selectedSection,
+                items = filteredSections,
+                allSections = allSections,
+                onItemSelected = { onSectionSelected(it.id) },
+                itemDescription = { 
+                    if (it.id == AppConstants.ALL_SECTIONS_ID) stringResource(R.string.section_all)
+                    else if (it.id == AppConstants.DEFAULT_SECTION_ID) stringResource(R.string.section_common)
+                    else it.name 
+                },
+                itemPhotoUri = { it.photoUri },
+                itemIconIdentifier = { it.iconIdentifier },
+                itemSectionId = { it.id },
+                category = Category.SECTIONS,
+                categoryColor = Color.Gray,
+                showSectionBadge = false,
+                isDismissed = { it.dismissed },
+                placeholder = stringResource(R.string.section_all),
+                modifier = Modifier.weight(1f)
             )
+
+            IconButton(onClick = onToggleShowDismissedSections) {
+                Icon(
+                    imageVector = if (showDismissedSections) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

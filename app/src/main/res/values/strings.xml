@@ -403,6 +403,10 @@
     <string name="section_common">Common</string>
     <string name="options_manage_sections">Manage Sections</string>
     <string name="options_manage_sections_desc">Organize your equipment in different environments (e.g., Garage, Garden, Health)</string>
+    <string name="options_section_selector_style">Section Filter Style</string>
+    <string name="options_section_selector_style_desc">Choose how to filter sections at the top of the screens.</string>
+    <string name="options_selector_chips">Chips</string>
+    <string name="options_selector_dropdown">Menu</string>
     <string name="add_section">Add Section</string>
     <string name="add_color_title">Add New Color</string>
     <string name="color_name_label">Color Name</string>

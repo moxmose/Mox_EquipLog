@@ -99,6 +99,7 @@ import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.UiConstants
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.SectionChipBar
 import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
@@ -126,6 +127,7 @@ fun EquipmentScreen(
     val allSections by viewModel.allSections.collectAsState()
     val selectedSectionId by viewModel.selectedSectionId.collectAsState()
     val showDismissedSections by viewModel.showDismissedSections.collectAsState()
+    val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
@@ -330,6 +332,7 @@ fun EquipmentScreen(
         categoryDefaultIcons = categoryDefaultIconsMap,
         categoryDefaultPhotos = categoryDefaultPhotosMap,
         equipmentStatuses = equipmentStatuses,
+        sectionSelectorType = sectionSelectorType,
         allDrafts = allDrafts,
         addDraft = addDraft,
         onUpdateAddDraft = viewModel::updateAddDraft,
@@ -380,6 +383,7 @@ fun EquipmentScreenContent(
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     equipmentStatuses: Map<Int, EquipmentStatus> = emptyMap(),
+    sectionSelectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE,
     allDrafts: Map<Int, EquipmentDraft> = emptyMap(),
     addDraft: EquipmentDraft? = null,
     onUpdateAddDraft: (EquipmentDraft) -> Unit,
@@ -452,7 +456,8 @@ fun EquipmentScreenContent(
                 selectedSectionId = selectedSectionId,
                 onSectionSelected = onSectionSelected,
                 showDismissedSections = showDismissedSections,
-                onToggleShowDismissedSections = onToggleShowDismissedSections
+                onToggleShowDismissedSections = onToggleShowDismissedSections,
+                selectorType = sectionSelectorType
             )
             Column(
                 modifier = Modifier

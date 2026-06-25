@@ -419,7 +419,10 @@ fun MaintenanceLogCard(
                         onUndo = { onUpdateDraft(logDetail.log) }
                     )
                 } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         val equipmentTextAlpha = if (logDetail.equipmentDismissed) 0.5f else 1f
                         ImageIcon(
                             photoUri = logDetail.equipmentPhotoUri,
@@ -435,9 +438,9 @@ fun MaintenanceLogCard(
                             style = MaterialTheme.typography.titleSmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.graphicsLayer(alpha = equipmentTextAlpha)
+                            modifier = Modifier.graphicsLayer(alpha = equipmentTextAlpha).weight(1f)
                         )
-                        if (logDetail.equipmentSectionId != null && logDetail.equipmentSectionId != AppConstants.DEFAULT_SECTION_ID) {
+                        if (logDetail.equipmentSectionId != null && allSections.size > 1) {
                             SectionBadge(
                                 name = logDetail.equipmentSectionName ?: "",
                                 colorHex = logDetail.equipmentSectionColor,
@@ -445,7 +448,10 @@ fun MaintenanceLogCard(
                             )
                         }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         val operationTypeAlpha = if (logDetail.operationTypeDismissed) 0.5f else 1f
                         ImageIcon(
                             photoUri = logDetail.operationTypePhotoUri,
@@ -461,15 +467,8 @@ fun MaintenanceLogCard(
                             style = MaterialTheme.typography.bodyLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.graphicsLayer(alpha = operationTypeAlpha).weight(1f, fill = false)
+                            modifier = Modifier.graphicsLayer(alpha = operationTypeAlpha).weight(1f)
                         )
-                        if (logDetail.operationSectionId != null && logDetail.operationSectionId != AppConstants.DEFAULT_SECTION_ID) {
-                            SectionBadge(
-                                name = logDetail.operationSectionName ?: "",
-                                colorHex = logDetail.operationSectionColor,
-                                modifier = Modifier.padding(start = 6.dp)
-                            )
-                        }
                         if (logDetail.log.isUnplanned) {
                             Surface(
                                 shape = MaterialTheme.shapes.extraSmall,
@@ -483,6 +482,13 @@ fun MaintenanceLogCard(
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
                             }
+                        }
+                        if (logDetail.operationSectionId != null && allSections.size > 1) {
+                            SectionBadge(
+                                name = logDetail.operationSectionName ?: "",
+                                colorHex = logDetail.operationSectionColor,
+                                modifier = Modifier.padding(start = 6.dp)
+                            )
                         }
                     }
 

@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.UiConstants
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.SectionChipBar
 import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
@@ -37,6 +38,7 @@ fun OperationTypeScreen(
     val allSections by viewModel.allSections.collectAsState()
     val selectedSectionId by viewModel.selectedSectionId.collectAsState()
     val showDismissedSections by viewModel.showDismissedSections.collectAsState()
+    val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
     val operationTypeImages by viewModel.operationImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
@@ -169,6 +171,7 @@ fun OperationTypeScreen(
         selectedSectionId = selectedSectionId,
         onSectionSelected = viewModel::onSectionSelected,
         showDismissedSections = showDismissedSections,
+        sectionSelectorType = sectionSelectorType,
         onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
         defaultIcon = categoryDefaultIcon,
         defaultPhotoUri = categoryDefaultPhoto,
@@ -217,6 +220,7 @@ fun OperationTypeScreenContent(
     selectedSectionId: Int,
     onSectionSelected: (Int) -> Unit,
     showDismissedSections: Boolean,
+    sectionSelectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE,
     onToggleShowDismissedSections: () -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
@@ -312,7 +316,8 @@ fun OperationTypeScreenContent(
                 selectedSectionId = selectedSectionId,
                 onSectionSelected = onSectionSelected,
                 showDismissedSections = showDismissedSections,
-                onToggleShowDismissedSections = onToggleShowDismissedSections
+                onToggleShowDismissedSections = onToggleShowDismissedSections,
+                selectorType = sectionSelectorType
             )
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),

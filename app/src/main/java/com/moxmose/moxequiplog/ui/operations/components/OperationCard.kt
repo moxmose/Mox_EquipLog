@@ -434,35 +434,39 @@ fun OperationTypeCard(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text(
                                     text = if (operationType.description.isNotBlank()) operationType.description else stringResource(R.string.id_no_description, operationType.id), 
                                     color = if (operationType.description.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant, 
                                     maxLines = 1, 
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
                                 )
                                 
+                                val unitLabel = measurementUnits.find { it.id == operationType.unitId }?.label
                                 val section = remember(operationType.sectionId, allSections) { allSections.find { it.id == operationType.sectionId } }
-                                if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
+                                val badgeColor = remember(section?.color, operationColor) {
+                                    try {
+                                        section?.color?.toColorInt()?.let { Color(it) } ?: operationColor
+                                    } catch (_: Exception) { operationColor }
+                                }
+
+                                if (unitLabel != null) {
+                                    com.moxmose.moxequiplog.ui.components.UnitBadge(
+                                        label = unitLabel,
+                                        color = badgeColor
+                                    )
+                                }
+
+                                if (section != null && allSections.size > 1) {
                                     SectionBadge(
                                         name = section.name,
                                         colorHex = section.color
                                     )
-                                }
-
-                                val unitLabel = measurementUnits.find { it.id == operationType.unitId }?.label
-                                if (unitLabel != null) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                    ) {
-                                        Text(
-                                            text = unitLabel,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
                                 }
                             }
                             Row(

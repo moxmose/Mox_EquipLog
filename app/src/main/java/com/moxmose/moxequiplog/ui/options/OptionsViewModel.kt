@@ -321,6 +321,9 @@ class OptionsViewModel(
     val globalVisibilityHorizonUnit: StateFlow<String> = appSettingsManager.defaultVisibilityHorizonUnit
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT)
 
+    val sectionSelectorType: StateFlow<String> = appSettingsManager.sectionSelectorType
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_SECTION_SELECTOR_TYPE)
+
     val costAnalysisWindowValue: StateFlow<Int> = appSettingsManager.costAnalysisWindowValue
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_VALUE)
 
@@ -451,6 +454,16 @@ class OptionsViewModel(
                 appSettingsManager.setSyncCalendarByDefault(enabled)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateReportsSettingsFailed)
+            }
+        }
+    }
+
+    fun setSectionSelectorType(type: String) {
+        viewModelScope.launch {
+            try {
+                appSettingsManager.setSectionSelectorType(type)
+            } catch (e: Exception) {
+                _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
             }
         }
     }

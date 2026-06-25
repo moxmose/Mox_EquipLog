@@ -354,6 +354,9 @@ class EquipmentViewModel(
     val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
 
+    val sectionSelectorType: StateFlow<String> = appSettingsManager.sectionSelectorType
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_SECTION_SELECTOR_TYPE)
+
     val defaultUnitId: StateFlow<Int?> = combine(
         selectedSectionId,
         allSections,

@@ -42,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.remember
 import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
+import com.moxmose.moxequiplog.utils.AppConstants
 
 @Composable
 fun SectionBadge(
@@ -51,7 +52,7 @@ fun SectionBadge(
 ) {
     val sectionColor = remember(colorHex) {
         try {
-            colorHex?.toColorInt()?.let { Color(it) } ?: Color.Gray
+            colorHex?.toColorInt()?.let { Color(it) } ?: Color(AppConstants.DEFAULT_SECTION_COLOR.toColorInt())
         } catch (_: Exception) {
             Color.Gray
         }
@@ -66,6 +67,27 @@ fun SectionBadge(
             text = name,
             style = MaterialTheme.typography.labelSmall,
             color = sectionColor,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
+fun UnitBadge(
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = color.copy(alpha = 0.15f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }

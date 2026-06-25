@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
@@ -47,6 +48,7 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -149,6 +151,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val globalUsageWindowUnit by viewModel.globalUsageWindowUnit.collectAsState()
     val globalVisibilityHorizonValue by viewModel.globalVisibilityHorizonValue.collectAsState()
     val globalVisibilityHorizonUnit by viewModel.globalVisibilityHorizonUnit.collectAsState()
+    val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
     val costAnalysisWindowValue by viewModel.costAnalysisWindowValue.collectAsState()
     val costAnalysisWindowUnit by viewModel.costAnalysisWindowUnit.collectAsState()
     val costTrendThreshold by viewModel.costTrendThreshold.collectAsState()
@@ -304,6 +307,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetCostAnalysisWindow = viewModel::setCostAnalysisWindow,
         costTrendThreshold = costTrendThreshold,
         onSetCostTrendThreshold = viewModel::setCostTrendThreshold,
+        sectionSelectorType = sectionSelectorType,
+        onSetSectionSelectorType = viewModel::setSectionSelectorType,
         onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues,
         unitUsageCounts = unitUsageCounts,
         sectionUsageCounts = sectionUsageCounts
@@ -433,6 +438,8 @@ fun OptionsScreenContent(
     onSetCostAnalysisWindow: (Int, String) -> Unit,
     costTrendThreshold: Float,
     onSetCostTrendThreshold: (Float) -> Unit,
+    sectionSelectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE,
+    onSetSectionSelectorType: (String) -> Unit,
     onRecalculateAccumulated: () -> Unit = {},
     showBackgroundPicker: Boolean = false,
     onShowBackgroundPickerChange: (Boolean) -> Unit = {},
@@ -864,6 +871,32 @@ fun OptionsScreenContent(
                             Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         }
                     }
+                }
+            }
+
+            // SECTION SELECTOR STYLE
+            OptionsSectionCard(
+                title = stringResource(R.string.options_section_selector_style),
+                description = stringResource(R.string.options_section_selector_style_desc)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS,
+                        onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_CHIPS) },
+                        label = { Text(stringResource(R.string.options_selector_chips)) },
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = { if (sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS) Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
+                    )
+                    FilterChip(
+                        selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_DROPDOWN,
+                        onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_DROPDOWN) },
+                        label = { Text(stringResource(R.string.options_selector_dropdown)) },
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = { if (sectionSelectorType == UiConstants.SECTION_SELECTOR_DROPDOWN) Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
+                    )
                 }
             }
 

@@ -78,6 +78,7 @@ fun MaintenanceLogScreen(
     val allSections by viewModel.allSections.collectAsState()
     val selectedSectionId by viewModel.selectedSectionId.collectAsState()
     val showDismissedSections by viewModel.showDismissedSections.collectAsState()
+    val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
     val allEquipments by viewModel.allEquipments.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -268,6 +269,7 @@ fun MaintenanceLogScreen(
         logs = logs,
         allSections = allSections,
         selectedSectionId = selectedSectionId,
+        sectionSelectorType = sectionSelectorType,
         onSectionSelected = viewModel::onSectionSelected,
         showDismissedSections = showDismissedSections,
         onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
@@ -329,6 +331,7 @@ fun MaintenanceLogScreenContent(
     logs: List<MaintenanceLogDetails>,
     allSections: List<Section>,
     selectedSectionId: Int,
+    sectionSelectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE,
     onSectionSelected: (Int) -> Unit,
     showDismissedSections: Boolean,
     onToggleShowDismissedSections: () -> Unit,
@@ -413,7 +416,8 @@ fun MaintenanceLogScreenContent(
                 selectedSectionId = selectedSectionId,
                 onSectionSelected = onSectionSelected,
                 showDismissedSections = showDismissedSections,
-                onToggleShowDismissedSections = onToggleShowDismissedSections
+                onToggleShowDismissedSections = onToggleShowDismissedSections,
+                selectorType = sectionSelectorType
             )
             
             if (showAddDialog) {

@@ -452,15 +452,33 @@ fun EquipmentCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         
                         Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text(
                                     text = if (equipment.description.isNotBlank()) equipment.description else stringResource(R.string.id_no_description, equipment.id),
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
                                 )
                                 
                                 val section = remember(equipment.sectionId, allSections) { allSections.find { it.id == equipment.sectionId } }
-                                if (section != null && section.id != AppConstants.DEFAULT_SECTION_ID) {
+                                val badgeColor = remember(section?.color, equipmentColor) {
+                                    try {
+                                        section?.color?.toColorInt()?.let { Color(it) } ?: equipmentColor
+                                    } catch (_: Exception) { equipmentColor }
+                                }
+
+                                if (unitLabel.isNotBlank()) {
+                                    com.moxmose.moxequiplog.ui.components.UnitBadge(
+                                        label = unitLabel,
+                                        color = badgeColor
+                                    )
+                                }
+
+                                if (section != null && allSections.size > 1) {
                                     SectionBadge(
                                         name = section.name,
                                         colorHex = section.color

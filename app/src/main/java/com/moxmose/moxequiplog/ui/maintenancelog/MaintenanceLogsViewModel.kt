@@ -160,6 +160,13 @@ class MaintenanceLogViewModel(
             initialValue = false
         )
 
+    val sectionSelectorType: StateFlow<String> = appSettingsManager.sectionSelectorType
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE
+        )
+
     val allSections: StateFlow<List<Section>> = sectionRepository.allSections
         .stateIn(
             scope = viewModelScope,

@@ -232,14 +232,8 @@ fun SectionItemCard(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        val name = if (section.id == AppConstants.DEFAULT_SECTION_ID) {
-                            stringResource(R.string.section_common)
-                        } else {
-                            section.name
-                        }
-                        
                         Text(
-                            text = name,
+                            text = section.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,

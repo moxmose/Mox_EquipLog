@@ -80,6 +80,9 @@ class AppSettingsManager(
     val showDismissedSections: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("show_dismissed_sections")
         .map { it?.toBoolean() ?: false }
 
+    val sectionSelectorType: Flow<String> = appPreferenceDao.getPreferenceFlow("section_selector_type")
+        .map { it ?: UiConstants.DEFAULT_SECTION_SELECTOR_TYPE }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -198,6 +201,10 @@ class AppSettingsManager(
 
     suspend fun setShowDismissedSections(show: Boolean) {
         appPreferenceDao.insertPreference(AppPreference("show_dismissed_sections", show.toString()))
+    }
+
+    suspend fun setSectionSelectorType(type: String) {
+        appPreferenceDao.insertPreference(AppPreference("section_selector_type", type))
     }
 
     // --- Draft Management ---
