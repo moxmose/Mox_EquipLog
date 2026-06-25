@@ -13,6 +13,7 @@ import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.ui.equipment.components.AddEquipmentDialog
 import junit.framework.TestCase.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -38,6 +39,11 @@ class EquipmentsScreenTest {
                 equipments = equipments,
                 equipmentImages = emptyList<Image>(),
                 allCategories = emptyList<Category>(),
+                allSections = emptyList(),
+                selectedSectionId = 0,
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
                 measurementUnits = emptyList<MeasurementUnit>(),
                 defaultUnitId = null,
                 defaultIcon = null,
@@ -47,9 +53,11 @@ class EquipmentsScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
+                onCloneEquipment = {},
                 onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateEquipments = { _ -> },
                 onUpdateEquipment = { _ -> },
+                onDeleteEquipment = { _ -> },
                 onDismissEquipment = { _ -> },
                 onRestoreEquipment = { _ -> },
                 onAddImage = { _, _ -> },
@@ -61,6 +69,12 @@ class EquipmentsScreenTest {
                 categoryDefaultIcons = emptyMap<String, String?>(),
                 categoryDefaultPhotos = emptyMap<String, String?>(),
                 equipmentStatuses = emptyMap<Int, EquipmentStatus>(),
+                onUpdateAddDraft = {},
+                onStartEdit = {},
+                onCancelEdit = {},
+                onToggleDefaultInDraft = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
                 onPredictionAction = { _, _ -> },
                 onPlannedAction = { _, _ -> }
             )
@@ -78,6 +92,11 @@ class EquipmentsScreenTest {
                 equipments = emptyList<Equipment>(),
                 equipmentImages = emptyList<Image>(),
                 allCategories = emptyList<Category>(),
+                allSections = emptyList(),
+                selectedSectionId = 0,
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
                 measurementUnits = emptyList<MeasurementUnit>(),
                 defaultUnitId = null,
                 defaultIcon = null,
@@ -87,9 +106,11 @@ class EquipmentsScreenTest {
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
+                onCloneEquipment = {},
                 onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateEquipments = { _ -> },
                 onUpdateEquipment = { _ -> },
+                onDeleteEquipment = { _ -> },
                 onDismissEquipment = { _ -> },
                 onRestoreEquipment = { _ -> },
                 onAddImage = { _, _ -> },
@@ -101,6 +122,12 @@ class EquipmentsScreenTest {
                 categoryDefaultIcons = emptyMap<String, String?>(),
                 categoryDefaultPhotos = emptyMap<String, String?>(),
                 equipmentStatuses = emptyMap<Int, EquipmentStatus>(),
+                onUpdateAddDraft = {},
+                onStartEdit = {},
+                onCancelEdit = {},
+                onToggleDefaultInDraft = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
                 onPredictionAction = { _, _ -> },
                 onPlannedAction = { _, _ -> }
             )
@@ -127,6 +154,8 @@ class EquipmentsScreenTest {
                 defaultPhotoUri = null,
                 imageLibrary = emptyList<Image>(),
                 categories = emptyList<Category>(),
+                allSections = emptyList(),
+                selectedSectionId = 1,
                 measurementUnits = emptyList<MeasurementUnit>(),
                 defaultUnitId = null,
                 equipmentCategoryColor = null,

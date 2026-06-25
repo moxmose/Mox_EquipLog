@@ -14,6 +14,10 @@ class SectionRepository(private val sectionDao: SectionDao) {
     suspend fun getSectionById(id: Int): Section? = sectionDao.getSectionById(id)
     suspend fun getSectionsCount(): Int = sectionDao.getSectionsCount()
 
+    suspend fun getDemoSections(): List<Section> = sectionDao.getDemoSections()
+
+    suspend fun deleteSections(sections: List<Section>) = sectionDao.deleteSections(sections)
+
     suspend fun updateSectionDefaultEquipment(sectionId: Int, equipmentId: Int?) {
         val section = sectionDao.getSectionById(sectionId)
         if (section != null) {

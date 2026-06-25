@@ -13,6 +13,8 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogCard
+import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import junit.framework.TestCase.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -47,6 +49,11 @@ class MaintenanceLogScreenTest {
         composeTestRule.setContent {
             MaintenanceLogScreenContent(
                 logs = logs,
+                allSections = emptyList(),
+                selectedSectionId = 0,
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
                 equipments = dummyEquipments,
                 operationTypes = dummyOps,
                 measurementUnits = emptyList<MeasurementUnit>(),
@@ -69,7 +76,10 @@ class MaintenanceLogScreenTest {
                 expandedCardId = null,
                 onCardExpanded = { _ -> },
                 editingCardId = null,
-                onEditLog = { _ -> },
+                onStartEdit = {},
+                onCancelEdit = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
                 onUpdateLog = { _ -> },
                 onDeleteLog = { _ -> },
                 onDismissLog = { _ -> },
@@ -82,10 +92,14 @@ class MaintenanceLogScreenTest {
                 operationCategoryColor = null,
                 onCompleteReminder = { _ -> },
                 onEditReminder = { _ -> },
-                onDeleteReminder = { _ -> },
+                onPredictionAction = { _, _ -> },
                 syncCalendarByDefault = false,
                 googleAccountName = null,
                 costTrendThreshold = 0.05f,
+                logAddDraft = null,
+                reminderAddDraft = null,
+                onUpdateLogDraft = {},
+                onUpdateReminderDraft = {},
                 onNavigateToOptions = {}
             )
         }
@@ -101,6 +115,11 @@ class MaintenanceLogScreenTest {
         composeTestRule.setContent {
             MaintenanceLogScreenContent(
                 logs = emptyList<MaintenanceLogDetails>(),
+                allSections = emptyList(),
+                selectedSectionId = 0,
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
                 equipments = dummyEquipments,
                 operationTypes = dummyOps,
                 measurementUnits = emptyList<MeasurementUnit>(),
@@ -123,7 +142,10 @@ class MaintenanceLogScreenTest {
                 expandedCardId = null,
                 onCardExpanded = { _ -> },
                 editingCardId = null,
-                onEditLog = { _ -> },
+                onStartEdit = {},
+                onCancelEdit = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
                 onUpdateLog = { _ -> },
                 onDeleteLog = { _ -> },
                 onDismissLog = { _ -> },
@@ -136,10 +158,14 @@ class MaintenanceLogScreenTest {
                 operationCategoryColor = null,
                 onCompleteReminder = { _ -> },
                 onEditReminder = { _ -> },
-                onDeleteReminder = { _ -> },
+                onPredictionAction = { _, _ -> },
                 syncCalendarByDefault = false,
                 googleAccountName = null,
                 costTrendThreshold = 0.05f,
+                logAddDraft = null,
+                reminderAddDraft = null,
+                onUpdateLogDraft = {},
+                onUpdateReminderDraft = {},
                 onNavigateToOptions = {}
             )
         }
@@ -222,14 +248,11 @@ class MaintenanceLogScreenTest {
                 equipments = dummyEquipments, 
                 operationTypes = dummyOps, 
                 measurementUnits = emptyList<MeasurementUnit>(),
+                allSections = emptyList(),
                 isExpanded = false, 
-                isEditing = false, 
                 onExpand = { onCardExpandedCalled.set(true) }, 
-                onEdit = {}, 
                 onSave = { _ -> }, 
                 onDelete = { _ -> },
-                onDismiss = {}, 
-                onRestore = {},
                 onGetOperationCostStats = { _ -> null to null },
                 equipmentCategoryColor = null,
                 operationCategoryColor = null,
@@ -263,18 +286,16 @@ class MaintenanceLogScreenTest {
                 equipments = dummyEquipments, 
                 operationTypes = dummyOps, 
                 measurementUnits = emptyList<MeasurementUnit>(),
+                allSections = emptyList(),
                 isExpanded = false, 
-                isEditing = false, 
                 onExpand = {}, 
-                onEdit = { onEditCalled.set(true) }, 
                 onSave = { _ -> }, 
                 onDelete = { _ -> },
-                onDismiss = {}, 
-                onRestore = {},
                 onGetOperationCostStats = { _ -> null to null },
                 equipmentCategoryColor = null,
                 operationCategoryColor = null,
-                costTrendThreshold = 0.05f
+                costTrendThreshold = 0.05f,
+                onStartEdit = { onEditCalled.set(true) }
             )
         }
 

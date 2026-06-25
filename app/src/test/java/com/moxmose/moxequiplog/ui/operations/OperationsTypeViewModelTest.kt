@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.Image
@@ -51,6 +52,7 @@ class OperationsTypeViewModelTest {
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var sectionRepository: SectionRepository
     private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var maintenanceReminderDao: MaintenanceReminderDao
     private lateinit var maintenanceManager: MaintenanceManager
@@ -83,6 +85,7 @@ class OperationsTypeViewModelTest {
         appSettingsManager = mockk(relaxed = true) {
             every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
         }
+        sectionRepository = mockk(relaxed = true)
         maintenanceLogDao = mockk(relaxed = true) {
             every { getLogsCountFlow() } returns MutableStateFlow(0)
         }
@@ -95,6 +98,7 @@ class OperationsTypeViewModelTest {
             equipmentDao,
             imageRepository,
             appSettingsManager,
+            sectionRepository,
             maintenanceLogDao,
             maintenanceReminderDao,
             maintenanceManager

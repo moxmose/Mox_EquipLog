@@ -30,4 +30,10 @@ interface SectionDao {
 
     @Query("SELECT COUNT(*) FROM sections")
     suspend fun getSectionsCount(): Int
+
+    @Query("SELECT * FROM sections WHERE name LIKE '%(Demo)%'")
+    suspend fun getDemoSections(): List<Section>
+
+    @Delete
+    suspend fun deleteSections(sections: List<Section>)
 }

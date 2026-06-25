@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.*
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -43,6 +44,7 @@ class EquipmentViewModelTest {
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var sectionRepository: SectionRepository
     private lateinit var measurementUnitDao: MeasurementUnitDao
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var maintenanceLogDao: MaintenanceLogDao
@@ -74,6 +76,7 @@ class EquipmentViewModelTest {
             every { defaultEquipmentId } returns defaultEquipmentIdFlow
             every { defaultUnitId } returns MutableStateFlow(null)
         }
+        sectionRepository = mockk(relaxed = true)
         measurementUnitDao = mockk(relaxed = true) {
             every { getAllUnits() } returns MutableStateFlow(emptyList())
         }
@@ -91,6 +94,7 @@ class EquipmentViewModelTest {
             equipmentDao,
             imageRepository,
             appSettingsManager,
+            sectionRepository,
             measurementUnitDao,
             operationTypeDao,
             maintenanceLogDao,

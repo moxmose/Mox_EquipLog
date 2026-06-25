@@ -77,9 +77,10 @@ class MaintenanceManagerTest {
     fun `getOperationPrediction with interval and trend returns usage prediction`() = runBlocking {
         // Trend 1.0 per day, interval 50 units -> 50 days
         val lastLog = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 0L, accumulatedValue = 100.0)
-        val opType = OperationType(id = 1, description = "OT", intervalValue = 50.0)
+        val opType = OperationType(id = 1, description = "OT", intervalValue = 50.0, unitId = 1)
         
         coEvery { maintenanceLogDao.getLastValueLogForEquipment(1) } returns lastLog
+        coEvery { equipmentDao.getEquipmentByIdOneShot(1) } returns Equipment(id = 1, description = "E", unitId = 1)
         
         val result = maintenanceManager.getOperationPrediction(1, opType, lastLog, 1.0)
         
@@ -92,9 +93,10 @@ class MaintenanceManagerTest {
         // Timeout: 10 days (earlier)
         // Interval: 50 days (later)
         val lastLog = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 0L, accumulatedValue = 100.0)
-        val opType = OperationType(id = 1, description = "OT", timeoutValue = 10, timeoutUnit = TimeGranularity.DAYS, intervalValue = 50.0)
+        val opType = OperationType(id = 1, description = "OT", timeoutValue = 10, timeoutUnit = TimeGranularity.DAYS, intervalValue = 50.0, unitId = 1)
         
         coEvery { maintenanceLogDao.getLastValueLogForEquipment(1) } returns lastLog
+        coEvery { equipmentDao.getEquipmentByIdOneShot(1) } returns Equipment(id = 1, description = "E", unitId = 1)
         
         val result = maintenanceManager.getOperationPrediction(1, opType, lastLog, 1.0)
         

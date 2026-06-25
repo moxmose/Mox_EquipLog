@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -499,7 +498,7 @@ fun OptionsScreenContent(
             confirmButton = {
                 CommonActionButtons(
                     onConfirm = { 
-                        showRestoreConfirm?.let { onRestoreDatabase(it) }
+                        onRestoreDatabase(showRestoreConfirm)
                         onShowRestoreConfirmChange(null)
                     },
                     onDismiss = { onShowRestoreConfirmChange(null) },
@@ -696,10 +695,30 @@ fun OptionsScreenContent(
             // --- SECTION: GENERAL ---
             OptionsGroupHeader(stringResource(R.string.options_section_common))
 
+            // 1. PROFILO
+            OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
+                OutlinedTextField(
+                    value = editedUsername,
+                    onValueChange = { name -> if (name.length <= AppConstants.USERNAME_MAX_LENGTH) editedUsername = name },
+                    label = { Text(stringResource(R.string.options_username_field_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        if (editedUsername != username && editedUsername.isNotBlank()) {
+                            IconButton(onClick = { onUsernameChange(editedUsername) }) {
+                                Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_username))
+                            }
+                        }
+                    }
+                )
+            }
+
             // 6. ANALYTICS & PREDICTION
             OptionsSectionCard(
                 title = stringResource(R.string.predictive_maintenance_settings),
-                description = stringResource(R.string.options_predictive_desc)
+                description = stringResource(R.string.options_predictive_desc),
+                isCollapsible = true,
+                initiallyExpanded = false
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     // Trend Window
@@ -708,7 +727,7 @@ fun OptionsScreenContent(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(
                                 value = globalUsageWindowValue.toString(),
-                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalUsageWindow(it, globalUsageWindowUnit) } },
+                                onValueChange = { input -> input.toIntOrNull()?.let { value -> if (value in 1..999) onSetGlobalUsageWindow(value, globalUsageWindowUnit) } },
                                 label = { Text("Window") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f)
@@ -782,24 +801,6 @@ fun OptionsScreenContent(
                 }
             }
 
-            // 1. PROFILO
-            OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
-                OutlinedTextField(
-                    value = editedUsername,
-                    onValueChange = { name -> if (name.length <= AppConstants.USERNAME_MAX_LENGTH) editedUsername = name },
-                    label = { Text(stringResource(R.string.options_username_field_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = {
-                        if (editedUsername != username && editedUsername.isNotBlank()) {
-                            IconButton(onClick = { onUsernameChange(editedUsername) }) {
-                                Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_username))
-                            }
-                        }
-                    }
-                )
-            }
-
             // 4. UNITÀ DI MISURA
             OptionsSectionCard(
                 title = stringResource(R.string.options_units_title),
@@ -833,70 +834,6 @@ fun OptionsScreenContent(
                             Icon(imageVector = Icons.Default.Edit, contentDescription = stringResource(R.string.options_manage_label), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
-                }
-            }
-
-            // 9. SEZIONI (WORKSPACES)
-            OptionsSectionCard(
-                title = stringResource(R.string.options_manage_sections),
-                description = stringResource(R.string.options_manage_sections_desc)
-            ) {
-                OutlinedButton(onClick = { onShowSectionManagementChange(true) }, modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (allSections.isEmpty()) {
-                                Text(stringResource(R.string.options_empty_library))
-                            } else {
-                                allSections.take(5).forEach { section ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(section.color?.let { Color(it.toColorInt()) } ?: MaterialTheme.colorScheme.primary)
-                                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = EquipmentIconProvider.getIcon(section.iconIdentifier),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp),
-                                            tint = Color.White
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            }
-
-            // SECTION SELECTOR STYLE
-            OptionsSectionCard(
-                title = stringResource(R.string.options_section_selector_style),
-                description = stringResource(R.string.options_section_selector_style_desc)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS,
-                        onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_CHIPS) },
-                        label = { Text(stringResource(R.string.options_selector_chips)) },
-                        modifier = Modifier.weight(1f),
-                        leadingIcon = { if (sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS) Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
-                    )
-                    FilterChip(
-                        selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_DROPDOWN,
-                        onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_DROPDOWN) },
-                        label = { Text(stringResource(R.string.options_selector_dropdown)) },
-                        modifier = Modifier.weight(1f),
-                        leadingIcon = { if (sectionSelectorType == UiConstants.SECTION_SELECTOR_DROPDOWN) Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
-                    )
                 }
             }
 
@@ -988,53 +925,117 @@ fun OptionsScreenContent(
                 }
             }
 
-            // 3. COLORI
+            // 9. SEZIONI E COLORI
             OptionsSectionCard(
                 title = stringResource(R.string.options_sections_colors_title),
-                description = stringResource(R.string.options_sections_colors_desc)
+                description = stringResource(R.string.options_sections_colors_desc),
+                isCollapsible = true,
+                initiallyExpanded = false
             ) {
-                val sectionOrder = listOf(
-                    Category.LOGS, 
-                    Category.EQUIPMENT, 
-                    Category.OPERATION, 
-                    Category.REPORTS, 
-                    Category.OPTIONS
-                )
-                categoriesUiState
-                    .sortedBy { uiState -> 
-                        val index = sectionOrder.indexOf(uiState.category.id)
-                        if (index != -1) index else Int.MAX_VALUE
-                    }
-                    .forEach { uiState ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        ) {
-                            Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                            Spacer(Modifier.width(12.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(uiState.color.toColorInt()))
-                                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                    .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
-                            )
+                // 9. SEZIONI (WORKSPACES)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.options_manage_sections), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    OutlinedButton(onClick = { onShowSectionManagementChange(true) }, modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (allSections.isEmpty()) {
+                                    Text(stringResource(R.string.options_empty_library))
+                                } else {
+                                    allSections.take(5).forEach { section ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(section.color?.let { Color(it.toColorInt()) } ?: MaterialTheme.colorScheme.primary)
+                                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = EquipmentIconProvider.getIcon(section.iconIdentifier),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
-            }
 
-            // 5. REPORTS
-            OptionsSectionCard(
-                title = stringResource(R.string.options_reports_colors_title),
-                description = stringResource(R.string.report_equipment_desc)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // SECTION SELECTOR STYLE
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.options_selector_chips), style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.6f))
+                        FilterChip(
+                            selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS,
+                            onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_CHIPS) },
+                            label = { Text(stringResource(R.string.options_selector_chips), style = MaterialTheme.typography.labelSmall) },
+                            modifier = Modifier.weight(1f),
+                            leadingIcon = { if (sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS) Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp)) }
+                        )
+                        FilterChip(
+                            selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_DROPDOWN,
+                            onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_DROPDOWN) },
+                            label = { Text(stringResource(R.string.options_selector_dropdown), style = MaterialTheme.typography.labelSmall) },
+                            modifier = Modifier.weight(1f),
+                            leadingIcon = { if (sectionSelectorType == UiConstants.SECTION_SELECTOR_DROPDOWN) Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp)) }
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // COLORI (THEME)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.options_color_mgmt_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    val sectionOrder = listOf(
+                        Category.LOGS, 
+                        Category.EQUIPMENT, 
+                        Category.OPERATION, 
+                        Category.REPORTS, 
+                        Category.OPTIONS
+                    )
+                    categoriesUiState
+                        .sortedBy { uiState -> 
+                            val index = sectionOrder.indexOf(uiState.category.id)
+                            if (index != -1) index else Int.MAX_VALUE
+                        }
+                        .forEach { uiState ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Text(uiState.category.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(uiState.color.toColorInt()))
+                                        .border(1.5.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                        .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
+                                )
+                            }
+                        }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // 5. REPORTS
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.options_reports_colors_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = stringResource(R.string.options_use_custom_colors_reports), 
                             modifier = Modifier.weight(1f), 
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -1051,12 +1052,12 @@ fun OptionsScreenContent(
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     reportsColors.filter { !it.reportHidden }.take(6).forEach { color ->
-                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+                                        Box(modifier = Modifier.size(20.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
                                     }
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -1320,8 +1321,7 @@ fun UnitManagementDialog(
     onToggleUnitVisibility: (Int) -> Unit,
     onDeleteUnit: (MeasurementUnit) -> Unit,
     onToggleDefaultUnit: (Int) -> Unit,
-    unitUsageCounts: Map<Int, Int>,
-    modifier: Modifier = Modifier
+    unitUsageCounts: Map<Int, Int>
 ) {
     var showAddUnitDialog by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }
@@ -1475,8 +1475,7 @@ fun SectionManagementDialog(
     onUpdateSectionsOrder: (List<Section>) -> Unit,
     onShowColorManagerCustom: ((String) -> Unit) -> Unit,
     onAddImage: (String, String) -> Unit,
-    sectionUsageCounts: Map<Int, Int>,
-    modifier: Modifier = Modifier
+    sectionUsageCounts: Map<Int, Int>
 ) {
     var showAddSectionDialog by remember { mutableStateOf(false) }
     var showDismissed by remember { mutableStateOf(false) }
@@ -1652,7 +1651,7 @@ fun SectionManagementDialog(
                                 onUpdateSection = onUpdateSection,
                                 onCloneSection = onCloneSection,
                                 onDeleteSection = onDeleteSection,
-                                onShowColorManager = { tag, callback -> 
+                                onShowColorManager = { _, callback ->
                                     onShowColorManagerCustom(callback)
                                 },
                                 onAddImage = onAddImage,

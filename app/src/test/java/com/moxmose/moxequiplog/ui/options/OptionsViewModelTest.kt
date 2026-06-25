@@ -6,6 +6,7 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
@@ -42,6 +43,7 @@ class OptionsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var sectionRepository: SectionRepository
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var operationTypeDao: OperationTypeDao
@@ -78,6 +80,7 @@ class OptionsViewModelTest {
             every { reportsColorMode } returns MutableStateFlow(UiConstants.DEFAULT_REPORTS_COLOR_MODE)
             every { reportsCustomColors } returns MutableStateFlow(null)
         }
+        sectionRepository = mockk(relaxed = true)
         equipmentDao = mockk(relaxed = true)
         
         measurementUnitDao = mockk(relaxed = true)
@@ -102,6 +105,7 @@ class OptionsViewModelTest {
 
         viewModel = OptionsViewModel(
             appSettingsManager,
+            sectionRepository,
             equipmentDao,
             maintenanceLogDao,
             operationTypeDao,
