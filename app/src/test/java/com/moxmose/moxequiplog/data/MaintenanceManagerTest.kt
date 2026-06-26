@@ -19,9 +19,9 @@ class MaintenanceManagerTest {
 
     @Before
     fun setup() {
-        maintenanceLogDao = mockk()
-        equipmentDao = mockk()
-        operationTypeDao = mockk()
+        maintenanceLogDao = mockk(relaxed = true)
+        equipmentDao = mockk(relaxed = true)
+        operationTypeDao = mockk(relaxed = true)
         maintenanceManager = MaintenanceManager(maintenanceLogDao, equipmentDao, operationTypeDao)
     }
 

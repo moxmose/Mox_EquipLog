@@ -103,6 +103,7 @@ class OptionsScreenTest {
                 onSetCostAnalysisWindow = { _, _ -> },
                 costTrendThreshold = 0.05f,
                 onSetCostTrendThreshold = {},
+                onSetSectionSelectorType = {},
                 onRecalculateAccumulated = {},
             )
         }
@@ -190,6 +191,7 @@ class OptionsScreenTest {
                 onSetCostAnalysisWindow = { _, _ -> },
                 costTrendThreshold = 0.05f,
                 onSetCostTrendThreshold = {},
+                onSetSectionSelectorType = {},
                 onRecalculateAccumulated = {},
             )
         }
@@ -284,6 +286,7 @@ class OptionsScreenTest {
                 onSetCostAnalysisWindow = { _, _ -> },
                 costTrendThreshold = 0.05f,
                 onSetCostTrendThreshold = {},
+                onSetSectionSelectorType = {},
                 onRecalculateAccumulated = {},
             )
         }
@@ -376,6 +379,7 @@ class OptionsScreenTest {
                 onSetCostAnalysisWindow = { _, _ -> },
                 costTrendThreshold = 0.05f,
                 onSetCostTrendThreshold = {},
+                onSetSectionSelectorType = {},
                 onRecalculateAccumulated = {},
             )
         }

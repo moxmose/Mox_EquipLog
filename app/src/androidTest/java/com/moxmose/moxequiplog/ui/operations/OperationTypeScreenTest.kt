@@ -151,6 +151,8 @@ class OperationTypeScreenTest {
                 categories = emptyList<Category>(),
                 allSections = emptyList(),
                 measurementUnits = emptyList<MeasurementUnit>(),
+                selectedSectionId = 0,
+                showDismissedSections = false,
                 categoryColors = emptyMap<String, String>(),
                 categoryDefaultIcons = emptyMap<String, String?>(),
                 categoryDefaultPhotos = emptyMap<String, String?>(),

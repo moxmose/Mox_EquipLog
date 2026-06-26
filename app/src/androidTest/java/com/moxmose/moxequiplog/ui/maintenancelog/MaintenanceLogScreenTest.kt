@@ -185,6 +185,7 @@ class MaintenanceLogScreenTest {
                 equipments = dummyEquipments,
                 operationTypes = dummyOps,
                 measurementUnits = emptyList<MeasurementUnit>(),
+                allSections = emptyList(),
                 onDismissRequest = {},
                 onConfirm = { confirmedLog.set(it) },
                 onSchedule = null,
