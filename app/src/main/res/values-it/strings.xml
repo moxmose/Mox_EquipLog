@@ -346,6 +346,14 @@
     <string name="demo_data_confirm_msg">Verranno aggiunti nuovi equipment e registrazioni di prova. Si consiglia di eseguire un backup prima di procedere. Continuare?</string>
     <string name="demo_data_success">Dati demo generati con successo.</string>
     <string name="demo_data_deleted_success">Dati demo eliminati con successo.</string>
+    <string name="demo_scenario_cars">Auto</string>
+    <string name="demo_scenario_garden">Giardino</string>
+    <string name="demo_scenario_health">Salute</string>
+    <string name="demo_scenario_bikes">Bici</string>
+    <string name="demo_scenario_all">Tutti gli scenari</string>
+    <string name="demo_selection_title">Seleziona uno Scenario Demo</string>
+    <string name="demo_selection_desc">Scegli uno scenario per popolare l\'app con dati di esempio e vedere come funziona.</string>
+    <string name="button_try_demo">Prova una Demo</string>
     <string name="options_sync_calendar_default_label">Sincronizza di default</string>
     <string name="options_sync_calendar_default_desc">Abilita automaticamente \"Sincronizza con Google Calendar\" quando aggiungi nuovi log o promemoria.</string>
     <string name="google_auth_privacy_note">Questa app utilizza il metodo di accesso standard di Google per collegarsi al tuo Calendario. Verranno utilizzati solo i dati strettamente necessari alla sincronizzazione.</string>

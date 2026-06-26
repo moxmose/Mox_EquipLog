@@ -42,6 +42,14 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class DemoScenario {
+    CARS,
+    GARDEN,
+    HEALTH,
+    BIKES,
+    ALL
+}
+
 data class CategoryUiState(
     val category: Category,
     val color: String,
@@ -842,171 +850,207 @@ class OptionsViewModel(
 
     fun getSuggestedTotalExportFileName(): String = backupManager.getSuggestedTotalExportFileName()
 
-    fun generateDemoData() {
+    fun generateDemoData(scenario: DemoScenario = DemoScenario.ALL) {
         viewModelScope.launch {
             try {
-                // 0. Create Sections
-                val vehicleSectionId = sectionRepository.insertSection(Section(
-                    name = "Vehicles (Demo)",
-                    iconIdentifier = "car",
-                    color = "#FF4285F4",
-                    defaultUnitId = 1 // km
-                )).toInt()
-
-                val gardenSectionId = sectionRepository.insertSection(Section(
-                    name = "Garden (Demo)",
-                    iconIdentifier = "garden",
-                    color = "#FF34A853",
-                    defaultUnitId = 2 // hh
-                )).toInt()
-
-                val homeSectionId = sectionRepository.insertSection(Section(
-                    name = "Home (Demo)",
-                    iconIdentifier = "build",
-                    color = "#FFFBBC05",
-                    defaultUnitId = 3 // dy
-                )).toInt()
-
-                // 1. Create Equipments
-                val pandaId = equipmentDao.insertEquipment(Equipment(
-                    description = "Fiat Panda (Demo)",
-                    unitId = 1, // km
-                    sectionId = vehicleSectionId,
-                    color = "#FF4285F4",
-                    estimatedCostPerUnit = 0.18
-                )).toInt()
-
-                val mowerId = equipmentDao.insertEquipment(Equipment(
-                    description = "Lawn Mower (Demo)",
-                    unitId = 2, // hh
-                    sectionId = gardenSectionId,
-                    color = "#FF34A853",
-                    iconIdentifier = "garden"
-                )).toInt()
-
-                val boilerId = equipmentDao.insertEquipment(Equipment(
-                    description = "Boiler (Demo)",
-                    unitId = 3, // dy
-                    sectionId = homeSectionId,
-                    color = "#FFFBBC05",
-                    iconIdentifier = "build"
-                )).toInt()
-
-                // 2. Create Operation Types
-                val fuelOpId = operationTypeDao.insertOperationType(OperationType(
-                    description = "Refuel (Demo)",
-                    color = "#FF34A853",
-                    iconIdentifier = "local_gas_station",
-                    sectionId = vehicleSectionId
-                )).toInt()
-
-                val maintenanceOpId = operationTypeDao.insertOperationType(OperationType(
-                    description = "Service (Demo)",
-                    color = "#FFFBBC05",
-                    iconIdentifier = "build",
-                    estimatedCost = 250.0,
-                    isPredictable = true,
-                    intervalValue = 15000.0,
-                    sectionId = vehicleSectionId
-                )).toInt()
-
-                val bladeOpId = operationTypeDao.insertOperationType(OperationType(
-                    description = "Sharpen Blades (Demo)",
-                    color = "#FF795548",
-                    iconIdentifier = "build",
-                    isPredictable = true,
-                    intervalValue = 25.0,
-                    unitId = 2,
-                    sectionId = gardenSectionId
-                )).toInt()
-
-                val filterOpId = operationTypeDao.insertOperationType(OperationType(
-                    description = "Filter Check (Demo)",
-                    color = "#FF9C27B0",
-                    iconIdentifier = "check",
-                    isPredictable = true,
-                    timeoutValue = 6,
-                    timeoutUnit = TimeGranularity.MONTHS,
-                    sectionId = homeSectionId
-                )).toInt()
-
-                // 3. Create Logs for the last 12 months
                 val now = System.currentTimeMillis()
                 val monthMs = 30 * AppConstants.MS_PER_DAY
                 val logs = mutableListOf<MaintenanceLog>()
-                
-                var pandaKm = 5000.0
-                var mowerHh = 10.0
-                var boilerDy = 100.0
 
-                // Baseline Panda: Service 11 months ago
-                val pandaServiceDate = now - (11 * monthMs)
-                logs.add(MaintenanceLog(equipmentId = pandaId, operationTypeId = maintenanceOpId, value = 6000.0, date = pandaServiceDate, cost = 240.0, notes = "Initial service"))
-
-                // Baseline Mower: Blade sharpening 2 months ago
-                val mowerBladeDate = now - (2 * monthMs)
-                logs.add(MaintenanceLog(equipmentId = mowerId, operationTypeId = bladeOpId, value = 15.0, date = mowerBladeDate, cost = 30.0))
-
-                for (i in 12 downTo 0) {
-                    val monthStart = now - (i * monthMs)
-                    
-                    // Panda Activity
-                    for (j in 0 until 2) {
-                        val date = monthStart + (j * 15 * AppConstants.MS_PER_DAY) + (Math.random() * AppConstants.MS_PER_DAY).toLong()
+                // Helper to generate logs
+                fun addHistory(equipmentId: Int, operationTypeId: Int, startValue: Double, monthlyIncrement: Double, costPerMonth: Double, months: Int = 12) {
+                    var currentVal = startValue
+                    for (i in months downTo 0) {
+                        val date = now - (i * monthMs) + (Math.random() * AppConstants.MS_PER_DAY).toLong()
                         if (date > now) continue
-                        pandaKm += 600.0 + (Math.random() * 100)
-                        logs.add(MaintenanceLog(equipmentId = pandaId, operationTypeId = fuelOpId, value = pandaKm, date = date, cost = 50.0 + (Math.random() * 10)))
+                        currentVal += monthlyIncrement + (Math.random() * (monthlyIncrement * 0.2))
+                        logs.add(MaintenanceLog(
+                            equipmentId = equipmentId, 
+                            operationTypeId = operationTypeId, 
+                            value = currentVal, 
+                            date = date, 
+                            cost = costPerMonth + (Math.random() * (costPerMonth * 0.1))
+                        ))
                     }
+                }
 
-                    // Mower Activity (only in spring/summer)
-                    if (i in 2..8) {
-                        val date = monthStart + (15 * AppConstants.MS_PER_DAY)
-                        if (date <= now) {
-                            mowerHh += 4.0 + (Math.random() * 2)
-                            logs.add(MaintenanceLog(equipmentId = mowerId, operationTypeId = bladeOpId, value = mowerHh, date = date, isUnplanned = true))
-                        }
-                    }
+                // --- CARS SCENARIO ---
+                if (scenario == DemoScenario.CARS || scenario == DemoScenario.ALL) {
+                    val vehicleSectionId = sectionRepository.insertSection(Section(
+                        name = "Cars (Demo)",
+                        iconIdentifier = "directions_car",
+                        color = "#FF4285F4",
+                        defaultUnitId = 1 // km
+                    )).toInt()
 
-                    // Boiler Activity
-                    boilerDy += 30.0
-                    if (i % 6 == 0) {
-                        logs.add(MaintenanceLog(equipmentId = boilerId, operationTypeId = filterOpId, value = boilerDy, date = monthStart, cost = 80.0))
+                    val pandaId = equipmentDao.insertEquipment(Equipment(
+                        description = "Fiat Panda (Demo)",
+                        unitId = 1,
+                        sectionId = vehicleSectionId,
+                        color = "#FF4285F4",
+                        estimatedCostPerUnit = 0.15
+                    )).toInt()
+
+                    val golfId = equipmentDao.insertEquipment(Equipment(
+                        description = "VW Golf (Demo)",
+                        unitId = 1,
+                        sectionId = vehicleSectionId,
+                        color = "#FF34A853",
+                        estimatedCostPerUnit = 0.22
+                    )).toInt()
+
+                    val fuelOpId = operationTypeDao.insertOperationType(OperationType(
+                        description = "Refuel (Demo)",
+                        color = "#FF34A853",
+                        iconIdentifier = "local_gas_station",
+                        sectionId = vehicleSectionId
+                    )).toInt()
+
+                    val serviceOpId = operationTypeDao.insertOperationType(OperationType(
+                        description = "Service (Demo)",
+                        color = "#FFFBBC05",
+                        iconIdentifier = "build",
+                        estimatedCost = 250.0,
+                        isPredictable = true,
+                        intervalValue = 15000.0,
+                        sectionId = vehicleSectionId
+                    )).toInt()
+
+                    addHistory(pandaId, fuelOpId, 10000.0, 800.0, 60.0)
+                    addHistory(golfId, fuelOpId, 25000.0, 1200.0, 90.0)
+
+                    // Baseline service
+                    logs.add(MaintenanceLog(equipmentId = pandaId, operationTypeId = serviceOpId, value = 5000.0, date = now - (10 * monthMs), cost = 220.0))
+                    logs.add(MaintenanceLog(equipmentId = golfId, operationTypeId = serviceOpId, value = 20000.0, date = now - (8 * monthMs), cost = 310.0))
+                }
+
+                // --- GARDEN SCENARIO ---
+                if (scenario == DemoScenario.GARDEN || scenario == DemoScenario.ALL) {
+                    val gardenSectionId = sectionRepository.insertSection(Section(
+                        name = "Garden (Demo)",
+                        iconIdentifier = "grass",
+                        color = "#FF34A853",
+                        defaultUnitId = 2 // hh
+                    )).toInt()
+
+                    val mowerId = equipmentDao.insertEquipment(Equipment(
+                        description = "Lawn Mower (Demo)",
+                        unitId = 2,
+                        sectionId = gardenSectionId,
+                        color = "#FF34A853"
+                    )).toInt()
+
+                    val lemonId = equipmentDao.insertEquipment(Equipment(
+                        description = "Lemon Tree (Demo)",
+                        unitId = 3, // dy
+                        sectionId = gardenSectionId,
+                        color = "#FFFBC02D"
+                    )).toInt()
+
+                    val bladeOpId = operationTypeDao.insertOperationType(OperationType(
+                        description = "Sharpen Blades (Demo)",
+                        color = "#FF795548",
+                        iconIdentifier = "content_cut",
+                        isPredictable = true,
+                        intervalValue = 50.0,
+                        unitId = 2,
+                        sectionId = gardenSectionId
+                    )).toInt()
+
+                    val waterOpId = operationTypeDao.insertOperationType(OperationType(
+                        description = "Fertilize (Demo)",
+                        color = "#FF2196F3",
+                        iconIdentifier = "opacity",
+                        isPredictable = true,
+                        timeoutValue = 3,
+                        timeoutUnit = TimeGranularity.MONTHS,
+                        sectionId = gardenSectionId
+                    )).toInt()
+
+                    addHistory(mowerId, bladeOpId, 0.0, 5.0, 0.0, months = 6)
+                    addHistory(lemonId, waterOpId, 100.0, 30.0, 5.0, months = 12)
+                }
+
+                // --- HEALTH SCENARIO ---
+                if (scenario == DemoScenario.HEALTH || scenario == DemoScenario.ALL) {
+                    val healthSectionId = sectionRepository.insertSection(Section(
+                        name = "Health (Demo)",
+                        iconIdentifier = "monitor_heart",
+                        color = "#FFE91E63",
+                        defaultUnitId = 4 // un
+                    )).toInt()
+
+                    val pumpId = equipmentDao.insertEquipment(Equipment(
+                        description = "Insulin Pump (Demo)",
+                        unitId = 4,
+                        sectionId = healthSectionId,
+                        color = "#FFE91E63"
+                    )).toInt()
+
+                    val infusionOpId = operationTypeDao.insertOperationType(OperationType(
+                        description = "Infusion Set Change (Demo)",
+                        color = "#FF00BCD4",
+                        iconIdentifier = "refresh",
+                        isPredictable = true,
+                        timeoutValue = 3,
+                        timeoutUnit = TimeGranularity.DAYS,
+                        sectionId = healthSectionId
+                    )).toInt()
+
+                    val sensorOpId = operationTypeDao.insertOperationType(OperationType(
+                        description = "Sensor Change (Demo)",
+                        color = "#FF9C27B0",
+                        iconIdentifier = "sensors",
+                        isPredictable = true,
+                        timeoutValue = 10,
+                        timeoutUnit = TimeGranularity.DAYS,
+                        sectionId = healthSectionId
+                    )).toInt()
+
+                    // Recent history for health
+                    for (i in 30 downTo 0 step 3) {
+                        logs.add(MaintenanceLog(equipmentId = pumpId, operationTypeId = infusionOpId, value = (30 - i).toDouble(), date = now - (i * AppConstants.MS_PER_DAY)))
                     }
+                    for (i in 30 downTo 0 step 10) {
+                        logs.add(MaintenanceLog(equipmentId = pumpId, operationTypeId = sensorOpId, value = (30 - i).toDouble(), date = now - (i * AppConstants.MS_PER_DAY)))
+                    }
+                }
+
+                // --- BIKES SCENARIO ---
+                if (scenario == DemoScenario.BIKES || scenario == DemoScenario.ALL) {
+                    val bikesSectionId = sectionRepository.insertSection(Section(
+                        name = "Bikes (Demo)",
+                        iconIdentifier = "directions_bike",
+                        color = "#FF673AB7",
+                        defaultUnitId = 1 // km
+                    )).toInt()
+
+                    val mtbId = equipmentDao.insertEquipment(Equipment(description = "MTB (Demo)", unitId = 1, sectionId = bikesSectionId, color = "#FF795548")).toInt()
+                    val roadId = equipmentDao.insertEquipment(Equipment(description = "Road Bike (Demo)", unitId = 1, sectionId = bikesSectionId, color = "#FF2196F3")).toInt()
+                    val gravelId = equipmentDao.insertEquipment(Equipment(description = "Gravel Bike (Demo)", unitId = 1, sectionId = bikesSectionId, color = "#FF4CAF50")).toInt()
+
+                    val chainOpId = operationTypeDao.insertOperationType(OperationType(
+                        description = "Lube Chain (Demo)",
+                        color = "#FF607D8B",
+                        iconIdentifier = "opacity",
+                        isPredictable = true,
+                        intervalValue = 200.0,
+                        sectionId = bikesSectionId
+                    )).toInt()
+
+                    addHistory(mtbId, chainOpId, 500.0, 50.0, 2.0)
+                    addHistory(roadId, chainOpId, 2000.0, 300.0, 2.0)
+                    addHistory(gravelId, chainOpId, 1000.0, 150.0, 2.0)
                 }
 
                 maintenanceLogDao.insertLogs(logs.sortedBy { it.date })
 
-                maintenanceManager.recalculateAccumulatedValues(pandaId)
-                maintenanceManager.recalculateAccumulatedValues(mowerId)
-                maintenanceManager.recalculateAccumulatedValues(boilerId)
+                // Recalculate all affected equipments
+                val equipmentIds = logs.map { it.equipmentId }.distinct()
+                equipmentIds.forEach { id ->
+                    maintenanceManager.recalculateAccumulatedValues(id)
+                }
 
-                // 4. Create Reminders
-                
-                // Panda Service: Target 21000 km
-                maintenanceReminderDao.insertReminder(MaintenanceReminder(
-                    equipmentId = pandaId,
-                    operationTypeId = maintenanceOpId,
-                    dueValue = 21000.0,
-                    presumedDate = maintenanceManager.estimateDueDate(pandaId, 21000.0)
-                ))
-
-                // Mower Blades: Target 40 hours
-                maintenanceReminderDao.insertReminder(MaintenanceReminder(
-                    equipmentId = mowerId,
-                    operationTypeId = bladeOpId,
-                    dueValue = 40.0,
-                    presumedDate = maintenanceManager.estimateDueDate(mowerId, 40.0)
-                ))
-
-                // Boiler Filter: in 6 months from now
-                val cal = Calendar.getInstance()
-                cal.add(Calendar.MONTH, 6)
-                maintenanceReminderDao.insertReminder(MaintenanceReminder(
-                    equipmentId = boilerId,
-                    operationTypeId = filterOpId,
-                    dueDate = cal.timeInMillis
-                ))
-                
                 _uiEvents.send(OptionsUiEvent.DemoDataGenerated)
             } catch (e: Exception) {
                 _uiEvents.send(OptionsUiEvent.UpdateSettingsFailed)
