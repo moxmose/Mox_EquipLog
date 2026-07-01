@@ -95,6 +95,7 @@ fun OperationTypeCard(
     var editedSectionId by remember(currentOperationType.sectionId) { mutableIntStateOf(currentOperationType.sectionId) }
     var editedUnitId by remember(currentOperationType.unitId) { mutableIntStateOf(currentOperationType.unitId) }
     var editedIsResettable by remember(currentOperationType.isResettable) { mutableStateOf(currentOperationType.isResettable) }
+    var editedHasValue by remember(currentOperationType.hasValue) { mutableStateOf(currentOperationType.hasValue) }
     var editedIsPredictable by remember(currentOperationType.isPredictable) { mutableStateOf(currentOperationType.isPredictable) }
     
     var editedUseCustomVisibilityHorizon by remember(currentOperationType.useCustomVisibilityHorizon) { mutableStateOf(currentOperationType.useCustomVisibilityHorizon) }
@@ -282,6 +283,17 @@ fun OperationTypeCard(
                                 updateDraft(draft.copy(operationType = draft.operationType.copy(isResettable = it)))
                             })
                             Text(text = stringResource(R.string.operation_is_resettable), style = MaterialTheme.typography.bodyMedium) 
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth().clickable { 
+                            editedHasValue = !editedHasValue
+                            updateDraft(draft.copy(operationType = draft.operationType.copy(hasValue = editedHasValue)))
+                        }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                            Checkbox(checked = editedHasValue, onCheckedChange = { 
+                                editedHasValue = it
+                                updateDraft(draft.copy(operationType = draft.operationType.copy(hasValue = it)))
+                            })
+                            Text(text = "Track numeric value (Odometer/Counter)", style = MaterialTheme.typography.bodyMedium)
                         }
 
                         Row(modifier = Modifier.fillMaxWidth().clickable { 

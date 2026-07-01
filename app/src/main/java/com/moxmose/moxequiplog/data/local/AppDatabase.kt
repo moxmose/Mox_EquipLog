@@ -20,7 +20,7 @@ import com.moxmose.moxequiplog.utils.AppConstants
         MaintenanceReminder::class,
         Section::class
     ], 
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,6 +37,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sectionDao(): SectionDao
 
     companion object {
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE operation_types ADD COLUMN hasValue INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // 1. Crea la tabella sections
@@ -103,8 +109,8 @@ abstract class AppDatabase : RoomDatabase() {
                     
                     // Popolamento iniziale operazione di sistema (Reset)
                     db.execSQL(
-                        "INSERT OR IGNORE INTO operation_types (id, description, dismissed, isSystem, displayOrder, unitId, isResettable) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        arrayOf(AppConstants.SYSTEM_OPERATION_RESET_ID, "Reset UoM", 0, 1, -1, 1, 1)
+                        "INSERT OR IGNORE INTO operation_types (id, description, dismissed, isSystem, displayOrder, unitId, isResettable, hasValue) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        arrayOf(AppConstants.SYSTEM_OPERATION_RESET_ID, "Reset UoM", 0, 1, -1, 4, 1, 1)
                     )
 
                     // Popolamento iniziale Sezione di default

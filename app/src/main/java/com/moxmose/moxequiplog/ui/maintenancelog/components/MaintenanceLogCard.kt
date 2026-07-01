@@ -92,8 +92,21 @@ fun MaintenanceLogCard(
         }
     }
 
-    val unit = remember(selectedEquipment, measurementUnits) {
-        measurementUnits.find { it.id == selectedEquipment?.unitId }
+    val unit = remember(actualIsEditing, selectedEquipment, selectedOperationType, logDetail, measurementUnits) {
+        val unitId = if (actualIsEditing) {
+            if (selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                selectedEquipment?.unitId
+            } else {
+                selectedOperationType?.unitId ?: selectedEquipment?.unitId
+            }
+        } else {
+            if (logDetail.log.operationTypeId == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                logDetail.equipmentUnitId
+            } else {
+                logDetail.operationTypeUnitId
+            }
+        }
+        measurementUnits.find { it.id == unitId } ?: measurementUnits.find { it.id == (if (actualIsEditing) selectedEquipment?.unitId else logDetail.equipmentUnitId) }
     }
     val unitLabel = unit?.label ?: "Km"
     val decimalPlaces = unit?.decimalPlaces ?: 0
@@ -276,29 +289,41 @@ fun MaintenanceLogCard(
                         categoryColor = oColor,
                         placeholder = stringResource(R.string.select_an_operation)
                     )
-                    OutlinedTextField(
-                        value = editedValueStr,
-                        onValueChange = { input ->
-                            val filtered = input.replace(',', '.')
-                            if (filtered.isEmpty() || filtered == "." || filtered == "-") {
-                                editedValueStr = filtered
-                                updateDraft(draft.copy(value = null))
-                            } else {
-                                val doubleVal = filtered.toDoubleOrNull()
-                                if (doubleVal != null && filtered.length <= 10) {
-                                    val dotIndex = filtered.indexOf('.')
-                                    if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
-                                        editedValueStr = filtered
-                                        updateDraft(draft.copy(value = doubleVal))
+                    if (selectedOperationType?.hasValue != false || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                        OutlinedTextField(
+                            value = editedValueStr,
+                            onValueChange = { input ->
+                                val filtered = input.replace(',', '.')
+                                if (filtered.isEmpty() || filtered == "." || filtered == "-") {
+                                    editedValueStr = filtered
+                                    updateDraft(draft.copy(value = null))
+                                } else {
+                                    val doubleVal = filtered.toDoubleOrNull()
+                                    if (doubleVal != null && filtered.length <= 10) {
+                                        val dotIndex = filtered.indexOf('.')
+                                        if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
+                                            editedValueStr = filtered
+                                            updateDraft(draft.copy(value = doubleVal))
+                                        }
                                     }
                                 }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.value_optional, unitLabel)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                            },
+                            label = { Text(stringResource(R.string.value_optional, unitLabel)) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            trailingIcon = {
+                                if (editedValueStr.isNotEmpty() && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                    IconButton(onClick = { 
+                                        editedValueStr = ""
+                                        updateDraft(draft.copy(value = null))
+                                    }) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     
                     val isResettable = selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID
                     Row(
@@ -492,36 +517,58 @@ fun MaintenanceLogCard(
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val isValueIncongruent = remember(logDetail) {
-                            val currentVal = logDetail.log.value ?: 0.0
-                            val prevVal = logDetail.previousLogValue ?: 0.0
-                            !logDetail.operationTypeIsSystem && !logDetail.previousLogIsSystem && currentVal < prevVal
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
+                    if (logDetail.operationTypeHasValue || logDetail.log.operationTypeId == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val isValueIncongruent = remember(logDetail) {
+                                val currentVal = logDetail.log.value ?: 0.0
+                                val prevVal = logDetail.previousLogValue ?: 0.0
+                                !logDetail.operationTypeIsSystem && !logDetail.previousLogIsSystem && currentVal < prevVal
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = logDetail.log.value?.let { String.format(Locale.US, "%.${decimalPlaces}f %s", it, unitLabel) } ?: "",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isValueIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                logDetail.log.cost?.let {
+                                    Text(
+                                        text = String.format(Locale.US, "%.2f €", it),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                             Text(
-                                text = logDetail.log.value?.let { String.format(Locale.US, "%.${decimalPlaces}f %s", it, unitLabel) } ?: "",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (isValueIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = dateFormat.format(Date(logDetail.log.date)),
+                                style = MaterialTheme.typography.labelSmall
                             )
+                        }
+                    } else {
+                        // Se non ha valore, mostriamo solo il costo e la data
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             logDetail.log.cost?.let {
                                 Text(
                                     text = String.format(Locale.US, "%.2f €", it),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            }
+                            } ?: Spacer(Modifier.weight(1f))
+                            
+                            Text(
+                                text = dateFormat.format(Date(logDetail.log.date)),
+                                style = MaterialTheme.typography.labelSmall
+                            )
                         }
-                        Text(
-                            text = dateFormat.format(Date(logDetail.log.date)),
-                            style = MaterialTheme.typography.labelSmall
-                        )
                     }
 
                     logDetail.log.notes?.takeIf { it.isNotBlank() }?.let {

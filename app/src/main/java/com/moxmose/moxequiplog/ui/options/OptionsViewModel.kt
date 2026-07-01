@@ -903,7 +903,8 @@ class OptionsViewModel(
                         description = "Refuel (Demo)",
                         color = "#FF34A853",
                         iconIdentifier = "local_gas_station",
-                        sectionId = vehicleSectionId
+                        sectionId = vehicleSectionId,
+                        unitId = 1 // km
                     )).toInt()
 
                     val serviceOpId = operationTypeDao.insertOperationType(OperationType(
@@ -913,7 +914,8 @@ class OptionsViewModel(
                         estimatedCost = 250.0,
                         isPredictable = true,
                         intervalValue = 15000.0,
-                        sectionId = vehicleSectionId
+                        sectionId = vehicleSectionId,
+                        unitId = 1 // km
                     )).toInt()
 
                     addHistory(pandaId, fuelOpId, 10000.0, 800.0, 60.0)
@@ -964,7 +966,8 @@ class OptionsViewModel(
                         isPredictable = true,
                         timeoutValue = 3,
                         timeoutUnit = TimeGranularity.MONTHS,
-                        sectionId = gardenSectionId
+                        sectionId = gardenSectionId,
+                        unitId = 3 // dy
                     )).toInt()
 
                     addHistory(mowerId, bladeOpId, 0.0, 5.0, 0.0, months = 6)
@@ -982,7 +985,7 @@ class OptionsViewModel(
 
                     val pumpId = equipmentDao.insertEquipment(Equipment(
                         description = "Insulin Pump (Demo)",
-                        unitId = 4,
+                        unitId = 3, // 4 un (Change to 2 for hh, 3 for dy)
                         sectionId = healthSectionId,
                         color = "#FFE91E63"
                     )).toInt()
@@ -994,7 +997,9 @@ class OptionsViewModel(
                         isPredictable = true,
                         timeoutValue = 3,
                         timeoutUnit = TimeGranularity.DAYS,
-                        sectionId = healthSectionId
+                        sectionId = healthSectionId,
+                        unitId = 3, // dy
+                        hasValue = false
                     )).toInt()
 
                     val sensorOpId = operationTypeDao.insertOperationType(OperationType(
@@ -1004,7 +1009,9 @@ class OptionsViewModel(
                         isPredictable = true,
                         timeoutValue = 10,
                         timeoutUnit = TimeGranularity.DAYS,
-                        sectionId = healthSectionId
+                        sectionId = healthSectionId,
+                        unitId = 3, // dy
+                        hasValue = false
                     )).toInt()
 
                     // Recent history for health
@@ -1035,7 +1042,8 @@ class OptionsViewModel(
                         iconIdentifier = "opacity",
                         isPredictable = true,
                         intervalValue = 200.0,
-                        sectionId = bikesSectionId
+                        sectionId = bikesSectionId,
+                        unitId = 1 // km
                     )).toInt()
 
                     addHistory(mtbId, chainOpId, 500.0, 50.0, 2.0)
@@ -1050,6 +1058,9 @@ class OptionsViewModel(
                 equipmentIds.forEach { id ->
                     maintenanceManager.recalculateAccumulatedValues(id)
                 }
+
+                // Switch to "All" section so the user can immediately see the new data
+                appSettingsManager.setSelectedSectionId(AppConstants.ALL_SECTIONS_ID)
 
                 _uiEvents.send(OptionsUiEvent.DemoDataGenerated)
             } catch (e: Exception) {

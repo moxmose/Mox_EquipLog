@@ -99,6 +99,7 @@ import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.AddColorDialog
 import com.moxmose.moxequiplog.ui.components.ColorItemCard
 import com.moxmose.moxequiplog.ui.components.CommonActionButtons
+import com.moxmose.moxequiplog.ui.components.DemoSelectionDialog
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.GoogleAccountSelector
 import com.moxmose.moxequiplog.ui.components.ImageIcon
@@ -417,7 +418,7 @@ fun OptionsScreenContent(
     onBackupDatabase: (Uri) -> Unit,
     onRestoreDatabase: (Uri) -> Unit,
     onTotalExport: (Uri) -> Unit,
-    onGenerateDemoData: () -> Unit,
+    onGenerateDemoData: (DemoScenario) -> Unit,
     onDeleteDemoData: () -> Unit,
     getSuggestedBackupFileName: () -> String,
     getSuggestedTotalExportFileName: () -> String,
@@ -467,26 +468,16 @@ fun OptionsScreenContent(
         uri?.let { onShowRestoreConfirmChange(it) }
     }
 
-    var showDemoDataConfirm by remember { mutableStateOf(false) }
+    var showDemoSelection by remember { mutableStateOf(false) }
 
-    if (showDemoDataConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDemoDataConfirm = false },
-            title = { Text(stringResource(R.string.options_generate_demo_data)) },
-            text = { Text(stringResource(R.string.demo_data_confirm_msg)) },
-            confirmButton = {
-                CommonActionButtons(
-                    onConfirm = { 
-                        onGenerateDemoData()
-                        showDemoDataConfirm = false
-                    },
-                    onDismiss = { showDemoDataConfirm = false },
-                    confirmText = stringResource(R.string.button_add),
-                    confirmIcon = Icons.Default.Add,
-                    compactMode = true
-                )
+    if (showDemoSelection) {
+        DemoSelectionDialog(
+            onDismiss = { showDemoSelection = false },
+            onScenarioSelected = { scenario ->
+                onGenerateDemoData(scenario)
+                showDemoSelection = false
             },
-            dismissButton = null
+            isFromOptions = true
         )
     }
 
@@ -1098,7 +1089,7 @@ fun OptionsScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { showDemoDataConfirm = true },
+                            onClick = { showDemoSelection = true },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null)

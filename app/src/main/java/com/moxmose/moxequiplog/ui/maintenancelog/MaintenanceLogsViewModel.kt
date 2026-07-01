@@ -408,6 +408,7 @@ class MaintenanceLogViewModel(
                 ot.dismissed as operationTypeDismissed,
                 ot.isResettable as operationTypeIsResettable,
                 ot.isSystem as operationTypeIsSystem,
+                ot.hasValue as operationTypeHasValue,
                 e.unitId as equipmentUnitId,
                 ot.unitId as operationTypeUnitId,
                 (SELECT l2.value FROM maintenance_logs l2 

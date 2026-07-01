@@ -187,8 +187,8 @@ class MaintenanceManager(
         allLogs.forEach { logWithUnit ->
             val log = logWithUnit.log
             
-            // Only accumulate if the unit matches the equipment's primary unit
-            if (logWithUnit.operationTypeUnitId == equipment.unitId) {
+            // Accumulate if unit matches equipment unit OR if it's a system Reset operation
+            if (logWithUnit.operationTypeUnitId == equipment.unitId || log.operationTypeId == AppConstants.SYSTEM_OPERATION_RESET_ID) {
                 val delta = when {
                     log.value == null -> 0.0
                     lastValue == null -> log.value

@@ -123,8 +123,12 @@ fun MaintenanceLogDialog(
     }
 
     val unit = remember(selectedOperationType, selectedEquipment, measurementUnits) {
-        measurementUnits.find { it.id == selectedOperationType?.unitId }
-            ?: measurementUnits.find { it.id == selectedEquipment?.unitId }
+        if (selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+            measurementUnits.find { it.id == selectedEquipment?.unitId }
+        } else {
+            measurementUnits.find { it.id == selectedOperationType?.unitId }
+                ?: measurementUnits.find { it.id == selectedEquipment?.unitId }
+        }
     }
     val unitLabel = unit?.label ?: "Km"
     val decimalPlaces = unit?.decimalPlaces ?: 0
@@ -372,49 +376,58 @@ fun MaintenanceLogDialog(
                     placeholder = stringResource(R.string.select_an_operation)
                 )
 
-                OutlinedTextField(
-                    value = valueStr,
-                    onValueChange = { input ->
-                        val filtered = input.replace(',', '.')
-                        if (filtered.isEmpty() || filtered == "." || filtered == "-") {
-                            valueStr = filtered
-                        } else {
-                            val doubleVal = filtered.toDoubleOrNull()
-                            if (doubleVal != null && filtered.length <= 10) {
-                                val dotIndex = filtered.indexOf('.')
-                                if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
-                                    valueStr = filtered
-                                }
-                            }
-                        }
-                        if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
-                    },
-                    label = { Text(if (selectedTab == 0) stringResource(R.string.value_optional, unitLabel) else stringResource(R.string.target_value, unitLabel)) },
-                    readOnly = selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    trailingIcon = {
-                        if (selectedTab == 1 && valueStr.isNotBlank() && onEstimateDueDate != null) {
-                            IconButton(onClick = {
-                                selectedEquipment?.id?.let { eqId ->
-                                    valueStr.toDoubleOrNull()?.let { target ->
-                                        scope.launch {
-                                            isEstimating = true
-                                            onEstimateDueDate(eqId, target)?.let { estimated ->
-                                                selectedDate = estimated
-                                                updateReminderDraft()
-                                            }
-                                            isEstimating = false
-                                        }
+                if (selectedOperationType?.hasValue != false || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                    OutlinedTextField(
+                        value = valueStr,
+                        onValueChange = { input ->
+                            val filtered = input.replace(',', '.')
+                            if (filtered.isEmpty() || filtered == "." || filtered == "-") {
+                                valueStr = filtered
+                            } else {
+                                val doubleVal = filtered.toDoubleOrNull()
+                                if (doubleVal != null && filtered.length <= 10) {
+                                    val dotIndex = filtered.indexOf('.')
+                                    if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
+                                        valueStr = filtered
                                     }
                                 }
-                            }) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Recalculate Date")
                             }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                            if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
+                        },
+                        label = { Text(if (selectedTab == 0) stringResource(R.string.value_optional, unitLabel) else stringResource(R.string.target_value, unitLabel)) },
+                        readOnly = selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        trailingIcon = {
+                            if (valueStr.isNotEmpty() && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                IconButton(onClick = { 
+                                    valueStr = ""
+                                    if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
+                                }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                }
+                            } else if (selectedTab == 1 && valueStr.isNotBlank() && onEstimateDueDate != null) {
+                                IconButton(onClick = {
+                                    selectedEquipment?.id?.let { eqId ->
+                                        valueStr.toDoubleOrNull()?.let { target ->
+                                            scope.launch {
+                                                isEstimating = true
+                                                onEstimateDueDate(eqId, target)?.let { estimated ->
+                                                    selectedDate = estimated
+                                                    updateReminderDraft()
+                                                }
+                                                isEstimating = false
+                                            }
+                                        }
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Recalculate Date")
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 if (selectedTab == 0) {
                     val isResettable = selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID

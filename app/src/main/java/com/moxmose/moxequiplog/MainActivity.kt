@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,6 +65,7 @@ import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.ui.components.AppBackground
+import com.moxmose.moxequiplog.ui.components.DemoSelectionDialog
 import com.moxmose.moxequiplog.ui.equipment.EquipmentScreen
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogScreen
 import com.moxmose.moxequiplog.ui.operations.OperationTypeScreen
@@ -249,112 +251,4 @@ enum class AppDestinations(
     OPERATIONS(R.string.navigation_operations, Icons.Default.Build),
     REPORTS(R.string.navigation_reports, Icons.Default.Assessment),
     OPTIONS(R.string.navigation_options, Icons.Default.Settings),
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DemoSelectionDialog(
-    onDismiss: () -> Unit,
-    onScenarioSelected: (DemoScenario) -> Unit
-) {
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = stringResource(R.string.demo_selection_title), style = MaterialTheme.typography.headlineSmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.demo_selection_desc), 
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    DemoScenarioItem(
-                        icon = Icons.Default.DirectionsCar,
-                        label = stringResource(R.string.demo_scenario_cars),
-                        onClick = { onScenarioSelected(DemoScenario.CARS) }
-                    )
-                    DemoScenarioItem(
-                        icon = Icons.Default.Grass,
-                        label = stringResource(R.string.demo_scenario_garden),
-                        onClick = { onScenarioSelected(DemoScenario.GARDEN) }
-                    )
-                    DemoScenarioItem(
-                        icon = Icons.Default.MonitorHeart,
-                        label = stringResource(R.string.demo_scenario_health),
-                        onClick = { onScenarioSelected(DemoScenario.HEALTH) }
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    DemoScenarioItem(
-                        icon = Icons.Default.DirectionsBike,
-                        label = stringResource(R.string.demo_scenario_bikes),
-                        onClick = { onScenarioSelected(DemoScenario.BIKES) }
-                    )
-                    DemoScenarioItem(
-                        icon = Icons.Default.RocketLaunch,
-                        label = stringResource(R.string.demo_scenario_all),
-                        onClick = { onScenarioSelected(DemoScenario.ALL) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DemoScenarioItem(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(8.dp)
-            .width(80.dp)
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.size(56.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
 }

@@ -46,6 +46,8 @@ data class OperationType(
     val isResettable: Boolean = false,
     @ColumnInfo(defaultValue = "0")
     val isSystem: Boolean = false,
+    @ColumnInfo(defaultValue = "1")
+    val hasValue: Boolean = true,
     @ColumnInfo(defaultValue = "0")
     val isPredictable: Boolean = false,
     val intervalValue: Double? = null,

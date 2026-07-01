@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.Image
@@ -20,6 +21,7 @@ import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 
@@ -168,13 +170,23 @@ class EquipmentsScreenTest {
             )
         }
 
-        // Cerco il campo descrizione usando substring ("Description" o "Descrizione")
-        composeTestRule.onNodeWithText("descrip", substring = true, ignoreCase = true).performTextInput(newEquipmentDescription)
+        // Use performTextReplacement instead of performTextInput to avoid event dispatching overhead
+        // which can cause keyDispatchingTimedOut on slow emulators.
+        // Also be more specific with the matcher to avoid multiple matches.
+        composeTestRule.onNodeWithText("descrip", substring = true, ignoreCase = true)
+            .performTextReplacement(newEquipmentDescription)
 
-        // Cerco il pulsante conferma ("Add" o "Aggiungi")
-        composeTestRule.onNodeWithText("Add", ignoreCase = true).performClick()
+        composeTestRule.waitForIdle()
 
-        assertEquals(newEquipmentDescription, addedEquipmentInfo.get().first)
-        assertNull(addedEquipmentInfo.get().second)
+        // Use substring = false to match only the button, not the dialog title "Add a new equipment"
+        composeTestRule.onNodeWithText("Add", ignoreCase = true, substring = false)
+            .performClick()
+
+        composeTestRule.waitForIdle()
+
+        val result = addedEquipmentInfo.get()
+        assertNotNull(result, "onConfirm was not called")
+        assertEquals(newEquipmentDescription, result.first)
+        assertNull(result.second)
     }
 }

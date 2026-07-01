@@ -230,7 +230,7 @@ fun OperationTypeScreenContent(
     cloningOperationType: OperationType? = null,
     onShowAddDialogChange: (Boolean) -> Unit,
     onCloneOperationType: (OperationType) -> Unit,
-    onAddOperationType: (String, ImageIdentifier?, Int, Int, Boolean, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
+    onAddOperationType: (String, ImageIdentifier?, Int, Int, Boolean, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?, Boolean) -> Unit,
     onUpdateOperationTypes: (List<OperationType>) -> Unit,
     onUpdateOperationType: (OperationType) -> Unit,
     onDeleteOperationType: (OperationType) -> Unit,
@@ -297,8 +297,8 @@ fun OperationTypeScreenContent(
                 defaultIcon = defaultIcon,
                 defaultPhotoUri = defaultPhotoUri,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { description, identifier, sectionId, unitId, isResettable, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost ->
-                    onAddOperationType(description, identifier, sectionId, unitId, isResettable, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost)
+                onConfirm = { description, identifier, sectionId, unitId, isResettable, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost, hasValue ->
+                    onAddOperationType(description, identifier, sectionId, unitId, isResettable, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost, hasValue)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,

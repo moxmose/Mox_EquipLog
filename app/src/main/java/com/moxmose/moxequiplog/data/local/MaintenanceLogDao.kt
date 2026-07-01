@@ -33,7 +33,7 @@ interface MaintenanceLogDao {
         WHERE l.equipmentId = :equipmentId 
         AND l.date >= :sinceDate 
         AND l.value IS NOT NULL
-        AND ot.unitId = e.unitId
+        AND (ot.unitId = e.unitId OR ot.id = 1)
         ORDER BY l.date ASC
     """)
     suspend fun getValueLogsSince(equipmentId: Int, sinceDate: Long): List<MaintenanceLog>
@@ -47,7 +47,7 @@ interface MaintenanceLogDao {
         JOIN equipments e ON l.equipmentId = e.id
         WHERE l.equipmentId = :equipmentId 
         AND l.value IS NOT NULL 
-        AND ot.unitId = e.unitId
+        AND (ot.unitId = e.unitId OR ot.id = 1)
         ORDER BY l.date DESC LIMIT 1
     """)
     suspend fun getLastValueLogForEquipment(equipmentId: Int): MaintenanceLog?

@@ -40,7 +40,7 @@ import com.moxmose.moxequiplog.utils.AppConstants
 @Composable
 fun AddOperationTypeDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int, Int, Boolean, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int, Int, Boolean, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?, Boolean) -> Unit,
     imageLibrary: List<Image>,
     categories: List<Category>,
     allSections: List<Section>,
@@ -81,6 +81,9 @@ fun AddOperationTypeDialog(
     }
     var isResettable by remember(currentOperationType.isResettable) {
         mutableStateOf(currentOperationType.isResettable)
+    }
+    var hasValue by remember(currentOperationType.hasValue) {
+        mutableStateOf(currentOperationType.hasValue)
     }
     var estimatedCostStr by remember(currentOperationType.estimatedCost) { mutableStateOf(currentOperationType.estimatedCost?.toString() ?: "") }
     var estimatedCost by remember(currentOperationType.estimatedCost) { mutableStateOf(currentOperationType.estimatedCost) }
@@ -206,6 +209,17 @@ fun AddOperationTypeDialog(
                         updateDraft(currentOperationType.copy(isResettable = it))
                     })
                     Text(text = stringResource(R.string.operation_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                }
+
+                Row(modifier = Modifier.fillMaxWidth().clickable { 
+                    hasValue = !hasValue
+                    updateDraft(currentOperationType.copy(hasValue = hasValue))
+                }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                    Checkbox(checked = hasValue, onCheckedChange = { 
+                        hasValue = it 
+                        updateDraft(currentOperationType.copy(hasValue = it))
+                    })
+                    Text(text = "Track numeric value (Odometer/Counter)", style = MaterialTheme.typography.bodyMedium)
                 }
 
                 OutlinedTextField(
@@ -374,7 +388,7 @@ fun AddOperationTypeDialog(
                         else -> null
                     }
                     onConfirm(description, identifier, sectionId, unitId, isResettable, isPredictable,
-                            intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost)
+                            intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost, hasValue)
                 },
                 onDismiss = onDismissRequest,
                 confirmText = stringResource(R.string.button_add),
