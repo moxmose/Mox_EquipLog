@@ -497,14 +497,14 @@ class ReportsViewModel(
                     if (opType.isPredictable) {
                         val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(eId, oId)
                         if (lastLog != null) {
-                            val predictedDate = maintenanceManager.getOperationPrediction(eId, opType, lastLog, trend)
-                            if (predictedDate != null) {
+                            val predictionResult = maintenanceManager.getOperationPrediction(eId, opType, lastLog, trend)
+                            if (predictionResult != null) {
                                 predictions.add(PredictionDetails(
                                     equipmentId = eId,
                                     equipmentDescription = equip.description,
                                     operationTypeId = oId,
                                     operationTypeDescription = opType.description,
-                                    predictedDate = predictedDate,
+                                    predictedDate = predictionResult.first,
                                     equipmentPhotoUri = equip.photoUri,
                                     equipmentIconIdentifier = equip.iconIdentifier,
                                     operationTypePhotoUri = opType.photoUri,

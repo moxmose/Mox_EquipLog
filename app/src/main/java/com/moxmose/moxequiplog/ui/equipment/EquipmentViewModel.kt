@@ -38,12 +38,17 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class PredictionReason {
+    TIME, USAGE
+}
+
 data class OperationStatus(
     val operation: OperationType,
     val lastLogDate: Long?,
     val lastLogValue: Double?,
     val nextPresumedDate: Long?,
     val isOverdue: Boolean,
+    val reason: PredictionReason? = null,
     val isPlanned: Boolean = false,
     val reminderId: Int? = null,
     val plannedValue: Double? = null,
@@ -247,15 +252,16 @@ class EquipmentViewModel(
             .filter { it.isPredictable && !it.dismissed }
             .mapNotNull { opType ->
                 val lastLogForOp = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
-                val nextPresumedDate = if (lastLogForOp != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend) else null
+                val predictionResult = if (lastLogForOp != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend) else null
                 
-                val prediction = nextPresumedDate?.let {
+                val prediction = predictionResult?.let { (date, reason) ->
                     OperationStatus(
                         operation = opType,
                         lastLogDate = lastLogForOp?.date,
                         lastLogValue = lastLogForOp?.value,
-                        nextPresumedDate = it,
-                        isOverdue = it < now,
+                        nextPresumedDate = date,
+                        isOverdue = date < now,
+                        reason = reason,
                         isPlanned = false
                     )
                 }

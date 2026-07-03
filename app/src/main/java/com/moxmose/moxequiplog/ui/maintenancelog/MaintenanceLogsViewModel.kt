@@ -277,9 +277,10 @@ class MaintenanceLogViewModel(
                 if (!hasManualReminder) {
                     val lastLogForOp = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
                     if (lastLogForOp != null) {
-                        val nextPresumedDate = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend)
+                        val predictionResult = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend)
                         
-                        if (nextPresumedDate != null) {
+                        if (predictionResult != null) {
+                            val (nextPresumedDate, reason) = predictionResult
                             val horizonValue = if (equipment.useCustomUsageWindow) equipment.visibilityHorizon else globalHorizonVal
                             val horizonUnit = if (equipment.useCustomUsageWindow) equipment.visibilityHorizonUnit else globalHorizonUnit
                             val horizonMs = maintenanceManager.getWindowMs(horizonValue.toLong(), horizonUnit)
@@ -293,6 +294,7 @@ class MaintenanceLogViewModel(
                                         lastLogValue = lastLogForOp.value,
                                         nextPresumedDate = nextPresumedDate,
                                         isOverdue = nextPresumedDate < now,
+                                        reason = reason,
                                         isPlanned = false,
                                         equipmentSectionId = eSection?.id,
                                         equipmentSectionName = eSection?.name,

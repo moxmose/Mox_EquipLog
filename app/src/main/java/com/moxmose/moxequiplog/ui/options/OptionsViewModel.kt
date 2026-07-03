@@ -999,7 +999,8 @@ class OptionsViewModel(
                         timeoutUnit = TimeGranularity.DAYS,
                         sectionId = healthSectionId,
                         unitId = 3, // dy
-                        hasValue = false
+                        hasValue = false,
+                        isResettable = true
                     )).toInt()
 
                     val sensorOpId = operationTypeDao.insertOperationType(OperationType(
@@ -1011,15 +1012,28 @@ class OptionsViewModel(
                         timeoutUnit = TimeGranularity.DAYS,
                         sectionId = healthSectionId,
                         unitId = 3, // dy
-                        hasValue = false
+                        hasValue = false,
+                        isResettable = true
                     )).toInt()
 
                     // Recent history for health
                     for (i in 30 downTo 0 step 3) {
-                        logs.add(MaintenanceLog(equipmentId = pumpId, operationTypeId = infusionOpId, value = (30 - i).toDouble(), date = now - (i * AppConstants.MS_PER_DAY)))
+                        logs.add(MaintenanceLog(
+                            equipmentId = pumpId, 
+                            operationTypeId = infusionOpId, 
+                            value = (30 - i).toDouble(), 
+                            date = now - (i * AppConstants.MS_PER_DAY),
+                            resetAfter = true
+                        ))
                     }
                     for (i in 30 downTo 0 step 10) {
-                        logs.add(MaintenanceLog(equipmentId = pumpId, operationTypeId = sensorOpId, value = (30 - i).toDouble(), date = now - (i * AppConstants.MS_PER_DAY)))
+                        logs.add(MaintenanceLog(
+                            equipmentId = pumpId, 
+                            operationTypeId = sensorOpId, 
+                            value = (30 - i).toDouble(), 
+                            date = now - (i * AppConstants.MS_PER_DAY),
+                            resetAfter = true
+                        ))
                     }
                 }
 

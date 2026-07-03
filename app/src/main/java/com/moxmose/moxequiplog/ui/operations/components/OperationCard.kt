@@ -546,6 +546,14 @@ fun OperationTypeCard(
                                                else if (eqStatus.isPlanned) MaterialTheme.colorScheme.secondary 
                                                else MaterialTheme.colorScheme.primary
                                     )
+                                    if (eqStatus.reason != null && !eqStatus.isPlanned) {
+                                        Icon(
+                                            imageVector = if (eqStatus.reason == com.moxmose.moxequiplog.ui.equipment.PredictionReason.TIME) Icons.Default.AccessTime else Icons.Default.BarChart,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(10.dp).padding(start = 2.dp),
+                                            tint = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.width(4.dp))
                                     
                                     val eqColor = remember(eqStatus.equipment.color, categoryColors) {

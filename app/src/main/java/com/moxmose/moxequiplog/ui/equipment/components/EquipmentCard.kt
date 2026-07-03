@@ -515,13 +515,24 @@ fun EquipmentCard(
                                 }
 
                                 if (status != null) {
-                                    val displayValue = status.health.currentSessionValue ?: status.health.lastRecordedValue
-                                    displayValue?.let { valStr ->
+                                    val sessionVal = status.health.currentSessionValue
+                                    val totalVal = status.health.lastRecordedValue
+                                    
+                                    if (sessionVal != null && totalVal != null && sessionVal != totalVal) {
+                                        // Mostriamo sia sessione che totale se differiscono (es. Reset attivo)
                                         Text(
-                                            text = "Last: ${String.format(Locale.US, "%.${decimalPlaces}f", valStr)} $unitLabel",
+                                            text = "S: ${String.format(Locale.US, "%.${decimalPlaces}f", sessionVal)} / T: ${String.format(Locale.US, "%.${decimalPlaces}f", totalVal)} $unitLabel",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                    } else {
+                                        (sessionVal ?: totalVal)?.let { valStr ->
+                                            Text(
+                                                text = "Last: ${String.format(Locale.US, "%.${decimalPlaces}f", valStr)} $unitLabel",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                     
                                     val displayEstimated = status.health.currentSessionEstimated ?: status.health.estimatedCurrentValue
@@ -586,6 +597,14 @@ fun EquipmentCard(
                                                else if (opStatus.isPlanned) MaterialTheme.colorScheme.secondary 
                                                else MaterialTheme.colorScheme.primary
                                     )
+                                    if (opStatus.reason != null && !opStatus.isPlanned) {
+                                        Icon(
+                                            imageVector = if (opStatus.reason == com.moxmose.moxequiplog.ui.equipment.PredictionReason.TIME) Icons.Default.AccessTime else Icons.Default.BarChart,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(10.dp).padding(start = 2.dp),
+                                            tint = if (opStatus.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.width(4.dp))
                                     
                                     val opColor = remember(opStatus.operation.color, categoryColors) {

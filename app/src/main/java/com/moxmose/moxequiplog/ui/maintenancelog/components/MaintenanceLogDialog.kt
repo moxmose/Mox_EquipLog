@@ -143,7 +143,12 @@ fun MaintenanceLogDialog(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteReminderConfirmation by remember { mutableStateOf(false) }
-    var resetAfter by remember(currentLog.resetAfter) { mutableStateOf(currentLog.resetAfter) }
+    var resetAfter by remember(currentLog.resetAfter, selectedOperationType) { 
+        mutableStateOf(
+            if (isEditMode) currentLog.resetAfter 
+            else currentLog.resetAfter || selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID
+        ) 
+    }
     var editedDismissed by remember(currentLog.dismissed, isDismissed) { mutableStateOf(if (isEditMode) isDismissed else currentLog.dismissed) }
 
     var lastCost by remember { mutableStateOf<Double?>(null) }
@@ -395,7 +400,6 @@ fun MaintenanceLogDialog(
                             if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
                         },
                         label = { Text(if (selectedTab == 0) stringResource(R.string.value_optional, unitLabel) else stringResource(R.string.target_value, unitLabel)) },
-                        readOnly = selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         trailingIcon = {
@@ -434,25 +438,24 @@ fun MaintenanceLogDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = isResettable) { 
+                            .clickable { 
                                 resetAfter = !resetAfter
-                                if (resetAfter && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) valueStr = "0"
+                                if (resetAfter && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID && valueStr.isEmpty()) valueStr = "0"
                                 updateLogDraft()
                             },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = resetAfter && isResettable,
+                            checked = resetAfter,
                             onCheckedChange = { 
                                 resetAfter = it 
-                                if (it && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) valueStr = "0"
+                                if (it && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID && valueStr.isEmpty()) valueStr = "0"
                                 updateLogDraft()
-                            },
-                            enabled = isResettable
+                            }
                         )
                         Text(
                             text = stringResource(R.string.reset_counter_after),
-                            color = if (isResettable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 

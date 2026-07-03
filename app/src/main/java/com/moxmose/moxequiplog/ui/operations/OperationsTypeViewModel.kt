@@ -42,6 +42,7 @@ data class EquipmentOperationStatus(
     val lastLogValue: Double?,
     val nextPresumedDate: Long?,
     val isOverdue: Boolean,
+    val reason: com.moxmose.moxequiplog.ui.equipment.PredictionReason? = null,
     val isPlanned: Boolean = false,
     val reminderId: Int? = null,
     val plannedValue: Double? = null,
@@ -179,13 +180,14 @@ class OperationsTypeViewModel(
             val affected = equipments.mapNotNull { equipment ->
                 val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
                 val trend = maintenanceManager.calculateTrend(equipment)
-                val nextPresumedDate = if (lastLog != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend) else null
+                val predictionResult = if (lastLog != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend) else null
                 
-                val prediction = nextPresumedDate?.let {
+                val prediction = predictionResult?.let { (date, reason) ->
                     if (lastLog != null) {
                         calculateEquipmentStatusForOp(equipment, opType, lastLog).copy(
-                            nextPresumedDate = it,
-                            isOverdue = it < now
+                            nextPresumedDate = date,
+                            isOverdue = date < now,
+                            reason = reason
                         )
                     } else null
                 }
@@ -209,6 +211,7 @@ class OperationsTypeViewModel(
                             lastLogValue = lastLog?.value,
                             nextPresumedDate = effectiveDate,
                             isOverdue = effectiveDate?.let { it < now } ?: false,
+                            reason = prediction?.reason,
                             isPlanned = true,
                             reminderId = manualReminder.id,
                             plannedValue = manualReminder.dueValue,
@@ -242,14 +245,15 @@ class OperationsTypeViewModel(
     private suspend fun calculateEquipmentStatusForOp(equipment: Equipment, opType: OperationType, lastLog: MaintenanceLog): EquipmentOperationStatus {
         val now = System.currentTimeMillis()
         val trend = maintenanceManager.calculateTrend(equipment)
-        val nextDate = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend)
+        val predictionResult = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend)
 
         return EquipmentOperationStatus(
             equipment = equipment,
             lastLogDate = lastLog.date,
             lastLogValue = lastLog.value,
-            nextPresumedDate = nextDate,
-            isOverdue = nextDate?.let { it < now } ?: false
+            nextPresumedDate = predictionResult?.first,
+            isOverdue = predictionResult?.let { it.first < now } ?: false,
+            reason = predictionResult?.second
         )
     }
 

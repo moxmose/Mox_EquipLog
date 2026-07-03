@@ -122,7 +122,7 @@ class MaintenanceManager(
         opType: OperationType,
         lastLog: MaintenanceLog,
         trend: Double?
-    ): Long? {
+    ): Pair<Long, com.moxmose.moxequiplog.ui.equipment.PredictionReason>? {
         val datePrediction = opType.timeoutValue?.let { value ->
             opType.timeoutUnit?.let { unit ->
                 val cal = Calendar.getInstance()
@@ -145,30 +145,24 @@ class MaintenanceManager(
 
         val usagePrediction = if (isSameUnit && opType.intervalValue != null && trend != null && trend > 0) {
             val lastValueLog = maintenanceLogDao.getLastValueLogForEquipment(equipmentId)
-            
-            // Il target si calcola sempre rispetto a quando è stata fatta l'ultima manutenzione specifica
-            // (lastLog è l'ultimo log di tipo opType.id per questo equipaggiamento)
             val targetAccumulated = lastLog.accumulatedValue + opType.intervalValue
-            
-            // Il consumo attuale (accumulato) dell'equipaggiamento al momento dell'ultimo log di valore (fallout o altro)
             val currentAccumulated = lastValueLog?.accumulatedValue ?: lastLog.accumulatedValue
-            
             val remainingValue = targetAccumulated - currentAccumulated
-            
-            // Se siamo già oltre la soglia, la data stimata DEVE essere nel passato
-            // daysRemaining sarà negativo, portando la referenceDate all'indietro
             val daysRemaining = remainingValue / trend
-            
-            // Data di riferimento: quando è stata rilevata l'ultima lettura km (es. 130km il 04/05)
             val referenceDate = lastValueLog?.date ?: lastLog.date
             
             referenceDate + (daysRemaining * AppConstants.MS_PER_DAY).toLong()
         } else null
 
         return when {
-            datePrediction != null && usagePrediction != null -> minOf(datePrediction, usagePrediction)
-            datePrediction != null -> datePrediction
-            usagePrediction != null -> usagePrediction
+            datePrediction != null && usagePrediction != null -> {
+                if (datePrediction <= usagePrediction) 
+                    datePrediction to com.moxmose.moxequiplog.ui.equipment.PredictionReason.TIME
+                else 
+                    usagePrediction to com.moxmose.moxequiplog.ui.equipment.PredictionReason.USAGE
+            }
+            datePrediction != null -> datePrediction to com.moxmose.moxequiplog.ui.equipment.PredictionReason.TIME
+            usagePrediction != null -> usagePrediction to com.moxmose.moxequiplog.ui.equipment.PredictionReason.USAGE
             else -> null
         }
     }
