@@ -13,6 +13,7 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.ui.equipment.OperationStatus
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogCard
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import junit.framework.TestCase.assertTrue
@@ -28,13 +29,13 @@ class MaintenanceLogScreenTest {
     val composeTestRule = createComposeRule()
 
     private val dummyEquipments = listOf(Equipment(id = 1, description = "Road Equipment"))
-    private val dummyOps = listOf(OperationType(id = 1, description = "Oil Change"))
+    private val dummyOps = listOf(OperationType(id = 2, description = "Oil Change"))
 
     @Test
     fun maintenanceLogScreen_whenLogsArePresent_displaysLogs() {
         val logs = listOf(
             MaintenanceLogDetails(
-                log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 0L),
+                log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 2, date = 0L),
                 equipmentDescription = "Road Equipment",
                 operationTypeDescription = "Oil Change",
                 equipmentPhotoUri = null,
@@ -48,9 +49,10 @@ class MaintenanceLogScreenTest {
 
         composeTestRule.setContent {
             MaintenanceLogScreenContent(
-                logs = logs,
+                mainLogList = logs,
                 allSections = emptyList(),
                 selectedSectionId = 0,
+                sectionSelectorType = "",
                 onSectionSelected = {},
                 showDismissedSections = false,
                 onToggleShowDismissedSections = {},
@@ -76,6 +78,7 @@ class MaintenanceLogScreenTest {
                 expandedCardId = null,
                 onCardExpanded = { _ -> },
                 editingCardId = null,
+                allDrafts = emptyMap<Int, MaintenanceLog>(),
                 onStartEdit = {},
                 onCancelEdit = {},
                 onUpdateDraft = {},
@@ -85,6 +88,7 @@ class MaintenanceLogScreenTest {
                 onDismissLog = { _ -> },
                 onRestoreLog = { _ -> },
                 activeReminders = emptyList<MaintenanceReminderDetails>(),
+                automaticPredictions = emptyList<Pair<Equipment, OperationStatus>>(),
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultEquipmentId = null,
                 defaultOperationTypeId = null,
@@ -114,9 +118,10 @@ class MaintenanceLogScreenTest {
 
         composeTestRule.setContent {
             MaintenanceLogScreenContent(
-                logs = emptyList<MaintenanceLogDetails>(),
+                mainLogList = emptyList<MaintenanceLogDetails>(),
                 allSections = emptyList(),
                 selectedSectionId = 0,
+                sectionSelectorType = "",
                 onSectionSelected = {},
                 showDismissedSections = false,
                 onToggleShowDismissedSections = {},
@@ -142,6 +147,7 @@ class MaintenanceLogScreenTest {
                 expandedCardId = null,
                 onCardExpanded = { _ -> },
                 editingCardId = null,
+                allDrafts = emptyMap<Int, MaintenanceLog>(),
                 onStartEdit = {},
                 onCancelEdit = {},
                 onUpdateDraft = {},
@@ -151,6 +157,7 @@ class MaintenanceLogScreenTest {
                 onDismissLog = { _ -> },
                 onRestoreLog = { _ -> },
                 activeReminders = emptyList<MaintenanceReminderDetails>(),
+                automaticPredictions = emptyList<Pair<Equipment, OperationStatus>>(),
                 snackbarHostState = remember { SnackbarHostState() },
                 defaultEquipmentId = null,
                 defaultOperationTypeId = null,
@@ -225,14 +232,14 @@ class MaintenanceLogScreenTest {
         composeTestRule.onNodeWithText("Add", ignoreCase = true, substring = true).performClick()
 
         assertEquals(1, confirmedLog.get().equipmentId)
-        assertEquals(1, confirmedLog.get().operationTypeId)
+        assertEquals(2, confirmedLog.get().operationTypeId)
     }
 
     @Test
     fun maintenanceLogCard_onClick_invokesOnExpand() {
         val onCardExpandedCalled = AtomicBoolean(false)
         val log = MaintenanceLogDetails(
-            log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 0L),
+            log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 2, date = 0L),
             equipmentDescription = "Road Equipment",
             operationTypeDescription = "Oil Change",
             equipmentPhotoUri = null,
@@ -270,7 +277,7 @@ class MaintenanceLogScreenTest {
     fun editButton_onClick_invokesOnEdit() {
         val onEditCalled = AtomicBoolean(false)
         val log = MaintenanceLogDetails(
-            log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 1, date = 0L),
+            log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 2, date = 0L),
             equipmentDescription = "Road Equipment",
             operationTypeDescription = "Oil Change",
             equipmentPhotoUri = null,

@@ -56,7 +56,7 @@ class EquipmentsScreenTest {
                 showAddDialog = false,
                 onShowAddDialogChange = {},
                 onCloneEquipment = {},
-                onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
+                onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateEquipments = { _ -> },
                 onUpdateEquipment = { _ -> },
                 onDeleteEquipment = { _ -> },
@@ -78,7 +78,8 @@ class EquipmentsScreenTest {
                 onUpdateDraft = {},
                 onSaveEdit = {},
                 onPredictionAction = { _, _ -> },
-                onPlannedAction = { _, _ -> }
+                onPlannedAction = { _, _ -> },
+                onQuickResetAction = {}
             )
         }
 
@@ -109,7 +110,7 @@ class EquipmentsScreenTest {
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
                 onCloneEquipment = {},
-                onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _ -> },
+                onAddEquipment = { _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateEquipments = { _ -> },
                 onUpdateEquipment = { _ -> },
                 onDeleteEquipment = { _ -> },
@@ -131,7 +132,8 @@ class EquipmentsScreenTest {
                 onUpdateDraft = {},
                 onSaveEdit = {},
                 onPredictionAction = { _, _ -> },
-                onPlannedAction = { _, _ -> }
+                onPlannedAction = { _, _ -> },
+                onQuickResetAction = {}
             )
         }
 
@@ -149,7 +151,7 @@ class EquipmentsScreenTest {
         composeTestRule.setContent {
             AddEquipmentDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, identifier, unitId, _, _, _, _, _, _, _, _, _ ->
+                onConfirm = { desc, identifier, unitId, _, _, _, _, _, _, _, _, _, _ ->
                     addedEquipmentInfo.set(Triple(desc, identifier, unitId)) 
                 },
                 defaultIcon = null,

@@ -70,7 +70,8 @@ class MaintenanceManagerTest {
         val result = maintenanceManager.getOperationPrediction(1, opType, lastLog, null)
         
         val expected = 1000L + (10L * 24 * 60 * 60 * 1000L)
-        assertEquals(expected, result)
+        assertEquals(expected, result?.first)
+        assertEquals(com.moxmose.moxequiplog.ui.equipment.PredictionReason.TIME, result?.second)
     }
 
     @Test
@@ -85,7 +86,8 @@ class MaintenanceManagerTest {
         val result = maintenanceManager.getOperationPrediction(1, opType, lastLog, 1.0)
         
         val expected = 50L * 24 * 60 * 60 * 1000L
-        assertEquals(expected, result)
+        assertEquals(expected, result?.first)
+        assertEquals(com.moxmose.moxequiplog.ui.equipment.PredictionReason.USAGE, result?.second)
     }
 
     @Test
@@ -101,7 +103,8 @@ class MaintenanceManagerTest {
         val result = maintenanceManager.getOperationPrediction(1, opType, lastLog, 1.0)
         
         val expected = 10L * 24 * 60 * 60 * 1000L
-        assertEquals(expected, result)
+        assertEquals(expected, result?.first)
+        assertEquals(com.moxmose.moxequiplog.ui.equipment.PredictionReason.TIME, result?.second)
     }
 
     @Test

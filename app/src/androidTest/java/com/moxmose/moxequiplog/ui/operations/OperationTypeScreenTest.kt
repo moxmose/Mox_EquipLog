@@ -52,7 +52,7 @@ class OperationTypeScreenTest {
                 showAddDialog = false,
                 onShowAddDialogChange = {},
                 onCloneOperationType = {},
-                onAddOperationType = { _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
+                onAddOperationType = { _, _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = { _ -> },
                 onUpdateOperationType = { _ -> },
                 onDeleteOperationType = { _ -> },
@@ -74,7 +74,8 @@ class OperationTypeScreenTest {
                 onToggleDefaultInDraft = {},
                 onUpdateDraft = {},
                 onSaveEdit = {},
-                onAffectedAction = { _, _ -> }
+                onAffectedAction = { _, _ -> },
+                sectionsResettableStatus = emptyMap<Int, Boolean>()
             )
         }
 
@@ -104,7 +105,7 @@ class OperationTypeScreenTest {
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
                 onCloneOperationType = {},
-                onAddOperationType = { _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
+                onAddOperationType = { _, _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = { _ -> },
                 onUpdateOperationType = { _ -> },
                 onDeleteOperationType = { _ -> },
@@ -126,7 +127,8 @@ class OperationTypeScreenTest {
                 onToggleDefaultInDraft = {},
                 onUpdateDraft = {},
                 onSaveEdit = {},
-                onAffectedAction = { _, _ -> }
+                onAffectedAction = { _, _ -> },
+                sectionsResettableStatus = emptyMap<Int, Boolean>()
             )
         }
 
@@ -144,7 +146,7 @@ class OperationTypeScreenTest {
         composeTestRule.setContent {
             AddOperationTypeDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, identifier, _, _, _, _, _, _, _, _, _, _, cost -> 
+                onConfirm = { desc, identifier, _, _, _, _, _, _, _, _, _, _, cost, _ ->
                     addedOperationInfo.set(Triple(desc, identifier, cost)) 
                 },
                 imageLibrary = emptyList<Image>(),
@@ -160,7 +162,8 @@ class OperationTypeScreenTest {
                 defaultPhotoUri = null,
                 onAddImage = { _, _ -> },
                 onToggleImageVisibility = { _ -> },
-                operationCategoryColor = "#808080"
+                operationCategoryColor = "#808080",
+                sectionsResettableStatus = emptyMap<Int, Boolean>()
             )
         }
 
