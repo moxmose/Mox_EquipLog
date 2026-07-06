@@ -220,7 +220,17 @@ class MaintenanceLogViewModel(
         if (sectionId == AppConstants.ALL_SECTIONS_ID) {
             operationTypeDao.getAllOperationTypes()
         } else {
-            operationTypeDao.getAllOperationTypesBySection(sectionId)
+            // Include operations from the specific section PLUS "Common" section operations
+            if (sectionId == AppConstants.DEFAULT_SECTION_ID) {
+                operationTypeDao.getAllOperationTypesBySection(sectionId)
+            } else {
+                combine(
+                    operationTypeDao.getAllOperationTypesBySection(sectionId),
+                    operationTypeDao.getAllOperationTypesBySection(AppConstants.DEFAULT_SECTION_ID)
+                ) { ops, commonOps ->
+                    (ops + commonOps).distinctBy { it.id }.sortedBy { it.displayOrder }
+                }
+            }
         }
     }.stateIn(
         scope = viewModelScope,

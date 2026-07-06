@@ -1,45 +1,13 @@
 package com.moxmose.moxequiplog.ui.maintenancelog
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,22 +15,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.MaintenanceLog
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
-import com.moxmose.moxequiplog.data.local.MaintenanceReminder
-import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
-import com.moxmose.moxequiplog.data.local.MeasurementUnit
-import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.data.local.Section
-import com.moxmose.moxequiplog.ui.components.SectionChipBar
+import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogCard
 import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.components.RemindersDashboard
 import com.moxmose.moxequiplog.ui.maintenancelog.components.PredictionsDashboard
 import com.moxmose.moxequiplog.ui.equipment.OperationStatus
+import com.moxmose.moxequiplog.ui.equipment.EquipmentViewModel
+import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
@@ -70,9 +31,10 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun MaintenanceLogScreen(
     viewModel: MaintenanceLogViewModel = koinViewModel(),
+    equipmentViewModel: EquipmentViewModel = koinViewModel(),
     onNavigateToOptions: () -> Unit = {}
 ) {
-    val logs by viewModel.logs.collectAsState()
+    val mainLogList by viewModel.logs.collectAsState()
     val activeReminders by viewModel.activeReminders.collectAsState()
     val automaticPredictions by viewModel.automaticPredictions.collectAsState()
     val allSections by viewModel.allSections.collectAsState()
@@ -92,6 +54,8 @@ fun MaintenanceLogScreen(
     val googleAccountName by viewModel.googleAccountName.collectAsState()
     val costTrendThreshold by viewModel.costTrendThreshold.collectAsState()
     
+    val quickResetEquipmentId by equipmentViewModel.quickResetEquipmentId.collectAsState()
+
     val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
     val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
 
@@ -134,8 +98,8 @@ fun MaintenanceLogScreen(
     val operationTypesToShow = remember(allOperationTypes, showDismissed, showDismissedSections, allSections) {
         val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
         allOperationTypes.filter { 
-            (showDismissed || !it.dismissed) && 
-            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+            (showDismissed || !it.dismissed || it.isSystem) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds || it.isSystem)
         }.sortedBy { it.displayOrder }
     }
 
@@ -235,7 +199,7 @@ fun MaintenanceLogScreen(
                     log.value, 
                     log.date, 
                     log.color, 
-                    log.resetAfter,
+                    log.resetAfter, 
                     log.cost,
                     log.isUnplanned
                 )
@@ -265,8 +229,47 @@ fun MaintenanceLogScreen(
         )
     }
 
+    if (quickResetEquipmentId != null) {
+        MaintenanceLogDialog(
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
+            measurementUnits = measurementUnits,
+            allSections = allSections,
+            onDismissRequest = { equipmentViewModel.onQuickResetAction(null) },
+            onConfirm = { log ->
+                viewModel.addLog(
+                    log.equipmentId, 
+                    log.operationTypeId, 
+                    log.notes, 
+                    log.value, 
+                    log.date, 
+                    log.color, 
+                    log.resetAfter,
+                    log.cost,
+                    log.isUnplanned
+                )
+                equipmentViewModel.onQuickResetAction(null)
+            },
+            onEstimateDueDate = viewModel::estimateDueDate,
+            onEstimateTargetValue = viewModel::estimateTargetValue,
+            defaultEquipmentId = quickResetEquipmentId,
+            defaultOperationTypeId = AppConstants.SYSTEM_OPERATION_RESET_ID,
+            initialValue = "",
+            equipmentCategoryColor = equipmentColor,
+            operationCategoryColor = operationColor,
+            syncCalendarByDefault = syncCalendarByDefault,
+            googleAccountName = googleAccountName,
+            costTrendThreshold = costTrendThreshold,
+            onNavigateToOptions = onNavigateToOptions,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = viewModel::updateLogAddDraft,
+            onUpdateReminderDraft = viewModel::updateReminderAddDraft
+        )
+    }
+
     MaintenanceLogScreenContent(
-        logs = logs,
+        mainLogList = mainLogList,
         allSections = allSections,
         selectedSectionId = selectedSectionId,
         sectionSelectorType = sectionSelectorType,
@@ -328,10 +331,10 @@ fun MaintenanceLogScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MaintenanceLogScreenContent(
-    logs: List<MaintenanceLogDetails>,
+    mainLogList: List<MaintenanceLogDetails>,
     allSections: List<Section>,
     selectedSectionId: Int,
-    sectionSelectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE,
+    sectionSelectorType: String,
     onSectionSelected: (Int) -> Unit,
     showDismissedSections: Boolean,
     onToggleShowDismissedSections: () -> Unit,
@@ -357,7 +360,7 @@ fun MaintenanceLogScreenContent(
     expandedCardId: Int?,
     onCardExpanded: (Int) -> Unit,
     editingCardId: Int?,
-    allDrafts: Map<Int, MaintenanceLog> = emptyMap(),
+    allDrafts: Map<Int, MaintenanceLog>,
     onStartEdit: (MaintenanceLog) -> Unit,
     onCancelEdit: (Int) -> Unit,
     onUpdateDraft: (MaintenanceLog) -> Unit,
@@ -366,9 +369,8 @@ fun MaintenanceLogScreenContent(
     onDeleteLog: (MaintenanceLog) -> Unit,
     onDismissLog: (MaintenanceLog) -> Unit,
     onRestoreLog: (MaintenanceLog) -> Unit,
-    modifier: Modifier = Modifier,
-    activeReminders: List<MaintenanceReminderDetails> = emptyList(),
-    automaticPredictions: List<Pair<Equipment, OperationStatus>> = emptyList(),
+    activeReminders: List<MaintenanceReminderDetails>,
+    automaticPredictions: List<Pair<Equipment, OperationStatus>>,
     snackbarHostState: SnackbarHostState,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
@@ -384,7 +386,8 @@ fun MaintenanceLogScreenContent(
     reminderAddDraft: MaintenanceReminder?,
     onUpdateLogDraft: (MaintenanceLog) -> Unit,
     onUpdateReminderDraft: (MaintenanceReminder) -> Unit,
-    onNavigateToOptions: () -> Unit
+    onNavigateToOptions: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -397,7 +400,7 @@ fun MaintenanceLogScreenContent(
                 FloatingActionButton(onClick = { onShowAddDialogChange(true) }) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_log))
                 }
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 FloatingActionButton(
                     onClick = onShowDismissedToggle,
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -410,7 +413,7 @@ fun MaintenanceLogScreenContent(
             }
         }
     ) { paddingValues ->
-        Column(Modifier.padding(paddingValues).fillMaxSize()) {
+        Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             UnifiedSectionSelector(
                 allSections = allSections,
                 selectedSectionId = selectedSectionId,
@@ -492,41 +495,40 @@ fun MaintenanceLogScreenContent(
                     onValueChange = onSearchQueryChange,
                     label = { Text(stringResource(R.string.search_logs)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_logs)) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1.0f),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
                     )
                 )
 
-                Box {
-                    IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort_by))
-                    }
-                    DropdownMenu(
-                        expanded = showSortMenu,
-                        onDismissRequest = { showSortMenu = false }
-                    ) {
-                        SortProperty.entries.forEach { prop ->
-                            DropdownMenuItem(
-                                text = { 
-                                    val label = when (prop) {
-                                        SortProperty.VALUE -> stringResource(R.string.measurement_unit)
-                                        else -> prop.name.lowercase().replaceFirstChar { it.titlecase() }
-                                    }
-                                    Text(label) 
-                                },
-                                onClick = {
-                                    onSortPropertyChange(prop)
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (sortProperty == prop) {
-                                        Icon(Icons.Default.Check, contentDescription = stringResource(R.string.selected_content_desc))
-                                    }
+                IconButton(onClick = { showSortMenu = true }) {
+                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort_by))
+                }
+                
+                DropdownMenu(
+                    expanded = showSortMenu,
+                    onDismissRequest = { showSortMenu = false }
+                ) {
+                    SortProperty.entries.forEach { prop ->
+                        DropdownMenuItem(
+                            text = { 
+                                val label = when (prop) {
+                                    SortProperty.VALUE -> stringResource(R.string.measurement_unit)
+                                    else -> prop.name.lowercase().replaceFirstChar { it.titlecase() }
                                 }
-                            )
-                        }
+                                Text(label) 
+                            },
+                            onClick = {
+                                onSortPropertyChange(prop)
+                                showSortMenu = false
+                            },
+                            leadingIcon = {
+                                if (sortProperty == prop) {
+                                    Icon(Icons.Default.Check, contentDescription = stringResource(R.string.selected_content_desc))
+                                }
+                            }
+                        )
                     }
                 }
 
@@ -538,7 +540,7 @@ fun MaintenanceLogScreenContent(
                 }
             }
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(8.dp)) {
-                items(logs, key = { it.log.id }) { logDetail ->
+                items(mainLogList, key = { it.log.id }) { logDetail ->
                     MaintenanceLogCard(
                         logDetail = logDetail,
                         equipments = equipments,

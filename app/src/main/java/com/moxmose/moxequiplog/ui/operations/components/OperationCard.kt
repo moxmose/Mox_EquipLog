@@ -76,6 +76,7 @@ fun OperationTypeCard(
     expandAllTrigger: Int = 0,
     collapseAllTrigger: Int = 0,
     draft: OperationTypeDraft? = null,
+    sectionsResettableStatus: Map<Int, Boolean> = emptyMap(),
     onStartEdit: () -> Unit = {},
     onCancelEdit: () -> Unit = {},
     onUpdateDraft: (OperationTypeDraft) -> Unit = {},
@@ -106,14 +107,22 @@ fun OperationTypeCard(
     var editedVisibilityHorizonUnit by remember(currentOperationType.visibilityHorizonUnit) { mutableStateOf(currentOperationType.visibilityHorizonUnit) }
     var editedEstimatedCostStr by remember(currentOperationType.estimatedCost) { mutableStateOf(currentOperationType.estimatedCost?.toString() ?: "") }
 
+    // Helper to update draft
+    val updateDraft = { updated: OperationTypeDraft -> if (isEditing) onUpdateDraft(updated) }
+
+    LaunchedEffect(editedSectionId, sectionsResettableStatus) {
+        val show = editedSectionId == AppConstants.DEFAULT_SECTION_ID || sectionsResettableStatus[editedSectionId] == true
+        if (!show && editedIsResettable) {
+            editedIsResettable = false
+            draft?.let { updateDraft(it.copy(operationType = it.operationType.copy(isResettable = false))) }
+        }
+    }
+
     val context = LocalContext.current
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
-
-    // Helper to update draft
-    val updateDraft = { updated: OperationTypeDraft -> if (isEditing) onUpdateDraft(updated) }
 
     if (showDeleteConfirmation) {
         AlertDialog(
@@ -274,15 +283,21 @@ fun OperationTypeCard(
                             textStyle = MaterialTheme.typography.bodySmall
                         )
 
-                        Row(modifier = Modifier.fillMaxWidth().clickable { 
-                            editedIsResettable = !editedIsResettable
-                            updateDraft(draft.copy(operationType = draft.operationType.copy(isResettable = editedIsResettable)))
-                        }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
-                            Checkbox(checked = editedIsResettable, onCheckedChange = { 
-                                editedIsResettable = it
-                                updateDraft(draft.copy(operationType = draft.operationType.copy(isResettable = it)))
-                            })
-                            Text(text = stringResource(R.string.operation_is_resettable), style = MaterialTheme.typography.bodyMedium) 
+                        val showResettableCheckbox = remember(editedSectionId, sectionsResettableStatus) {
+                            editedSectionId == AppConstants.DEFAULT_SECTION_ID || sectionsResettableStatus[editedSectionId] == true
+                        }
+
+                        if (showResettableCheckbox) {
+                            Row(modifier = Modifier.fillMaxWidth().clickable { 
+                                editedIsResettable = !editedIsResettable
+                                updateDraft(draft.copy(operationType = draft.operationType.copy(isResettable = editedIsResettable)))
+                            }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                                Checkbox(checked = editedIsResettable, onCheckedChange = { 
+                                    editedIsResettable = it
+                                    updateDraft(draft.copy(operationType = draft.operationType.copy(isResettable = it)))
+                                })
+                                Text(text = stringResource(R.string.operation_is_resettable), style = MaterialTheme.typography.bodyMedium) 
+                            }
                         }
 
                         Row(modifier = Modifier.fillMaxWidth().clickable { 

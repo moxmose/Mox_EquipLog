@@ -145,6 +145,7 @@ fun EquipmentScreen(
     val cloningEquipment by viewModel.cloningEquipment.collectAsState()
     val selectedPredictionForAdd by viewModel.selectedPredictionForAdd.collectAsState()
     val selectedPlannedForEdit by viewModel.selectedPlannedForEdit.collectAsState()
+    val quickResetEquipmentId by viewModel.quickResetEquipmentId.collectAsState()
     val logAddDraft by logsViewModel.logAddDraft.collectAsState()
     val reminderAddDraft by logsViewModel.reminderAddDraft.collectAsState()
 
@@ -297,6 +298,48 @@ fun EquipmentScreen(
         )
     }
 
+    if (quickResetEquipmentId != null) {
+        val eqId = quickResetEquipmentId!!
+        val equipment = equipmentsToShow.find { it.id == eqId }
+        if (equipment != null) {
+            MaintenanceLogDialog(
+                equipments = equipmentsToShow,
+                operationTypes = allOperationTypes,
+                measurementUnits = measurementUnits,
+                allSections = allSections,
+                onDismissRequest = { viewModel.onQuickResetAction(null) },
+                onConfirm = { log ->
+                    logsViewModel.addLog(
+                        log.equipmentId, 
+                        log.operationTypeId, 
+                        log.notes, 
+                        log.value, 
+                        log.date, 
+                        log.color, 
+                        log.resetAfter,
+                        log.cost,
+                        log.isUnplanned
+                    )
+                    viewModel.onQuickResetAction(null)
+                },
+                defaultEquipmentId = eqId,
+                defaultOperationTypeId = AppConstants.SYSTEM_OPERATION_RESET_ID,
+                initialDate = System.currentTimeMillis(),
+                initialValue = equipmentStatuses[eqId]?.health?.estimatedCurrentValue?.let { 
+                    String.format(Locale.US, "%.${measurementUnits.find { it.id == equipment.unitId }?.decimalPlaces ?: 0}f", it) 
+                } ?: "",
+                equipmentCategoryColor = categoryColor,
+                operationCategoryColor = categoryColorsMap[Category.OPERATION],
+                syncCalendarByDefault = syncCalendarByDefault,
+                googleAccountName = googleAccountName,
+                logDraft = logAddDraft,
+                reminderDraft = reminderAddDraft,
+                onUpdateLogDraft = logsViewModel::updateLogAddDraft,
+                onUpdateReminderDraft = logsViewModel::updateReminderAddDraft
+            )
+        }
+    }
+
     EquipmentScreenContent(
         equipments = equipmentsToShow,
         equipmentImages = equipmentImages,
@@ -342,7 +385,8 @@ fun EquipmentScreen(
         onUpdateDraft = viewModel::updateDraft,
         onSaveEdit = viewModel::saveEditing,
         onPredictionAction = viewModel::onPredictionAction,
-        onPlannedAction = viewModel::onPlannedAction
+        onPlannedAction = viewModel::onPlannedAction,
+        onQuickResetAction = viewModel::onQuickResetAction
     )
 }
 
@@ -368,7 +412,7 @@ fun EquipmentScreenContent(
     cloningEquipment: Equipment? = null,
     onShowAddDialogChange: (Boolean) -> Unit,
     onCloneEquipment: (Equipment) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?, Int, Int, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int, Int, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean, Boolean) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
     onDeleteEquipment: (Equipment) -> Unit,
@@ -394,6 +438,7 @@ fun EquipmentScreenContent(
     onSaveEdit: (EquipmentDraft) -> Unit,
     onPredictionAction: (Int, OperationStatus) -> Unit,
     onPlannedAction: (Int, OperationStatus) -> Unit,
+    onQuickResetAction: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
@@ -438,8 +483,8 @@ fun EquipmentScreenContent(
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier, unitId, sectionId, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon ->
-                    onAddEquipment(desc, identifier, unitId, sectionId, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon)
+                onConfirm = { desc, identifier, unitId, sectionId, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon, isResettable ->
+                    onAddEquipment(desc, identifier, unitId, sectionId, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon, isResettable)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
@@ -531,7 +576,13 @@ fun EquipmentScreenContent(
                             else onToggleDefault(equipment.id)
                         },
                         status = equipmentStatuses[equipment.id],
-                        onPredictionAction = { onPredictionAction(equipment.id, it) },
+                        onPredictionAction = { 
+                            if (it.operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                onQuickResetAction(equipment.id)
+                            } else {
+                                onPredictionAction(equipment.id, it)
+                            }
+                        },
                         onPlannedAction = { onPlannedAction(equipment.id, it) },
                         categoryColors = categoryColors,
                         categoryDefaultIcons = categoryDefaultIcons,

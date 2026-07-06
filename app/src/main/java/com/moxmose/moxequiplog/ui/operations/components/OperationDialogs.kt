@@ -56,6 +56,7 @@ fun AddOperationTypeDialog(
     onToggleImageVisibility: (Image) -> Unit,
     operationCategoryColor: String,
     initialOperationType: OperationType? = null,
+    sectionsResettableStatus: Map<Int, Boolean> = emptyMap(),
     draft: OperationTypeDraft? = null,
     onUpdateDraft: (OperationTypeDraft) -> Unit = {}
 ) {
@@ -94,15 +95,23 @@ fun AddOperationTypeDialog(
     var timeoutValueStr by remember(currentOperationType.timeoutValue) { mutableStateOf(currentOperationType.timeoutValue?.toString() ?: "") }
     var timeoutUnit by remember(currentOperationType.timeoutUnit) { mutableStateOf(currentOperationType.timeoutUnit ?: TimeGranularity.MONTHS) }
     
+    // Helper to update draft
+    val updateDraft = { updated: OperationType -> onUpdateDraft(OperationTypeDraft(operationType = updated, isDefault = draft?.isDefault ?: false)) }
+
+    LaunchedEffect(sectionId, sectionsResettableStatus) {
+        val show = sectionId == AppConstants.DEFAULT_SECTION_ID || sectionsResettableStatus[sectionId] == true
+        if (!show && isResettable) {
+            isResettable = false
+            updateDraft(currentOperationType.copy(isResettable = false))
+        }
+    }
+
     var useCustomVisibilityHorizon by remember(currentOperationType.useCustomVisibilityHorizon) { mutableStateOf(currentOperationType.useCustomVisibilityHorizon) }
     var visibilityHorizon by remember(currentOperationType.visibilityHorizon) { mutableIntStateOf(currentOperationType.visibilityHorizon) }
     var visibilityHorizonUnit by remember(currentOperationType.visibilityHorizonUnit) { mutableStateOf(currentOperationType.visibilityHorizonUnit) }
 
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
-
-    // Helper to update draft
-    val updateDraft = { updated: OperationType -> onUpdateDraft(OperationTypeDraft(operationType = updated, isDefault = draft?.isDefault ?: false)) }
 
     if (showImageSelectorDialog) {
         ImagePickerDialog(
@@ -200,15 +209,25 @@ fun AddOperationTypeDialog(
                     }
                 }
 
-                Row(modifier = Modifier.fillMaxWidth().clickable { 
-                    isResettable = !isResettable
-                    updateDraft(currentOperationType.copy(isResettable = isResettable))
-                }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
-                    Checkbox(checked = isResettable, onCheckedChange = { 
-                        isResettable = it 
-                        updateDraft(currentOperationType.copy(isResettable = it))
-                    })
-                    Text(text = stringResource(R.string.operation_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                val showResettableCheckbox = remember(sectionId, sectionsResettableStatus) {
+                    sectionId == AppConstants.DEFAULT_SECTION_ID || sectionsResettableStatus[sectionId] == true
+                }
+
+                if (showResettableCheckbox) {
+                    Row(modifier = Modifier.fillMaxWidth().clickable { 
+                        isResettable = !isResettable
+                        updateDraft(currentOperationType.copy(isResettable = isResettable))
+                    }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                        Checkbox(checked = isResettable, onCheckedChange = { 
+                            isResettable = it 
+                            updateDraft(currentOperationType.copy(isResettable = it))
+                        })
+                        Text(text = stringResource(R.string.operation_is_resettable), style = MaterialTheme.typography.bodyMedium)
+                    }
+                } else if (isResettable) {
+                    // Reset if hidden
+                    isResettable = false
+                    updateDraft(currentOperationType.copy(isResettable = false))
                 }
 
                 Row(modifier = Modifier.fillMaxWidth().clickable { 

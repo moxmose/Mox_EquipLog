@@ -987,7 +987,8 @@ class OptionsViewModel(
                         description = "Insulin Pump (Demo)",
                         unitId = 3, // 4 un (Change to 2 for hh, 3 for dy)
                         sectionId = healthSectionId,
-                        color = "#FFE91E63"
+                        color = "#FFE91E63",
+                        isResettable = true
                     )).toInt()
 
                     val infusionOpId = operationTypeDao.insertOperationType(OperationType(

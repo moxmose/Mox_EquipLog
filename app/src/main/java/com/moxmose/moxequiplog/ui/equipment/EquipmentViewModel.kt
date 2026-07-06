@@ -122,6 +122,9 @@ class EquipmentViewModel(
     private val _selectedPlannedForEdit = MutableStateFlow<Pair<Int, OperationStatus>?>(null)
     val selectedPlannedForEdit = _selectedPlannedForEdit.asStateFlow()
 
+    private val _quickResetEquipmentId = MutableStateFlow<Int?>(null)
+    val quickResetEquipmentId = _quickResetEquipmentId.asStateFlow()
+
     fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
     fun onShowAddDialogChange(show: Boolean) { 
         _showAddDialog.value = show 
@@ -139,6 +142,7 @@ class EquipmentViewModel(
     }
     fun onPredictionAction(eqId: Int, status: OperationStatus?) { _selectedPredictionForAdd.value = if (status != null) eqId to status else null }
     fun onPlannedAction(eqId: Int, status: OperationStatus?) { _selectedPlannedForEdit.value = if (status != null) eqId to status else null }
+    fun onQuickResetAction(eqId: Int?) { _quickResetEquipmentId.value = eqId }
 
     val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
         .stateIn(
@@ -442,7 +446,8 @@ class EquipmentViewModel(
         visibilityHorizon: Int = 30,
         visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
         useCustomUsageWindow: Boolean = false,
-        useCustomVisibilityHorizon: Boolean = false
+        useCustomVisibilityHorizon: Boolean = false,
+        isResettable: Boolean = false
     ) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
@@ -485,7 +490,8 @@ class EquipmentViewModel(
                         visibilityHorizon = visibilityHorizon,
                         visibilityHorizonUnit = visibilityHorizonUnit,
                         useCustomUsageWindow = useCustomUsageWindow,
-                        useCustomVisibilityHorizon = useCustomVisibilityHorizon
+                        useCustomVisibilityHorizon = useCustomVisibilityHorizon,
+                        isResettable = isResettable
                     )
                 )
             } catch (e: Exception) {

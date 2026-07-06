@@ -94,7 +94,7 @@ fun MaintenanceLogDialog(
     )
 
     var notes by remember(currentLog.notes) { mutableStateOf(currentLog.notes ?: "") }
-    var valueStr by remember(currentLog.value, currentReminder.dueValue) { 
+    var valueStr by remember(currentLog.value, currentReminder.dueValue, initialValue) { 
         mutableStateOf(if (selectedTab == 0) currentLog.value?.toString() ?: initialValue else currentReminder.dueValue?.toString() ?: initialValue) 
     }
     var costStr by remember(currentLog.cost) { mutableStateOf(currentLog.cost?.toString() ?: initialCost) }
@@ -103,23 +103,29 @@ fun MaintenanceLogDialog(
         mutableStateOf(initialSyncToCalendar ?: syncCalendarByDefault) 
     }
     
-    var selectedEquipment by remember(currentLog.equipmentId, currentReminder.equipmentId, equipments) { 
+    var selectedEquipment by remember(currentLog.equipmentId, currentReminder.equipmentId, equipments, defaultEquipmentId) { 
         val id = if (selectedTab == 0) currentLog.equipmentId else currentReminder.equipmentId
         mutableStateOf(equipments.find { it.id == (if (id == 0) defaultEquipmentId else id) } ?: equipments.find { it.id == defaultEquipmentId }) 
     }
-    var selectedOperationType by remember(currentLog.operationTypeId, currentReminder.operationTypeId, operationTypes) { 
+    var selectedOperationType by remember(currentLog.operationTypeId, currentReminder.operationTypeId, operationTypes, defaultOperationTypeId) { 
         val id = if (selectedTab == 0) currentLog.operationTypeId else currentReminder.operationTypeId
         mutableStateOf(operationTypes.find { it.id == (if (id == 0) defaultOperationTypeId else id) } ?: operationTypes.find { it.id == defaultOperationTypeId }) 
     }
 
     val filteredEquipments = remember(selectedOperationType, equipments) {
         if (selectedOperationType == null) equipments
-        else equipments.filter { it.sectionId == selectedOperationType?.sectionId || it.sectionId == AppConstants.DEFAULT_SECTION_ID || selectedOperationType?.sectionId == AppConstants.DEFAULT_SECTION_ID }
+        else equipments.filter { 
+            (it.sectionId == selectedOperationType?.sectionId || it.sectionId == AppConstants.DEFAULT_SECTION_ID || selectedOperationType?.sectionId == AppConstants.DEFAULT_SECTION_ID) &&
+            (selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID || it.isResettable)
+        }
     }
 
     val filteredOperationTypes = remember(selectedEquipment, operationTypes) {
         if (selectedEquipment == null) operationTypes
-        else operationTypes.filter { it.sectionId == selectedEquipment?.sectionId || it.sectionId == AppConstants.DEFAULT_SECTION_ID || selectedEquipment?.sectionId == AppConstants.DEFAULT_SECTION_ID }
+        else operationTypes.filter { 
+            (it.sectionId == selectedEquipment?.sectionId || it.sectionId == AppConstants.DEFAULT_SECTION_ID || selectedEquipment?.sectionId == AppConstants.DEFAULT_SECTION_ID) &&
+            (it.id != AppConstants.SYSTEM_OPERATION_RESET_ID || selectedEquipment?.isResettable == true)
+        }
     }
 
     val unit = remember(selectedOperationType, selectedEquipment, measurementUnits) {
@@ -143,10 +149,12 @@ fun MaintenanceLogDialog(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteReminderConfirmation by remember { mutableStateOf(false) }
-    var resetAfter by remember(currentLog.resetAfter, selectedOperationType) { 
+    
+    var resetAfter by remember(currentLog.resetAfter, selectedOperationType, selectedEquipment) { 
+        val canReset = selectedEquipment?.isResettable == true
         mutableStateOf(
             if (isEditMode) currentLog.resetAfter 
-            else currentLog.resetAfter || selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID
+            else canReset && (currentLog.resetAfter || selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID)
         ) 
     }
     var editedDismissed by remember(currentLog.dismissed, isDismissed) { mutableStateOf(if (isEditMode) isDismissed else currentLog.dismissed) }
@@ -340,11 +348,11 @@ fun MaintenanceLogDialog(
                     allSections = allSections,
                     onItemSelected = { equipment ->
                         selectedEquipment = equipment
-                        if (selectedOperationType?.isSystem == true && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
-                            // Allowed
-                        }
-                        if (selectedOperationType?.isResettable != true && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                        val canReset = equipment.isResettable
+                        if (!canReset) {
                             resetAfter = false
+                        } else if (selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                            resetAfter = true
                         }
                         if (selectedTab == 0) updateLogDraft() else updateReminderDraft()
                     },
@@ -364,9 +372,10 @@ fun MaintenanceLogDialog(
                     allSections = allSections,
                     onItemSelected = { operation ->
                         selectedOperationType = operation
-                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID || operation.isResettable) {
+                        val canReset = selectedEquipment?.isResettable == true
+                        if (canReset && (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID || operation.isResettable)) {
                             resetAfter = true
-                            if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) valueStr = "0"
+                            if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID && valueStr.isEmpty()) valueStr = "0"
                         } else {
                             resetAfter = false
                         }
@@ -382,6 +391,8 @@ fun MaintenanceLogDialog(
                 )
 
                 if (selectedOperationType?.hasValue != false || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                    val showResetCheckbox = selectedEquipment?.isResettable == true
+                    
                     OutlinedTextField(
                         value = valueStr,
                         onValueChange = { input ->
@@ -431,34 +442,35 @@ fun MaintenanceLogDialog(
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    if (selectedTab == 0 && showResetCheckbox) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    resetAfter = !resetAfter
+                                    if (resetAfter && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID && valueStr.isEmpty()) valueStr = "0"
+                                    updateLogDraft()
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = resetAfter,
+                                onCheckedChange = { 
+                                    resetAfter = it 
+                                    if (it && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID && valueStr.isEmpty()) valueStr = "0"
+                                    updateLogDraft()
+                                }
+                            )
+                            Text(
+                                text = stringResource(R.string.reset_counter_after),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
                 }
 
                 if (selectedTab == 0) {
-                    val isResettable = selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { 
-                                resetAfter = !resetAfter
-                                if (resetAfter && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID && valueStr.isEmpty()) valueStr = "0"
-                                updateLogDraft()
-                            },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = resetAfter,
-                            onCheckedChange = { 
-                                resetAfter = it 
-                                if (it && selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID && valueStr.isEmpty()) valueStr = "0"
-                                updateLogDraft()
-                            }
-                        )
-                        Text(
-                            text = stringResource(R.string.reset_counter_after),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
                     OutlinedTextField(
                         value = costStr,
                         onValueChange = { input ->

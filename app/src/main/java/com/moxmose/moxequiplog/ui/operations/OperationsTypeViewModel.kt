@@ -134,6 +134,23 @@ class OperationsTypeViewModel(
     val sectionSelectorType: StateFlow<String> = appSettingsManager.sectionSelectorType
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_SECTION_SELECTOR_TYPE)
 
+    val sectionsResettableStatus: StateFlow<Map<Int, Boolean>> = equipmentDao.getAllEquipmentList()
+        .map { equipments ->
+            val statusMap = equipments.groupBy { it.sectionId }
+                .mapValues { (_, sectionEquips) ->
+                    sectionEquips.any { it.isResettable }
+                }.toMutableMap()
+            
+            // The "Common" section allows resettable operations if ANY equipment in the app is resettable
+            statusMap[AppConstants.DEFAULT_SECTION_ID] = equipments.any { it.isResettable }
+            statusMap
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyMap()
+        )
+
     fun onSectionSelected(sectionId: Int) {
         viewModelScope.launch {
             appSettingsManager.setSelectedSectionId(sectionId)

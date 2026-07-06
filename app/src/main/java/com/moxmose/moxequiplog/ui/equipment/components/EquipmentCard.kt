@@ -109,6 +109,7 @@ fun EquipmentCard(
     var editedUseCustomVisibilityHorizon by remember(currentEquipment.useCustomVisibilityHorizon) { mutableStateOf(currentEquipment.useCustomVisibilityHorizon) }
     var editedVisibilityHorizon by remember(currentEquipment.visibilityHorizon) { mutableIntStateOf(currentEquipment.visibilityHorizon) }
     var editedVisibilityHorizonUnit by remember(currentEquipment.visibilityHorizonUnit) { mutableStateOf(currentEquipment.visibilityHorizonUnit) }
+    var editedIsResettable by remember(currentEquipment.isResettable) { mutableStateOf(currentEquipment.isResettable) }
     
     var showFullImageDialog by remember { mutableStateOf<String?>(null) }
     var showNoPictureDialog by remember { mutableStateOf(false) }
@@ -254,6 +255,17 @@ fun EquipmentCard(
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Row(modifier = Modifier.fillMaxWidth().clickable { 
+                            editedIsResettable = !editedIsResettable
+                            updateDraft(draft.copy(equipment = draft.equipment.copy(isResettable = editedIsResettable)))
+                        }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                            Checkbox(checked = editedIsResettable, onCheckedChange = { 
+                                editedIsResettable = it
+                                updateDraft(draft.copy(equipment = draft.equipment.copy(isResettable = it)))
+                            })
+                            Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium) 
+                        }
 
                         HorizontalDivider()
 
@@ -514,6 +526,20 @@ fun EquipmentCard(
                                     }
                                 }
 
+                                if (equipment.isResettable) {
+                                    Icon(
+                                        imageVector = Icons.Default.RestartAlt,
+                                        contentDescription = "Quick Reset",
+                                        modifier = Modifier.size(18.dp).clickable {
+                                            onPredictionAction(OperationStatus(
+                                                operation = OperationType(id = AppConstants.SYSTEM_OPERATION_RESET_ID, description = "Reset UoM"),
+                                                lastLogDate = null, lastLogValue = null, nextPresumedDate = null, isOverdue = false
+                                            ))
+                                        },
+                                        tint = equipmentColor
+                                    )
+                                }
+
                                 if (status != null) {
                                     val sessionVal = status.health.currentSessionValue
                                     val totalVal = status.health.lastRecordedValue
@@ -537,12 +563,14 @@ fun EquipmentCard(
                                     
                                     val displayEstimated = status.health.currentSessionEstimated ?: status.health.estimatedCurrentValue
                                     displayEstimated?.let { estStr ->
-                                        Text(
-                                            text = "Now (est): ${String.format(Locale.US, "%.${decimalPlaces}f", estStr)} $unitLabel",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = equipmentColor,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = "Now (est): ${String.format(Locale.US, "%.${decimalPlaces}f", estStr)} $unitLabel",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = equipmentColor,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
                             }

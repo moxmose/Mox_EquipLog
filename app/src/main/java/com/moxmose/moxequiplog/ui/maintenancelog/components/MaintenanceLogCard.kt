@@ -250,10 +250,14 @@ fun MaintenanceLogCard(
                             } else {
                                 updateDraft(draft.copy(equipmentId = equipment.id))
                             }
-                            // Reset is allowed only if operation type allows it
-                            if (selectedOperationType?.isResettable != true) {
+                            
+                            val canReset = equipment.isResettable
+                            if (!canReset && editedResetAfter) {
                                 editedResetAfter = false
                                 updateDraft(draft.copy(resetAfter = false))
+                            } else if (canReset && (selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID)) {
+                                editedResetAfter = true
+                                updateDraft(draft.copy(resetAfter = true))
                             }
                         },
                         itemDescription = { it.description.takeIf { d -> d.isNotBlank() } ?: stringResource(R.string.id_no_description, it.id) },
@@ -273,7 +277,8 @@ fun MaintenanceLogCard(
                         onItemSelected = { operation ->
                             selectedOperationType = operation
                             updateDraft(draft.copy(operationTypeId = operation.id))
-                            if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID || operation.isResettable) {
+                            val canReset = selectedEquipment?.isResettable == true
+                            if (canReset && (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID || operation.isResettable)) {
                                 editedResetAfter = true
                                 updateDraft(draft.copy(resetAfter = true))
                             } else {
@@ -325,27 +330,27 @@ fun MaintenanceLogCard(
                         )
                     }
                     
-                    val isResettable = selectedOperationType?.isResettable == true || selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID
+                    val canReset = selectedEquipment?.isResettable == true
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = isResettable) { 
+                            .clickable(enabled = canReset) { 
                                 editedResetAfter = !editedResetAfter 
                                 updateDraft(draft.copy(resetAfter = editedResetAfter))
                             },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = editedResetAfter && isResettable,
+                            checked = editedResetAfter && canReset,
                             onCheckedChange = { 
                                 editedResetAfter = it
                                 updateDraft(draft.copy(resetAfter = it))
                             },
-                            enabled = isResettable
+                            enabled = canReset
                         )
                         Text(
                             text = stringResource(R.string.reset_counter_after),
-                            color = if (isResettable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            color = if (canReset) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         )
                     }
 

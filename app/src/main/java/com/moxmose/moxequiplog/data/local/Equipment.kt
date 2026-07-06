@@ -57,5 +57,7 @@ data class Equipment(
     val useCustomUsageWindow: Boolean = false,
     @ColumnInfo(defaultValue = "0")
     val useCustomVisibilityHorizon: Boolean = false,
+    @ColumnInfo(defaultValue = "0")
+    val isResettable: Boolean = false,
     val estimatedCostPerUnit: Double? = null
 )

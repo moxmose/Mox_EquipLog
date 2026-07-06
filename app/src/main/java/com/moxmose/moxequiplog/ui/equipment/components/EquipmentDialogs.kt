@@ -44,7 +44,7 @@ import java.util.Locale
 @Composable
 fun AddEquipmentDialog(
     onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int, Int, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
+    onConfirm: (String, ImageIdentifier?, Int, Int, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean, Boolean) -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     imageLibrary: List<Image>,
@@ -96,6 +96,7 @@ fun AddEquipmentDialog(
     var useCustomVisibilityHorizon by remember(currentEquipment.useCustomVisibilityHorizon) { mutableStateOf(currentEquipment.useCustomVisibilityHorizon) }
     var visibilityHorizon by remember(currentEquipment.visibilityHorizon) { mutableIntStateOf(currentEquipment.visibilityHorizon) }
     var visibilityHorizonUnit by remember(currentEquipment.visibilityHorizonUnit) { mutableStateOf(currentEquipment.visibilityHorizonUnit) }
+    var isResettable by remember(currentEquipment.isResettable) { mutableStateOf(currentEquipment.isResettable) }
 
     var showImageSelectorDialog by remember { mutableStateOf(false) }
     var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
@@ -210,6 +211,17 @@ fun AddEquipmentDialog(
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Row(modifier = Modifier.fillMaxWidth().clickable { 
+                    isResettable = !isResettable
+                    updateDraft(currentEquipment.copy(isResettable = isResettable))
+                }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                    Checkbox(checked = isResettable, onCheckedChange = { 
+                        isResettable = it 
+                        updateDraft(currentEquipment.copy(isResettable = it))
+                    })
+                    Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium) 
+                }
 
                 HorizontalDivider()
 
@@ -367,7 +379,7 @@ fun AddEquipmentDialog(
                         iconId != null -> ImageIdentifier.Icon(iconId!!)
                         else -> null
                     }
-                    onConfirm(description, identifier, unitId, sectionId, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit, visibilityHorizon, visibilityHorizonUnit, useCustomUsageWindow, useCustomVisibilityHorizon)
+                    onConfirm(description, identifier, unitId, sectionId, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit, visibilityHorizon, visibilityHorizonUnit, useCustomUsageWindow, useCustomVisibilityHorizon, isResettable)
                 },
                 onDismiss = onDismissRequest,
                 confirmText = stringResource(R.string.button_add),

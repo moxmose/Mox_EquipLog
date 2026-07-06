@@ -36,6 +36,7 @@ fun OperationTypeScreen(
     val activeOperationTypes by viewModel.activeOperationTypes.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val allSections by viewModel.allSections.collectAsState()
+    val sectionsResettableStatus by viewModel.sectionsResettableStatus.collectAsState()
     val selectedSectionId by viewModel.selectedSectionId.collectAsState()
     val showDismissedSections by viewModel.showDismissedSections.collectAsState()
     val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
@@ -108,9 +109,12 @@ fun OperationTypeScreen(
 
     if (selectedAffectedEquipmentForAdd != null) {
         val (opId, status) = selectedAffectedEquipmentForAdd!!
+        // When registering a log/reminder from here, we want to see ops from current section + Common
+        val maintenanceOps by logsViewModel.allOperationTypes.collectAsState()
+        
         MaintenanceLogDialog(
             equipments = equipmentsToShow,
-            operationTypes = operationTypesToShow,
+            operationTypes = maintenanceOps,
             measurementUnits = measurementUnits,
             allSections = allSections,
             onDismissRequest = { viewModel.onAffectedAction(0, null) },
@@ -205,7 +209,8 @@ fun OperationTypeScreen(
         onToggleDefaultInDraft = viewModel::toggleDefaultInDraft,
         onUpdateDraft = viewModel::updateDraft,
         onSaveEdit = viewModel::saveEditing,
-        onAffectedAction = viewModel::onAffectedAction
+        onAffectedAction = viewModel::onAffectedAction,
+        sectionsResettableStatus = sectionsResettableStatus
     )
 }
 
@@ -255,6 +260,7 @@ fun OperationTypeScreenContent(
     onUpdateDraft: (OperationTypeDraft) -> Unit,
     onSaveEdit: (OperationTypeDraft) -> Unit,
     onAffectedAction: (Int, EquipmentOperationStatus) -> Unit,
+    sectionsResettableStatus: Map<Int, Boolean> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val operationTypesState = remember(operationTypes) { operationTypes.toMutableStateList() }
@@ -305,6 +311,7 @@ fun OperationTypeScreenContent(
                 onToggleImageVisibility = onToggleImageVisibility,
                 operationCategoryColor = operationCategoryColor,
                 initialOperationType = cloningOperationType,
+                sectionsResettableStatus = sectionsResettableStatus,
                 draft = addDraft,
                 onUpdateDraft = onUpdateAddDraft
             )
@@ -374,6 +381,7 @@ fun OperationTypeScreenContent(
                         },
                         onCloneOperationType = onCloneOperationType,
                         draft = draft,
+                        sectionsResettableStatus = sectionsResettableStatus,
                         onStartEdit = { onStartEdit(operationType) },
                         onCancelEdit = { onCancelEdit(operationType.id) },
                         onUpdateDraft = onUpdateDraft,
