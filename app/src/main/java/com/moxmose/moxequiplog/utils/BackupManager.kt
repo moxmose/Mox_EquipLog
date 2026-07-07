@@ -78,10 +78,9 @@ class BackupManager(private val context: Context, private val database: AppDatab
             tempDir.mkdirs()
 
             val tables = listOf(
-                "equipments", "operation_types", "maintenance_logs",
-                "images", "categories", "app_colors",
-                "app_preferences", "measurement_units", "report_filters",
-                "maintenance_reminders"
+                "app_preferences", "app_colors", "categories", "images",
+                "measurement_units", "sections", "operation_types", "equipments",
+                "maintenance_logs", "maintenance_reminders", "report_filters"
             )
 
             tables.forEach { tableName ->
@@ -109,6 +108,107 @@ class BackupManager(private val context: Context, private val database: AppDatab
         }
     }
 
+    fun importAllFromZip(sourceUri: Uri): Result<Unit> {
+        return try {
+            val tempDir = File(context.cacheDir, "total_import_${System.currentTimeMillis()}")
+            tempDir.mkdirs()
+
+            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                java.util.zip.ZipInputStream(inputStream).use { zipIn ->
+                    var entry = zipIn.nextEntry
+                    while (entry != null) {
+                        val outFile = File(tempDir, entry.name)
+                        FileOutputStream(outFile).use { output ->
+                            zipIn.copyTo(output)
+                        }
+                        zipIn.closeEntry()
+                        entry = zipIn.nextEntry
+                    }
+                }
+            } ?: return Result.failure(Exception(context.getString(R.string.restore_error_no_input_stream)))
+
+            val tables = listOf(
+                "app_preferences", "app_colors", "categories", "images",
+                "measurement_units", "sections", "operation_types", "equipments",
+                "maintenance_logs", "maintenance_reminders", "report_filters"
+            )
+
+            val db = database.openHelper.writableDatabase
+            db.beginTransaction()
+            try {
+                // Clear in reverse order
+                tables.reversed().forEach { tableName ->
+                    db.execSQL("DELETE FROM `$tableName`")
+                }
+
+                tables.forEach { tableName ->
+                    val csvFile = File(tempDir, "$tableName.csv")
+                    if (csvFile.exists()) {
+                        importTableFromCsv(tableName, csvFile)
+                    }
+                }
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
+            }
+
+            tempDir.deleteRecursively()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun importTableFromCsv(tableName: String, csvFile: File) {
+        val db = database.openHelper.writableDatabase
+        csvFile.bufferedReader().use { reader ->
+            val headerLine = reader.readLine() ?: return
+            val columns = headerLine.split(";")
+            
+            var line = reader.readLine()
+            while (line != null) {
+                val values = parseCsvLine(line)
+                if (values.size == columns.size) {
+                    val sql = StringBuilder("INSERT INTO `$tableName` (")
+                    sql.append(columns.joinToString(", ") { "`$it`" })
+                    sql.append(") VALUES (")
+                    sql.append(columns.indices.joinToString(", ") { "?" })
+                    sql.append(")")
+                    
+                    val processedValues = values.map { if (it == "__NULL__") null else it }
+                    db.execSQL(sql.toString(), processedValues.toTypedArray())
+                }
+                line = reader.readLine()
+            }
+        }
+    }
+
+    private fun parseCsvLine(line: String): List<String> {
+        val result = mutableListOf<String>()
+        var current = StringBuilder()
+        var inQuotes = false
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
+            if (c == '\"') {
+                if (inQuotes && i + 1 < line.length && line[i + 1] == '\"') {
+                    current.append('\"')
+                    i++
+                } else {
+                    inQuotes = !inQuotes
+                }
+            } else if (c == ';' && !inQuotes) {
+                result.add(current.toString())
+                current = StringBuilder()
+            } else {
+                current.append(c)
+            }
+            i++
+        }
+        result.add(current.toString())
+        return result
+    }
+
     private fun exportTableToCsv(tableName: String, outputFile: File) {
         val db = database.openHelper.readableDatabase
         db.query("SELECT * FROM $tableName", arrayOf()).use { cursor ->
@@ -119,7 +219,7 @@ class BackupManager(private val context: Context, private val database: AppDatab
                 while (cursor.moveToNext()) {
                     val row = (0 until cursor.columnCount).map { i ->
                         when (cursor.getType(i)) {
-                            Cursor.FIELD_TYPE_NULL -> ""
+                            Cursor.FIELD_TYPE_NULL -> "__NULL__"
                             Cursor.FIELD_TYPE_INTEGER -> cursor.getLong(i).toString()
                             Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(i).toString()
                             Cursor.FIELD_TYPE_STRING -> {

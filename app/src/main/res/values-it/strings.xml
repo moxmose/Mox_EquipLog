@@ -329,6 +329,7 @@
     <string name="restore_confirm_title">Conferma Ripristino</string>
     <string name="restore_confirm_msg">Questo sovrascriverà tutti i dati correnti. Sei sicuro? L\'app dovrà essere riavviata manualmente.</string>
     <string name="options_total_export">Esportazione Totale (ZIP di CSV)</string>
+    <string name="options_total_import">Importazione Totale (da ZIP)</string>
     <string name="export_success">Esportazione completata con successo.</string>
     <string name="export_failed">Esportazione fallita: %1$s</string>
     <string name="options_google_calendar_section">Google Calendar</string>

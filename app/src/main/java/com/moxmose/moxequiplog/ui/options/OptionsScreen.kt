@@ -208,6 +208,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
+                is OptionsViewModel.OptionsUiEvent.TotalImportResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RecalculateSuccess -> context.getString(R.string.recalculate_success)
                 is OptionsViewModel.OptionsUiEvent.DemoDataGenerated -> context.getString(R.string.demo_data_success)
                 is OptionsViewModel.OptionsUiEvent.DemoDataDeleted -> context.getString(R.string.demo_data_deleted_success)
@@ -217,7 +218,8 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.UpdateSectionsOrderFailed -> "Impossibile aggiornare l'ordine" // TODO: Add to strings.xml
             }
             snackbarHostState.showSnackbar(message)
-            if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {
+            if ((event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) || 
+                (event is OptionsViewModel.OptionsUiEvent.TotalImportResult && event.success)) {
                 exitProcess(0)
             }
         }
@@ -287,6 +289,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onBackupDatabase = viewModel::backupDatabase,
         onRestoreDatabase = viewModel::restoreDatabase,
         onTotalExport = viewModel::totalExport,
+        onTotalImport = viewModel::totalImport,
         onGenerateDemoData = viewModel::generateDemoData,
         onDeleteDemoData = viewModel::deleteDemoData,
         getSuggestedBackupFileName = viewModel::getSuggestedBackupFileName,
@@ -418,6 +421,7 @@ fun OptionsScreenContent(
     onBackupDatabase: (Uri) -> Unit,
     onRestoreDatabase: (Uri) -> Unit,
     onTotalExport: (Uri) -> Unit,
+    onTotalImport: (Uri) -> Unit,
     onGenerateDemoData: (DemoScenario) -> Unit,
     onDeleteDemoData: () -> Unit,
     getSuggestedBackupFileName: () -> String,
@@ -451,6 +455,7 @@ fun OptionsScreenContent(
     onShowRestoreConfirmChange: (Uri?) -> Unit = {}
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
+    val context = LocalContext.current
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
@@ -462,6 +467,10 @@ fun OptionsScreenContent(
 
     val totalExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri?.let { onTotalExport(it) }
+    }
+
+    val totalImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { onShowRestoreConfirmChange(it) } // We can reuse the confirm dialog
     }
 
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -482,6 +491,11 @@ fun OptionsScreenContent(
     }
 
     if (showRestoreConfirm != null) {
+        val isZip = remember(showRestoreConfirm) {
+            val type = context.contentResolver.getType(showRestoreConfirm)
+            type == "application/zip" || showRestoreConfirm.toString().lowercase().endsWith(".zip")
+        }
+
         AlertDialog(
             onDismissRequest = { onShowRestoreConfirmChange(null) },
             title = { Text(stringResource(R.string.restore_confirm_title)) },
@@ -489,7 +503,8 @@ fun OptionsScreenContent(
             confirmButton = {
                 CommonActionButtons(
                     onConfirm = { 
-                        onRestoreDatabase(showRestoreConfirm)
+                        if (isZip) onTotalImport(showRestoreConfirm)
+                        else onRestoreDatabase(showRestoreConfirm)
                         onShowRestoreConfirmChange(null)
                     },
                     onDismiss = { onShowRestoreConfirmChange(null) },
@@ -1080,6 +1095,15 @@ fun OptionsScreenContent(
                         Icon(Icons.Default.FileDownload, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_total_export))
+                    }
+                    OutlinedButton(
+                        onClick = { totalImportLauncher.launch(arrayOf("application/zip")) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Restore, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_total_import)) // TODO: Add to strings.xml
                     }
 
                     HorizontalDivider()

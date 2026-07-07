@@ -106,6 +106,7 @@ class OptionsViewModel(
         data class BackupResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class RestoreResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data class TotalExportResult(val success: Boolean, val message: String?) : OptionsUiEvent()
+        data class TotalImportResult(val success: Boolean, val message: String?) : OptionsUiEvent()
         data object RecalculateSuccess : OptionsUiEvent()
         data object DemoDataGenerated : OptionsUiEvent()
         data object DemoDataDeleted : OptionsUiEvent()
@@ -833,6 +834,15 @@ class OptionsViewModel(
             backupManager.exportAllToZip(uri).fold(
                 onSuccess = { _uiEvents.send(OptionsUiEvent.TotalExportResult(true, null)) },
                 onFailure = { _uiEvents.send(OptionsUiEvent.TotalExportResult(false, it.message)) }
+            )
+        }
+    }
+
+    fun totalImport(uri: Uri) {
+        viewModelScope.launch {
+            backupManager.importAllFromZip(uri).fold(
+                onSuccess = { _uiEvents.send(OptionsUiEvent.TotalImportResult(true, null)) },
+                onFailure = { _uiEvents.send(OptionsUiEvent.TotalImportResult(false, it.message)) }
             )
         }
     }
