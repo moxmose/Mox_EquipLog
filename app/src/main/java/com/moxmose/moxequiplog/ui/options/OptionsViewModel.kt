@@ -15,8 +15,6 @@ import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
-import com.moxmose.moxequiplog.data.local.MaintenanceReminder
-import com.moxmose.moxequiplog.data.local.MaintenanceReminderDao
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.data.local.OperationType
@@ -26,7 +24,6 @@ import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.BackupManager
 import com.moxmose.moxequiplog.utils.UiConstants
-import java.util.Calendar
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -66,7 +63,6 @@ class OptionsViewModel(
     private val operationTypeDao: OperationTypeDao,
     private val imageRepository: ImageRepository,
     private val measurementUnitDao: MeasurementUnitDao,
-    private val maintenanceReminderDao: MaintenanceReminderDao,
     private val backupManager: BackupManager,
     private val maintenanceManager: MaintenanceManager
 ) : ViewModel() {

@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 data class EquipmentOperationStatus(
     val equipment: Equipment,
@@ -46,7 +47,7 @@ data class EquipmentOperationStatus(
     val isPlanned: Boolean = false,
     val reminderId: Int? = null,
     val plannedValue: Double? = null,
-    val predictedDate: Long? = null
+    val predictedDate: Long? = null,
 )
 
 data class OperationGlobalStatus(
@@ -54,9 +55,10 @@ data class OperationGlobalStatus(
     val affectedEquipments: List<EquipmentOperationStatus>
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OperationsTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
-    private val equipmentDao: EquipmentDao,
+    equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
     private val sectionRepository: SectionRepository,
@@ -85,10 +87,10 @@ class OperationsTypeViewModel(
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     // Hoisted UI State from Screen
-    private val _showDismissed = MutableStateFlow(false)
+    private val _showDismissed = MutableStateFlow(value = false)
     val showDismissed = _showDismissed.asStateFlow()
 
-    private val _showAddDialog = MutableStateFlow(false)
+    private val _showAddDialog = MutableStateFlow(value = false)
     val showAddDialog = _showAddDialog.asStateFlow()
 
     private val _cloningOperationType = MutableStateFlow<OperationType?>(null)
@@ -112,7 +114,9 @@ class OperationsTypeViewModel(
             updateAddDraft(OperationTypeDraft(operationType = operationType.copy(id = 0), isDefault = false))
         }
     }
-    fun onAffectedAction(opId: Int, status: EquipmentOperationStatus?) { _selectedAffectedEquipmentForAdd.value = if (status != null) opId to status else null }
+    fun onAffectedAction(opId: Int, status: EquipmentOperationStatus?) {
+        _selectedAffectedEquipmentForAdd.value = status?.let { opId to it }
+    }
 
     val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
         .stateIn(
@@ -210,7 +214,7 @@ class OperationsTypeViewModel(
                 }
 
                 // Check for manual reminder first (Planned)
-                val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
+                val manualReminder = reminders.find { (!it.isCompleted) && (it.equipmentId == equipment.id) && (it.operationTypeId == opType.id) }
                 
                 // Effective horizon check
                 val horizonValue = if (opType.useCustomVisibilityHorizon) opType.visibilityHorizon else globalVisibilityHorizonValue.value
@@ -318,7 +322,7 @@ class OperationsTypeViewModel(
             draftsMap.mapValues { (_, json) ->
                 try {
                     Json.decodeFromString<OperationTypeDraft>(json)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     null
                 }
             }.filterValues { it != null }.mapValues { it.value!! }
@@ -328,7 +332,7 @@ class OperationsTypeViewModel(
         .map { json ->
             try {
                 json?.let { Json.decodeFromString<OperationTypeDraft>(it) }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
@@ -436,7 +440,7 @@ class OperationsTypeViewModel(
         viewModelScope.launch {
             try {
                 operationTypeDao.updateOperationType(operationType)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateOperationTypeFailed)
             }
         }
@@ -457,7 +461,7 @@ class OperationsTypeViewModel(
         viewModelScope.launch {
             try {
                 operationTypeDao.updateOperationType(operationType.copy(dismissed = true))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DismissOperationTypeFailed)
             }
         }
@@ -467,7 +471,7 @@ class OperationsTypeViewModel(
         viewModelScope.launch {
             try {
                 operationTypeDao.updateOperationType(operationType.copy(dismissed = false))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.RestoreOperationTypeFailed)
             }
         }
@@ -478,7 +482,7 @@ class OperationsTypeViewModel(
         viewModelScope.launch {
             try {
                 operationTypeDao.deleteOperationType(operationType)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateOperationTypeFailed)
             }
         }
@@ -532,7 +536,7 @@ class OperationsTypeViewModel(
         }
         return try {
             operationTypeDao.countOperationTypesUsingPhoto(uri) > 0
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
         }

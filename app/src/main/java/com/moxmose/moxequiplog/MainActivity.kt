@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -101,9 +100,9 @@ class MainActivity : ComponentActivity() {
                     isAppEmpty = isAppEmpty,
                     onDismissWelcome = { dontShowAgain ->
                         lifecycleScope.launch {
-                            if (dontShowAgain) appSettingsManager.setShowWelcomeAlert(false)
+                            if (dontShowAgain) appSettingsManager.setShowWelcomeAlert(show = false)
                         }
-                    }
+                    },
                 )
             }
         }
@@ -125,7 +124,7 @@ fun MoxEquipLogApp(
     // Redirect based on whether the app is empty (has no equipment/logs)
     var initialRedirectDone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(isAppEmpty) {
-        if (isAppEmpty != null && !initialRedirectDone) {
+        if ((isAppEmpty != null) && !initialRedirectDone) {
             currentDestination = if (isAppEmpty) AppDestinations.OPTIONS else AppDestinations.LOGS
             initialRedirectDone = true
         }
@@ -149,11 +148,13 @@ fun MoxEquipLogApp(
 
     if (welcomeVisible) {
         var dontShowAgain by remember { mutableStateOf(false) }
-        
-        BasicAlertDialog(onDismissRequest = { 
-            onDismissWelcome(dontShowAgain)
-            welcomeVisible = false 
-        }) {
+
+        BasicAlertDialog(
+            onDismissRequest = {
+                onDismissWelcome(dontShowAgain)
+                welcomeVisible = false
+            },
+        ) {
             Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
                 Column(
                     modifier = Modifier
@@ -230,7 +231,9 @@ fun MoxEquipLogApp(
                 color = Color.Transparent
             ) {
                 when (currentDestination) {
-                    AppDestinations.LOGS -> MaintenanceLogScreen(onNavigateToOptions = { currentDestination = AppDestinations.OPTIONS })
+                    AppDestinations.LOGS -> MaintenanceLogScreen(
+                        onNavigateToOptions = { currentDestination = AppDestinations.OPTIONS }
+                    )
                     AppDestinations.EQUIPMENT -> EquipmentScreen()
                     AppDestinations.OPERATIONS -> OperationTypeScreen()
                     AppDestinations.REPORTS -> ReportsScreen(onBack = { currentDestination = AppDestinations.LOGS })
@@ -242,9 +245,9 @@ fun MoxEquipLogApp(
 }
 
 enum class AppDestinations(
-    @StringRes val labelRes: Int,
+    @get:StringRes val labelRes: Int,
     val icon: ImageVector,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
 ) {
     LOGS(R.string.navigation_logs, Icons.Default.Home),
     EQUIPMENT(R.string.navigation_equipment, Icons.AutoMirrored.Filled.List),

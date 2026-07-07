@@ -53,19 +53,13 @@ enum class SortDirection {
     ASCENDING, DESCENDING
 }
 
-data class MaintenanceReminderUiModel(
-    val details: MaintenanceReminderDetails,
-    val presumedDate: Long?,
-    val effectiveDate: Long // Used for sorting: fixed date if present, otherwise presumed
-)
-
 @OptIn(ExperimentalCoroutinesApi::class)
 class MaintenanceLogViewModel(
     private val maintenanceLogDao: MaintenanceLogDao,
     private val maintenanceReminderDao: MaintenanceReminderDao,
     private val equipmentDao: EquipmentDao,
     private val operationTypeDao: OperationTypeDao,
-    private val categoryDao: CategoryDao,
+    categoryDao: CategoryDao,
     private val appSettingsManager: AppSettingsManager,
     private val sectionRepository: SectionRepository,
     private val imageRepository: ImageRepository,
@@ -92,7 +86,7 @@ class MaintenanceLogViewModel(
     private val _searchQuery = MutableStateFlow("")
     private val _sortProperty = MutableStateFlow(SortProperty.DATE)
     private val _sortDirection = MutableStateFlow(SortDirection.DESCENDING)
-    private val _showDismissed = MutableStateFlow(false)
+    private val _showDismissed = MutableStateFlow(value = false)
 
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     val sortProperty: StateFlow<SortProperty> = _sortProperty.asStateFlow()
@@ -123,7 +117,7 @@ class MaintenanceLogViewModel(
     fun onEditReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForEdit.value = reminder }
 
     fun onPredictionAction(eqId: Int, status: OperationStatus?) { 
-        _selectedPredictionForAdd.value = if (status != null) eqId to status else null 
+        _selectedPredictionForAdd.value = status?.let { eqId to it }
         if (status == null) {
             cancelLogAddDraft()
             cancelReminderAddDraft()
@@ -282,7 +276,7 @@ class MaintenanceLogViewModel(
             opTypes.filter { it.isPredictable && !it.dismissed }.forEach { opType ->
                 val oSection = sections.find { it.id == opType.sectionId }
                 // Check if there's already a manual reminder
-                val hasManualReminder = reminders.any { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
+                val hasManualReminder = reminders.any { (!it.isCompleted) && (it.equipmentId == equipment.id) && (it.operationTypeId == opType.id) }
                 
                 if (!hasManualReminder) {
                     val lastLogForOp = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
@@ -371,7 +365,7 @@ class MaintenanceLogViewModel(
             draftsMap.mapValues { (_, json) ->
                 try {
                     Json.decodeFromString<MaintenanceLog>(json)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     null
                 }
             }.filterValues { it != null }.mapValues { it.value!! }
@@ -381,7 +375,7 @@ class MaintenanceLogViewModel(
         .map { json ->
             try {
                 json?.let { Json.decodeFromString<MaintenanceLog>(it) }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
@@ -390,7 +384,7 @@ class MaintenanceLogViewModel(
         .map { json ->
             try {
                 json?.let { Json.decodeFromString<MaintenanceReminder>(it) }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
@@ -550,7 +544,7 @@ class MaintenanceLogViewModel(
                     }
                 }
                 cancelLogAddDraft()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.AddLogFailed)
             }
         }
@@ -595,7 +589,7 @@ class MaintenanceLogViewModel(
                 )
                 maintenanceReminderDao.insertReminder(reminder)
                 cancelReminderAddDraft()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.AddLogFailed)
             }
         }
@@ -659,7 +653,7 @@ class MaintenanceLogViewModel(
                 maintenanceReminderDao.updateReminder(updatedReminder)
                 // If it was an edit from a prediction/reminder, we might have a draft to clear
                 cancelReminderAddDraft()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateReminderFailed)
             }
         }
@@ -671,7 +665,7 @@ class MaintenanceLogViewModel(
                 maintenanceLogDao.updateLog(log)
                 maintenanceManager.recalculateAccumulatedValues(log.equipmentId)
                 _editingCardId.value = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateLogFailed)
             }
         }
@@ -738,7 +732,7 @@ class MaintenanceLogViewModel(
             try {
                 maintenanceLogDao.updateLog(log.copy(dismissed = true))
                 _editingCardId.value = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DismissLogFailed)
             }
         }
@@ -749,7 +743,7 @@ class MaintenanceLogViewModel(
             try {
                 maintenanceLogDao.updateLog(log.copy(dismissed = false))
                 _editingCardId.value = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.RestoreLogFailed)
             }
         }
@@ -761,7 +755,7 @@ class MaintenanceLogViewModel(
                 maintenanceLogDao.deleteLog(log)
                 maintenanceManager.recalculateAccumulatedValues(log.equipmentId)
                 _editingCardId.value = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DeleteLogFailed)
             }
         }
@@ -781,7 +775,7 @@ class MaintenanceLogViewModel(
                 if (_selectedReminderForEdit.value?.reminder?.id == reminderDetails.reminder.id) {
                     _selectedReminderForEdit.value = null
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DeleteReminderFailed)
             }
         }
@@ -841,7 +835,7 @@ class MaintenanceLogViewModel(
                         }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.RecalculateRemindersFailed)
             }
         }

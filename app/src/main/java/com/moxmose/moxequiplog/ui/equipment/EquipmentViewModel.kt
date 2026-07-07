@@ -25,6 +25,7 @@ import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,7 +59,7 @@ data class OperationStatus(
     val equipmentSectionColor: String? = null,
     val operationSectionId: Int? = null,
     val operationSectionName: String? = null,
-    val operationSectionColor: String? = null
+    val operationSectionColor: String? = null,
 )
 
 data class EquipmentHealth(
@@ -75,12 +76,13 @@ data class EquipmentStatus(
     val operationStatuses: List<OperationStatus>
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class EquipmentViewModel(
     private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
     private val sectionRepository: SectionRepository,
-    private val measurementUnitDao: MeasurementUnitDao,
+    measurementUnitDao: MeasurementUnitDao,
     private val operationTypeDao: OperationTypeDao,
     private val maintenanceLogDao: MaintenanceLogDao,
     private val maintenanceReminderDao: MaintenanceReminderDao,
@@ -107,10 +109,10 @@ class EquipmentViewModel(
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     // Hoisted UI State from Screen
-    private val _showDismissed = MutableStateFlow(false)
+    private val _showDismissed = MutableStateFlow(value = false)
     val showDismissed = _showDismissed.asStateFlow()
 
-    private val _showAddDialog = MutableStateFlow(false)
+    private val _showAddDialog = MutableStateFlow(value = false)
     val showAddDialog = _showAddDialog.asStateFlow()
 
     private val _cloningEquipment = MutableStateFlow<Equipment?>(null)
@@ -140,7 +142,9 @@ class EquipmentViewModel(
             updateAddDraft(EquipmentDraft(equipment = equipment.copy(id = 0), isDefault = false))
         }
     }
-    fun onPredictionAction(eqId: Int, status: OperationStatus?) { _selectedPredictionForAdd.value = if (status != null) eqId to status else null }
+    fun onPredictionAction(eqId: Int, status: OperationStatus?) {
+        _selectedPredictionForAdd.value = status?.let { eqId to it }
+    }
     fun onPlannedAction(eqId: Int, status: OperationStatus?) { _selectedPlannedForEdit.value = if (status != null) eqId to status else null }
     fun onQuickResetAction(eqId: Int?) { _quickResetEquipmentId.value = eqId }
 
@@ -234,7 +238,7 @@ class EquipmentViewModel(
             
             // Gestione sessione (reset UdM)
             val sessionValue = if (lastValueLog.resetAfter) 0.0 else lastValueLog.value
-            val sessionEstimated = if (sessionValue != null && trend != null) sessionValue + (daysSince * trend) else sessionValue
+            val sessionEstimated = if ((sessionValue != null) && (trend != null)) sessionValue + (daysSince * trend) else sessionValue
 
             EquipmentHealth(
                 lastRecordedValue = lastValueLog.value,
@@ -249,8 +253,6 @@ class EquipmentViewModel(
 
         val horizonValue = if (equipment.useCustomVisibilityHorizon) equipment.visibilityHorizon else globalVisibilityHorizonValue.value
         val horizonUnit = if (equipment.useCustomVisibilityHorizon) equipment.visibilityHorizonUnit else globalVisibilityHorizonUnit.value
-        val horizonMs = getHorizonMs(horizonValue.toLong(), horizonUnit)
-        val horizonLimit = now + horizonMs
 
         val opStatuses = opTypes
             .filter { it.isPredictable && !it.dismissed }
@@ -388,7 +390,7 @@ class EquipmentViewModel(
             draftsMap.mapValues { (_, json) ->
                 try {
                     Json.decodeFromString<EquipmentDraft>(json)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     null
                 }
             }.filterValues { it != null }.mapValues { it.value!! }
@@ -398,7 +400,7 @@ class EquipmentViewModel(
         .map { json ->
             try {
                 json?.let { Json.decodeFromString<EquipmentDraft>(it) }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
@@ -504,7 +506,7 @@ class EquipmentViewModel(
         viewModelScope.launch {
             try {
                 equipmentDao.updateEquipment(equipment)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateEquipmentFailed)
             }
         }
@@ -525,7 +527,7 @@ class EquipmentViewModel(
         viewModelScope.launch {
             try {
                 equipmentDao.updateEquipment(equipment.copy(dismissed = true))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DismissEquipmentFailed)
             }
         }
@@ -535,7 +537,7 @@ class EquipmentViewModel(
         viewModelScope.launch {
             try {
                 equipmentDao.updateEquipment(equipment.copy(dismissed = false))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.RestoreEquipmentFailed)
             }
         }
@@ -545,7 +547,7 @@ class EquipmentViewModel(
         viewModelScope.launch {
             try {
                 equipmentDao.deleteEquipment(equipment)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateEquipmentFailed)
             }
         }
@@ -599,7 +601,7 @@ class EquipmentViewModel(
         }
         return try {
             equipmentDao.countEquipmentUsingPhoto(uri) > 0
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
         }

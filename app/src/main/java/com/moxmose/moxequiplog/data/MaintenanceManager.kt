@@ -15,14 +15,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
 class MaintenanceManager(
     private val maintenanceLogDao: MaintenanceLogDao,
     private val equipmentDao: EquipmentDao,
-    private val operationTypeDao: OperationTypeDao
+    private val operationTypeDao: OperationTypeDao,
 ) {
 
     // --- PREDICTION & TREND LOGIC ---
@@ -45,7 +44,7 @@ class MaintenanceManager(
         var totalValueDiff = 0.0
         var totalTimeDiff = 0L
         
-        for (i in 0 until logs.size - 1) {
+        for (i in 0 until (logs.size - 1)) {
             val current = logs[i]
             val next = logs[i+1]
             
@@ -59,7 +58,7 @@ class MaintenanceManager(
 
         if (totalTimeDiff <= 0) return manualAvg
         
-        val calculatedAverage = (totalValueDiff.toDouble() / totalTimeDiff) * AppConstants.MS_PER_DAY
+        val calculatedAverage = (totalValueDiff / totalTimeDiff) * AppConstants.MS_PER_DAY
         
         return if (calculatedAverage > 0) calculatedAverage else manualAvg
     }
@@ -223,7 +222,7 @@ class MaintenanceManager(
             operationTypeDao.getAllOperationTypes(),
             maintenanceLogDao.getLogsCountFlow()
         ) { equipments, operations, logsCount ->
-            equipments.isEmpty() && operations.filter { !it.isSystem }.isEmpty() && logsCount == 0
+            equipments.isEmpty() && operations.none { !it.isSystem } && logsCount == 0
         }
     }
 
@@ -269,7 +268,7 @@ class MaintenanceManager(
             }
             TimeGranularity.WEEKS -> {
                 // Forziamo l'inizio settimana al Lunedì (ISO) per coerenza tra piattaforme
-                cal.setFirstDayOfWeek(Calendar.MONDAY)
+                cal.firstDayOfWeek = Calendar.MONDAY
                 cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
             }
             TimeGranularity.DAYS -> {}
@@ -307,7 +306,7 @@ class MaintenanceManager(
         return result
     }
 
-    fun findBestGranularity(points: List<ChartPoint>, requested: TimeGranularity, isDelta: Boolean, isCount: Boolean): TimeGranularity {
+    fun findBestGranularity(requested: TimeGranularity): TimeGranularity {
         // Se l'utente ha richiesto una granularità specifica, la onoriamo sempre.
         // La logica di fallback deve intervenire solo se non c'è una richiesta esplicita (auto-mode).
         return requested

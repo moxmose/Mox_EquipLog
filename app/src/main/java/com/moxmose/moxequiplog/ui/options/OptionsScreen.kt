@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -110,7 +109,6 @@ import com.moxmose.moxequiplog.ui.components.SectionItemCard
 import com.moxmose.moxequiplog.ui.components.TimeGranularitySelector
 import com.moxmose.moxequiplog.ui.components.UnitItemCard
 import com.moxmose.moxequiplog.ui.components.UnitSelector
-//import com.moxmose.moxequiplog.ui.equipment.TimeGranularitySelector
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi

@@ -41,7 +41,6 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -53,6 +52,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 @Serializable
 data class ReportFilterState(
@@ -62,7 +62,7 @@ data class ReportFilterState(
     val startDate: Long? = null,
     val endDate: Long? = null,
     val timeGranularity: TimeGranularity? = null,
-    val showDismissed: Boolean = false
+    val showDismissed: Boolean = false,
 )
 
 data class ReportsUiState(
@@ -128,7 +128,7 @@ data class ReportsUiState(
     
     val savedFilters: List<ReportFilter> = emptyList(),
     val activeFilterName: String? = null,
-    val isFilterDirty: Boolean = false
+    val isFilterDirty: Boolean = false,
 )
 
 private data class SelectionState(
@@ -141,13 +141,12 @@ private data class SelectionState(
     val refreshKey: Int,
     val showDismissed: Boolean,
     val colorMode: String,
-    val customColors: List<String>
+    val customColors: List<String>,
 )
 
 private data class FilterCore(val equips: List<Equipment>, val ops: List<OperationType>, val logs: List<MaintenanceLogDetails>, val units: List<MeasurementUnit>, val sections: List<Section>)
 private data class FilterStyles(val eColor: String?, val oColor: String?, val selections: SelectionState)
 private data class StateExtras(val saved: List<ReportFilter>, val active: ReportFilter?, val current: ReportFilterState, val showDismissedSections: Boolean, val sectionSelectorType: String)
-private data class FilterPersistence(val saved: List<ReportFilter>, val active: ReportFilter?, val current: ReportFilterState)
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class ReportsViewModel(
@@ -170,8 +169,8 @@ class ReportsViewModel(
     private val _endDate = MutableStateFlow<Long?>(null)
     private val _timeGranularity = MutableStateFlow<TimeGranularity?>(null)
     private val _refreshTrigger = MutableStateFlow(0)
-    private val _showDismissed = MutableStateFlow(false)
-    private val _showDismissedSections = MutableStateFlow(false)
+    private val _showDismissed = MutableStateFlow(value = false)
+    private val _showDismissedSections = MutableStateFlow(value = false)
     private val _activeFilter = MutableStateFlow<ReportFilter?>(null)
 
     private var initializedEquipments = false
@@ -220,7 +219,7 @@ class ReportsViewModel(
                     _showDismissed.value = state.showDismissed
                     initializedEquipments = true
                     initializedOperations = true
-                } catch (e: Exception) { }
+                } catch (_: Exception) { }
             }
         }
 
@@ -243,7 +242,7 @@ class ReportsViewModel(
                 }
         }
 
-        currentState.debounce(1500).onEach { state ->
+        currentState.debounce(1500.milliseconds).onEach { state ->
             val json = Json.encodeToString(state)
             reportFilterDao.updateLastSession(ReportFilter(reportType = "ALL_REPORTS", filterJson = json, name = null))
         }.launchIn(viewModelScope)
@@ -276,25 +275,25 @@ class ReportsViewModel(
 
         val filteredLogs = core.logs.filter { logDetail ->
             val date = logDetail.log.date
-            val matchesDate = (style.selections.startDate == null || date >= style.selections.startDate) && 
-                              (style.selections.endDate == null || date <= style.selections.endDate)
+            val matchesDate = ((style.selections.startDate == null) || (date >= style.selections.startDate)) && 
+                              ((style.selections.endDate == null) || (date <= style.selections.endDate))
             val matchesVisibility = style.selections.showDismissed || !logDetail.log.dismissed
-            val matchesSection = sectionId == AppConstants.ALL_SECTIONS_ID || 
-                                 logDetail.equipmentSectionId == sectionId || 
-                                 logDetail.operationSectionId == sectionId
+            val matchesSection = (sectionId == AppConstants.ALL_SECTIONS_ID) || 
+                                 (logDetail.equipmentSectionId == sectionId) || 
+                                 (logDetail.operationSectionId == sectionId)
             matchesDate && matchesVisibility && matchesSection
         }
 
         val fullyFilteredLogs = filteredLogs.filter { 
-            it.log.equipmentId in style.selections.selectedEquipmentIds && 
-            it.log.operationTypeId in style.selections.selectedOperationTypeIds 
+            (it.log.equipmentId in style.selections.selectedEquipmentIds) && 
+            (it.log.operationTypeId in style.selections.selectedOperationTypeIds)
         }
 
         val allPoints = fullyFilteredLogs.map { ChartPoint(it.log.date, it.log.value?.toFloat() ?: 0f) }
         val effectiveGranularity = if (style.selections.timeGranularity != null) {
-            maintenanceManager.findBestGranularity(allPoints, style.selections.timeGranularity, false, false)
+            maintenanceManager.findBestGranularity(requested = style.selections.timeGranularity)
         } else {
-            maintenanceManager.findAutoGranularity(allPoints, false, false)
+            maintenanceManager.findAutoGranularity(points = allPoints, isDelta = false, isCount = false)
         }
 
         val displayedEquips = if (sectionId == AppConstants.ALL_SECTIONS_ID) core.equips 
@@ -405,7 +404,7 @@ class ReportsViewModel(
         val cal = Calendar.getInstance()
         val heatmapData = fullyFilteredLogs.groupBy { log ->
             cal.timeInMillis = log.log.date
-            cal.get(Calendar.DAY_OF_WEEK) to cal.get(Calendar.MONTH)
+            cal[Calendar.DAY_OF_WEEK] to cal[Calendar.MONTH]
         }.map { (key, logs) -> HeatmapPoint(key.first, key.second, logs.size) }
 
         // Benchmarking
@@ -541,10 +540,8 @@ class ReportsViewModel(
                 state.selectedOperationTypeIds.forEach { oId ->
                     val opType = state.operationTypes.find { it.id == oId } ?: return@forEach
                     if (opType.isPredictable) {
-                        val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(eId, oId)
-                        if (lastLog != null) {
-                            val predictionResult = maintenanceManager.getOperationPrediction(eId, opType, lastLog, trend)
-                            if (predictionResult != null) {
+                        maintenanceLogDao.getLastLogForEquipmentAndOperation(eId, oId)?.let { lastLog ->
+                            maintenanceManager.getOperationPrediction(eId, opType, lastLog, trend)?.let { predictionResult ->
                                 predictions.add(PredictionDetails(
                                     equipmentId = eId,
                                     equipmentDescription = equip.description,
@@ -592,8 +589,8 @@ class ReportsViewModel(
             val state = ReportFilterState(_selectedEquipmentIds.value, _selectedOperationTypeIds.value, _selectedSectionId.value, _startDate.value, _endDate.value, _timeGranularity.value, _showDismissed.value)
             val json = Json.encodeToString(state)
             val existing = uiState.value.savedFilters.find { it.name?.equals(name, ignoreCase = true) == true }
-            val filterToSave = if (existing != null) existing.copy(filterJson = json, timestamp = System.currentTimeMillis())
-                               else ReportFilter(name = name, reportType = "ALL_REPORTS", filterJson = json, isLastSession = false)
+            val filterToSave = existing?.copy(filterJson = json, timestamp = System.currentTimeMillis())
+                               ?: ReportFilter(name = name, reportType = "ALL_REPORTS", filterJson = json, isLastSession = false)
             reportFilterDao.insertFilter(filterToSave)
             _activeFilter.value = filterToSave
         }
@@ -621,7 +618,7 @@ class ReportsViewModel(
             _showDismissed.value = state.showDismissed
             _activeFilter.value = filter
             refresh()
-        } catch (e: Exception) { }
+        } catch (_: Exception) { }
     }
 
     fun onSectionSelected(id: Int) {
@@ -655,7 +652,7 @@ class ReportsViewModel(
         val valHeader = resourceProvider.getString(R.string.csv_export_value_header)
         val unitHeader = resourceProvider.getString(R.string.csv_export_unit_header)
 
-        sb.append("$reportLabel;${reportTitle}\n")
+        sb.append("$reportLabel;$reportTitle\n")
         sb.append("$exportDateLabel;${dateFormat.format(Date())}\n")
         sb.append("$periodLabel;${state.startDate?.let { dateFormat.format(Date(it)) } ?: startLabel} - ${state.endDate?.let { dateFormat.format(Date(it)) } ?: endLabel}\n\n")
         
