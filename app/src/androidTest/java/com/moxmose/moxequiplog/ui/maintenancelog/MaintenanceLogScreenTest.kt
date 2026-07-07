@@ -2,11 +2,10 @@ package com.moxmose.moxequiplog.ui.maintenancelog
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
+import androidx.test.platform.app.InstrumentationRegistry
+import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
@@ -22,6 +21,8 @@ import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
+
+import androidx.compose.ui.test.performTextInput
 
 class MaintenanceLogScreenTest {
 
@@ -58,7 +59,7 @@ class MaintenanceLogScreenTest {
                 onToggleShowDismissedSections = {},
                 equipments = dummyEquipments,
                 operationTypes = dummyOps,
-                measurementUnits = emptyList<MeasurementUnit>(),
+                measurementUnits = emptyList(),
                 searchQuery = "",
                 onSearchQueryChange = {},
                 sortProperty = SortProperty.DATE,
@@ -127,7 +128,7 @@ class MaintenanceLogScreenTest {
                 onToggleShowDismissedSections = {},
                 equipments = dummyEquipments,
                 operationTypes = dummyOps,
-                measurementUnits = emptyList<MeasurementUnit>(),
+                measurementUnits = emptyList(),
                 searchQuery = "",
                 onSearchQueryChange = {},
                 sortProperty = SortProperty.DATE,
@@ -191,7 +192,7 @@ class MaintenanceLogScreenTest {
             MaintenanceLogDialog(
                 equipments = dummyEquipments,
                 operationTypes = dummyOps,
-                measurementUnits = emptyList<MeasurementUnit>(),
+                measurementUnits = emptyList(),
                 allSections = emptyList(),
                 onDismissRequest = {},
                 onConfirm = { confirmedLog.set(it) },
@@ -247,7 +248,7 @@ class MaintenanceLogScreenTest {
             operationTypePhotoUri = null,
             operationTypeIconIdentifier = null,
             equipmentDismissed = false,
-            operationTypeDismissed = false
+            operationTypeDismissed = false,
         )
 
         composeTestRule.setContent {
@@ -255,7 +256,7 @@ class MaintenanceLogScreenTest {
                 logDetail = log, 
                 equipments = dummyEquipments, 
                 operationTypes = dummyOps, 
-                measurementUnits = emptyList<MeasurementUnit>(),
+                measurementUnits = emptyList(),
                 allSections = emptyList(),
                 isExpanded = false, 
                 onExpand = { onCardExpandedCalled.set(true) }, 
@@ -285,7 +286,7 @@ class MaintenanceLogScreenTest {
             operationTypePhotoUri = null,
             operationTypeIconIdentifier = null,
             equipmentDismissed = false,
-            operationTypeDismissed = false
+            operationTypeDismissed = false,
         )
 
         composeTestRule.setContent {
@@ -293,7 +294,7 @@ class MaintenanceLogScreenTest {
                 logDetail = log, 
                 equipments = dummyEquipments, 
                 operationTypes = dummyOps, 
-                measurementUnits = emptyList<MeasurementUnit>(),
+                measurementUnits = emptyList(),
                 allSections = emptyList(),
                 isExpanded = false, 
                 onExpand = {}, 
@@ -311,5 +312,392 @@ class MaintenanceLogScreenTest {
         composeTestRule.onNodeWithContentDescription("Edit", ignoreCase = true, substring = true).performClick()
 
         assertTrue(onEditCalled.get())
+    }
+
+    @Test
+    fun searchTextField_onValueChange_invokesOnSearchQueryChange() {
+        val onSearchQueryChangeCalled = AtomicReference<String>()
+
+        composeTestRule.setContent {
+            MaintenanceLogScreenContent(
+                mainLogList = emptyList(),
+                allSections = emptyList(),
+                selectedSectionId = 0,
+                sectionSelectorType = "",
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
+                equipments = dummyEquipments,
+                operationTypes = dummyOps,
+                measurementUnits = emptyList(),
+                searchQuery = "",
+                onSearchQueryChange = { onSearchQueryChangeCalled.set(it) },
+                sortProperty = SortProperty.DATE,
+                onSortPropertyChange = {},
+                sortDirection = SortDirection.DESCENDING,
+                onSortDirectionChange = {},
+                showDismissed = false,
+                onShowDismissedToggle = {},
+                showAddDialog = false,
+                onShowAddDialogChange = {},
+                onAddLog = { _, _, _, _, _, _, _, _, _ -> },
+                onAddReminder = { _, _, _, _, _ -> },
+                onRefreshReminders = {},
+                onEstimateDueDate = { _, _ -> null },
+                onEstimateTargetValue = { _, _ -> null },
+                onGetOperationCostStats = { _ -> null to null },
+                expandedCardId = null,
+                onCardExpanded = { _ -> },
+                editingCardId = null,
+                allDrafts = emptyMap(),
+                onStartEdit = {},
+                onCancelEdit = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
+                onUpdateLog = { _ -> },
+                onDeleteLog = { _ -> },
+                onDismissLog = { _ -> },
+                onRestoreLog = { _ -> },
+                activeReminders = emptyList(),
+                automaticPredictions = emptyList(),
+                snackbarHostState = remember { SnackbarHostState() },
+                defaultEquipmentId = null,
+                defaultOperationTypeId = null,
+                equipmentCategoryColor = null,
+                operationCategoryColor = null,
+                onCompleteReminder = { _ -> },
+                onEditReminder = { _ -> },
+                onPredictionAction = { _, _ -> },
+                syncCalendarByDefault = false,
+                googleAccountName = null,
+                costTrendThreshold = 0.05f,
+                logAddDraft = null,
+                reminderAddDraft = null,
+                onUpdateLogDraft = {},
+                onUpdateReminderDraft = {},
+                onNavigateToOptions = {}
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val searchLabel = context.getString(R.string.search_logs)
+        composeTestRule.onNodeWithText(searchLabel, ignoreCase = true, substring = true).performTextInput("oil")
+
+        assertEquals("oil", onSearchQueryChangeCalled.get())
+    }
+
+    @Test
+    fun sortDirectionButton_onClick_invokesOnSortDirectionChange() {
+        val onSortDirectionChangeCalled = AtomicBoolean(false)
+
+        composeTestRule.setContent {
+            MaintenanceLogScreenContent(
+                mainLogList = emptyList(),
+                allSections = emptyList(),
+                selectedSectionId = 0,
+                sectionSelectorType = "",
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
+                equipments = dummyEquipments,
+                operationTypes = dummyOps,
+                measurementUnits = emptyList(),
+                searchQuery = "",
+                onSearchQueryChange = {},
+                sortProperty = SortProperty.DATE,
+                onSortPropertyChange = {},
+                sortDirection = SortDirection.DESCENDING,
+                onSortDirectionChange = { onSortDirectionChangeCalled.set(true) },
+                showDismissed = false,
+                onShowDismissedToggle = {},
+                showAddDialog = false,
+                onShowAddDialogChange = {},
+                onAddLog = { _, _, _, _, _, _, _, _, _ -> },
+                onAddReminder = { _, _, _, _, _ -> },
+                onRefreshReminders = {},
+                onEstimateDueDate = { _, _ -> null },
+                onEstimateTargetValue = { _, _ -> null },
+                onGetOperationCostStats = { _ -> null to null },
+                expandedCardId = null,
+                onCardExpanded = { _ -> },
+                editingCardId = null,
+                allDrafts = emptyMap(),
+                onStartEdit = {},
+                onCancelEdit = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
+                onUpdateLog = { _ -> },
+                onDeleteLog = { _ -> },
+                onDismissLog = { _ -> },
+                onRestoreLog = { _ -> },
+                activeReminders = emptyList(),
+                automaticPredictions = emptyList(),
+                snackbarHostState = remember { SnackbarHostState() },
+                defaultEquipmentId = null,
+                defaultOperationTypeId = null,
+                equipmentCategoryColor = null,
+                operationCategoryColor = null,
+                onCompleteReminder = { _ -> },
+                onEditReminder = { _ -> },
+                onPredictionAction = { _, _ -> },
+                syncCalendarByDefault = false,
+                googleAccountName = null,
+                costTrendThreshold = 0.05f,
+                logAddDraft = null,
+                reminderAddDraft = null,
+                onUpdateLogDraft = {},
+                onUpdateReminderDraft = {},
+                onNavigateToOptions = {}
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val sortDirectionLabel = context.getString(R.string.sort_direction)
+        composeTestRule.onNodeWithContentDescription(sortDirectionLabel, ignoreCase = true, substring = true).performClick()
+
+        assertTrue(onSortDirectionChangeCalled.get())
+    }
+
+    @Test
+    fun deleteLog_onClick_showsConfirmationAndCallsOnDelete() {
+        val onDeleteCalled = AtomicBoolean(false)
+        val log = MaintenanceLog(id = 1, equipmentId = 1, operationTypeId = 2, date = 0L)
+        val logDetail = MaintenanceLogDetails(
+            log = log,
+            equipmentDescription = "Road Equipment",
+            operationTypeDescription = "Oil Change",
+            equipmentPhotoUri = null,
+            equipmentIconIdentifier = null,
+            operationTypePhotoUri = null,
+            operationTypeIconIdentifier = null,
+            equipmentDismissed = false,
+            operationTypeDismissed = false
+        )
+
+        composeTestRule.setContent {
+            MaintenanceLogCard(
+                logDetail = logDetail,
+                equipments = dummyEquipments,
+                operationTypes = dummyOps,
+                measurementUnits = emptyList(),
+                allSections = emptyList(),
+                isExpanded = true,
+                draft = log, // Simulo editing per mostrare i bottoni di azione
+                onExpand = {},
+                onSave = { _ -> },
+                onDelete = { onDeleteCalled.set(true) },
+                onGetOperationCostStats = { _ -> null to null },
+                equipmentCategoryColor = null,
+                operationCategoryColor = null,
+                costTrendThreshold = 0.05f
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val deleteLabel = context.getString(R.string.button_delete)
+
+        // Cerco bottone delete in CommonActionButtons
+        composeTestRule.onNodeWithContentDescription(deleteLabel, ignoreCase = true, substring = true).performClick()
+
+        // Confermo nel dialogo - uso filterToOne(hasClickAction()) per disambiguare dal titolo/messaggio
+        composeTestRule.onAllNodesWithText(deleteLabel, ignoreCase = true)
+            .filterToOne(hasClickAction())
+            .performClick()
+
+        assertTrue(onDeleteCalled.get())
+    }
+
+    @Test
+    fun maintenanceLogDialog_onSchedule_callsOnSchedule() {
+        val scheduledReminder = AtomicReference<Triple<Int, Int, Long?>>()
+
+        composeTestRule.setContent {
+            MaintenanceLogDialog(
+                equipments = dummyEquipments,
+                operationTypes = dummyOps,
+                measurementUnits = emptyList(),
+                allSections = emptyList(),
+                onDismissRequest = {},
+                onConfirm = { },
+                onSchedule = { eqId, opId, date, _, _ -> scheduledReminder.set(Triple(eqId, opId, date)) },
+                defaultEquipmentId = null,
+                defaultOperationTypeId = null,
+                equipmentCategoryColor = null,
+                operationCategoryColor = null
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val plannedTabLabel = context.getString(R.string.tab_reminder)
+        val equipLabel = context.getString(R.string.navigation_equipment)
+        val opLabel = context.getString(R.string.navigation_operations)
+        val scheduleButtonLabel = context.getString(R.string.schedule_maintenance)
+
+        // Switch to "Planned" tab
+        composeTestRule.onNodeWithText(plannedTabLabel, ignoreCase = true).performClick()
+
+        // Select equipment and operation
+        composeTestRule.onNodeWithText(equipLabel, ignoreCase = true, substring = true).performClick()
+        composeTestRule.onNodeWithText("Road Equipment").performClick()
+        
+        composeTestRule.onNodeWithText(opLabel, ignoreCase = true, substring = true).performClick()
+        composeTestRule.onNodeWithText("Oil Change").performClick()
+
+        // Click "Schedule"
+        composeTestRule.onNodeWithText(scheduleButtonLabel, ignoreCase = true).performClick()
+
+        val result = scheduledReminder.get()
+        assertEquals(1, result.first)
+        assertEquals(2, result.second)
+    }
+
+    @Test
+    fun showDismissedFab_onClick_invokesOnShowDismissedToggle() {
+        val onShowDismissedToggleCalled = AtomicBoolean(false)
+
+        composeTestRule.setContent {
+            MaintenanceLogScreenContent(
+                mainLogList = emptyList(),
+                allSections = emptyList(),
+                selectedSectionId = 0,
+                sectionSelectorType = "",
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
+                equipments = dummyEquipments,
+                operationTypes = dummyOps,
+                measurementUnits = emptyList(),
+                searchQuery = "",
+                onSearchQueryChange = {},
+                sortProperty = SortProperty.DATE,
+                onSortPropertyChange = {},
+                sortDirection = SortDirection.DESCENDING,
+                onSortDirectionChange = {},
+                showDismissed = false,
+                onShowDismissedToggle = { onShowDismissedToggleCalled.set(true) },
+                showAddDialog = false,
+                onShowAddDialogChange = {},
+                onAddLog = { _, _, _, _, _, _, _, _, _ -> },
+                onAddReminder = { _, _, _, _, _ -> },
+                onRefreshReminders = {},
+                onEstimateDueDate = { _, _ -> null },
+                onEstimateTargetValue = { _, _ -> null },
+                onGetOperationCostStats = { _ -> null to null },
+                expandedCardId = null,
+                onCardExpanded = { _ -> },
+                editingCardId = null,
+                allDrafts = emptyMap(),
+                onStartEdit = {},
+                onCancelEdit = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
+                onUpdateLog = { _ -> },
+                onDeleteLog = { _ -> },
+                onDismissLog = { _ -> },
+                onRestoreLog = { _ -> },
+                activeReminders = emptyList(),
+                automaticPredictions = emptyList(),
+                snackbarHostState = remember { SnackbarHostState() },
+                defaultEquipmentId = null,
+                defaultOperationTypeId = null,
+                equipmentCategoryColor = null,
+                operationCategoryColor = null,
+                onCompleteReminder = { _ -> },
+                onEditReminder = { _ -> },
+                onPredictionAction = { _, _ -> },
+                syncCalendarByDefault = false,
+                googleAccountName = null,
+                costTrendThreshold = 0.05f,
+                logAddDraft = null,
+                reminderAddDraft = null,
+                onUpdateLogDraft = {},
+                onUpdateReminderDraft = {},
+                onNavigateToOptions = {}
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val showDismissedLabel = context.getString(R.string.show_dismissed)
+        composeTestRule.onNodeWithContentDescription(showDismissedLabel, ignoreCase = true, substring = true).performClick()
+
+        assertTrue(onShowDismissedToggleCalled.get())
+    }
+
+    @Test
+    fun sortProperty_onChange_invokesOnSortPropertyChange() {
+        val onSortPropertyChangeCalled = AtomicReference<SortProperty>()
+
+        composeTestRule.setContent {
+            MaintenanceLogScreenContent(
+                mainLogList = emptyList(),
+                allSections = emptyList(),
+                selectedSectionId = 0,
+                sectionSelectorType = "",
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
+                equipments = dummyEquipments,
+                operationTypes = dummyOps,
+                measurementUnits = emptyList(),
+                searchQuery = "",
+                onSearchQueryChange = {},
+                sortProperty = SortProperty.DATE,
+                onSortPropertyChange = { onSortPropertyChangeCalled.set(it) },
+                sortDirection = SortDirection.DESCENDING,
+                onSortDirectionChange = {},
+                showDismissed = false,
+                onShowDismissedToggle = {},
+                showAddDialog = false,
+                onShowAddDialogChange = {},
+                onAddLog = { _, _, _, _, _, _, _, _, _ -> },
+                onAddReminder = { _, _, _, _, _ -> },
+                onRefreshReminders = {},
+                onEstimateDueDate = { _, _ -> null },
+                onEstimateTargetValue = { _, _ -> null },
+                onGetOperationCostStats = { _ -> null to null },
+                expandedCardId = null,
+                onCardExpanded = { _ -> },
+                editingCardId = null,
+                allDrafts = emptyMap(),
+                onStartEdit = {},
+                onCancelEdit = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
+                onUpdateLog = { _ -> },
+                onDeleteLog = { _ -> },
+                onDismissLog = { _ -> },
+                onRestoreLog = { _ -> },
+                activeReminders = emptyList(),
+                automaticPredictions = emptyList(),
+                snackbarHostState = remember { SnackbarHostState() },
+                defaultEquipmentId = null,
+                defaultOperationTypeId = null,
+                equipmentCategoryColor = null,
+                operationCategoryColor = null,
+                onCompleteReminder = { _ -> },
+                onEditReminder = { _ -> },
+                onPredictionAction = { _, _ -> },
+                syncCalendarByDefault = false,
+                googleAccountName = null,
+                costTrendThreshold = 0.05f,
+                logAddDraft = null,
+                reminderAddDraft = null,
+                onUpdateLogDraft = {},
+                onUpdateReminderDraft = {},
+                onNavigateToOptions = {}
+            )
+        }
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val sortByLabel = context.getString(R.string.sort_by)
+        val equipLabel = context.getString(R.string.navigation_equipment)
+
+        // Click sort icon to open menu
+        composeTestRule.onNodeWithContentDescription(sortByLabel, ignoreCase = true, substring = true).performClick()
+
+        // Select a property
+        composeTestRule.onNodeWithText(equipLabel, ignoreCase = true, substring = true).performClick()
+
+        assertEquals(SortProperty.EQUIPMENT, onSortPropertyChangeCalled.get())
     }
 }

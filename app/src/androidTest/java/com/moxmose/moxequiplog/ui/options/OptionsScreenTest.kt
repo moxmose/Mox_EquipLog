@@ -6,7 +6,6 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.AppColor
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
@@ -83,6 +82,7 @@ class OptionsScreenTest {
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
                 onTotalExport = {},
+                onTotalImport = {},
                 onGenerateDemoData = {},
                 onDeleteDemoData = {},
                 getSuggestedBackupFileName = { "" },
@@ -171,6 +171,7 @@ class OptionsScreenTest {
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
                 onTotalExport = {},
+                onTotalImport = {},
                 onGenerateDemoData = {},
                 onDeleteDemoData = {},
                 getSuggestedBackupFileName = { "" },
@@ -266,6 +267,7 @@ class OptionsScreenTest {
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
                 onTotalExport = {},
+                onTotalImport = {},
                 onGenerateDemoData = {},
                 onDeleteDemoData = {},
                 getSuggestedBackupFileName = { "" },
@@ -359,6 +361,7 @@ class OptionsScreenTest {
                 onBackupDatabase = {},
                 onRestoreDatabase = {},
                 onTotalExport = {},
+                onTotalImport = {},
                 onGenerateDemoData = {},
                 onDeleteDemoData = {},
                 getSuggestedBackupFileName = { "" },

@@ -576,7 +576,13 @@ class ReportsViewModel(
     fun clearOperationTypeSelection() { _selectedOperationTypeIds.value = emptySet() }
     fun setDateRange(start: Long?, end: Long?) { _startDate.value = start; _endDate.value = end }
     fun setTimeGranularity(granularity: TimeGranularity?) { _timeGranularity.value = if (_timeGranularity.value == granularity) null else granularity }
-    fun resetFilters() { _startDate.value = null; _endDate.value = null; _timeGranularity.value = null; _activeFilter.value = null }
+    fun resetFilters() { 
+        _startDate.value = null
+        _endDate.value = null
+        _timeGranularity.value = null
+        _activeFilter.value = null
+        _showDismissed.value = false
+    }
     fun resetDateFilters() { _startDate.value = null; _endDate.value = null }
     fun toggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
     fun refresh() { _refreshTrigger.value += 1 }
