@@ -57,6 +57,8 @@
     <string name="report_section_operations">Attività</string>
     <string name="report_section_equipment_freq">Frequenza Equipment</string>
     <string name="report_section_operations_freq">Frequenza Attività</string>
+    <string name="report_section_sections_freq">Frequenza Sezioni</string>
+    <string name="report_sections_freq_desc">Distribuzione della manutenzione tra le sezioni</string>
     <string name="report_value_over_time">Valori nel tempo</string>
     <string name="report_value_to_date">Valore ad oggi</string>
     <string name="report_no_data">Nessun dato disponibile</string>

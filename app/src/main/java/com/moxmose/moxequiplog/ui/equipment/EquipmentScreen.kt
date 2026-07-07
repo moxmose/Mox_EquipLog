@@ -502,7 +502,8 @@ fun EquipmentScreenContent(
                 onSectionSelected = onSectionSelected,
                 showDismissedSections = showDismissedSections,
                 onToggleShowDismissedSections = onToggleShowDismissedSections,
-                selectorType = sectionSelectorType
+                selectorType = sectionSelectorType,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
             Column(
                 modifier = Modifier

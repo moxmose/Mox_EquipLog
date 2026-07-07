@@ -55,7 +55,7 @@ fun SectionChipBar(
     ) {
         IconButton(
             onClick = onToggleShowDismissed,
-            modifier = Modifier.padding(start = 12.dp).size(32.dp)
+            modifier = Modifier.size(32.dp)
         ) {
             Icon(
                 imageVector = if (showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff,
@@ -67,7 +67,7 @@ fun SectionChipBar(
 
         LazyRow(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (showAllOption) {
@@ -200,7 +200,7 @@ fun UnifiedSectionSelector(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {

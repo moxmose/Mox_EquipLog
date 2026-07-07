@@ -979,7 +979,7 @@ fun OptionsScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(stringResource(R.string.options_selector_chips), style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.6f))
+                        Text(stringResource(R.string.options_section_selector_style), style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.6f))
                         FilterChip(
                             selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS,
                             onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_CHIPS) },

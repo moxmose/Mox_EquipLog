@@ -58,6 +58,8 @@
     <string name="report_section_operations">Operations</string>
     <string name="report_section_equipment_freq">Equipment Frequency</string>
     <string name="report_section_operations_freq">Operations Frequency</string>
+    <string name="report_section_sections_freq">Section Frequency</string>
+    <string name="report_sections_freq_desc">Distribution of maintenance across sections</string>
     <string name="report_value_over_time">Values over time</string>
     <string name="report_value_to_date">Value to date</string>
     <string name="report_no_data">No data available</string>
