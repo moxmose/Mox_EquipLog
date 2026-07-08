@@ -165,7 +165,17 @@
     <string name="about_github_url" translatable="false">https://github.com/MoxMose/Mox_EquipLog</string>
     <string name="about_developer_value" translatable="false">Mosè Pittau (Mox)</string>
     <string name="about_license_value" translatable="false">Apache License 2.0</string>
-    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipment. Keep your equipment in perfect shape!\n\nTo get the best experience, visit the Options Section to:\n\n• Setup Predictive Analytics &amp; Cost Thresholds\n• Define your Measurement Units\n• Personalize with Images, Colors and Backgrounds\n• Sync with Google Calendar\n\nReady? Add your equipment and operations to start recording!</string>
+    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipment. Keep your equipment in perfect shape!\n\nIn this brief intro, we\'ll see:\n\n• The app Principle\n• How to use Sections to organize your things\n• How to try a Demo scenario</string>
+    <string name="welcome_principle_title">App Principle</string>
+    <string name="welcome_principle_content">How Mox EquipLog works:\n\n1. **Sections**: Group equipment by environment (e.g., Garage, Garden).\n2. **Equipment**: Add things you want to track (e.g., your Car).\n3. **Operations**: Define what maintenance you do (e.g., Oil Change).\n4. **Logs**: Record activities with dates and values (km, hours).</string>
+    <string name="welcome_predictive_title">Predictive Maintenance</string>
+    <string name="welcome_predictive_content">The app helps you stay ahead:\n\n• **Usage Rate**: Set at the **Equipment** level (e.g., "I drive 50 km/day"). The app can also learn this automatically from your history.\n• **Intervals**: Set at the **Operation** level (e.g., "Change oil every 10,000 km").\n• **Costs**: Track costs to see maintenance efficiency and trends.\n\n**Forecasts &#38; Plans**:\nIn your lists, you\'ll see "Forecasted" (predicted by AI) and "Planned" (scheduled by you) interventions to keep everything under control.</string>
+    <string name="welcome_demo_title">Experience with Demo Data</string>
+    <string name="welcome_demo_content">Want to see it in action? Injecting demo data will populate the app with examples. You\'ll immediately see how Reports, Trends, and Predictions work.\n\nYou can delete demo data anytime from the Options Section.</string>
+    <string name="button_next">Next</string>
+    <string name="button_back">Back</string>
+    <string name="button_finish">Get Started</string>
+    <string name="button_skip_demo">Skip Demo</string>
     <string name="dismiss_next_time">Don\'t show again</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Background Customization</string>

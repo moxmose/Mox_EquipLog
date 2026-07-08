@@ -65,6 +65,7 @@ import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
 import com.moxmose.moxequiplog.ui.components.AppBackground
 import com.moxmose.moxequiplog.ui.components.DemoSelectionDialog
+import com.moxmose.moxequiplog.ui.components.WelcomeAdvisor
 import com.moxmose.moxequiplog.ui.equipment.EquipmentScreen
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogScreen
 import com.moxmose.moxequiplog.ui.operations.OperationTypeScreen
@@ -132,79 +133,19 @@ fun MoxEquipLogApp(
 
     // Show welcome alert only if it's not dismissed
     var welcomeVisible by remember(showWelcome) { mutableStateOf(showWelcome == true) }
-    var showDemoSelection by remember { mutableStateOf(false) }
-
-    if (showDemoSelection) {
-        DemoSelectionDialog(
-            onDismiss = { showDemoSelection = false },
-            onScenarioSelected = { scenario ->
-                optionsViewModel.generateDemoData(scenario)
-                showDemoSelection = false
-                welcomeVisible = false
-                onDismissWelcome(false) // Dismiss welcome but don't "never show again" unless they want to
-            }
-        )
-    }
 
     if (welcomeVisible) {
-        var dontShowAgain by remember { mutableStateOf(false) }
-
-        BasicAlertDialog(
-            onDismissRequest = {
+        WelcomeAdvisor(
+            onDismiss = { dontShowAgain ->
                 onDismissWelcome(dontShowAgain)
                 welcomeVisible = false
             },
-        ) {
-            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
-                Column(
-                    modifier = Modifier
-                        .padding(24.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    Text(text = stringResource(R.string.about_dialog_title), style = MaterialTheme.typography.headlineSmall)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = stringResource(R.string.welcome_dialog_content), style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Checkbox(checked = dontShowAgain, onCheckedChange = { dontShowAgain = it })
-                        Text(
-                            text = stringResource(R.string.dismiss_next_time),
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(
-                            onClick = { showDemoSelection = true },
-                            modifier = Modifier.padding(end = 8.dp)
-                        ) {
-                            Icon(Icons.Default.RocketLaunch, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.button_try_demo))
-                        }
-
-                        TextButton(
-                            onClick = { 
-                                onDismissWelcome(dontShowAgain)
-                                welcomeVisible = false 
-                            }
-                        ) {
-                            Text(stringResource(R.string.button_ok))
-                        }
-                    }
-                }
+            onScenarioSelected = { scenario ->
+                optionsViewModel.generateDemoData(scenario)
+                welcomeVisible = false
+                onDismissWelcome(false) // Just dismissed for now
             }
-        }
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
