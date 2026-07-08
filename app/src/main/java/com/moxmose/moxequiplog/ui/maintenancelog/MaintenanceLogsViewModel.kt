@@ -7,6 +7,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.CategoryDao
 import com.moxmose.moxequiplog.data.local.EquipmentDao
 import com.moxmose.moxequiplog.data.local.MaintenanceLog
@@ -18,11 +19,17 @@ import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.OperationType
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.CalendarManager
 import com.moxmose.moxequiplog.utils.ResourceProvider
 import com.moxmose.moxequiplog.utils.UiConstants
+import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.ui.equipment.OperationStatus
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +40,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -45,20 +53,15 @@ enum class SortDirection {
     ASCENDING, DESCENDING
 }
 
-data class MaintenanceReminderUiModel(
-    val details: MaintenanceReminderDetails,
-    val presumedDate: Long?,
-    val effectiveDate: Long // Used for sorting: fixed date if present, otherwise presumed
-)
-
 @OptIn(ExperimentalCoroutinesApi::class)
 class MaintenanceLogViewModel(
     private val maintenanceLogDao: MaintenanceLogDao,
     private val maintenanceReminderDao: MaintenanceReminderDao,
     private val equipmentDao: EquipmentDao,
     private val operationTypeDao: OperationTypeDao,
-    private val categoryDao: CategoryDao,
+    categoryDao: CategoryDao,
     private val appSettingsManager: AppSettingsManager,
+    private val sectionRepository: SectionRepository,
     private val imageRepository: ImageRepository,
     private val measurementUnitDao: MeasurementUnitDao,
     private val calendarManager: CalendarManager,
@@ -83,7 +86,7 @@ class MaintenanceLogViewModel(
     private val _searchQuery = MutableStateFlow("")
     private val _sortProperty = MutableStateFlow(SortProperty.DATE)
     private val _sortDirection = MutableStateFlow(SortDirection.DESCENDING)
-    private val _showDismissed = MutableStateFlow(false)
+    private val _showDismissed = MutableStateFlow(value = false)
 
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     val sortProperty: StateFlow<SortProperty> = _sortProperty.asStateFlow()
@@ -106,19 +109,87 @@ class MaintenanceLogViewModel(
     private val _selectedReminderForEdit = MutableStateFlow<MaintenanceReminderDetails?>(null)
     val selectedReminderForEdit = _selectedReminderForEdit.asStateFlow()
 
-    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
+    private val _selectedPredictionForAdd = MutableStateFlow<Pair<Int, OperationStatus>?>(null)
+    val selectedPredictionForAdd = _selectedPredictionForAdd.asStateFlow()
+
     fun onCardExpanded(id: Int) { _expandedCardId.value = if (_expandedCardId.value == id) null else id }
     fun onEditLog(log: MaintenanceLog) { _editingCardId.value = log.id }
-    fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForComplete.value = reminder }
     fun onEditReminder(reminder: MaintenanceReminderDetails?) { _selectedReminderForEdit.value = reminder }
 
+    fun onPredictionAction(eqId: Int, status: OperationStatus?) { 
+        _selectedPredictionForAdd.value = status?.let { eqId to it }
+        if (status == null) {
+            cancelLogAddDraft()
+            cancelReminderAddDraft()
+        }
+    }
+
+    fun onShowAddDialogChange(show: Boolean) { 
+        _showAddDialog.value = show 
+        if (!show) {
+            cancelLogAddDraft()
+            cancelReminderAddDraft()
+        }
+    }
+
+    fun onCompleteReminder(reminder: MaintenanceReminderDetails?) { 
+        _selectedReminderForComplete.value = reminder 
+        if (reminder == null) {
+            cancelLogAddDraft()
+            cancelReminderAddDraft()
+        }
+    }
+
+    val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = AppConstants.DEFAULT_SECTION_ID
+        )
+
+    val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = false
+        )
+
+    val sectionSelectorType: StateFlow<String> = appSettingsManager.sectionSelectorType
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE
+        )
+
+    val allSections: StateFlow<List<Section>> = sectionRepository.allSections
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
+    fun onSectionSelected(sectionId: Int) {
+        viewModelScope.launch {
+            appSettingsManager.setSelectedSectionId(sectionId)
+        }
+    }
+
+    fun onToggleShowDismissedSections() {
+        viewModelScope.launch {
+            val current = showDismissedSections.value
+            appSettingsManager.setShowDismissedSections(!current)
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     val logs: StateFlow<List<MaintenanceLogDetails>> = combine(
+        appSettingsManager.selectedSectionId,
         _searchQuery,
         _sortProperty,
         _sortDirection,
         _showDismissed
-    ) { query, sortProp, sortDir, showDismissedValue ->
-        buildQuery(query, sortProp, sortDir, showDismissedValue)
+    ) { sectionId, query, sortProp, sortDir, showDismissedValue ->
+        buildQuery(sectionId, query, sortProp, sortDir, showDismissedValue)
     }.flatMapLatest { query ->
         maintenanceLogDao.getLogsWithDetails(query)
     }.stateIn(
@@ -127,14 +198,123 @@ class MaintenanceLogViewModel(
         initialValue = emptyList()
     )
 
+    val allEquipments: StateFlow<List<Equipment>> = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            equipmentDao.getAllEquipmentList()
+        } else {
+            equipmentDao.getAllEquipmentListBySection(sectionId)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
+
+    val allOperationTypes: StateFlow<List<OperationType>> = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            operationTypeDao.getAllOperationTypes()
+        } else {
+            // Include operations from the specific section PLUS "Common" section operations
+            if (sectionId == AppConstants.DEFAULT_SECTION_ID) {
+                operationTypeDao.getAllOperationTypesBySection(sectionId)
+            } else {
+                combine(
+                    operationTypeDao.getAllOperationTypesBySection(sectionId),
+                    operationTypeDao.getAllOperationTypesBySection(AppConstants.DEFAULT_SECTION_ID)
+                ) { ops, commonOps ->
+                    (ops + commonOps).distinctBy { it.id }.sortedBy { it.displayOrder }
+                }
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
+
     val activeReminders: StateFlow<List<MaintenanceReminderDetails>> = combine(
+        appSettingsManager.selectedSectionId,
         appSettingsManager.costAnalysisWindowValue,
         appSettingsManager.costAnalysisWindowUnit
-    ) { value, unit ->
+    ) { sectionId, value, unit ->
         val windowMs = maintenanceManager.getWindowMs(value.toLong(), TimeGranularity.valueOf(unit))
-        System.currentTimeMillis() - windowMs
-    }.flatMapLatest { sinceDate ->
-        maintenanceReminderDao.getActiveRemindersWithDetails(sinceDate)
+        Triple(sectionId, value, System.currentTimeMillis() - windowMs)
+    }.flatMapLatest { (sectionId, _, sinceDate) ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            maintenanceReminderDao.getActiveRemindersWithDetails(sinceDate)
+        } else {
+            maintenanceReminderDao.getActiveRemindersWithDetailsBySection(sinceDate, sectionId)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+        initialValue = emptyList()
+    )
+
+    // Automatic Predictions Flow
+    val automaticPredictions: StateFlow<List<Pair<Equipment, OperationStatus>>> = combine(
+        combine(
+            allEquipments,
+            allOperationTypes,
+            maintenanceReminderDao.getAllReminders()
+        ) { e, ot, r -> Triple(e, ot, r) },
+        combine(
+            appSettingsManager.defaultVisibilityHorizonValue,
+            appSettingsManager.defaultVisibilityHorizonUnit,
+            allSections
+        ) { v, u, s -> Triple(v, u, s) }
+    ) { (equipments, opTypes, reminders), (globalHorizonVal, globalHorizonUnitStr, sections) ->
+        val now = System.currentTimeMillis()
+        val globalHorizonUnit = TimeGranularity.valueOf(globalHorizonUnitStr)
+        
+        val allPredictions = mutableListOf<Pair<Equipment, OperationStatus>>()
+        
+        equipments.filter { !it.dismissed }.forEach { equipment ->
+            val trend = maintenanceManager.calculateTrend(equipment)
+            val eSection = sections.find { it.id == equipment.sectionId }
+            
+            opTypes.filter { it.isPredictable && !it.dismissed }.forEach { opType ->
+                val oSection = sections.find { it.id == opType.sectionId }
+                // Check if there's already a manual reminder
+                val hasManualReminder = reminders.any { (!it.isCompleted) && (it.equipmentId == equipment.id) && (it.operationTypeId == opType.id) }
+                
+                if (!hasManualReminder) {
+                    val lastLogForOp = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
+                    if (lastLogForOp != null) {
+                        val predictionResult = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend)
+                        
+                        if (predictionResult != null) {
+                            val (nextPresumedDate, reason) = predictionResult
+                            val horizonValue = if (equipment.useCustomUsageWindow) equipment.visibilityHorizon else globalHorizonVal
+                            val horizonUnit = if (equipment.useCustomUsageWindow) equipment.visibilityHorizonUnit else globalHorizonUnit
+                            val horizonMs = maintenanceManager.getWindowMs(horizonValue.toLong(), horizonUnit)
+                            
+                            // Include if overdue or within horizon
+                            if (nextPresumedDate < now || nextPresumedDate <= now + horizonMs) {
+                                allPredictions.add(
+                                    Pair(equipment, OperationStatus(
+                                        operation = opType,
+                                        lastLogDate = lastLogForOp.date,
+                                        lastLogValue = lastLogForOp.value,
+                                        nextPresumedDate = nextPresumedDate,
+                                        isOverdue = nextPresumedDate < now,
+                                        reason = reason,
+                                        isPlanned = false,
+                                        equipmentSectionId = eSection?.id,
+                                        equipmentSectionName = eSection?.name,
+                                        equipmentSectionColor = eSection?.color,
+                                        operationSectionId = oSection?.id,
+                                        operationSectionName = oSection?.name,
+                                        operationSectionColor = oSection?.color
+                                    ))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        allPredictions.sortedBy { it.second.nextPresumedDate ?: Long.MAX_VALUE }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
@@ -155,11 +335,21 @@ class MaintenanceLogViewModel(
             initialValue = emptyList()
         )
 
-    val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultEquipmentId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections
+    ) { sectionId, sections ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) null
+        else sections.find { it.id == sectionId }?.defaultEquipmentId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
         
-    val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultOperationTypeId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections
+    ) { sectionId, sections ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) null
+        else sections.find { it.id == sectionId }?.defaultOperationTypeId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val syncCalendarByDefault: StateFlow<Boolean> = appSettingsManager.syncCalendarByDefault
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
@@ -170,9 +360,39 @@ class MaintenanceLogViewModel(
     val costTrendThreshold: StateFlow<Float> = appSettingsManager.costTrendThreshold
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_COST_TREND_THRESHOLD)
 
+    val allDrafts: StateFlow<Map<Int, MaintenanceLog>> = appSettingsManager.getAllDraftsFlow("log")
+        .map { draftsMap ->
+            draftsMap.mapValues { (_, json) ->
+                try {
+                    Json.decodeFromString<MaintenanceLog>(json)
+                } catch (_: Exception) {
+                    null
+                }
+            }.filterValues { it != null }.mapValues { it.value!! }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
+
+    val logAddDraft: StateFlow<MaintenanceLog?> = appSettingsManager.getDraftFlow("log", 0)
+        .map { json ->
+            try {
+                json?.let { Json.decodeFromString<MaintenanceLog>(it) }
+            } catch (_: Exception) {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val reminderAddDraft: StateFlow<MaintenanceReminder?> = appSettingsManager.getDraftFlow("reminder", 0)
+        .map { json ->
+            try {
+                json?.let { Json.decodeFromString<MaintenanceReminder>(it) }
+            } catch (_: Exception) {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
     fun getCategoryColor(categoryId: String): Flow<String?> = imageRepository.getCategoryColor(categoryId)
 
     private fun buildQuery(
+        sectionId: Int,
         searchQuery: String,
         sortProperty: SortProperty,
         sortDirection: SortDirection,
@@ -192,8 +412,11 @@ class MaintenanceLogViewModel(
                 ot.iconIdentifier as operationTypeIconIdentifier,
                 e.dismissed as equipmentDismissed,
                 ot.dismissed as operationTypeDismissed,
-                e.isResettable as equipmentIsResettable,
+                ot.isResettable as operationTypeIsResettable,
                 ot.isSystem as operationTypeIsSystem,
+                ot.hasValue as operationTypeHasValue,
+                e.unitId as equipmentUnitId,
+                ot.unitId as operationTypeUnitId,
                 (SELECT l2.value FROM maintenance_logs l2 
                  JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
                  WHERE l2.equipmentId = l.equipmentId 
@@ -204,14 +427,28 @@ class MaintenanceLogViewModel(
                  JOIN operation_types ot2 ON l2.operationTypeId = ot2.id
                  WHERE l2.equipmentId = l.equipmentId 
                  AND (l2.date < l.date OR (l2.date = l.date AND l2.id < l.id))
-                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogIsSystem
+                 ORDER BY l2.date DESC, l2.id DESC LIMIT 1) as previousLogIsSystem,
+                e.sectionId as equipmentSectionId,
+                se.name as equipmentSectionName,
+                se.color as equipmentSectionColor,
+                ot.sectionId as operationSectionId,
+                so.name as operationSectionName,
+                so.color as operationSectionColor
             FROM maintenance_logs as l
             JOIN equipments as e ON l.equipmentId = e.id
             JOIN operation_types as ot ON l.operationTypeId = ot.id
+            JOIN sections as se ON e.sectionId = se.id
+            JOIN sections as so ON ot.sectionId = so.id
         """
 
         val whereClauses = mutableListOf<String>()
         val args = mutableListOf<Any>()
+
+        if (sectionId != AppConstants.ALL_SECTIONS_ID) {
+            whereClauses.add("(e.sectionId = ? OR ot.sectionId = ?)")
+            args.add(sectionId)
+            args.add(sectionId)
+        }
 
         if (!showDismissed) {
             whereClauses.add("l.dismissed = 0")
@@ -266,27 +503,6 @@ class MaintenanceLogViewModel(
         _showDismissed.value = !_showDismissed.value
     }
 
-    val allEquipments = equipmentDao.getAllEquipmentList()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-            initialValue = emptyList()
-        )
-
-    val allOperationTypes = operationTypeDao.getAllOperationTypes()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-            initialValue = emptyList()
-        )
-
-    val activeResettableEquipmentsCount = equipmentDao.countActiveResettableEquipment()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
-            initialValue = 0
-        )
-
     fun addLog(
         equipmentId: Int,
         operationTypeId: Int,
@@ -327,7 +543,8 @@ class MaintenanceLogViewModel(
                         }
                     }
                 }
-            } catch (e: Exception) {
+                cancelLogAddDraft()
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.AddLogFailed)
             }
         }
@@ -371,7 +588,8 @@ class MaintenanceLogViewModel(
                     calendarEventId = calendarEventId
                 )
                 maintenanceReminderDao.insertReminder(reminder)
-            } catch (e: Exception) {
+                cancelReminderAddDraft()
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.AddLogFailed)
             }
         }
@@ -433,7 +651,9 @@ class MaintenanceLogViewModel(
                     calendarEventId = calendarEventId
                 )
                 maintenanceReminderDao.updateReminder(updatedReminder)
-            } catch (e: Exception) {
+                // If it was an edit from a prediction/reminder, we might have a draft to clear
+                cancelReminderAddDraft()
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateReminderFailed)
             }
         }
@@ -445,9 +665,65 @@ class MaintenanceLogViewModel(
                 maintenanceLogDao.updateLog(log)
                 maintenanceManager.recalculateAccumulatedValues(log.equipmentId)
                 _editingCardId.value = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateLogFailed)
             }
+        }
+    }
+
+    // --- Draft Management ---
+    fun startEditing(log: MaintenanceLog) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(log)
+            appSettingsManager.saveDraft("log", log.id, json)
+            onEditLog(log)
+        }
+    }
+
+    fun updateDraft(log: MaintenanceLog) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(log)
+            appSettingsManager.saveDraft("log", log.id, json)
+        }
+    }
+
+    fun cancelEditing(id: Int) {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("log", id)
+            _editingCardId.value = null
+        }
+    }
+
+    fun updateLogAddDraft(log: MaintenanceLog) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(log)
+            appSettingsManager.saveDraft("log", 0, json)
+        }
+    }
+
+    fun cancelLogAddDraft() {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("log", 0)
+        }
+    }
+
+    fun updateReminderAddDraft(reminder: MaintenanceReminder) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(reminder)
+            appSettingsManager.saveDraft("reminder", 0, json)
+        }
+    }
+
+    fun cancelReminderAddDraft() {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("reminder", 0)
+        }
+    }
+
+    fun saveEditing(log: MaintenanceLog) {
+        viewModelScope.launch {
+            updateLog(log)
+            appSettingsManager.deleteDraft("log", log.id)
         }
     }
 
@@ -456,7 +732,7 @@ class MaintenanceLogViewModel(
             try {
                 maintenanceLogDao.updateLog(log.copy(dismissed = true))
                 _editingCardId.value = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DismissLogFailed)
             }
         }
@@ -467,7 +743,7 @@ class MaintenanceLogViewModel(
             try {
                 maintenanceLogDao.updateLog(log.copy(dismissed = false))
                 _editingCardId.value = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.RestoreLogFailed)
             }
         }
@@ -479,7 +755,7 @@ class MaintenanceLogViewModel(
                 maintenanceLogDao.deleteLog(log)
                 maintenanceManager.recalculateAccumulatedValues(log.equipmentId)
                 _editingCardId.value = null
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DeleteLogFailed)
             }
         }
@@ -499,7 +775,7 @@ class MaintenanceLogViewModel(
                 if (_selectedReminderForEdit.value?.reminder?.id == reminderDetails.reminder.id) {
                     _selectedReminderForEdit.value = null
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DeleteReminderFailed)
             }
         }
@@ -559,7 +835,7 @@ class MaintenanceLogViewModel(
                         }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.RecalculateRemindersFailed)
             }
         }

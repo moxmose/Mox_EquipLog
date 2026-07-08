@@ -1,42 +1,28 @@
 package com.moxmose.moxequiplog.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Badge
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
@@ -46,43 +32,72 @@ import com.moxmose.moxequiplog.utils.AppConstants
 fun UnitItemCard(
     unit: MeasurementUnit,
     isDefault: Boolean,
+    usageCount: Int,
     onUnitSelected: () -> Unit,
     onUpdateUnit: (MeasurementUnit) -> Unit,
+    onCloneUnit: (MeasurementUnit) -> Unit,
     onToggleVisibility: () -> Unit,
-    onDeleteUnit: () -> Unit
+    onDeleteUnit: () -> Unit,
+    compactMode: Boolean = false
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editedLabel by remember(unit.label) { mutableStateOf(unit.label) }
     var editedDescription by remember(unit.description) { mutableStateOf(unit.description) }
     var editedDecimalPlaces by remember(unit.decimalPlaces) { mutableIntStateOf(unit.decimalPlaces) }
+    var editedIsHidden by remember(unit.isHidden) { mutableStateOf(unit.isHidden) }
+
+    val cardAlpha = if (isEditing) (if (editedIsHidden) 0.5f else 1f) else (if (unit.isHidden) 0.5f else 1f)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable { if (!isEditing) onUnitSelected() }
+            .graphicsLayer(alpha = cardAlpha)
+            .clickable { if (!isEditing) onUnitSelected() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isDefault) Icons.Default.Star else Icons.Default.StarBorder,
-                contentDescription = null,
-                tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-            Spacer(Modifier.width(16.dp))
-            
+        Column(modifier = Modifier.padding(12.dp)) {
             if (isEditing) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Star toggle badge in edit mode
+                        IconButton(
+                            onClick = onUnitSelected,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (isDefault) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = if (isDefault) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        if (!unit.isSystem) {
+                            OutlinedTextField(
+                                value = editedLabel,
+                                onValueChange = { if (it.length <= AppConstants.UNIT_LABEL_MAX_LENGTH) editedLabel = it },
+                                label = { Text(stringResource(R.string.options_unit_label)) },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            Text(
+                                text = "[${unit.label}] ${unit.description}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
                     if (!unit.isSystem) {
-                        OutlinedTextField(
-                            value = editedLabel,
-                            onValueChange = { if (it.length <= AppConstants.UNIT_LABEL_MAX_LENGTH) editedLabel = it },
-                            label = { Text(stringResource(R.string.options_unit_label)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
                         OutlinedTextField(
                             value = editedDescription,
                             onValueChange = { if (it.length <= AppConstants.UNIT_DESCRIPTION_MAX_LENGTH) editedDescription = it },
@@ -90,9 +105,6 @@ fun UnitItemCard(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-                    } else {
-                        Text(unit.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(unit.description, style = MaterialTheme.typography.bodySmall)
                     }
 
                     Column {
@@ -107,54 +119,114 @@ fun UnitItemCard(
                             steps = AppConstants.MAX_DECIMAL_PLACES - 1
                         )
                     }
-                }
-            } else {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(unit.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.width(8.dp))
-                        Badge(containerColor = MaterialTheme.colorScheme.tertiaryContainer) {
-                            Text(unit.decimalPlaces.toString(), style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                    if (unit.description.isNotBlank()) {
-                        Text(unit.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
 
-            if (isEditing) {
-                IconButton(onClick = {
-                    onUpdateUnit(unit.copy(
-                        label = editedLabel, 
-                        description = editedDescription,
-                        decimalPlaces = editedDecimalPlaces
-                    ))
-                    isEditing = false
-                }) {
-                    Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_unit))
-                }
-            } else {
-                IconButton(onClick = onToggleVisibility) {
-                    Icon(
-                        imageVector = if (unit.isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = stringResource(R.string.options_show_hide)
+                    val isDirty = editedLabel != unit.label || editedDescription != unit.description || editedDecimalPlaces != unit.decimalPlaces || editedIsHidden != unit.isHidden
+
+                    CommonActionButtons(
+                        onConfirm = {
+                            onUpdateUnit(unit.copy(
+                                label = editedLabel, 
+                                description = editedDescription,
+                                decimalPlaces = editedDecimalPlaces,
+                                isHidden = editedIsHidden
+                            ))
+                            isEditing = false
+                        },
+                        onDismiss = { 
+                            isEditing = false
+                            // Reverting local state
+                            editedLabel = unit.label
+                            editedDescription = unit.description
+                            editedDecimalPlaces = unit.decimalPlaces
+                            editedIsHidden = unit.isHidden
+                        },
+                        confirmText = stringResource(R.string.save_equipment),
+                        confirmIcon = Icons.Default.Save,
+                        showClone = true,
+                        onClone = { onCloneUnit(unit) },
+                        showDelete = !unit.isSystem,
+                        onDelete = onDeleteUnit,
+                        showArchive = true,
+                        onArchive = { editedIsHidden = !editedIsHidden },
+                        archiveIcon = if (editedIsHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        showUndo = isDirty,
+                        onUndo = {
+                            editedLabel = unit.label
+                            editedDescription = unit.description
+                            editedDecimalPlaces = unit.decimalPlaces
+                            editedIsHidden = unit.isHidden
+                        },
+                        compactMode = compactMode
                     )
                 }
-                IconButton(onClick = { isEditing = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.options_edit_unit))
-                }
-                if (!unit.isSystem) {
-                    IconButton(onClick = onDeleteUnit) {
-                        Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Title and Star Badge if default
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = unit.label.take(2),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        if (isDefault) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .offset(x = 4.dp, y = 4.dp),
+                                tint = Color(0xFFFFB300)
+                            )
+                        }
                     }
-                } else {
-                    Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "[${unit.label}] ${unit.description}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Used: $usageCount • ${stringResource(R.string.unit_decimal_places_abbr)}: ${unit.decimalPlaces}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (unit.isHidden) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.VisibilityOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+
+                    IconButton(onClick = { isEditing = true }, modifier = Modifier.size(40.dp)) {
                         Icon(
-                            Icons.Default.Lock,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.options_edit_unit),
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }

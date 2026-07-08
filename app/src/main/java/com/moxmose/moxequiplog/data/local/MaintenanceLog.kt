@@ -1,9 +1,11 @@
 package com.moxmose.moxequiplog.data.local
 
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 
 @Entity(
@@ -27,6 +29,7 @@ import androidx.room.PrimaryKey
         androidx.room.Index(value = ["operationTypeId"])
     ]
 )
+@Serializable
 data class MaintenanceLog(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
@@ -52,4 +55,9 @@ data class MaintenanceLog(
     val accumulatedValue: Double = 0.0,
     @ColumnInfo(defaultValue = "false")
     val resetAfter: Boolean = false
+)
+
+data class MaintenanceLogWithUnit(
+    @Embedded val log: MaintenanceLog,
+    val operationTypeUnitId: Int
 )

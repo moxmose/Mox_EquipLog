@@ -10,17 +10,18 @@ import com.moxmose.moxequiplog.data.local.OperationTypeDao
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
 class MaintenanceManager(
     private val maintenanceLogDao: MaintenanceLogDao,
     private val equipmentDao: EquipmentDao,
-    private val operationTypeDao: OperationTypeDao
+    private val operationTypeDao: OperationTypeDao,
 ) {
 
     // --- PREDICTION & TREND LOGIC ---
@@ -34,10 +35,8 @@ class MaintenanceManager(
         val windowMs = getWindowMs(equipment.usageWindow.toLong(), equipment.usageWindowUnit)
         val sinceDate = System.currentTimeMillis() - windowMs
         
-        // Escludiamo i log con lo stesso timestamp per evitare divisioni per zero
-        val logs = maintenanceLogDao.getLogsSince(equipment.id, sinceDate)
-            .filter { it.value != null }
-            .sortedBy { it.date }
+        // Use the new DAO method that already filters by unit and null value
+        val logs = maintenanceLogDao.getValueLogsSince(equipment.id, sinceDate)
 
         val manualAvg = getDailyManualAverage(equipment)
         if (logs.size < 2) return manualAvg
@@ -45,7 +44,7 @@ class MaintenanceManager(
         var totalValueDiff = 0.0
         var totalTimeDiff = 0L
         
-        for (i in 0 until logs.size - 1) {
+        for (i in 0 until (logs.size - 1)) {
             val current = logs[i]
             val next = logs[i+1]
             
@@ -59,7 +58,7 @@ class MaintenanceManager(
 
         if (totalTimeDiff <= 0) return manualAvg
         
-        val calculatedAverage = (totalValueDiff.toDouble() / totalTimeDiff) * AppConstants.MS_PER_DAY
+        val calculatedAverage = (totalValueDiff / totalTimeDiff) * AppConstants.MS_PER_DAY
         
         return if (calculatedAverage > 0) calculatedAverage else manualAvg
     }
@@ -122,7 +121,7 @@ class MaintenanceManager(
         opType: OperationType,
         lastLog: MaintenanceLog,
         trend: Double?
-    ): Long? {
+    ): Pair<Long, com.moxmose.moxequiplog.ui.equipment.PredictionReason>? {
         val datePrediction = opType.timeoutValue?.let { value ->
             opType.timeoutUnit?.let { unit ->
                 val cal = Calendar.getInstance()
@@ -140,32 +139,29 @@ class MaintenanceManager(
             }
         }
 
-        val usagePrediction = if (opType.intervalValue != null && trend != null && trend > 0) {
+        val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId)
+        val isSameUnit = equipment?.unitId == opType.unitId
+
+        val usagePrediction = if (isSameUnit && opType.intervalValue != null && trend != null && trend > 0) {
             val lastValueLog = maintenanceLogDao.getLastValueLogForEquipment(equipmentId)
-            
-            // Il target si calcola sempre rispetto a quando è stata fatta l'ultima manutenzione specifica
-            // (lastLog è l'ultimo log di tipo opType.id per questo equipaggiamento)
             val targetAccumulated = lastLog.accumulatedValue + opType.intervalValue
-            
-            // Il consumo attuale (accumulato) dell'equipaggiamento al momento dell'ultimo log di valore (fallout o altro)
             val currentAccumulated = lastValueLog?.accumulatedValue ?: lastLog.accumulatedValue
-            
             val remainingValue = targetAccumulated - currentAccumulated
-            
-            // Se siamo già oltre la soglia, la data stimata DEVE essere nel passato
-            // daysRemaining sarà negativo, portando la referenceDate all'indietro
             val daysRemaining = remainingValue / trend
-            
-            // Data di riferimento: quando è stata rilevata l'ultima lettura km (es. 130km il 04/05)
             val referenceDate = lastValueLog?.date ?: lastLog.date
             
             referenceDate + (daysRemaining * AppConstants.MS_PER_DAY).toLong()
         } else null
 
         return when {
-            datePrediction != null && usagePrediction != null -> minOf(datePrediction, usagePrediction)
-            datePrediction != null -> datePrediction
-            usagePrediction != null -> usagePrediction
+            datePrediction != null && usagePrediction != null -> {
+                if (datePrediction <= usagePrediction) 
+                    datePrediction to com.moxmose.moxequiplog.ui.equipment.PredictionReason.TIME
+                else 
+                    usagePrediction to com.moxmose.moxequiplog.ui.equipment.PredictionReason.USAGE
+            }
+            datePrediction != null -> datePrediction to com.moxmose.moxequiplog.ui.equipment.PredictionReason.TIME
+            usagePrediction != null -> usagePrediction to com.moxmose.moxequiplog.ui.equipment.PredictionReason.USAGE
             else -> null
         }
     }
@@ -173,26 +169,32 @@ class MaintenanceManager(
     // --- ACCUMULATED VALUES RECALCULATION ---
 
     suspend fun recalculateAccumulatedValues(equipmentId: Int) {
-        val allLogs = maintenanceLogDao.getAllLogsForEquipment(equipmentId)
+        val equipment = equipmentDao.getEquipmentByIdOneShot(equipmentId) ?: return
+        val allLogs = maintenanceLogDao.getAllLogsForEquipmentWithUnit(equipmentId)
         if (allLogs.isEmpty()) return
 
         val updatedLogs = mutableListOf<MaintenanceLog>()
         var currentAccumulated = 0.0
         var lastValue: Double? = null
 
-        allLogs.forEach { log ->
-            val delta = when {
-                log.value == null -> 0.0
-                lastValue == null -> log.value
-                log.value >= lastValue -> log.value - lastValue
-                else -> log.value // Reset rilevato (valore sceso)
+        allLogs.forEach { logWithUnit ->
+            val log = logWithUnit.log
+            
+            // Accumulate if unit matches equipment unit OR if it's a system Reset operation
+            if (logWithUnit.operationTypeUnitId == equipment.unitId || log.operationTypeId == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                val delta = when {
+                    log.value == null -> 0.0
+                    lastValue == null -> log.value
+                    log.value >= lastValue -> log.value - lastValue
+                    else -> log.value // Reset rilevato (valore sceso)
+                }
+                
+                currentAccumulated += delta
+                lastValue = if (log.resetAfter) null else log.value
             }
             
-            currentAccumulated += delta
             val updatedLog = log.copy(accumulatedValue = currentAccumulated)
             updatedLogs.add(updatedLog)
-            
-            lastValue = if (log.resetAfter) null else log.value
         }
         
         maintenanceLogDao.updateLogs(updatedLogs)
@@ -212,6 +214,16 @@ class MaintenanceManager(
         val inEquipments = equipmentDao.countEquipmentUsingPhoto(uri) > 0
         val inOperations = operationTypeDao.countOperationTypesUsingPhoto(uri) > 0
         return inEquipments || inOperations
+    }
+
+    fun isAppEmpty(): Flow<Boolean> {
+        return combine(
+            equipmentDao.getAllEquipmentList(),
+            operationTypeDao.getAllOperationTypes(),
+            maintenanceLogDao.getLogsCountFlow()
+        ) { equipments, operations, logsCount ->
+            equipments.isEmpty() && operations.none { !it.isSystem } && logsCount == 0
+        }
     }
 
     // --- COST ANALYSIS LOGIC ---
@@ -256,7 +268,7 @@ class MaintenanceManager(
             }
             TimeGranularity.WEEKS -> {
                 // Forziamo l'inizio settimana al Lunedì (ISO) per coerenza tra piattaforme
-                cal.setFirstDayOfWeek(Calendar.MONDAY)
+                cal.firstDayOfWeek = Calendar.MONDAY
                 cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
             }
             TimeGranularity.DAYS -> {}
@@ -294,7 +306,7 @@ class MaintenanceManager(
         return result
     }
 
-    fun findBestGranularity(points: List<ChartPoint>, requested: TimeGranularity, isDelta: Boolean, isCount: Boolean): TimeGranularity {
+    fun findBestGranularity(requested: TimeGranularity): TimeGranularity {
         // Se l'utente ha richiesto una granularità specifica, la onoriamo sempre.
         // La logica di fallback deve intervenire solo se non c'è una richiesta esplicita (auto-mode).
         return requested

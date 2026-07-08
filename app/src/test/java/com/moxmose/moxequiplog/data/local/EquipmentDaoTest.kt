@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.utils.AppConstants
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,19 +26,24 @@ class EquipmentDaoTest {
     private lateinit var database: AppDatabase
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var measurementUnitDao: MeasurementUnitDao
+    private lateinit var sectionDao: SectionDao
 
     @Before
-    fun setupDatabase() = runTest {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
-        equipmentDao = database.equipmentDao()
-        measurementUnitDao = database.measurementUnitDao()
+    fun setupDatabase() {
+        runBlocking {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+            equipmentDao = database.equipmentDao()
+            measurementUnitDao = database.measurementUnitDao()
+            sectionDao = database.sectionDao()
 
-        // Popolamento manuale delle unità per i test per soddisfare il vincolo FK
-        AppConstants.INITIAL_MEASUREMENT_UNITS.forEach { unit ->
-            measurementUnitDao.insertUnit(unit)
+            // Popolamento manuale delle unità e sezioni per i test per soddisfare il vincolo FK
+            AppConstants.INITIAL_MEASUREMENT_UNITS.forEach { unit ->
+                measurementUnitDao.insertUnit(unit)
+            }
+            sectionDao.insertSection(Section(id = AppConstants.DEFAULT_SECTION_ID, name = AppConstants.DEFAULT_SECTION_NAME))
         }
     }
 

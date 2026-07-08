@@ -6,25 +6,25 @@ An Android application to help you manage and track maintenance logs for your eq
 
 ## ✨ Features
 
-*   **Equipment Management**: Add, edit, archive, and reorder your list of personal equipments.
-*   **Operation Types**: Create and manage a custom list of maintenance operations.
-*   **Maintenance Logs**: Log every maintenance activity, linking an equipment with an operation, date, and notes.
-*   **Predictive Maintenance**: Smart forecasting of next maintenance events based on historical usage trends or manual fallback values.
-*   **Cost Analysis**: Track maintenance costs and identify efficiency drops with automatic warnings based on customizable growth thresholds.
-*   **Google Calendar Integration**: Sync planned maintenance activities directly to your Google Calendar for better planning.
-*   **Reporting & Analytics**: Comprehensive section with charts and statistics:
-    *   **Usage Trends**: Visualize usage values over time by equipment or operation.
-    *   **Frequency Analysis**: Identify which parts of your equipment require more frequent care.
-    *   **Cost Evolution**: Detailed breakdown of maintenance expenses and their distribution.
-*   **Advanced Sorting & Filtering**: Easily search through your logs and save custom filters for quick access.
+*   **Organizational Sections**: Group your equipment and activities into logical environments (e.g., Garage, Garden, Health, Bikes). Filter your entire experience by section to keep your dashboard focused and clean.
+*   **Predictive Maintenance**: Smart forecasting of next maintenance events based on:
+    *   **Usage Rates**: Set at the Equipment level (learned automatically from history or using manual fallbacks).
+    *   **Intervals**: Set at the Operation level (distance or time-based).
+    *   **Forecasted vs Planned**: The UI distinguishes between **Forecasted** interventions (AI-predicted based on trends) and **Planned** interventions (manually scheduled by the user).
+*   **Guided Onboarding**: A multi-step introduction to the app's principles, workflow, and predictive logic to get users started quickly.
+*   **Demo Scenarios**: Pre-populated data for various use cases (Cars, Garden, Health, Bikes) to immediately explore reports, trends, and forecasting capabilities.
+*   **Equipment & Operation Management**: Fully customizable tracking with unique measurement units (km, hours, liters, etc.) and personalized media.
+*   **Maintenance Logs**: Detailed recording of activities including costs, notes, and the ability to reset equipment counters.
+*   **Cost Analysis**: Monitor expenses and identify efficiency drops with automatic warnings when maintenance costs exceed customizable growth thresholds.
+*   **Google Calendar Integration**: Sync your maintenance schedule directly to your Google account for external reminders.
+*   **Reporting & Analytics**: Comprehensive visualization suite:
+    *   **Usage Trends**: Values over time by equipment or operation.
+    *   **Frequency Analysis**: Maintenance distribution across your assets.
+    *   **Cost Evolution**: Breakdown of spending and efficiency metrics.
 *   **Full Customization**:
-    *   **Organized Settings**: Streamlined setup divided into **General** (Analytics & Units), **Appearance** (Themes & Media), and **System** (Backups).
-    *   **Colors & Themes**: Assign unique colors to sections and toggle between Material 3 and custom color palettes for reports.
-    *   **Images & Icons**: Personalize each item with predefined icons or images from your gallery.
-*   **Data Management**:
-    *   **Backup & Restore**: Secure your data with local database backups (including all user preferences).
-    *   **Data Export**: Export your logs and reports in CSV or ZIP formats.
-    *   **Persistence**: Robust local storage using **Room** database for both application data and user settings.
+    *   **Appearance**: Custom themes, background blur/saturation adjustments, and Material 3 support.
+    *   **Images & Icons**: Extensive library management for your equipment and operation photos.
+*   **Data Management**: Robust local backups, CSV exports, and total data portability via ZIP imports/exports.
 
 ## 🛠 Tech Stack & Libraries
 

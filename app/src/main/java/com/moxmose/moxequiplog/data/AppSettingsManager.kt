@@ -22,6 +22,9 @@ class AppSettingsManager(
     val defaultUnitId: Flow<Int?> = appPreferenceDao.getPreferenceFlow("default_unit_id")
         .map { it?.toIntOrNull() }
 
+    val selectedSectionId: Flow<Int> = appPreferenceDao.getPreferenceFlow("selected_section_id")
+        .map { it?.toIntOrNull() ?: 1 } // Default to section 1
+
     val googleAccountName: Flow<String?> = appPreferenceDao.getPreferenceFlow("google_account_name")
 
     val backgroundUri: Flow<String?> = appPreferenceDao.getPreferenceFlow("background_uri")
@@ -74,6 +77,12 @@ class AppSettingsManager(
     val costTrendThreshold: Flow<Float> = appPreferenceDao.getPreferenceFlow("cost_trend_threshold")
         .map { it?.toFloatOrNull() ?: UiConstants.DEFAULT_COST_TREND_THRESHOLD }
 
+    val showDismissedSections: Flow<Boolean> = appPreferenceDao.getPreferenceFlow("show_dismissed_sections")
+        .map { it?.toBoolean() ?: false }
+
+    val sectionSelectorType: Flow<String> = appPreferenceDao.getPreferenceFlow("section_selector_type")
+        .map { it ?: UiConstants.DEFAULT_SECTION_SELECTOR_TYPE }
+
     suspend fun setUsername(username: String) {
         appPreferenceDao.insertPreference(AppPreference("default_username", username))
     }
@@ -100,6 +109,10 @@ class AppSettingsManager(
         } else {
             appPreferenceDao.insertPreference(AppPreference("default_unit_id", id.toString()))
         }
+    }
+
+    suspend fun setSelectedSectionId(id: Int) {
+        appPreferenceDao.insertPreference(AppPreference("selected_section_id", id.toString()))
     }
 
     suspend fun setGoogleAccountName(name: String?) {
@@ -184,5 +197,32 @@ class AppSettingsManager(
 
     suspend fun setCostTrendThreshold(threshold: Float) {
         appPreferenceDao.insertPreference(AppPreference("cost_trend_threshold", threshold.toString()))
+    }
+
+    suspend fun setShowDismissedSections(show: Boolean) {
+        appPreferenceDao.insertPreference(AppPreference("show_dismissed_sections", show.toString()))
+    }
+
+    suspend fun setSectionSelectorType(type: String) {
+        appPreferenceDao.insertPreference(AppPreference("section_selector_type", type))
+    }
+
+    // --- Draft Management ---
+    fun getDraftFlow(type: String, id: Int): Flow<String?> = 
+        appPreferenceDao.getPreferenceFlow("draft_${type}_$id")
+
+    fun getAllDraftsFlow(type: String): Flow<Map<Int, String>> =
+        appPreferenceDao.getPreferencesByPrefixFlow("draft_${type}_").map { prefs ->
+            prefs.associate { 
+                it.key.substringAfterLast("_").toInt() to (it.value ?: "")
+            }
+        }
+
+    suspend fun saveDraft(type: String, id: Int, json: String) {
+        appPreferenceDao.insertPreference(AppPreference("draft_${type}_$id", json))
+    }
+
+    suspend fun deleteDraft(type: String, id: Int) {
+        appPreferenceDao.deletePreference("draft_${type}_$id")
     }
 }

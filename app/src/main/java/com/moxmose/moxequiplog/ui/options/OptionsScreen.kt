@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
@@ -45,6 +46,7 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -91,16 +93,22 @@ import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.ui.components.AddColorDialog
 import com.moxmose.moxequiplog.ui.components.ColorItemCard
+import com.moxmose.moxequiplog.ui.components.CommonActionButtons
+import com.moxmose.moxequiplog.ui.components.DemoSelectionDialog
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
 import com.moxmose.moxequiplog.ui.components.GoogleAccountSelector
+import com.moxmose.moxequiplog.ui.components.ImageIcon
 import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
 import com.moxmose.moxequiplog.ui.components.ImageSelector
 import com.moxmose.moxequiplog.ui.components.OptionsSectionCard
+import com.moxmose.moxequiplog.ui.components.SectionItemCard
+import com.moxmose.moxequiplog.ui.components.TimeGranularitySelector
 import com.moxmose.moxequiplog.ui.components.UnitItemCard
-import com.moxmose.moxequiplog.ui.equipment.TimeGranularitySelector
+import com.moxmose.moxequiplog.ui.components.UnitSelector
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -119,9 +127,12 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val username by viewModel.username.collectAsState()
     val allColors by viewModel.allColors.collectAsState()
     val reportsColors by viewModel.reportsColors.collectAsState()
+    val allSections by viewModel.allSections.collectAsState()
     val allImages by viewModel.allImages.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
+    val unitUsageCounts by viewModel.unitUsageCounts.collectAsState()
+    val sectionUsageCounts by viewModel.sectionUsageCounts.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
     
     val backgroundUri by viewModel.backgroundUri.collectAsState()
@@ -138,6 +149,7 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val globalUsageWindowUnit by viewModel.globalUsageWindowUnit.collectAsState()
     val globalVisibilityHorizonValue by viewModel.globalVisibilityHorizonValue.collectAsState()
     val globalVisibilityHorizonUnit by viewModel.globalVisibilityHorizonUnit.collectAsState()
+    val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
     val costAnalysisWindowValue by viewModel.costAnalysisWindowValue.collectAsState()
     val costAnalysisWindowUnit by viewModel.costAnalysisWindowUnit.collectAsState()
     val costTrendThreshold by viewModel.costTrendThreshold.collectAsState()
@@ -149,7 +161,10 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
     val showImageDialog by viewModel.showImageDialog.collectAsState()
     val showBackgroundPicker by viewModel.showBackgroundPicker.collectAsState()
     val showUnitManagement by viewModel.showUnitManagement.collectAsState()
+    val showSectionManagement by viewModel.showSectionManagement.collectAsState()
     val showRestoreConfirm by viewModel.showRestoreConfirm.collectAsState()
+
+    var inlineColorPickerCallback by remember { mutableStateOf<((String) -> Unit)?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -191,12 +206,18 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
                 is OptionsViewModel.OptionsUiEvent.BackupResult -> if (event.success) context.getString(R.string.backup_success) else context.getString(R.string.backup_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RestoreResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.TotalExportResult -> if (event.success) context.getString(R.string.export_success) else context.getString(R.string.export_failed, event.message)
+                is OptionsViewModel.OptionsUiEvent.TotalImportResult -> if (event.success) context.getString(R.string.restore_success) else context.getString(R.string.restore_failed, event.message)
                 is OptionsViewModel.OptionsUiEvent.RecalculateSuccess -> context.getString(R.string.recalculate_success)
                 is OptionsViewModel.OptionsUiEvent.DemoDataGenerated -> context.getString(R.string.demo_data_success)
                 is OptionsViewModel.OptionsUiEvent.DemoDataDeleted -> context.getString(R.string.demo_data_deleted_success)
+                is OptionsViewModel.OptionsUiEvent.AddSectionFailed -> "Impossibile aggiungere la sezione" // TODO: Add to strings.xml
+                is OptionsViewModel.OptionsUiEvent.UpdateSectionFailed -> "Impossibile aggiornare la sezione" // TODO: Add to strings.xml
+                is OptionsViewModel.OptionsUiEvent.DeleteSectionFailed -> "Impossibile eliminare la sezione" // TODO: Add to strings.xml
+                is OptionsViewModel.OptionsUiEvent.UpdateSectionsOrderFailed -> "Impossibile aggiornare l'ordine" // TODO: Add to strings.xml
             }
             snackbarHostState.showSnackbar(message)
-            if (event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) {
+            if ((event is OptionsViewModel.OptionsUiEvent.RestoreResult && event.success) || 
+                (event is OptionsViewModel.OptionsUiEvent.TotalImportResult && event.success)) {
                 exitProcess(0)
             }
         }
@@ -207,7 +228,9 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         username = username,
         allImages = allImages,
         categoriesUiState = categoriesUiState,
+        allColors = allColors,
         reportsColors = reportsColors,
+        allSections = allSections,
         measurementUnits = measurementUnits,
         defaultUnitId = defaultUnitId,
         backgroundUri = backgroundUri,
@@ -236,7 +259,17 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onToggleUnitVisibility = viewModel::toggleMeasurementUnitVisibility,
         onUpdateUnitsOrder = viewModel::updateMeasurementUnitsOrder,
         onDeleteUnit = viewModel::deleteMeasurementUnit,
+        onCloneUnit = viewModel::cloneMeasurementUnit,
         onToggleDefaultUnit = viewModel::toggleDefaultUnit,
+        onAddSection = viewModel::addSection,
+        onUpdateSection = viewModel::updateSection,
+        onDeleteSection = viewModel::deleteSection,
+        onCloneSection = viewModel::cloneSection,
+        onUpdateSectionsOrder = viewModel::updateSectionsOrder,
+        onShowColorManagerCustom = { callback ->
+            inlineColorPickerCallback = callback
+            viewModel.onShowColorManager(ColorManagerMode.CATEGORY_PICKER, "PICKER_ONLY")
+        },
         isPhotoUsed = viewModel::isPhotoUsed,
         showAboutDialog = showAboutDialog,
         onShowAboutDialogChange = viewModel::onShowAboutDialogChange,
@@ -247,11 +280,14 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onShowBackgroundPickerChange = viewModel::onShowBackgroundPickerChange,
         showUnitManagement = showUnitManagement,
         onShowUnitManagementChange = viewModel::onShowUnitManagementChange,
+        showSectionManagement = showSectionManagement,
+        onShowSectionManagementChange = viewModel::onShowSectionManagementChange,
         showRestoreConfirm = showRestoreConfirm,
         onShowRestoreConfirmChange = viewModel::onShowRestoreConfirmChange,
         onBackupDatabase = viewModel::backupDatabase,
         onRestoreDatabase = viewModel::restoreDatabase,
         onTotalExport = viewModel::totalExport,
+        onTotalImport = viewModel::totalImport,
         onGenerateDemoData = viewModel::generateDemoData,
         onDeleteDemoData = viewModel::deleteDemoData,
         getSuggestedBackupFileName = viewModel::getSuggestedBackupFileName,
@@ -272,7 +308,11 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
         onSetCostAnalysisWindow = viewModel::setCostAnalysisWindow,
         costTrendThreshold = costTrendThreshold,
         onSetCostTrendThreshold = viewModel::setCostTrendThreshold,
-        onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues
+        sectionSelectorType = sectionSelectorType,
+        onSetSectionSelectorType = viewModel::setSectionSelectorType,
+        onRecalculateAccumulated = viewModel::recalculateAllAccumulatedValues,
+        unitUsageCounts = unitUsageCounts,
+        sectionUsageCounts = sectionUsageCounts
     )
 
     colorMgmtState?.let { (mode, categoryId) ->
@@ -290,13 +330,19 @@ fun OptionsScreen(modifier: Modifier = Modifier, viewModel: OptionsViewModel = k
             selectedHex = selectedHex,
             onDismiss = { viewModel.onDismissColorManager() },
             onColorSelected = { hex ->
-                if (mode == ColorManagerMode.CATEGORY_PICKER && categoryId != null) {
-                    viewModel.updateCategoryColor(categoryId, hex)
+                if (mode == ColorManagerMode.CATEGORY_PICKER) {
+                    if (categoryId == "PICKER_ONLY") {
+                        inlineColorPickerCallback?.invoke(hex)
+                        inlineColorPickerCallback = null
+                    } else if (categoryId != null) {
+                        viewModel.updateCategoryColor(categoryId, hex)
+                    }
                 }
                 viewModel.onDismissColorManager()
             },
             onAddColor = viewModel::addColor,
             onUpdateColor = viewModel::updateColor,
+            onDeleteColor = viewModel::deleteColor,
             onUpdateOrder = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.updateReportColorsOrder(it) else viewModel.updateColorsOrder(it) },
             onToggleVisibility = { if (mode == ColorManagerMode.REPORTS_MANAGER) viewModel.toggleReportColorVisibility(it) else viewModel.toggleColorVisibility(it) }
         )
@@ -323,7 +369,9 @@ fun OptionsScreenContent(
     username: String,
     allImages: List<Image>,
     categoriesUiState: List<CategoryUiState>,
+    allColors: List<AppColor>,
     reportsColors: List<AppColor>,
+    allSections: List<Section>,
     measurementUnits: List<MeasurementUnit>,
     defaultUnitId: Int?,
     backgroundUri: String?,
@@ -352,7 +400,16 @@ fun OptionsScreenContent(
     onToggleUnitVisibility: (Int) -> Unit,
     onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
     onDeleteUnit: (MeasurementUnit) -> Unit,
+    onCloneUnit: (MeasurementUnit) -> Unit,
     onToggleDefaultUnit: (Int) -> Unit,
+    onAddSection: (String, String?, String?, String?, Int) -> Unit,
+    onUpdateSection: (Section) -> Unit,
+    onDeleteSection: (Section) -> Unit,
+    onCloneSection: (Section) -> Unit,
+    onUpdateSectionsOrder: (List<Section>) -> Unit,
+    onShowColorManagerCustom: ((String) -> Unit) -> Unit,
+    unitUsageCounts: Map<Int, Int>,
+    sectionUsageCounts: Map<Int, Int>,
     isPhotoUsed: suspend (String) -> Boolean,
     showAboutDialog: Boolean,
     onShowAboutDialogChange: (Boolean) -> Unit,
@@ -362,7 +419,8 @@ fun OptionsScreenContent(
     onBackupDatabase: (Uri) -> Unit,
     onRestoreDatabase: (Uri) -> Unit,
     onTotalExport: (Uri) -> Unit,
-    onGenerateDemoData: () -> Unit,
+    onTotalImport: (Uri) -> Unit,
+    onGenerateDemoData: (DemoScenario) -> Unit,
     onDeleteDemoData: () -> Unit,
     getSuggestedBackupFileName: () -> String,
     getSuggestedTotalExportFileName: () -> String,
@@ -382,15 +440,20 @@ fun OptionsScreenContent(
     onSetCostAnalysisWindow: (Int, String) -> Unit,
     costTrendThreshold: Float,
     onSetCostTrendThreshold: (Float) -> Unit,
+    sectionSelectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE,
+    onSetSectionSelectorType: (String) -> Unit,
     onRecalculateAccumulated: () -> Unit = {},
     showBackgroundPicker: Boolean = false,
     onShowBackgroundPickerChange: (Boolean) -> Unit = {},
     showUnitManagement: Boolean = false,
     onShowUnitManagementChange: (Boolean) -> Unit = {},
+    showSectionManagement: Boolean = false,
+    onShowSectionManagementChange: (Boolean) -> Unit = {},
     showRestoreConfirm: Uri? = null,
     onShowRestoreConfirmChange: (Uri?) -> Unit = {}
 ) {
     var editedUsername by rememberSaveable(username) { mutableStateOf(username) }
+    val context = LocalContext.current
     
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
     val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
@@ -404,43 +467,51 @@ fun OptionsScreenContent(
         uri?.let { onTotalExport(it) }
     }
 
+    val totalImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { onShowRestoreConfirmChange(it) } // We can reuse the confirm dialog
+    }
+
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { onShowRestoreConfirmChange(it) }
     }
 
-    var showDemoDataConfirm by remember { mutableStateOf(false) }
+    var showDemoSelection by remember { mutableStateOf(false) }
 
-    if (showDemoDataConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDemoDataConfirm = false },
-            title = { Text(stringResource(R.string.options_generate_demo_data)) },
-            text = { Text(stringResource(R.string.demo_data_confirm_msg)) },
-            confirmButton = {
-                TextButton(onClick = { 
-                    onGenerateDemoData()
-                    showDemoDataConfirm = false
-                }) { Text(stringResource(R.string.button_add)) }
+    if (showDemoSelection) {
+        DemoSelectionDialog(
+            onDismiss = { showDemoSelection = false },
+            onScenarioSelected = { scenario ->
+                onGenerateDemoData(scenario)
+                showDemoSelection = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDemoDataConfirm = false }) { Text(stringResource(R.string.button_cancel)) }
-            }
+            isFromOptions = true
         )
     }
 
     if (showRestoreConfirm != null) {
+        val isZip = remember(showRestoreConfirm) {
+            val type = context.contentResolver.getType(showRestoreConfirm)
+            type == "application/zip" || showRestoreConfirm.toString().lowercase().endsWith(".zip")
+        }
+
         AlertDialog(
             onDismissRequest = { onShowRestoreConfirmChange(null) },
             title = { Text(stringResource(R.string.restore_confirm_title)) },
             text = { Text(stringResource(R.string.restore_confirm_msg)) },
             confirmButton = {
-                TextButton(onClick = { 
-                    showRestoreConfirm?.let { onRestoreDatabase(it) }
-                    onShowRestoreConfirmChange(null)
-                }) { Text(stringResource(R.string.button_ok)) }
+                CommonActionButtons(
+                    onConfirm = { 
+                        if (isZip) onTotalImport(showRestoreConfirm)
+                        else onRestoreDatabase(showRestoreConfirm)
+                        onShowRestoreConfirmChange(null)
+                    },
+                    onDismiss = { onShowRestoreConfirmChange(null) },
+                    confirmText = stringResource(R.string.button_ok),
+                    confirmIcon = Icons.Default.Restore,
+                    compactMode = true
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { onShowRestoreConfirmChange(null) }) { Text(stringResource(R.string.button_cancel)) }
-            }
+            dismissButton = null
         )
     }
 
@@ -512,9 +583,11 @@ fun OptionsScreenContent(
         UnitManagementDialog(
             allUnits = measurementUnits,
             defaultUnitId = defaultUnitId,
+            unitUsageCounts = unitUsageCounts,
             onDismiss = { onShowUnitManagementChange(false) },
             onAddUnit = onAddUnit,
             onUpdateUnit = onUpdateUnit,
+            onCloneUnit = onCloneUnit,
             onUpdateUnitsOrder = onUpdateUnitsOrder,
             onToggleUnitVisibility = onToggleUnitVisibility,
             onDeleteUnit = onDeleteUnit,
@@ -522,8 +595,29 @@ fun OptionsScreenContent(
         )
     }
 
+    if (showSectionManagement) {
+        SectionManagementDialog(
+            allSections = allSections,
+            allColors = allColors,
+            allImages = allImages,
+            allUnits = measurementUnits,
+            categoriesUiState = categoriesUiState,
+            sectionUsageCounts = sectionUsageCounts,
+            onDismiss = { onShowSectionManagementChange(false) },
+            onAddSection = onAddSection,
+            onUpdateSection = onUpdateSection,
+            onCloneSection = onCloneSection,
+            onDeleteSection = onDeleteSection,
+            onUpdateSectionsOrder = onUpdateSectionsOrder,
+            onShowColorManagerCustom = onShowColorManagerCustom,
+            onAddImage = { uri, cat -> onAddImage(ImageIdentifier.Photo(uri), cat) }
+        )
+    }
+
     if (showImageDialog) {
-        val allCategories = categoriesUiState.map { it.category }.filter { it.id != Category.LOGS }
+        val allCategories = categoriesUiState.map { it.category }.filter { 
+            it.id != Category.LOGS && it.id != Category.REPORTS && it.id != Category.OPTIONS 
+        }
         ImageSelector(
             photoUri = null,
             iconIdentifier = null,
@@ -552,7 +646,9 @@ fun OptionsScreenContent(
     }
 
     if (showBackgroundPicker) {
-        val allCategories = categoriesUiState.map { it.category }.filter { it.id != Category.LOGS }
+        val allCategories = categoriesUiState.map { it.category }.filter { 
+            it.id != Category.LOGS && it.id != Category.REPORTS && it.id != Category.OPTIONS 
+        }
         ImagePickerDialog(
             onDismissRequest = { onShowBackgroundPickerChange(false) },
             photoUri = backgroundUri,
@@ -601,12 +697,32 @@ fun OptionsScreenContent(
             )
 
             // --- SECTION: GENERAL ---
-            OptionsGroupHeader(stringResource(R.string.options_section_general))
+            OptionsGroupHeader(stringResource(R.string.options_section_common))
+
+            // 1. PROFILO
+            OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
+                OutlinedTextField(
+                    value = editedUsername,
+                    onValueChange = { name -> if (name.length <= AppConstants.USERNAME_MAX_LENGTH) editedUsername = name },
+                    label = { Text(stringResource(R.string.options_username_field_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        if (editedUsername != username && editedUsername.isNotBlank()) {
+                            IconButton(onClick = { onUsernameChange(editedUsername) }) {
+                                Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_username))
+                            }
+                        }
+                    }
+                )
+            }
 
             // 6. ANALYTICS & PREDICTION
             OptionsSectionCard(
                 title = stringResource(R.string.predictive_maintenance_settings),
-                description = stringResource(R.string.options_predictive_desc)
+                description = stringResource(R.string.options_predictive_desc),
+                isCollapsible = true,
+                initiallyExpanded = false
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     // Trend Window
@@ -615,7 +731,7 @@ fun OptionsScreenContent(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(
                                 value = globalUsageWindowValue.toString(),
-                                onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) onSetGlobalUsageWindow(it, globalUsageWindowUnit) } },
+                                onValueChange = { input -> input.toIntOrNull()?.let { value -> if (value in 1..999) onSetGlobalUsageWindow(value, globalUsageWindowUnit) } },
                                 label = { Text("Window") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f)
@@ -687,24 +803,6 @@ fun OptionsScreenContent(
                         Text(text = stringResource(R.string.options_cost_trend_threshold_desc), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-            }
-
-            // 1. PROFILO
-            OptionsSectionCard(title = stringResource(R.string.options_profile_section)) {
-                OutlinedTextField(
-                    value = editedUsername,
-                    onValueChange = { name -> if (name.length <= AppConstants.USERNAME_MAX_LENGTH) editedUsername = name },
-                    label = { Text(stringResource(R.string.options_username_field_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = {
-                        if (editedUsername != username && editedUsername.isNotBlank()) {
-                            IconButton(onClick = { onUsernameChange(editedUsername) }) {
-                                Icon(Icons.Default.Done, contentDescription = stringResource(R.string.options_save_username))
-                            }
-                        }
-                    }
-                )
             }
 
             // 4. UNITÀ DI MISURA
@@ -831,53 +929,117 @@ fun OptionsScreenContent(
                 }
             }
 
-            // 3. COLORI
+            // 9. SEZIONI E COLORI
             OptionsSectionCard(
                 title = stringResource(R.string.options_sections_colors_title),
-                description = stringResource(R.string.options_sections_colors_desc)
+                description = stringResource(R.string.options_sections_colors_desc),
+                isCollapsible = true,
+                initiallyExpanded = false
             ) {
-                val sectionOrder = listOf(
-                    Category.LOGS, 
-                    Category.EQUIPMENT, 
-                    Category.OPERATION, 
-                    Category.REPORTS, 
-                    Category.OPTIONS
-                )
-                categoriesUiState
-                    .sortedBy { uiState -> 
-                        val index = sectionOrder.indexOf(uiState.category.id)
-                        if (index != -1) index else Int.MAX_VALUE
-                    }
-                    .forEach { uiState ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        ) {
-                            Text(uiState.category.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                            Spacer(Modifier.width(12.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(uiState.color.toColorInt()))
-                                    .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                    .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
-                            )
+                // 9. SEZIONI (WORKSPACES)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.options_manage_sections), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    OutlinedButton(onClick = { onShowSectionManagementChange(true) }, modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (allSections.isEmpty()) {
+                                    Text(stringResource(R.string.options_empty_library))
+                                } else {
+                                    allSections.take(5).forEach { section ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(section.color?.let { Color(it.toColorInt()) } ?: MaterialTheme.colorScheme.primary)
+                                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = EquipmentIconProvider.getIcon(section.iconIdentifier),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
-            }
 
-            // 5. REPORTS
-            OptionsSectionCard(
-                title = stringResource(R.string.options_reports_colors_title),
-                description = stringResource(R.string.report_equipment_desc)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // SECTION SELECTOR STYLE
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.options_section_selector_style), style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.6f))
+                        FilterChip(
+                            selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS,
+                            onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_CHIPS) },
+                            label = { Text(stringResource(R.string.options_selector_chips), style = MaterialTheme.typography.labelSmall) },
+                            modifier = Modifier.weight(1f),
+                            leadingIcon = { if (sectionSelectorType == UiConstants.SECTION_SELECTOR_CHIPS) Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp)) }
+                        )
+                        FilterChip(
+                            selected = sectionSelectorType == UiConstants.SECTION_SELECTOR_DROPDOWN,
+                            onClick = { onSetSectionSelectorType(UiConstants.SECTION_SELECTOR_DROPDOWN) },
+                            label = { Text(stringResource(R.string.options_selector_dropdown), style = MaterialTheme.typography.labelSmall) },
+                            modifier = Modifier.weight(1f),
+                            leadingIcon = { if (sectionSelectorType == UiConstants.SECTION_SELECTOR_DROPDOWN) Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp)) }
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // COLORI (THEME)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.options_color_mgmt_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    val sectionOrder = listOf(
+                        Category.LOGS, 
+                        Category.EQUIPMENT, 
+                        Category.OPERATION, 
+                        Category.REPORTS, 
+                        Category.OPTIONS
+                    )
+                    categoriesUiState
+                        .sortedBy { uiState -> 
+                            val index = sectionOrder.indexOf(uiState.category.id)
+                            if (index != -1) index else Int.MAX_VALUE
+                        }
+                        .forEach { uiState ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Text(uiState.category.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(uiState.color.toColorInt()))
+                                        .border(1.5.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                        .clickable { onShowColorManager(ColorManagerMode.CATEGORY_PICKER, uiState.category.id) }
+                                )
+                            }
+                        }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // 5. REPORTS
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.options_reports_colors_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = stringResource(R.string.options_use_custom_colors_reports), 
                             modifier = Modifier.weight(1f), 
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -894,12 +1056,12 @@ fun OptionsScreenContent(
                             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     reportsColors.filter { !it.reportHidden }.take(6).forEach { color ->
-                                        Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+                                        Box(modifier = Modifier.size(20.dp).clip(CircleShape).background(Color(color.hexValue.toColorInt())).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
                                     }
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary)
+                                    Text(stringResource(R.string.options_manage_label), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.Palette, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -932,6 +1094,15 @@ fun OptionsScreenContent(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.options_total_export))
                     }
+                    OutlinedButton(
+                        onClick = { totalImportLauncher.launch(arrayOf("application/zip")) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Restore, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.options_total_import)) // TODO: Add to strings.xml
+                    }
 
                     HorizontalDivider()
 
@@ -940,7 +1111,7 @@ fun OptionsScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { showDemoDataConfirm = true },
+                            onClick = { showDemoSelection = true },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null)
@@ -1042,6 +1213,7 @@ fun ColorLibraryManagerDialog(
     onColorSelected: (String) -> Unit,
     onAddColor: (String, String) -> Unit,
     onUpdateColor: (AppColor) -> Unit,
+    onDeleteColor: (AppColor) -> Unit,
     onUpdateOrder: (List<AppColor>) -> Unit,
     onToggleVisibility: (Long) -> Unit
 ) {
@@ -1135,8 +1307,11 @@ fun ColorLibraryManagerDialog(
                                 isSelected = color.hexValue.equals(selectedHex, ignoreCase = true), 
                                 onColorSelected = { onColorSelected(color.hexValue) }, 
                                 onUpdateColor = onUpdateColor, 
+                                onDeleteColor = onDeleteColor,
                                 onToggleVisibility = { onToggleVisibility(color.id) },
-                                showReportVisibility = mode == ColorManagerMode.REPORTS_MANAGER
+                                showReportVisibility = mode == ColorManagerMode.REPORTS_MANAGER,
+                                canDelete = colorsState.size > 1,
+                                compactMode = true
                             ) 
                         }
                     )
@@ -1154,11 +1329,12 @@ fun UnitManagementDialog(
     onDismiss: () -> Unit,
     onAddUnit: (String, String, Int) -> Unit,
     onUpdateUnit: (MeasurementUnit) -> Unit,
+    onCloneUnit: (MeasurementUnit) -> Unit,
     onUpdateUnitsOrder: (List<MeasurementUnit>) -> Unit,
     onToggleUnitVisibility: (Int) -> Unit,
     onDeleteUnit: (MeasurementUnit) -> Unit,
     onToggleDefaultUnit: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    unitUsageCounts: Map<Int, Int>
 ) {
     var showAddUnitDialog by remember { mutableStateOf(false) }
     var showHidden by remember { mutableStateOf(false) }
@@ -1219,19 +1395,21 @@ fun UnitManagementDialog(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
+                CommonActionButtons(
+                    onConfirm = {
                         if (!isDuplicate) {
                             onAddUnit(label, description, decimalPlaces)
                             showAddUnitDialog = false
                         }
                     },
-                    enabled = label.isNotBlank() && !isDuplicate
-                ) { Text(stringResource(R.string.button_add)) }
+                    onDismiss = { showAddUnitDialog = false },
+                    confirmText = stringResource(R.string.button_add),
+                    confirmIcon = Icons.Default.Add,
+                    confirmEnabled = label.isNotBlank() && !isDuplicate,
+                    compactMode = true
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { showAddUnitDialog = false }) { Text(stringResource(R.string.button_cancel)) }
-            }
+            dismissButton = null
         )
     }
 
@@ -1278,10 +1456,219 @@ fun UnitManagementDialog(
                             UnitItemCard(
                                 unit = unit, 
                                 isDefault = unit.id == defaultUnitId,
+                                usageCount = unitUsageCounts[unit.id] ?: 0,
                                 onUnitSelected = { onToggleDefaultUnit(unit.id) },
                                 onUpdateUnit = onUpdateUnit, 
+                                onCloneUnit = onCloneUnit,
                                 onToggleVisibility = { onToggleUnitVisibility(unit.id) },
-                                onDeleteUnit = { onDeleteUnit(unit) }
+                                onDeleteUnit = { onDeleteUnit(unit) },
+                                compactMode = true
+                            ) 
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SectionManagementDialog(
+    allSections: List<Section>,
+    allColors: List<AppColor>,
+    allImages: List<Image>,
+    allUnits: List<MeasurementUnit>,
+    categoriesUiState: List<CategoryUiState>,
+    onDismiss: () -> Unit,
+    onAddSection: (String, String?, String?, String?, Int) -> Unit,
+    onUpdateSection: (Section) -> Unit,
+    onCloneSection: (Section) -> Unit,
+    onDeleteSection: (Section) -> Unit,
+    onUpdateSectionsOrder: (List<Section>) -> Unit,
+    onShowColorManagerCustom: ((String) -> Unit) -> Unit,
+    onAddImage: (String, String) -> Unit,
+    sectionUsageCounts: Map<Int, Int>
+) {
+    var showAddSectionDialog by remember { mutableStateOf(false) }
+    var showDismissed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val lazyListState = rememberLazyListState()
+
+    val sectionsState = remember(allSections, showDismissed) { 
+        allSections.filter { !it.dismissed || showDismissed }.toMutableStateList() 
+    }
+
+    val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
+    val categoryDefaultIconsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultIconIdentifier } }
+    val categoryDefaultPhotosMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.defaultPhotoUri } }
+    val allCategories = categoriesUiState.map { it.category }.filter { 
+        it.id != Category.LOGS && it.id != Category.REPORTS && it.id != Category.OPTIONS 
+    }
+
+    if (showAddSectionDialog) {
+        var name by remember { mutableStateOf("") }
+        var selectedIcon by remember { mutableStateOf<String?>("build") }
+        var selectedPhotoUri by remember { mutableStateOf<String?>(null) }
+        var selectedColor by remember { mutableStateOf(AppConstants.DEFAULT_SECTION_COLOR) }
+        var selectedUnitId by remember { mutableIntStateOf(1) }
+        var showImagePicker by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showAddSectionDialog = false },
+            title = { Text(stringResource(R.string.add_section)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text(stringResource(R.string.section_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    UnitSelector(
+                        measurementUnits = allUnits,
+                        selectedUnitId = selectedUnitId,
+                        onUnitSelected = { id -> selectedUnitId = id },
+                        label = stringResource(R.string.default_measurement_unit),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(stringResource(R.string.select_icon), style = MaterialTheme.typography.labelMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ImageIcon(
+                            photoUri = selectedPhotoUri,
+                            iconIdentifier = selectedIcon,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clickable { showImagePicker = true },
+                            category = Category.SECTIONS,
+                            borderColor = Color(selectedColor.toColorInt()),
+                            contentPadding = 8.dp,
+                            tint = Color(selectedColor.toColorInt())
+                        )
+                        
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(selectedColor.toColorInt()))
+                                .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                .clickable { 
+                                    onShowColorManagerCustom { newColor ->
+                                        selectedColor = newColor
+                                    }
+                                }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                CommonActionButtons(
+                    onConfirm = {
+                        onAddSection(name, selectedIcon, selectedPhotoUri, selectedColor, selectedUnitId)
+                        showAddSectionDialog = false
+                    },
+                    onDismiss = { showAddSectionDialog = false },
+                    confirmText = stringResource(R.string.button_add),
+                    confirmIcon = Icons.Default.Add,
+                    confirmEnabled = name.isNotBlank(),
+                    compactMode = true
+                )
+            },
+            dismissButton = null
+        )
+
+        if (showImagePicker) {
+            ImagePickerDialog(
+                onDismissRequest = { showImagePicker = false },
+                photoUri = selectedPhotoUri,
+                iconIdentifier = selectedIcon,
+                onImageSelected = { (icon, photo) ->
+                    selectedIcon = icon
+                    selectedPhotoUri = photo
+                    showImagePicker = false
+                },
+                imageLibrary = allImages,
+                categories = allCategories,
+                categoryColors = categoryColorsMap.toMutableMap().apply { put(Category.SECTIONS, selectedColor) },
+                categoryDefaultIcons = categoryDefaultIconsMap,
+                categoryDefaultPhotos = categoryDefaultPhotosMap,
+                onAddImage = onAddImage,
+                onRemoveImage = null,
+                onUpdateImageOrder = null,
+                onToggleImageVisibility = null,
+                onSetDefaultInCategory = null,
+                isPhotoUsed = null,
+                isPrefsMode = false,
+                forcedCategory = Category.SECTIONS
+            )
+        }
+    }
+
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(modifier = Modifier.padding(16.dp), shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp) {
+            Scaffold(
+                modifier = Modifier.height(550.dp),
+                floatingActionButton = {
+                    Column(horizontalAlignment = Alignment.End) {
+                        FloatingActionButton(onClick = { showAddSectionDialog = true }) { 
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_section)) 
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        FloatingActionButton(
+                            onClick = { showDismissed = !showDismissed; scope.launch { lazyListState.animateScrollToItem(0) } }, 
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        ) { 
+                            Icon(if (showDismissed) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = null) 
+                        }
+                    }
+                }
+            ) { paddingValues ->
+                Column(Modifier.padding(paddingValues).padding(16.dp)) {
+                    Text(text = stringResource(R.string.options_manage_sections), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), textAlign = TextAlign.Center)
+                    
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.options_info_drag_reorder),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+
+                    DraggableLazyColumn(
+                        items = sectionsState,
+                        key = { _, section -> section.id },
+                        onMove = { from, to -> sectionsState.add(to, sectionsState.removeAt(from)) },
+                        onDrop = { 
+                            val dismissedSections = allSections.filter { it.dismissed && !showDismissed }
+                            val fullNewList = sectionsState + dismissedSections
+                            onUpdateSectionsOrder(fullNewList.mapIndexed { index, section -> section.copy(displayOrder = index) })
+                        },
+                        itemContent = { _, section -> 
+                            SectionItemCard(
+                                section = section,
+                                allColors = allColors,
+                                allImages = allImages,
+                                allUnits = allUnits,
+                                categoriesUiState = categoriesUiState,
+                                usageCount = sectionUsageCounts[section.id] ?: 0,
+                                onUpdateSection = onUpdateSection,
+                                onCloneSection = onCloneSection,
+                                onDeleteSection = onDeleteSection,
+                                onShowColorManager = { _, callback ->
+                                    onShowColorManagerCustom(callback)
+                                },
+                                onAddImage = onAddImage,
+                                compactMode = true
                             ) 
                         }
                     )

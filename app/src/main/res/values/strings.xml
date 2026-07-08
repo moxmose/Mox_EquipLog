@@ -58,6 +58,8 @@
     <string name="report_section_operations">Operations</string>
     <string name="report_section_equipment_freq">Equipment Frequency</string>
     <string name="report_section_operations_freq">Operations Frequency</string>
+    <string name="report_section_sections_freq">Section Frequency</string>
+    <string name="report_sections_freq_desc">Distribution of maintenance across sections</string>
     <string name="report_value_over_time">Values over time</string>
     <string name="report_value_to_date">Value to date</string>
     <string name="report_no_data">No data available</string>
@@ -163,7 +165,17 @@
     <string name="about_github_url" translatable="false">https://github.com/MoxMose/Mox_EquipLog</string>
     <string name="about_developer_value" translatable="false">Mosè Pittau (Mox)</string>
     <string name="about_license_value" translatable="false">Apache License 2.0</string>
-    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipment. Keep your equipment in perfect shape!\n\nTo get the best experience, visit the Options Section to:\n\n• Setup Predictive Analytics &amp; Cost Thresholds\n• Define your Measurement Units\n• Personalize with Images, Colors and Backgrounds\n• Sync with Google Calendar\n\nReady? Add your equipment and operations to start recording!</string>
+    <string name="welcome_dialog_content">This app helps you track maintenance logs for your equipment. Keep your equipment in perfect shape!\n\nIn this brief intro, we\'ll see:\n\n• The app Principle\n• How to use Sections to organize your things\n• How to try a Demo scenario</string>
+    <string name="welcome_principle_title">App Principle</string>
+    <string name="welcome_principle_content">How Mox EquipLog works:\n\n1. **Sections**: Group equipment by environment (e.g., Garage, Garden).\n2. **Equipment**: Add things you want to track (e.g., your Car).\n3. **Operations**: Define what maintenance you do (e.g., Oil Change).\n4. **Logs**: Record activities with dates and values (km, hours).</string>
+    <string name="welcome_predictive_title">Predictive Maintenance</string>
+    <string name="welcome_predictive_content">The app helps you stay ahead:\n\n• **Usage Rate**: Set at the **Equipment** level (e.g., "I drive 50 km/day"). The app can also learn this automatically from your history.\n• **Intervals**: Set at the **Operation** level (e.g., "Change oil every 10,000 km").\n• **Costs**: Track costs to see maintenance efficiency and trends.\n\n**Forecasts &#38; Plans**:\nIn your lists, you\'ll see "Forecasted" (predicted by AI) and "Planned" (scheduled by you) interventions to keep everything under control.</string>
+    <string name="welcome_demo_title">Experience with Demo Data</string>
+    <string name="welcome_demo_content">Want to see it in action? Injecting demo data will populate the app with examples. You\'ll immediately see how Reports, Trends, and Predictions work.\n\nYou can delete demo data anytime from the Options Section.</string>
+    <string name="button_next">Next</string>
+    <string name="button_back">Back</string>
+    <string name="button_finish">Get Started</string>
+    <string name="button_skip_demo">Skip Demo</string>
     <string name="dismiss_next_time">Don\'t show again</string>
     <string name="button_ok">OK</string>
     <string name="background_customization">Background Customization</string>
@@ -175,7 +187,7 @@
 
     <!-- Equipment & Operations -->
     <string name="hold_and_drag_to_reorder">Hold and drag items to change order</string>
-    <string name="set_as_default_and_expand_instruction">Tap card to expand, Star to set default</string>
+    <string name="set_as_default_and_expand_instruction">Tap card to expand. Filter for Section to change default.</string>
     <string name="add_equipment">Add Equipment</string>
     <string name="add_operation_type">Add Operation Type</string>
     <string name="hide_dismissed">Hide Dismissed</string>
@@ -192,6 +204,9 @@
     <string name="no_image_message">No picture loaded, add one.</string>
     <string name="full_size_equipment_photo">Full-size equipment photo</string>
     <string name="full_size_operation_photo">Full-size operation photo</string>
+    <string name="full_size_image">Full-size image</string>
+    <string name="button_clone">Clone</string>
+    <string name="clone_suffix"> (Copy)</string>
     <string name="equipment_photo">Equipment Photo</string>
     <string name="operation_type_photo">Operation Type Photo</string>
     <string name="edit_equipment">Edit Equipment</string>
@@ -205,6 +220,8 @@
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="id_no_description">id:%1$d - no description</string>
     <string name="measurement_unit">Measurement Unit</string>
+    <string name="default_measurement_unit">Default Unit of Measure</string>
+    <string name="operation_is_resettable">Operation resets counter</string>
     <string name="equipment_is_resettable">UoM is resettable</string>
 
     <!-- Maintenance Logs -->
@@ -247,7 +264,7 @@
     <string name="options_cost_window_desc">History period used to analyze cost increases.</string>
     <string name="options_cost_trend_threshold">Cost Trend Threshold</string>
     <string name="options_cost_trend_threshold_desc">Percentage increase in cost that triggers an efficiency warning.</string>
-    <string name="options_section_general">General</string>
+    <string name="options_section_common">Common</string>
     <string name="options_section_appearance">Behaviour and appearance</string>
     <string name="options_section_system">System</string>
     <string name="options_reports_colors_title">Reports colors</string>
@@ -329,6 +346,7 @@
     <string name="restore_confirm_title">Confirm Restore</string>
     <string name="restore_confirm_msg">This will overwrite all current data. Are you sure? The app will need to be restarted manually.</string>
     <string name="options_total_export">Total Export (ZIP of CSVs)</string>
+    <string name="options_total_import">Total Import (from ZIP)</string>
     <string name="export_success">Export completed successfully.</string>
     <string name="export_failed">Export failed: %1$s</string>
     <string name="options_google_calendar_section">Google Calendar</string>
@@ -346,6 +364,14 @@
     <string name="demo_data_confirm_msg">This will add new equipment and logs for testing. It is recommended to backup your database first. Proceed?</string>
     <string name="demo_data_success">Demo data generated successfully.</string>
     <string name="demo_data_deleted_success">Demo data deleted successfully.</string>
+    <string name="demo_scenario_cars">Cars</string>
+    <string name="demo_scenario_garden">Garden</string>
+    <string name="demo_scenario_health">Health</string>
+    <string name="demo_scenario_bikes">Bikes</string>
+    <string name="demo_scenario_all">All Scenarios</string>
+    <string name="demo_selection_title">Select a Demo Scenario</string>
+    <string name="demo_selection_desc">Choose a scenario to prepopulate the app with demo data and see how it works.</string>
+    <string name="button_try_demo">Try a Demo</string>
     <string name="options_sync_calendar_default_label">Sync by default</string>
     <string name="options_sync_calendar_default_desc">Automatically enable \"Sync to Google Calendar\" when adding new logs or reminders.</string>
     <string name="google_auth_privacy_note">This app uses the standard Google sign-in method to connect to your Calendar. Only the data strictly necessary for sync will be used.</string>
@@ -394,4 +420,32 @@
     <string name="backup_error_db_not_found">Database file not found</string>
     <string name="backup_error_no_output_stream">Failed to open output stream</string>
     <string name="restore_error_no_input_stream">Failed to open input stream</string>
+    <string name="section_all">All</string>
+    <string name="section_common">Common</string>
+    <string name="options_manage_sections">Manage Sections</string>
+    <string name="options_manage_sections_desc">Organize your equipment in different environments (e.g., Garage, Garden, Health)</string>
+    <string name="options_section_selector_style">Section Filter Style</string>
+    <string name="options_section_selector_style_desc">Choose how to filter sections at the top of the screens.</string>
+    <string name="options_selector_chips">Chips</string>
+    <string name="options_selector_dropdown">Menu</string>
+    <string name="add_section">Add Section</string>
+    <string name="add_color_title">Add New Color</string>
+    <string name="color_name_label">Color Name</string>
+    <string name="edit_section">Edit Section</string>
+    <string name="delete_section">Delete Section</string>
+    <string name="delete_equipment">Delete Equipment</string>
+    <string name="delete_equipment_confirm">Are you sure you want to permanently delete this equipment and all its logs?</string>
+    <string name="delete_operation_type">Delete Operation Type</string>
+    <string name="delete_operation_type_confirm">Are you sure you want to permanently delete this operation type and all its logs?</string>
+    <string name="section_name">Section Name</string>
+    <string name="select_icon">Select Icon and Color</string>
+    <string name="select_color">Select Color</string>
+    <string name="delete_section_confirm">Are you sure you want to delete the section \'%1$s\'? All associated equipment will be moved to the General section.</string>
+    <string name="default_label">Default</string>
+    <string name="delete_log_failed">Failed to delete log</string>
+    <string name="delete_reminder_failed">Failed to delete reminder</string>
+    <string name="update_reminder_failed">Failed to update reminder</string>
+    <string name="recalculate_reminders_failed">Failed to recalculate reminders</string>
+    <string name="set_fixed_due_date">Set fixed due date</string>
+    <string name="unit_decimal_places_abbr">d.p.</string>
 </resources>

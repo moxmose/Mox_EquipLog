@@ -21,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 
 @Composable
@@ -54,7 +55,7 @@ fun ImageIcon(
                 }
                 iconIdentifier != null -> {
                     Icon(
-                        imageVector = EquipmentIconProvider.getIcon(iconIdentifier, category ?: ""),
+                        imageVector = EquipmentIconProvider.getIcon(iconIdentifier, category ?: Category.EQUIPMENT),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         tint = tint ?: MaterialTheme.colorScheme.onSecondaryContainer

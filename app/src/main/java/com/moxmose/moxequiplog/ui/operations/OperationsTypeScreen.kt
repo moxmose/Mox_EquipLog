@@ -1,107 +1,31 @@
 package com.moxmose.moxequiplog.ui.operations
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.UnfoldLess
-import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.toColorInt
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
-import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.UiConstants
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
-import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
-import com.moxmose.moxequiplog.ui.equipment.TimeGranularitySelector
-import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogDialog
+import com.moxmose.moxequiplog.ui.components.SectionChipBar
+import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
+import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
-import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
+import com.moxmose.moxequiplog.ui.operations.components.AddOperationTypeDialog
+import com.moxmose.moxequiplog.ui.operations.components.OperationTypeCard
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
+import com.moxmose.moxequiplog.utils.AppConstants
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun OperationTypeScreen(
@@ -111,10 +35,17 @@ fun OperationTypeScreen(
 ) {
     val activeOperationTypes by viewModel.activeOperationTypes.collectAsState()
     val allOperationTypes by viewModel.allOperationTypes.collectAsState()
+    val allSections by viewModel.allSections.collectAsState()
+    val sectionsResettableStatus by viewModel.sectionsResettableStatus.collectAsState()
+    val selectedSectionId by viewModel.selectedSectionId.collectAsState()
+    val showDismissedSections by viewModel.showDismissedSections.collectAsState()
+    val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
     val operationTypeImages by viewModel.operationImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
     val defaultOperationTypeId by viewModel.defaultOperationTypeId.collectAsState()
     val operationStatuses by viewModel.operationStatuses.collectAsState()
+    val allDrafts by viewModel.allDrafts.collectAsState()
+    val addDraft by viewModel.addDraft.collectAsState()
     
     val categoryColor by viewModel.categoryColor.collectAsState()
     val categoryDefaultIcon by viewModel.categoryDefaultIcon.collectAsState()
@@ -122,7 +53,10 @@ fun OperationTypeScreen(
 
     val showDismissed by viewModel.showDismissed.collectAsState()
     val showAddDialog by viewModel.showAddDialog.collectAsState()
+    val cloningOperationType by viewModel.cloningOperationType.collectAsState()
     val selectedAffectedEquipmentForAdd by viewModel.selectedAffectedEquipmentForAdd.collectAsState()
+    val logAddDraft by logsViewModel.logAddDraft.collectAsState()
+    val reminderAddDraft by logsViewModel.reminderAddDraft.collectAsState()
 
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
@@ -158,12 +92,31 @@ fun OperationTypeScreen(
         }
     }
 
+    val operationTypesToShow = remember(allOperationTypes, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allOperationTypes.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
+    val equipmentsToShow = remember(activeEquipments, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        activeEquipments.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
+
     if (selectedAffectedEquipmentForAdd != null) {
         val (opId, status) = selectedAffectedEquipmentForAdd!!
+        // When registering a log/reminder from here, we want to see ops from current section + Common
+        val maintenanceOps by logsViewModel.allOperationTypes.collectAsState()
+        
         MaintenanceLogDialog(
-            equipments = activeEquipments.filter { !it.dismissed },
-            operationTypes = allOperationTypes.filter { !it.dismissed },
+            equipments = equipmentsToShow,
+            operationTypes = maintenanceOps,
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onAffectedAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
@@ -205,27 +158,39 @@ fun OperationTypeScreen(
             equipmentCategoryColor = categoryColorsMap[Category.EQUIPMENT],
             operationCategoryColor = categoryColor,
             syncCalendarByDefault = syncCalendarByDefault,
-            googleAccountName = googleAccountName
+            googleAccountName = googleAccountName,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = logsViewModel::updateLogAddDraft,
+            onUpdateReminderDraft = logsViewModel::updateReminderAddDraft
         )
     }
 
-    val typesToShow = if (showDismissed) allOperationTypes else activeOperationTypes
-
     OperationTypeScreenContent(
-        operationTypes = typesToShow,
+        operationTypes = operationTypesToShow,
         operationTypeImages = operationTypeImages,
         allCategories = allCategories,
+        allSections = allSections,
+        measurementUnits = measurementUnits,
+        selectedSectionId = selectedSectionId,
+        onSectionSelected = viewModel::onSectionSelected,
+        showDismissedSections = showDismissedSections,
+        sectionSelectorType = sectionSelectorType,
+        onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
         defaultIcon = categoryDefaultIcon,
         defaultPhotoUri = categoryDefaultPhoto,
         onAddOperationType = viewModel::addOperationType,
         onUpdateOperationTypes = viewModel::updateOperationTypes,
         onUpdateOperationType = viewModel::updateOperationType,
+        onDeleteOperationType = viewModel::deleteOperationType,
         onDismissOperationType = viewModel::dismissOperationType,
         onRestoreOperationType = viewModel::restoreOperationType,
         showDismissed = showDismissed,
         onToggleShowDismissed = viewModel::onToggleShowDismissed,
         showAddDialog = showAddDialog,
+        cloningOperationType = cloningOperationType,
         onShowAddDialogChange = viewModel::onShowAddDialogChange,
+        onCloneOperationType = viewModel::onCloneOperationType,
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         operationCategoryColor = categoryColor,
@@ -236,7 +201,16 @@ fun OperationTypeScreen(
         categoryDefaultIcons = categoryDefaultIconsMap,
         categoryDefaultPhotos = categoryDefaultPhotosMap,
         operationStatuses = operationStatuses,
-        onAffectedAction = viewModel::onAffectedAction
+        allDrafts = allDrafts,
+        addDraft = addDraft,
+        onUpdateAddDraft = viewModel::updateAddDraft,
+        onStartEdit = viewModel::startEditing,
+        onCancelEdit = viewModel::cancelEditing,
+        onToggleDefaultInDraft = viewModel::toggleDefaultInDraft,
+        onUpdateDraft = viewModel::updateDraft,
+        onSaveEdit = viewModel::saveEditing,
+        onAffectedAction = viewModel::onAffectedAction,
+        sectionsResettableStatus = sectionsResettableStatus
     )
 }
 
@@ -246,15 +220,25 @@ fun OperationTypeScreenContent(
     operationTypes: List<OperationType>,
     operationTypeImages: List<Image>,
     allCategories: List<Category>,
+    allSections: List<Section>,
+    measurementUnits: List<MeasurementUnit>,
+    selectedSectionId: Int,
+    onSectionSelected: (Int) -> Unit,
+    showDismissedSections: Boolean,
+    sectionSelectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE,
+    onToggleShowDismissedSections: () -> Unit,
     defaultIcon: String?,
     defaultPhotoUri: String?,
     showDismissed: Boolean,
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
+    cloningOperationType: OperationType? = null,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddOperationType: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
+    onCloneOperationType: (OperationType) -> Unit,
+    onAddOperationType: (String, ImageIdentifier?, Int, Int, Boolean, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?, Boolean) -> Unit,
     onUpdateOperationTypes: (List<OperationType>) -> Unit,
     onUpdateOperationType: (OperationType) -> Unit,
+    onDeleteOperationType: (OperationType) -> Unit,
     onDismissOperationType: (OperationType) -> Unit,
     onRestoreOperationType: (OperationType) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
@@ -267,7 +251,16 @@ fun OperationTypeScreenContent(
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     operationStatuses: Map<Int, OperationGlobalStatus> = emptyMap(),
+    allDrafts: Map<Int, OperationTypeDraft> = emptyMap(),
+    addDraft: OperationTypeDraft? = null,
+    onUpdateAddDraft: (OperationTypeDraft) -> Unit,
+    onStartEdit: (OperationType) -> Unit,
+    onCancelEdit: (Int) -> Unit,
+    onToggleDefaultInDraft: (Int) -> Unit,
+    onUpdateDraft: (OperationTypeDraft) -> Unit,
+    onSaveEdit: (OperationTypeDraft) -> Unit,
     onAffectedAction: (Int, EquipmentOperationStatus) -> Unit,
+    sectionsResettableStatus: Map<Int, Boolean> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val operationTypesState = remember(operationTypes) { operationTypes.toMutableStateList() }
@@ -300,23 +293,40 @@ fun OperationTypeScreenContent(
             AddOperationTypeDialog(
                 imageLibrary = operationTypeImages,
                 categories = allCategories,
+                allSections = allSections,
+                measurementUnits = measurementUnits,
+                selectedSectionId = selectedSectionId,
+                showDismissedSections = showDismissedSections,
                 categoryColors = categoryColors,
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 defaultIcon = defaultIcon,
                 defaultPhotoUri = defaultPhotoUri,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost ->
-                    onAddOperationType(description, identifier, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost)
+                onConfirm = { description, identifier, sectionId, unitId, isResettable, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost, hasValue ->
+                    onAddOperationType(description, identifier, sectionId, unitId, isResettable, isPredictable, interval, timeout, timeoutUnit, horizon, horizonUnit, customHorizon, cost, hasValue)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
                 onToggleImageVisibility = onToggleImageVisibility,
-                operationCategoryColor = operationCategoryColor
+                operationCategoryColor = operationCategoryColor,
+                initialOperationType = cloningOperationType,
+                sectionsResettableStatus = sectionsResettableStatus,
+                draft = addDraft,
+                onUpdateDraft = onUpdateAddDraft
             )
         }
 
         Column(Modifier.padding(paddingValues).fillMaxSize()) {
+            UnifiedSectionSelector(
+                allSections = allSections,
+                selectedSectionId = selectedSectionId,
+                onSectionSelected = onSectionSelected,
+                showDismissedSections = showDismissedSections,
+                onToggleShowDismissedSections = onToggleShowDismissedSections,
+                selectorType = sectionSelectorType,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -344,9 +354,15 @@ fun OperationTypeScreenContent(
                 },
                 modifier = Modifier.fillMaxSize(),
                 itemContent = { _, operationType ->
+                    val draft = allDrafts[operationType.id]
+                    val isOrigDefault = operationType.id == allSections.find { it.id == operationType.sectionId }?.defaultOperationTypeId
                     OperationTypeCard(
                         operationType = operationType,
+                        allSections = allSections,
+                        measurementUnits = measurementUnits,
+                        showDismissedSections = showDismissedSections,
                         onUpdateOperationType = onUpdateOperationType,
+                        onDeleteOperationType = onDeleteOperationType,
                         onDismissOperationType = onDismissOperationType,
                         onRestoreOperationType = onRestoreOperationType,
                         operationTypeImages = operationTypeImages,
@@ -357,8 +373,20 @@ fun OperationTypeScreenContent(
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
                         operationCategoryColor = operationCategoryColor,
-                        isDefault = operationType.id == defaultOperationTypeId,
-                        onToggleDefault = { onToggleDefault(operationType.id) },
+                        isDefault = draft?.isDefault ?: isOrigDefault,
+                        showDefault = true,
+                        defaultEnabled = selectedSectionId != AppConstants.ALL_SECTIONS_ID,
+                        onToggleDefault = { 
+                            if (draft != null) onToggleDefaultInDraft(operationType.id)
+                            else onToggleDefault(operationType.id)
+                        },
+                        onCloneOperationType = onCloneOperationType,
+                        draft = draft,
+                        sectionsResettableStatus = sectionsResettableStatus,
+                        onStartEdit = { onStartEdit(operationType) },
+                        onCancelEdit = { onCancelEdit(operationType.id) },
+                        onUpdateDraft = onUpdateDraft,
+                        onSaveEdit = onSaveEdit,
                         status = operationStatuses[operationType.id],
                         onAffectedAction = { onAffectedAction(operationType.id, it) },
                         expandAllTrigger = expandAllTrigger,
@@ -368,463 +396,4 @@ fun OperationTypeScreenContent(
             )
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddOperationTypeDialog(
-    onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Boolean, Double?, Int?, TimeGranularity?, Int, TimeGranularity, Boolean, Double?) -> Unit,
-    imageLibrary: List<Image>,
-    categories: List<Category>,
-    categoryColors: Map<String, String>,
-    categoryDefaultIcons: Map<String, String?>,
-    categoryDefaultPhotos: Map<String, String?>,
-    defaultIcon: String?,
-    defaultPhotoUri: String?,
-    onAddImage: (ImageIdentifier, String) -> Unit,
-    onToggleImageVisibility: (Image) -> Unit,
-    operationCategoryColor: String
-) {
-    var description by rememberSaveable { mutableStateOf("") }
-    var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
-    var iconId by rememberSaveable { mutableStateOf<String?>(null) }
-    var estimatedCostStr by rememberSaveable { mutableStateOf("") }
-    var estimatedCost by rememberSaveable { mutableStateOf<Double?>(null) }
-    var isPredictable by rememberSaveable { mutableStateOf(false) }
-    var intervalValue by rememberSaveable { mutableStateOf<Double?>(null) }
-    var intervalValueStr by rememberSaveable { mutableStateOf("") }
-    var timeoutValue by rememberSaveable { mutableStateOf<Int?>(null) }
-    var timeoutValueStr by rememberSaveable { mutableStateOf("") }
-    var timeoutUnit by rememberSaveable { mutableStateOf(TimeGranularity.MONTHS) }
-    
-    var useCustomVisibilityHorizon by rememberSaveable { mutableStateOf(false) }
-    var visibilityHorizon by rememberSaveable { mutableIntStateOf(30) }
-    var visibilityHorizonUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
-
-    var isPristine by rememberSaveable { mutableStateOf(true) }
-    var showImageSelectorDialog by remember { mutableStateOf(false) }
-    var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
-
-    val selectedUnitLabel = "" // Standard label logic could be added if needed
-
-    if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
-        LaunchedEffect(defaultIcon, defaultPhotoUri) {
-            iconId = defaultIcon
-            photoUri = defaultPhotoUri
-        }
-    }
-
-    if (showImageSelectorDialog) {
-        ImagePickerDialog(
-            onDismissRequest = { showImageSelectorDialog = false },
-            photoUri = photoUri,
-            iconIdentifier = iconId,
-            onImageSelected = { (newIconId, newPhotoUri) ->
-                isPristine = false
-                iconId = newIconId
-                photoUri = newPhotoUri
-                showImageSelectorDialog = false
-            },
-            imageLibrary = imageLibrary,
-            categories = categories,
-            categoryColors = categoryColors,
-            categoryDefaultIcons = categoryDefaultIcons,
-            categoryDefaultPhotos = categoryDefaultPhotos,
-            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
-            onUpdateImageOrder = null,
-            onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
-            onSetDefaultInCategory = null,
-            isPhotoUsed = null,
-            isPrefsMode = false,
-            forcedCategory = Category.OPERATION
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text(text = stringResource(R.string.add_a_new_operation_type), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val borderColor = remember(operationCategoryColor) { try { Color(operationCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray } }
-                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer).border(2.dp, borderColor, CircleShape).clickable { showImageSelectorDialog = true }, contentAlignment = Alignment.Center) {
-                        if (photoUri != null) AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                        else Icon(imageVector = EquipmentIconProvider.getIcon(iconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                    }
-                    OutlinedTextField(value = description, onValueChange = { if (it.length <= 50) description = it }, label = { Text(stringResource(R.string.operation_type_description)) }, modifier = Modifier.weight(1f), singleLine = true)
-                }
-
-                OutlinedTextField(
-                    value = estimatedCostStr,
-                    onValueChange = { input ->
-                        val filtered = input.replace(',', '.')
-                        if (filtered.isEmpty() || filtered == ".") {
-                            estimatedCostStr = filtered
-                            estimatedCost = null
-                        } else {
-                            val doubleVal = filtered.toDoubleOrNull()
-                            if (doubleVal != null && filtered.length <= 10) {
-                                estimatedCostStr = filtered
-                                estimatedCost = doubleVal
-                            }
-                        }
-                    },
-                    label = { Text(stringResource(R.string.cost_optional)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(modifier = Modifier.fillMaxWidth().clickable { isPredictable = !isPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = isPredictable, onCheckedChange = { isPredictable = it }); Text(text = "Automatic Maintenance Prediction", style = MaterialTheme.typography.bodyMedium) }
-
-                if (isPredictable) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Default Recurrence Intervals", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            OutlinedTextField(value = intervalValueStr, onValueChange = { input -> val filtered = input.replace(',', '.'); if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) { intervalValueStr = filtered; intervalValue = filtered.toDoubleOrNull() } }, label = { Text("Usage Interval") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-                            Text("Recurrence by usage (km, hours, etc. based on equipment)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(value = timeoutValueStr, onValueChange = { input -> if (input.isEmpty()) { timeoutValueStr = ""; timeoutValue = null } else { input.toIntOrNull()?.let { timeoutValueStr = input; timeoutValue = it } } }, label = { Text("Timeout Value") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
-                                TimeGranularitySelector(selected = timeoutUnit, onSelected = { timeoutUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
-                            }
-                            Text("Maximum time allowed between maintenances", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-
-                        HorizontalDivider()
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable { showAdvancedSettings = !showAdvancedSettings },
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Advanced Visibility",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Icon(
-                                imageVector = if (showAdvancedSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-
-                        if (showAdvancedSettings) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth().clickable { useCustomVisibilityHorizon = !useCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = useCustomVisibilityHorizon, onCheckedChange = { useCustomVisibilityHorizon = it })
-                                    Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
-                                }
-                                if (useCustomVisibilityHorizon) {
-                                    Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        OutlinedTextField(value = visibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f) )
-                                        TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
-                                    }
-                                } else {
-                                    Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
-                                }
-                            }
-                        }
-                        Text("App will pick the earliest of the triggers.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { val identifier = when { photoUri != null -> ImageIdentifier.Photo(photoUri!!) ; iconId != null -> ImageIdentifier.Icon(iconId!!) ; else -> null } ; onConfirm(description, identifier, isPredictable, intervalValue, timeoutValue, timeoutUnit, visibilityHorizon, visibilityHorizonUnit, useCustomVisibilityHorizon, estimatedCost) }) { Text(stringResource(R.string.button_add)) } },
-        dismissButton = { TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) } }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OperationTypeCard(
-    operationType: OperationType,
-    onUpdateOperationType: (OperationType) -> Unit,
-    onDismissOperationType: (OperationType) -> Unit,
-    onRestoreOperationType: (OperationType) -> Unit,
-    operationTypeImages: List<Image>,
-    allCategories: List<Category>,
-    categoryColors: Map<String, String>,
-    categoryDefaultIcons: Map<String, String?>,
-    categoryDefaultPhotos: Map<String, String?>,
-    onAddImage: (ImageIdentifier, String) -> Unit,
-    onToggleImageVisibility: (Image) -> Unit,
-    operationCategoryColor: String,
-    isDefault: Boolean,
-    onToggleDefault: () -> Unit,
-    status: OperationGlobalStatus? = null,
-    onAffectedAction: (EquipmentOperationStatus) -> Unit,
-    expandAllTrigger: Int = 0,
-    collapseAllTrigger: Int = 0,
-    modifier: Modifier = Modifier
-) {
-    var isEditing by remember { mutableStateOf(false) }
-    var isExpanded by rememberSaveable { mutableStateOf(false) }
-    
-    LaunchedEffect(expandAllTrigger) { if (expandAllTrigger > 0) isExpanded = true }
-    LaunchedEffect(collapseAllTrigger) { if (collapseAllTrigger > 0) isExpanded = false }
-
-    var editedDescription by remember(operationType.description) { mutableStateOf(operationType.description) }
-    var editedIconId by remember(operationType.iconIdentifier) { mutableStateOf(operationType.iconIdentifier) }
-    var editedPhotoUri by remember(operationType.photoUri) { mutableStateOf(operationType.photoUri) }
-    var editedIsPredictable by remember(operationType.isPredictable) { mutableStateOf(operationType.isPredictable) }
-    
-    var editedUseCustomVisibilityHorizon by remember(operationType.useCustomVisibilityHorizon) { mutableStateOf(operationType.useCustomVisibilityHorizon) }
-    var editedIntervalValueStr by remember(operationType.intervalValue) { mutableStateOf(operationType.intervalValue?.toString() ?: "") }
-    var editedTimeoutValueStr by remember(operationType.timeoutValue) { mutableStateOf(operationType.timeoutValue?.toString() ?: "") }
-    var editedTimeoutUnit by remember(operationType.timeoutUnit) { mutableStateOf(operationType.timeoutUnit ?: TimeGranularity.MONTHS) }
-    var editedVisibilityHorizon by remember(operationType.visibilityHorizon) { mutableIntStateOf(operationType.visibilityHorizon) }
-    var editedVisibilityHorizonUnit by remember(operationType.visibilityHorizonUnit) { mutableStateOf(operationType.visibilityHorizonUnit) }
-    var editedEstimatedCostStr by remember(operationType.estimatedCost) { mutableStateOf(operationType.estimatedCost?.toString() ?: "") }
-
-    val context = LocalContext.current
-    var showFullImageDialog by remember { mutableStateOf<String?>(null) }
-    var showNoPictureDialog by remember { mutableStateOf(false) }
-    var showImageSelectorDialog by remember { mutableStateOf(false) }
-
-    if (showImageSelectorDialog) {
-        ImagePickerDialog(
-            onDismissRequest = { showImageSelectorDialog = false },
-            photoUri = editedPhotoUri,
-            iconIdentifier = editedIconId,
-            onImageSelected = { (newIconId, newPhotoUri) ->
-                editedIconId = newIconId
-                editedPhotoUri = newPhotoUri
-                showImageSelectorDialog = false
-            },
-            imageLibrary = operationTypeImages,
-            categories = allCategories,
-            categoryColors = categoryColors,
-            categoryDefaultIcons = categoryDefaultIcons,
-            categoryDefaultPhotos = categoryDefaultPhotos,
-            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
-            onUpdateImageOrder = null,
-            onToggleImageVisibility = { uri, category -> operationTypeImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
-            onSetDefaultInCategory = null,
-            isPhotoUsed = null,
-            isPrefsMode = false,
-            forcedCategory = Category.OPERATION
-        )
-    }
-
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-    val operationColor = remember(operationCategoryColor) { try { Color(operationCategoryColor.toColorInt()) } catch (_: Exception) { Color.Gray } }
-
-    Box(contentAlignment = Alignment.BottomEnd) {
-        Card(
-            modifier = modifier.fillMaxWidth().animateContentSize().graphicsLayer(alpha = if (operationType.dismissed) 0.5f else 1f).then(if (isDefault) Modifier.border(3.dp, operationColor, MaterialTheme.shapes.medium) else Modifier).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { if (!isEditing) isExpanded = !isExpanded }),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(contentAlignment = Alignment.BottomEnd) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer)
-                                .border(2.dp, operationColor, CircleShape)
-                                .clickable {
-                                    if (isEditing) showImageSelectorDialog = true
-                                    else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
-                                    else if (editedIconId == null) showNoPictureDialog = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (editedPhotoUri != null) AsyncImage(model = ImageRequest.Builder(context).data(editedPhotoUri).crossfade(true).build(), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                            else Icon(imageVector = EquipmentIconProvider.getIcon(editedIconId, Category.OPERATION), contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                        }
-
-                        // HEALTH TAGGER (Badge) - Esterno al clip per essere visibile
-                        if (!isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
-                            val overdueCount = status.affectedEquipments.count { it.isOverdue }
-                            val upcomingCount = status.affectedEquipments.count { !it.isOverdue } // Based on your current structure
-
-                            if (overdueCount > 0 || upcomingCount > 0) {
-                                val badgeColor = if (overdueCount > 0) MaterialTheme.colorScheme.error else Color(0xFFFFB300)
-                                val badgeIcon = if (overdueCount > 0) Icons.Default.Warning else Icons.Default.Schedule
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .offset(x = 4.dp, y = 4.dp)
-                                        .clip(CircleShape)
-                                        .background(badgeColor)
-                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = badgeIcon,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        if (isEditing) OutlinedTextField(value = editedDescription, onValueChange = { if (it.length <= 50) editedDescription = it }, label = { Text(stringResource(R.string.operation_type_description)) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        else Text(text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, operationType.id), color = if (editedDescription.isNotBlank()) LocalContentColor.current else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                        if (isEditing) IconButton(onClick = { if (operationType.dismissed) onRestoreOperationType(operationType) else onDismissOperationType(operationType) }) { Icon(imageVector = if (operationType.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null) }
-                        IconButton(onClick = { 
-                            if (isEditing) { 
-                                onUpdateOperationType(operationType.copy(
-                                    description = editedDescription, 
-                                    iconIdentifier = editedIconId, 
-                                    photoUri = editedPhotoUri, 
-                                    isPredictable = editedIsPredictable, 
-                                    intervalValue = editedIntervalValueStr.toDoubleOrNull(), 
-                                    timeoutValue = editedTimeoutValueStr.toIntOrNull(), 
-                                    timeoutUnit = editedTimeoutUnit, 
-                                    visibilityHorizon = editedVisibilityHorizon, 
-                                    visibilityHorizonUnit = editedVisibilityHorizonUnit, 
-                                    useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon,
-                                    estimatedCost = editedEstimatedCostStr.toDoubleOrNull()
-                                )) 
-                            } 
-                            isEditing = !isEditing 
-                            if (isEditing) isExpanded = true 
-                        }) { Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null) }
-                        IconButton(onClick = { onToggleDefault() }) { Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current) }
-                        IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
-                    }
-                }
-
-                if (isEditing) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = editedEstimatedCostStr,
-                        onValueChange = { input ->
-                            val filtered = input.replace(',', '.')
-                            if (filtered.isEmpty() || filtered == ".") {
-                                editedEstimatedCostStr = filtered
-                            } else {
-                                val doubleVal = filtered.toDoubleOrNull()
-                                if (doubleVal != null && filtered.length <= 10) {
-                                    editedEstimatedCostStr = filtered
-                                }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.cost_optional)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth().clickable { editedIsPredictable = !editedIsPredictable }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Checkbox(checked = editedIsPredictable, onCheckedChange = { editedIsPredictable = it }); Text(text = "Predictive Maintenance", style = MaterialTheme.typography.bodyMedium) }
-                    if (editedIsPredictable) {
-                        Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Recurrence Intervals", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                            OutlinedTextField(value = editedIntervalValueStr, onValueChange = { input -> val filtered = input.replace(',', '.'); if (filtered.isEmpty() || filtered.toDoubleOrNull() != null) editedIntervalValueStr = filtered }, label = { Text("Usage Interval") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodySmall)
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(value = editedTimeoutValueStr, onValueChange = { input -> if (input.isEmpty()) editedTimeoutValueStr = "" else input.toIntOrNull()?.let { editedTimeoutValueStr = input } }, label = { Text("Timeout Value") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
-                                TimeGranularitySelector(selected = editedTimeoutUnit, onSelected = { editedTimeoutUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
-                            }
-                            
-                            Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
-                                    Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
-                                }
-                                if (editedUseCustomVisibilityHorizon) {
-                                    Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        OutlinedTextField(value = editedVisibilityHorizon.toString(), onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } }, label = { Text("Event Horizon") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodySmall)
-                                        TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
-                                    }
-                                } else {
-                                    Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
-                                }
-                            }
-                        }
-                    }
-                } else if (isExpanded && status != null && status.affectedEquipments.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "Upcoming for Equipments", style = MaterialTheme.typography.labelSmall, color = operationColor, fontWeight = FontWeight.Bold)
-                    Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        status.affectedEquipments.sortedBy { it.nextPresumedDate ?: Long.MAX_VALUE }.forEach { eqStatus ->
-                            val hasInconsistency = eqStatus.isPlanned && eqStatus.predictedDate != null && 
-                                    eqStatus.predictedDate < (eqStatus.nextPresumedDate ?: Long.MAX_VALUE) - 86400000L // 1 day buffer
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                    Icon(
-                                        imageVector = if (eqStatus.isOverdue) Icons.Default.PriorityHigh else if (hasInconsistency) Icons.Default.Warning else if (eqStatus.isPlanned) Icons.AutoMirrored.Filled.EventNote else Icons.Default.Schedule,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                        tint = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error 
-                                               else if (hasInconsistency) Color(0xFFFF9800)
-                                               else if (eqStatus.isPlanned) MaterialTheme.colorScheme.secondary 
-                                               else MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    
-                                    // Equipment Icon
-                                    val eqColor = remember(eqStatus.equipment.color, categoryColors) {
-                                        try { 
-                                            eqStatus.equipment.color?.toColorInt()?.let { Color(it) } 
-                                            ?: categoryColors[Category.EQUIPMENT]?.toColorInt()?.let { Color(it) } 
-                                            ?: Color.Gray 
-                                        } catch (_: Exception) { Color.Gray }
-                                    }
-                                    
-                                    com.moxmose.moxequiplog.ui.components.ImageIcon(
-                                        photoUri = eqStatus.equipment.photoUri,
-                                        iconIdentifier = eqStatus.equipment.iconIdentifier,
-                                        modifier = Modifier.size(18.dp),
-                                        category = Category.EQUIPMENT,
-                                        borderColor = eqColor,
-                                        contentPadding = 1.dp
-                                    )
-
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(text = eqStatus.equipment.description, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = (if (eqStatus.isOverdue) stringResource(R.string.reminder_overdue) + " - " else "") +
-                                               (eqStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never"),
-                                        style = MaterialTheme.typography.labelSmall, 
-                                        color = if (eqStatus.isOverdue) MaterialTheme.colorScheme.error 
-                                                else if (hasInconsistency) Color(0xFFFF9800)
-                                                else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Surface(
-                                        onClick = { onAffectedAction(eqStatus) },
-                                        shape = CircleShape,
-                                        color = operationColor.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, operationColor.copy(alpha = 0.5f)),
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = if (eqStatus.isPlanned) Icons.Default.Edit else Icons.Default.Build,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
-                                                tint = operationColor
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, confirmButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.button_ok)) } }, modifier = Modifier.padding(16.dp), text = { AsyncImage(model = photoUri, contentDescription = stringResource(R.string.full_size_operation_photo), modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.Fit) } )
 }
