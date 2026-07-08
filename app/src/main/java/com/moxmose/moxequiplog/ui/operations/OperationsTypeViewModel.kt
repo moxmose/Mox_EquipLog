@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
@@ -15,9 +16,13 @@ import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
 import com.moxmose.moxequiplog.data.local.MaintenanceReminderDao
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.OperationTypeDraft
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,10 +30,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 data class EquipmentOperationStatus(
     val equipment: Equipment,
@@ -36,10 +43,11 @@ data class EquipmentOperationStatus(
     val lastLogValue: Double?,
     val nextPresumedDate: Long?,
     val isOverdue: Boolean,
+    val reason: com.moxmose.moxequiplog.ui.equipment.PredictionReason? = null,
     val isPlanned: Boolean = false,
     val reminderId: Int? = null,
     val plannedValue: Double? = null,
-    val predictedDate: Long? = null
+    val predictedDate: Long? = null,
 )
 
 data class OperationGlobalStatus(
@@ -47,11 +55,13 @@ data class OperationGlobalStatus(
     val affectedEquipments: List<EquipmentOperationStatus>
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OperationsTypeViewModel(
     private val operationTypeDao: OperationTypeDao,
-    private val equipmentDao: EquipmentDao,
+    equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
+    private val sectionRepository: SectionRepository,
     private val maintenanceLogDao: MaintenanceLogDao,
     private val maintenanceReminderDao: MaintenanceReminderDao,
     private val maintenanceManager: MaintenanceManager
@@ -77,29 +87,92 @@ class OperationsTypeViewModel(
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     // Hoisted UI State from Screen
-    private val _showDismissed = MutableStateFlow(false)
+    private val _showDismissed = MutableStateFlow(value = false)
     val showDismissed = _showDismissed.asStateFlow()
 
-    private val _showAddDialog = MutableStateFlow(false)
+    private val _showAddDialog = MutableStateFlow(value = false)
     val showAddDialog = _showAddDialog.asStateFlow()
+
+    private val _cloningOperationType = MutableStateFlow<OperationType?>(null)
+    val cloningOperationType = _cloningOperationType.asStateFlow()
 
     private val _selectedAffectedEquipmentForAdd = MutableStateFlow<Pair<Int, EquipmentOperationStatus>?>(null)
     val selectedAffectedEquipmentForAdd = _selectedAffectedEquipmentForAdd.asStateFlow()
 
     fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
-    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
-    fun onAffectedAction(opId: Int, status: EquipmentOperationStatus?) { _selectedAffectedEquipmentForAdd.value = if (status != null) opId to status else null }
+    fun onShowAddDialogChange(show: Boolean) { 
+        _showAddDialog.value = show 
+        if (!show) {
+            _cloningOperationType.value = null
+            cancelAddDraft()
+        }
+    }
+    fun onCloneOperationType(operationType: OperationType?) {
+        _cloningOperationType.value = operationType
+        if (operationType != null) {
+            _showAddDialog.value = true
+            updateAddDraft(OperationTypeDraft(operationType = operationType.copy(id = 0), isDefault = false))
+        }
+    }
+    fun onAffectedAction(opId: Int, status: EquipmentOperationStatus?) {
+        _selectedAffectedEquipmentForAdd.value = status?.let { opId to it }
+    }
 
-    val allOperationTypes: StateFlow<List<OperationType>> = combine(
-        operationTypeDao.getAllOperationTypes(),
-        equipmentDao.countActiveResettableEquipment()
-    ) { types, resettableCount ->
-        types.map { type ->
-            if (type.isSystem && type.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
-                type.copy(dismissed = resettableCount == 0)
-            } else {
-                type
-            }
+    val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = AppConstants.DEFAULT_SECTION_ID
+        )
+
+    val allSections: StateFlow<List<Section>> = sectionRepository.allSections
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
+    val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
+
+    val sectionSelectorType: StateFlow<String> = appSettingsManager.sectionSelectorType
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_SECTION_SELECTOR_TYPE)
+
+    val sectionsResettableStatus: StateFlow<Map<Int, Boolean>> = equipmentDao.getAllEquipmentList()
+        .map { equipments ->
+            val statusMap = equipments.groupBy { it.sectionId }
+                .mapValues { (_, sectionEquips) ->
+                    sectionEquips.any { it.isResettable }
+                }.toMutableMap()
+            
+            // The "Common" section allows resettable operations if ANY equipment in the app is resettable
+            statusMap[AppConstants.DEFAULT_SECTION_ID] = equipments.any { it.isResettable }
+            statusMap
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyMap()
+        )
+
+    fun onSectionSelected(sectionId: Int) {
+        viewModelScope.launch {
+            appSettingsManager.setSelectedSectionId(sectionId)
+        }
+    }
+
+    fun onToggleShowDismissedSections() {
+        viewModelScope.launch {
+            val current = showDismissedSections.value
+            appSettingsManager.setShowDismissedSections(!current)
+        }
+    }
+
+    val allOperationTypes: StateFlow<List<OperationType>> = appSettingsManager.selectedSectionId.flatMapLatest { sectionId ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+            operationTypeDao.getAllOperationTypes()
+        } else {
+            operationTypeDao.getAllOperationTypesBySection(sectionId)
         }
     }.stateIn(
         scope = viewModelScope,
@@ -128,19 +201,20 @@ class OperationsTypeViewModel(
             val affected = equipments.mapNotNull { equipment ->
                 val lastLog = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
                 val trend = maintenanceManager.calculateTrend(equipment)
-                val nextPresumedDate = if (lastLog != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend) else null
+                val predictionResult = if (lastLog != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend) else null
                 
-                val prediction = nextPresumedDate?.let {
+                val prediction = predictionResult?.let { (date, reason) ->
                     if (lastLog != null) {
                         calculateEquipmentStatusForOp(equipment, opType, lastLog).copy(
-                            nextPresumedDate = it,
-                            isOverdue = it < now
+                            nextPresumedDate = date,
+                            isOverdue = date < now,
+                            reason = reason
                         )
                     } else null
                 }
 
                 // Check for manual reminder first (Planned)
-                val manualReminder = reminders.find { !it.isCompleted && it.equipmentId == equipment.id && it.operationTypeId == opType.id }
+                val manualReminder = reminders.find { (!it.isCompleted) && (it.equipmentId == equipment.id) && (it.operationTypeId == opType.id) }
                 
                 // Effective horizon check
                 val horizonValue = if (opType.useCustomVisibilityHorizon) opType.visibilityHorizon else globalVisibilityHorizonValue.value
@@ -158,6 +232,7 @@ class OperationsTypeViewModel(
                             lastLogValue = lastLog?.value,
                             nextPresumedDate = effectiveDate,
                             isOverdue = effectiveDate?.let { it < now } ?: false,
+                            reason = prediction?.reason,
                             isPlanned = true,
                             reminderId = manualReminder.id,
                             plannedValue = manualReminder.dueValue,
@@ -191,14 +266,15 @@ class OperationsTypeViewModel(
     private suspend fun calculateEquipmentStatusForOp(equipment: Equipment, opType: OperationType, lastLog: MaintenanceLog): EquipmentOperationStatus {
         val now = System.currentTimeMillis()
         val trend = maintenanceManager.calculateTrend(equipment)
-        val nextDate = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend)
+        val predictionResult = maintenanceManager.getOperationPrediction(equipment.id, opType, lastLog, trend)
 
         return EquipmentOperationStatus(
             equipment = equipment,
             lastLogDate = lastLog.date,
             lastLogValue = lastLog.value,
-            nextPresumedDate = nextDate,
-            isOverdue = nextDate?.let { it < now } ?: false
+            nextPresumedDate = predictionResult?.first,
+            isOverdue = predictionResult?.let { it.first < now } ?: false,
+            reason = predictionResult?.second
         )
     }
 
@@ -226,8 +302,13 @@ class OperationsTypeViewModel(
     val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto(Category.OPERATION)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
-    val defaultOperationTypeId: StateFlow<Int?> = appSettingsManager.defaultOperationTypeId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultOperationTypeId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections
+    ) { sectionId, sections ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) null
+        else sections.find { it.id == sectionId }?.defaultOperationTypeId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
@@ -236,10 +317,33 @@ class OperationsTypeViewModel(
         .map { TimeGranularity.valueOf(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), TimeGranularity.valueOf(UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT))
 
+    val allDrafts: StateFlow<Map<Int, OperationTypeDraft>> = appSettingsManager.getAllDraftsFlow("operation")
+        .map { draftsMap ->
+            draftsMap.mapValues { (_, json) ->
+                try {
+                    Json.decodeFromString<OperationTypeDraft>(json)
+                } catch (_: Exception) {
+                    null
+                }
+            }.filterValues { it != null }.mapValues { it.value!! }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
+
+    val addDraft: StateFlow<OperationTypeDraft?> = appSettingsManager.getDraftFlow("operation", 0)
+        .map { json ->
+            try {
+                json?.let { Json.decodeFromString<OperationTypeDraft>(it) }
+            } catch (_: Exception) {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
     fun setDefaultOperationType(id: Int?) {
+        val sectionId = selectedSectionId.value
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) return
+
         viewModelScope.launch {
             try {
-                appSettingsManager.setDefaultOperationTypeId(id)
+                sectionRepository.updateSectionDefaultOperationType(sectionId, id)
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.SetDefaultFailed)
             }
@@ -247,13 +351,16 @@ class OperationsTypeViewModel(
     }
 
     fun toggleDefaultOperationType(id: Int) {
+        val sectionId = selectedSectionId.value
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) return
+
         viewModelScope.launch {
             try {
                 val currentDefault = defaultOperationTypeId.value
                 if (currentDefault == id) {
-                    appSettingsManager.setDefaultOperationTypeId(null)
+                    sectionRepository.updateSectionDefaultOperationType(sectionId, null)
                 } else {
-                    appSettingsManager.setDefaultOperationTypeId(id)
+                    sectionRepository.updateSectionDefaultOperationType(sectionId, id)
                 }
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.SetDefaultFailed)
@@ -264,6 +371,9 @@ class OperationsTypeViewModel(
     fun addOperationType(
         description: String, 
         imageIdentifier: ImageIdentifier?,
+        sectionId: Int? = null,
+        unitId: Int = 1,
+        isResettable: Boolean = false,
         isPredictable: Boolean = false,
         intervalValue: Double? = null,
         timeoutValue: Int? = null,
@@ -271,7 +381,8 @@ class OperationsTypeViewModel(
         visibilityHorizon: Int = 30,
         visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
         useCustomVisibilityHorizon: Boolean = false,
-        estimatedCost: Double? = null
+        estimatedCost: Double? = null,
+        hasValue: Boolean = true
     ) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
@@ -294,12 +405,20 @@ class OperationsTypeViewModel(
                     }
                 }
 
+                val targetSectionId = sectionId ?: run {
+                    val currentSection = selectedSectionId.value
+                    if (currentSection == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else currentSection
+                }
+
                 operationTypeDao.insertOperationType(
                     OperationType(
                         description = description,
                         photoUri = operationPhotoUri,
                         iconIdentifier = operationIconIdentifier,
                         displayOrder = nextOrder,
+                        sectionId = targetSectionId,
+                        unitId = unitId,
+                        isResettable = isResettable,
                         isPredictable = isPredictable,
                         intervalValue = intervalValue,
                         timeoutValue = timeoutValue,
@@ -307,7 +426,8 @@ class OperationsTypeViewModel(
                         visibilityHorizon = visibilityHorizon,
                         visibilityHorizonUnit = visibilityHorizonUnit,
                         useCustomVisibilityHorizon = useCustomVisibilityHorizon,
-                        estimatedCost = estimatedCost
+                        estimatedCost = estimatedCost,
+                        hasValue = hasValue
                     )
                 )
             } catch (e: Exception) {
@@ -320,7 +440,7 @@ class OperationsTypeViewModel(
         viewModelScope.launch {
             try {
                 operationTypeDao.updateOperationType(operationType)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateOperationTypeFailed)
             }
         }
@@ -341,7 +461,7 @@ class OperationsTypeViewModel(
         viewModelScope.launch {
             try {
                 operationTypeDao.updateOperationType(operationType.copy(dismissed = true))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DismissOperationTypeFailed)
             }
         }
@@ -351,8 +471,19 @@ class OperationsTypeViewModel(
         viewModelScope.launch {
             try {
                 operationTypeDao.updateOperationType(operationType.copy(dismissed = false))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.RestoreOperationTypeFailed)
+            }
+        }
+    }
+
+    fun deleteOperationType(operationType: OperationType) {
+        if (operationType.isSystem) return
+        viewModelScope.launch {
+            try {
+                operationTypeDao.deleteOperationType(operationType)
+            } catch (_: Exception) {
+                _uiEvents.send(UiEvent.UpdateOperationTypeFailed)
             }
         }
     }
@@ -405,9 +536,76 @@ class OperationsTypeViewModel(
         }
         return try {
             operationTypeDao.countOperationTypesUsingPhoto(uri) > 0
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
+        }
+    }
+
+    // --- Draft Management ---
+    fun startEditing(operationType: OperationType) {
+        viewModelScope.launch {
+            val section = allSections.value.find { it.id == operationType.sectionId }
+            val isCurrentlyDefault = section?.defaultOperationTypeId == operationType.id
+            val draft = OperationTypeDraft(operationType = operationType, isDefault = isCurrentlyDefault)
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("operation", operationType.id, json)
+        }
+    }
+
+    fun toggleDefaultInDraft(id: Int) {
+        viewModelScope.launch {
+            val drafts = allDrafts.value
+            drafts[id]?.let { draft ->
+                val updated = draft.copy(isDefault = !draft.isDefault)
+                updateDraft(updated)
+            }
+        }
+    }
+
+    fun updateDraft(draft: OperationTypeDraft) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("operation", draft.operationType.id, json)
+        }
+    }
+
+    fun cancelEditing(id: Int) {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("operation", id)
+        }
+    }
+
+    fun saveEditing(draft: OperationTypeDraft) {
+        viewModelScope.launch {
+            updateOperationType(draft.operationType)
+
+            // Sync default status if changed in draft
+            val sectionId = draft.operationType.sectionId
+            val section = allSections.value.find { it.id == sectionId }
+            val currentDefaultId = section?.defaultOperationTypeId
+
+            if (draft.isDefault && currentDefaultId != draft.operationType.id) {
+                sectionRepository.updateSectionDefaultOperationType(sectionId, draft.operationType.id)
+            } else if (!draft.isDefault && currentDefaultId == draft.operationType.id) {
+                sectionRepository.updateSectionDefaultOperationType(sectionId, null)
+            }
+
+            appSettingsManager.deleteDraft("operation", draft.operationType.id)
+        }
+    }
+
+    // --- Add Draft Management ---
+    fun updateAddDraft(draft: OperationTypeDraft) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("operation", 0, json)
+        }
+    }
+
+    fun cancelAddDraft() {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("operation", 0)
         }
     }
 }

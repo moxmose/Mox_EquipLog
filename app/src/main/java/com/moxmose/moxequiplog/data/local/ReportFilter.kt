@@ -11,5 +11,5 @@ data class ReportFilter(
     val reportType: String,
     val isLastSession: Boolean = false,
     val filterJson: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
 )

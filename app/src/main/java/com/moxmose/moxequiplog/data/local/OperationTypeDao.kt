@@ -18,6 +18,15 @@ interface OperationTypeDao {
     @Update
     suspend fun updateOperationTypes(operationTypes: List<OperationType>)
 
+    @Query("SELECT * FROM operation_types WHERE dismissed = 0 AND sectionId = :sectionId ORDER BY displayOrder ASC")
+    fun getActiveOperationTypesBySection(sectionId: Int): Flow<List<OperationType>>
+
+    @Query("SELECT * FROM operation_types WHERE sectionId = :sectionId ORDER BY displayOrder ASC")
+    fun getAllOperationTypesBySection(sectionId: Int): Flow<List<OperationType>>
+
+    @Query("SELECT * FROM operation_types WHERE sectionId = :sectionId ORDER BY displayOrder ASC")
+    suspend fun getAllOperationTypesBySectionOneShot(sectionId: Int): List<OperationType>
+
     @Query("SELECT * FROM operation_types WHERE dismissed = 0 ORDER BY displayOrder ASC")
     fun getActiveOperationTypes(): Flow<List<OperationType>>
 
@@ -38,4 +47,7 @@ interface OperationTypeDao {
 
     @androidx.room.Delete
     suspend fun deleteOperationTypes(operationTypes: List<OperationType>)
+
+    @androidx.room.Delete
+    suspend fun deleteOperationType(operationType: OperationType)
 }

@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
+import com.moxmose.moxequiplog.utils.AppConstants
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -23,14 +25,26 @@ class OperationTypeDaoTest {
 
     private lateinit var database: AppDatabase
     private lateinit var operationTypeDao: OperationTypeDao
+    private lateinit var measurementUnitDao: MeasurementUnitDao
+    private lateinit var sectionDao: SectionDao
 
     @Before
     fun setupDatabase() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
-        operationTypeDao = database.operationTypeDao()
+        runBlocking {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+            operationTypeDao = database.operationTypeDao()
+            measurementUnitDao = database.measurementUnitDao()
+            sectionDao = database.sectionDao()
+
+            // Popolamento manuale delle unità e sezioni per i test per soddisfare il vincolo FK
+            AppConstants.INITIAL_MEASUREMENT_UNITS.forEach { unit ->
+                measurementUnitDao.insertUnit(unit)
+            }
+            sectionDao.insertSection(Section(id = AppConstants.DEFAULT_SECTION_ID, name = AppConstants.DEFAULT_SECTION_NAME))
+        }
     }
 
     @After

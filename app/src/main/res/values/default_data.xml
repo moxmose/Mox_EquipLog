@@ -23,5 +23,10 @@
         <item>LOG;Logs;#607D8B</item>
         <item>REPORTS;Reports;#FF9800</item>
         <item>OPTIONS;Options;#9C27B0</item>
+        <item>SECTIONS;Sections;#808080</item>
+    </string-array>
+
+    <string-array name="default_sections">
+        <item>1;General;category;#808080;0</item>
     </string-array>
 </resources>

@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.*
 import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
@@ -48,6 +49,7 @@ class MaintenanceLogsViewModelTest {
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var categoryDao: CategoryDao
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var sectionRepository: SectionRepository
     private lateinit var imageRepository: ImageRepository
     private lateinit var measurementUnitDao: MeasurementUnitDao
     private lateinit var maintenanceManager: MaintenanceManager
@@ -56,8 +58,8 @@ class MaintenanceLogsViewModelTest {
     private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
     private val allOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
-    private val defaultEquipmentIdFlow = MutableStateFlow<Int?>(null)
-    private val defaultOperationTypeIdFlow = MutableStateFlow<Int?>(null)
+    private val selectedSectionIdFlow = MutableStateFlow(1)
+    private val allSectionsFlow = MutableStateFlow<List<Section>>(emptyList())
 
     @Before
     fun setup() {
@@ -70,22 +72,29 @@ class MaintenanceLogsViewModelTest {
         }
         equipmentDao = mockk(relaxed = true) {
             every { getAllEquipmentList() } returns allEquipmentsFlow
-            every { countActiveResettableEquipment() } returns flowOf(0)
+            every { getAllEquipmentListBySection(any()) } returns allEquipmentsFlow
         }
         operationTypeDao = mockk(relaxed = true) {
             every { getAllOperationTypes() } returns allOperationTypesFlow
+            every { getAllOperationTypesBySection(any()) } returns allOperationTypesFlow
         }
         categoryDao = mockk(relaxed = true) {
             every { getAllCategories() } returns allCategoriesFlow
         }
         appSettingsManager = mockk(relaxed = true) {
-            every { defaultEquipmentId } returns defaultEquipmentIdFlow
-            every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
+            every { selectedSectionId } returns selectedSectionIdFlow
+            every { showDismissedSections } returns flowOf(false)
+            every { sectionSelectorType } returns flowOf(UiConstants.DEFAULT_SECTION_SELECTOR_TYPE)
             every { syncCalendarByDefault } returns flowOf(false)
             every { googleAccountName } returns flowOf(null)
             every { costTrendThreshold } returns flowOf(UiConstants.DEFAULT_COST_TREND_THRESHOLD)
             every { costAnalysisWindowValue } returns flowOf(UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_VALUE)
             every { costAnalysisWindowUnit } returns flowOf(UiConstants.DEFAULT_COST_ANALYSIS_WINDOW_UNIT)
+            every { getAllDraftsFlow(any()) } returns flowOf(emptyMap())
+            every { getDraftFlow(any(), any()) } returns flowOf(null)
+        }
+        sectionRepository = mockk(relaxed = true) {
+            every { allSections } returns allSectionsFlow
         }
         imageRepository = mockk(relaxed = true) {
              every { getCategoryColor(any()) } returns MutableStateFlow("#000000")
@@ -102,6 +111,7 @@ class MaintenanceLogsViewModelTest {
             operationTypeDao,
             categoryDao,
             appSettingsManager,
+            sectionRepository,
             imageRepository,
             measurementUnitDao,
             mockk(relaxed = true), // calendarManager
@@ -144,14 +154,14 @@ class MaintenanceLogsViewModelTest {
 
         viewModel.defaultEquipmentId.test {
             assertEquals(null, awaitItem())
-            defaultEquipmentIdFlow.value = 1
-            assertEquals(1, awaitItem())
+            allSectionsFlow.value = listOf(Section(id = 1, name = "S1", defaultEquipmentId = 10))
+            assertEquals(10, awaitItem())
         }
 
         viewModel.defaultOperationTypeId.test {
             assertEquals(null, awaitItem())
-            defaultOperationTypeIdFlow.value = 2
-            assertEquals(2, awaitItem())
+            allSectionsFlow.value = listOf(Section(id = 1, name = "S1", defaultOperationTypeId = 20))
+            assertEquals(20, awaitItem())
         }
     }
 

@@ -5,7 +5,9 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -43,6 +45,7 @@ class EquipmentViewModelTest {
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var sectionRepository: SectionRepository
     private lateinit var measurementUnitDao: MeasurementUnitDao
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var maintenanceLogDao: MaintenanceLogDao
@@ -53,8 +56,9 @@ class EquipmentViewModelTest {
     private val activeEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
     private val allEquipmentsFlow = MutableStateFlow<List<Equipment>>(emptyList())
     private val equipmentImagesFlow = MutableStateFlow<List<Image>>(emptyList())
-    private val defaultEquipmentIdFlow = MutableStateFlow<Int?>(null)
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
+    private val selectedSectionIdFlow = MutableStateFlow(1)
+    private val allSectionsFlow = MutableStateFlow<List<Section>>(emptyList())
 
     @Before
     fun setup() {
@@ -62,6 +66,8 @@ class EquipmentViewModelTest {
         equipmentDao = mockk(relaxed = true) {
             every { getActiveEquipmentList() } returns activeEquipmentsFlow
             every { getAllEquipmentList() } returns allEquipmentsFlow
+            every { getActiveEquipmentListBySection(any()) } returns activeEquipmentsFlow
+            every { getAllEquipmentListBySection(any()) } returns allEquipmentsFlow
         }
         imageRepository = mockk(relaxed = true) {
             every { getImagesByCategory("EQUIPMENT") } returns equipmentImagesFlow
@@ -71,8 +77,17 @@ class EquipmentViewModelTest {
             every { getCategoryDefaultPhoto("EQUIPMENT") } returns MutableStateFlow("default_photo")
         }
         appSettingsManager = mockk(relaxed = true) {
-            every { defaultEquipmentId } returns defaultEquipmentIdFlow
+            every { selectedSectionId } returns selectedSectionIdFlow
+            every { showDismissedSections } returns MutableStateFlow(false)
+            every { sectionSelectorType } returns MutableStateFlow(UiConstants.DEFAULT_SECTION_SELECTOR_TYPE)
             every { defaultUnitId } returns MutableStateFlow(null)
+            every { defaultVisibilityHorizonValue } returns MutableStateFlow(UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
+            every { defaultVisibilityHorizonUnit } returns MutableStateFlow(UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT)
+            every { getAllDraftsFlow(any()) } returns MutableStateFlow(emptyMap())
+            every { getDraftFlow(any(), any()) } returns MutableStateFlow(null)
+        }
+        sectionRepository = mockk(relaxed = true) {
+            every { allSections } returns allSectionsFlow
         }
         measurementUnitDao = mockk(relaxed = true) {
             every { getAllUnits() } returns MutableStateFlow(emptyList())
@@ -91,6 +106,7 @@ class EquipmentViewModelTest {
             equipmentDao,
             imageRepository,
             appSettingsManager,
+            sectionRepository,
             measurementUnitDao,
             operationTypeDao,
             maintenanceLogDao,
@@ -198,16 +214,16 @@ class EquipmentViewModelTest {
         // Toggle ON
         viewModel.toggleDefaultEquipment(5)
         testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultEquipmentId(5) }
+        coVerify { sectionRepository.updateSectionDefaultEquipment(1, 5) }
 
-        // Simuliamo aggiornamento
-        defaultEquipmentIdFlow.value = 5
+        // Simuliamo aggiornamento tramite allSections
+        allSectionsFlow.value = listOf(Section(id = 1, name = "S1", defaultEquipmentId = 5))
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Toggle OFF (stesso ID)
         viewModel.toggleDefaultEquipment(5)
         testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultEquipmentId(null) }
+        coVerify { sectionRepository.updateSectionDefaultEquipment(1, null) }
     }
 
     @Test
@@ -221,7 +237,7 @@ class EquipmentViewModelTest {
         coEvery { imageRepository.removeImage(any()) } throws RuntimeException()
         coEvery { imageRepository.updateImageOrder(any()) } throws RuntimeException()
         coEvery { imageRepository.toggleImageVisibility(any()) } throws RuntimeException()
-        coEvery { appSettingsManager.setDefaultEquipmentId(any()) } throws RuntimeException()
+        coEvery { sectionRepository.updateSectionDefaultEquipment(any(), any()) } throws RuntimeException()
 
         viewModel.uiEvents.test {
             viewModel.updateEquipment(equipment)

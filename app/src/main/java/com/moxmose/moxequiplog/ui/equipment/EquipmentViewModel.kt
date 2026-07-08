@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
 import com.moxmose.moxequiplog.data.local.EquipmentDao
+import com.moxmose.moxequiplog.data.local.EquipmentDraft
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
@@ -17,9 +19,13 @@ import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.MeasurementUnitDao
 import com.moxmose.moxequiplog.data.local.OperationType
 import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,10 +33,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+enum class PredictionReason {
+    TIME, USAGE
+}
 
 data class OperationStatus(
     val operation: OperationType,
@@ -38,10 +49,17 @@ data class OperationStatus(
     val lastLogValue: Double?,
     val nextPresumedDate: Long?,
     val isOverdue: Boolean,
+    val reason: PredictionReason? = null,
     val isPlanned: Boolean = false,
     val reminderId: Int? = null,
     val plannedValue: Double? = null,
-    val predictedDate: Long? = null
+    val predictedDate: Long? = null,
+    val equipmentSectionId: Int? = null,
+    val equipmentSectionName: String? = null,
+    val equipmentSectionColor: String? = null,
+    val operationSectionId: Int? = null,
+    val operationSectionName: String? = null,
+    val operationSectionColor: String? = null,
 )
 
 data class EquipmentHealth(
@@ -58,11 +76,13 @@ data class EquipmentStatus(
     val operationStatuses: List<OperationStatus>
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class EquipmentViewModel(
     private val equipmentDao: EquipmentDao,
     private val imageRepository: ImageRepository,
     private val appSettingsManager: AppSettingsManager,
-    private val measurementUnitDao: MeasurementUnitDao,
+    private val sectionRepository: SectionRepository,
+    measurementUnitDao: MeasurementUnitDao,
     private val operationTypeDao: OperationTypeDao,
     private val maintenanceLogDao: MaintenanceLogDao,
     private val maintenanceReminderDao: MaintenanceReminderDao,
@@ -89,11 +109,14 @@ class EquipmentViewModel(
     val uiEvents: Flow<UiEvent> = _uiEvents.receiveAsFlow()
 
     // Hoisted UI State from Screen
-    private val _showDismissed = MutableStateFlow(false)
+    private val _showDismissed = MutableStateFlow(value = false)
     val showDismissed = _showDismissed.asStateFlow()
 
-    private val _showAddDialog = MutableStateFlow(false)
+    private val _showAddDialog = MutableStateFlow(value = false)
     val showAddDialog = _showAddDialog.asStateFlow()
+
+    private val _cloningEquipment = MutableStateFlow<Equipment?>(null)
+    val cloningEquipment = _cloningEquipment.asStateFlow()
 
     private val _selectedPredictionForAdd = MutableStateFlow<Pair<Int, OperationStatus>?>(null)
     val selectedPredictionForAdd = _selectedPredictionForAdd.asStateFlow()
@@ -101,19 +124,86 @@ class EquipmentViewModel(
     private val _selectedPlannedForEdit = MutableStateFlow<Pair<Int, OperationStatus>?>(null)
     val selectedPlannedForEdit = _selectedPlannedForEdit.asStateFlow()
 
-    fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
-    fun onShowAddDialogChange(show: Boolean) { _showAddDialog.value = show }
-    fun onPredictionAction(eqId: Int, status: OperationStatus?) { _selectedPredictionForAdd.value = if (status != null) eqId to status else null }
-    fun onPlannedAction(eqId: Int, status: OperationStatus?) { _selectedPlannedForEdit.value = if (status != null) eqId to status else null }
+    private val _quickResetEquipmentId = MutableStateFlow<Int?>(null)
+    val quickResetEquipmentId = _quickResetEquipmentId.asStateFlow()
 
-    val activeEquipments: StateFlow<List<Equipment>> = equipmentDao.getActiveEquipmentList()
+    fun onToggleShowDismissed() { _showDismissed.value = !_showDismissed.value }
+    fun onShowAddDialogChange(show: Boolean) { 
+        _showAddDialog.value = show 
+        if (!show) {
+            _cloningEquipment.value = null
+            cancelAddDraft()
+        }
+    }
+    fun onCloneEquipment(equipment: Equipment?) {
+        _cloningEquipment.value = equipment
+        if (equipment != null) {
+            _showAddDialog.value = true
+            updateAddDraft(EquipmentDraft(equipment = equipment.copy(id = 0), isDefault = false))
+        }
+    }
+    fun onPredictionAction(eqId: Int, status: OperationStatus?) {
+        _selectedPredictionForAdd.value = status?.let { eqId to it }
+    }
+    fun onPlannedAction(eqId: Int, status: OperationStatus?) { _selectedPlannedForEdit.value = if (status != null) eqId to status else null }
+    fun onQuickResetAction(eqId: Int?) { _quickResetEquipmentId.value = eqId }
+
+    val selectedSectionId: StateFlow<Int> = appSettingsManager.selectedSectionId
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = AppConstants.DEFAULT_SECTION_ID
+        )
+
+    val allSections: StateFlow<List<Section>> = sectionRepository.allSections
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
             initialValue = emptyList()
         )
 
-    val allEquipments: StateFlow<List<Equipment>> = equipmentDao.getAllEquipmentList()
+    fun onSectionSelected(sectionId: Int) {
+        viewModelScope.launch {
+            appSettingsManager.setSelectedSectionId(sectionId)
+        }
+    }
+
+    fun onToggleShowDismissedSections() {
+        viewModelScope.launch {
+            val current = showDismissedSections.value
+            appSettingsManager.setShowDismissedSections(!current)
+        }
+    }
+
+    val activeEquipments: StateFlow<List<Equipment>> = appSettingsManager.selectedSectionId
+        .flatMapLatest { sectionId ->
+            if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+                equipmentDao.getActiveEquipmentList()
+            } else {
+                equipmentDao.getActiveEquipmentListBySection(sectionId)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
+    val allEquipments: StateFlow<List<Equipment>> = appSettingsManager.selectedSectionId
+        .flatMapLatest { sectionId ->
+            if (sectionId == AppConstants.ALL_SECTIONS_ID) {
+                equipmentDao.getAllEquipmentList()
+            } else {
+                equipmentDao.getAllEquipmentListBySection(sectionId)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
+            initialValue = emptyList()
+        )
+
+    private val _allActiveOperationTypes: StateFlow<List<OperationType>> = operationTypeDao.getActiveOperationTypes()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT),
@@ -122,7 +212,7 @@ class EquipmentViewModel(
 
     val equipmentStatuses: StateFlow<Map<Int, EquipmentStatus>> = combine(
         activeEquipments,
-        operationTypeDao.getAllOperationTypes(),
+        _allActiveOperationTypes,
         maintenanceReminderDao.getAllReminders(),
         maintenanceLogDao.getLogsCountFlow()
     ) { equipments, opTypes, reminders, _ ->
@@ -148,7 +238,7 @@ class EquipmentViewModel(
             
             // Gestione sessione (reset UdM)
             val sessionValue = if (lastValueLog.resetAfter) 0.0 else lastValueLog.value
-            val sessionEstimated = if (sessionValue != null && trend != null) sessionValue + (daysSince * trend) else sessionValue
+            val sessionEstimated = if ((sessionValue != null) && (trend != null)) sessionValue + (daysSince * trend) else sessionValue
 
             EquipmentHealth(
                 lastRecordedValue = lastValueLog.value,
@@ -163,22 +253,21 @@ class EquipmentViewModel(
 
         val horizonValue = if (equipment.useCustomVisibilityHorizon) equipment.visibilityHorizon else globalVisibilityHorizonValue.value
         val horizonUnit = if (equipment.useCustomVisibilityHorizon) equipment.visibilityHorizonUnit else globalVisibilityHorizonUnit.value
-        val horizonMs = getHorizonMs(horizonValue.toLong(), horizonUnit)
-        val horizonLimit = now + horizonMs
 
         val opStatuses = opTypes
             .filter { it.isPredictable && !it.dismissed }
             .mapNotNull { opType ->
                 val lastLogForOp = maintenanceLogDao.getLastLogForEquipmentAndOperation(equipment.id, opType.id)
-                val nextPresumedDate = if (lastLogForOp != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend) else null
+                val predictionResult = if (lastLogForOp != null) maintenanceManager.getOperationPrediction(equipment.id, opType, lastLogForOp, trend) else null
                 
-                val prediction = nextPresumedDate?.let {
+                val prediction = predictionResult?.let { (date, reason) ->
                     OperationStatus(
                         operation = opType,
                         lastLogDate = lastLogForOp?.date,
                         lastLogValue = lastLogForOp?.value,
-                        nextPresumedDate = it,
-                        isOverdue = it < now,
+                        nextPresumedDate = date,
+                        isOverdue = date < now,
+                        reason = reason,
                         isPlanned = false
                     )
                 }
@@ -266,11 +355,28 @@ class EquipmentViewModel(
     val categoryDefaultPhoto: StateFlow<String?> = imageRepository.getCategoryDefaultPhoto(Category.EQUIPMENT)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
-    val defaultEquipmentId: StateFlow<Int?> = appSettingsManager.defaultEquipmentId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
-        
-    val defaultUnitId: StateFlow<Int?> = appSettingsManager.defaultUnitId
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+    val defaultEquipmentId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections
+    ) { sectionId, sections ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) null
+        else sections.find { it.id == sectionId }?.defaultEquipmentId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
+    val showDismissedSections: StateFlow<Boolean> = appSettingsManager.showDismissedSections
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), false)
+
+    val sectionSelectorType: StateFlow<String> = appSettingsManager.sectionSelectorType
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_SECTION_SELECTOR_TYPE)
+
+    val defaultUnitId: StateFlow<Int?> = combine(
+        selectedSectionId,
+        allSections,
+        appSettingsManager.defaultUnitId
+    ) { sectionId, sections, globalDefault ->
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) globalDefault
+        else sections.find { it.id == sectionId }?.defaultUnitId ?: globalDefault
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
 
     val globalVisibilityHorizonValue: StateFlow<Int> = appSettingsManager.defaultVisibilityHorizonValue
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
@@ -279,10 +385,33 @@ class EquipmentViewModel(
         .map { TimeGranularity.valueOf(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), TimeGranularity.valueOf(UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT))
 
+    val allDrafts: StateFlow<Map<Int, EquipmentDraft>> = appSettingsManager.getAllDraftsFlow("equipment")
+        .map { draftsMap ->
+            draftsMap.mapValues { (_, json) ->
+                try {
+                    Json.decodeFromString<EquipmentDraft>(json)
+                } catch (_: Exception) {
+                    null
+                }
+            }.filterValues { it != null }.mapValues { it.value!! }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), emptyMap())
+
+    val addDraft: StateFlow<EquipmentDraft?> = appSettingsManager.getDraftFlow("equipment", 0)
+        .map { json ->
+            try {
+                json?.let { Json.decodeFromString<EquipmentDraft>(it) }
+            } catch (_: Exception) {
+                null
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(AppConstants.FLOW_STOP_TIMEOUT), null)
+
     fun setDefaultEquipment(id: Int?) {
+        val sectionId = selectedSectionId.value
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) return
+        
         viewModelScope.launch {
             try {
-                appSettingsManager.setDefaultEquipmentId(id)
+                sectionRepository.updateSectionDefaultEquipment(sectionId, id)
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.SetDefaultFailed)
             }
@@ -290,13 +419,16 @@ class EquipmentViewModel(
     }
 
     fun toggleDefaultEquipment(id: Int) {
+        val sectionId = selectedSectionId.value
+        if (sectionId == AppConstants.ALL_SECTIONS_ID) return
+
         viewModelScope.launch {
             try {
                 val currentDefault = defaultEquipmentId.value
                 if (currentDefault == id) {
-                    appSettingsManager.setDefaultEquipmentId(null)
+                    sectionRepository.updateSectionDefaultEquipment(sectionId, null)
                 } else {
-                    appSettingsManager.setDefaultEquipmentId(id)
+                    sectionRepository.updateSectionDefaultEquipment(sectionId, id)
                 }
             } catch (e: Exception) {
                 _uiEvents.send(UiEvent.SetDefaultFailed)
@@ -308,7 +440,7 @@ class EquipmentViewModel(
         description: String, 
         imageIdentifier: ImageIdentifier?, 
         unitId: Int, 
-        isResettable: Boolean = false, 
+        sectionId: Int? = null,
         usageWindow: Int = 30, 
         usageWindowUnit: TimeGranularity = TimeGranularity.DAYS,
         manualAverageValue: Double? = null,
@@ -316,7 +448,8 @@ class EquipmentViewModel(
         visibilityHorizon: Int = 30,
         visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
         useCustomUsageWindow: Boolean = false,
-        useCustomVisibilityHorizon: Boolean = false
+        useCustomVisibilityHorizon: Boolean = false,
+        isResettable: Boolean = false
     ) {
         if (description.isBlank()) {
             viewModelScope.launch { _uiEvents.send(UiEvent.DescriptionInvalid) }
@@ -339,6 +472,11 @@ class EquipmentViewModel(
                     }
                 }
 
+                val targetSectionId = sectionId ?: run {
+                    val currentSection = selectedSectionId.value
+                    if (currentSection == AppConstants.ALL_SECTIONS_ID) AppConstants.DEFAULT_SECTION_ID else currentSection
+                }
+
                 equipmentDao.insertEquipment(
                     Equipment(
                         description = description,
@@ -346,7 +484,7 @@ class EquipmentViewModel(
                         iconIdentifier = equipmentIconIdentifier,
                         displayOrder = nextOrder,
                         unitId = unitId,
-                        isResettable = isResettable,
+                        sectionId = targetSectionId,
                         usageWindow = usageWindow,
                         usageWindowUnit = usageWindowUnit,
                         manualAverageValue = manualAverageValue,
@@ -354,7 +492,8 @@ class EquipmentViewModel(
                         visibilityHorizon = visibilityHorizon,
                         visibilityHorizonUnit = visibilityHorizonUnit,
                         useCustomUsageWindow = useCustomUsageWindow,
-                        useCustomVisibilityHorizon = useCustomVisibilityHorizon
+                        useCustomVisibilityHorizon = useCustomVisibilityHorizon,
+                        isResettable = isResettable
                     )
                 )
             } catch (e: Exception) {
@@ -367,7 +506,7 @@ class EquipmentViewModel(
         viewModelScope.launch {
             try {
                 equipmentDao.updateEquipment(equipment)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.UpdateEquipmentFailed)
             }
         }
@@ -388,7 +527,7 @@ class EquipmentViewModel(
         viewModelScope.launch {
             try {
                 equipmentDao.updateEquipment(equipment.copy(dismissed = true))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.DismissEquipmentFailed)
             }
         }
@@ -398,8 +537,18 @@ class EquipmentViewModel(
         viewModelScope.launch {
             try {
                 equipmentDao.updateEquipment(equipment.copy(dismissed = false))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiEvents.send(UiEvent.RestoreEquipmentFailed)
+            }
+        }
+    }
+
+    fun deleteEquipment(equipment: Equipment) {
+        viewModelScope.launch {
+            try {
+                equipmentDao.deleteEquipment(equipment)
+            } catch (_: Exception) {
+                _uiEvents.send(UiEvent.UpdateEquipmentFailed)
             }
         }
     }
@@ -452,9 +601,86 @@ class EquipmentViewModel(
         }
         return try {
             equipmentDao.countEquipmentUsingPhoto(uri) > 0
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             _uiEvents.trySend(UiEvent.DatabaseCheckFailed)
             true
+        }
+    }
+
+    // --- Draft Management ---
+    fun getEquipmentDraft(id: Int): Flow<EquipmentDraft?> {
+        return appSettingsManager.getDraftFlow("equipment", id).map { json ->
+            try {
+                json?.let { Json.decodeFromString<EquipmentDraft>(it) }
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    fun startEditing(equipment: Equipment) {
+        viewModelScope.launch {
+            val section = allSections.value.find { it.id == equipment.sectionId }
+            val isCurrentlyDefault = section?.defaultEquipmentId == equipment.id
+            val draft = EquipmentDraft(equipment = equipment, isDefault = isCurrentlyDefault)
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("equipment", equipment.id, json)
+        }
+    }
+
+    fun toggleDefaultInDraft(id: Int) {
+        viewModelScope.launch {
+            val drafts = allDrafts.value
+            drafts[id]?.let { draft ->
+                val updated = draft.copy(isDefault = !draft.isDefault)
+                updateDraft(updated)
+            }
+        }
+    }
+
+    fun updateDraft(draft: EquipmentDraft) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("equipment", draft.equipment.id, json)
+        }
+    }
+
+    fun cancelEditing(id: Int) {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("equipment", id)
+        }
+    }
+
+    fun saveEditing(draft: EquipmentDraft) {
+        viewModelScope.launch {
+            updateEquipment(draft.equipment)
+            
+            // Sync default status if changed in draft
+            val sectionId = draft.equipment.sectionId
+            val section = allSections.value.find { it.id == sectionId }
+            val currentDefaultId = section?.defaultEquipmentId
+            
+            if (draft.isDefault && currentDefaultId != draft.equipment.id) {
+                sectionRepository.updateSectionDefaultEquipment(sectionId, draft.equipment.id)
+            } else if (!draft.isDefault && currentDefaultId == draft.equipment.id) {
+                sectionRepository.updateSectionDefaultEquipment(sectionId, null)
+            }
+            
+            appSettingsManager.deleteDraft("equipment", draft.equipment.id)
+        }
+    }
+
+    // --- Add Draft Management ---
+    fun updateAddDraft(draft: EquipmentDraft) {
+        viewModelScope.launch {
+            val json = Json.encodeToString(draft)
+            appSettingsManager.saveDraft("equipment", 0, json)
+        }
+    }
+
+    fun cancelAddDraft() {
+        viewModelScope.launch {
+            appSettingsManager.deleteDraft("equipment", 0)
         }
     }
 }

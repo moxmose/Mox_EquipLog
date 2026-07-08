@@ -2,6 +2,7 @@ package com.moxmose.moxequiplog.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.moxmose.moxequiplog.utils.AppConstants
 
@@ -16,9 +17,10 @@ import com.moxmose.moxequiplog.utils.AppConstants
         AppPreference::class,
         MeasurementUnit::class,
         ReportFilter::class,
-        MaintenanceReminder::class
+        MaintenanceReminder::class,
+        Section::class
     ], 
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,8 +34,66 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun measurementUnitDao(): MeasurementUnitDao
     abstract fun reportFilterDao(): ReportFilterDao
     abstract fun maintenanceReminderDao(): MaintenanceReminderDao
+    abstract fun sectionDao(): SectionDao
 
     companion object {
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE operation_types ADD COLUMN hasValue INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Crea la tabella sections
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `sections` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `name` TEXT NOT NULL, 
+                        `iconIdentifier` TEXT, 
+                        `photoUri` TEXT,
+                        `color` TEXT, 
+                        `displayOrder` INTEGER NOT NULL,
+                        `dismissed` INTEGER NOT NULL DEFAULT 0,
+                        `defaultUnitId` INTEGER NOT NULL DEFAULT 1,
+                        `defaultUsageWindow` INTEGER NOT NULL DEFAULT 30,
+                        `defaultUsageWindowUnit` TEXT NOT NULL DEFAULT 'DAYS',
+                        `defaultVisibilityHorizon` INTEGER NOT NULL DEFAULT 30,
+                        `defaultVisibilityHorizonUnit` TEXT NOT NULL DEFAULT 'DAYS',
+                        `defaultEquipmentId` INTEGER,
+                        `defaultOperationTypeId` INTEGER
+                    )
+                """.trimIndent())
+
+                // 2. Inserisce la sezione di default
+                db.execSQL(
+                    "INSERT INTO sections (id, name, iconIdentifier, photoUri, color, displayOrder, dismissed, defaultUnitId, defaultUsageWindow, defaultUsageWindowUnit, defaultVisibilityHorizon, defaultVisibilityHorizonUnit, defaultEquipmentId, defaultOperationTypeId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    arrayOf(
+                        AppConstants.DEFAULT_SECTION_ID, 
+                        AppConstants.DEFAULT_SECTION_NAME, 
+                        AppConstants.DEFAULT_SECTION_ICON, 
+                        null, 
+                        AppConstants.DEFAULT_SECTION_COLOR, 
+                        0,
+                        0,
+                        1,
+                        30,
+                        "DAYS",
+                        30,
+                        "DAYS",
+                        null,
+                        null
+                    )
+                )
+
+                // 3. Aggiunge sectionId a equipments (nullable temporaneamente o con default)
+                db.execSQL("ALTER TABLE equipments ADD COLUMN sectionId INTEGER NOT NULL DEFAULT ${AppConstants.DEFAULT_SECTION_ID}")
+                
+                // 4. Aggiunge sectionId a operation_types
+                db.execSQL("ALTER TABLE operation_types ADD COLUMN sectionId INTEGER NOT NULL DEFAULT ${AppConstants.DEFAULT_SECTION_ID}")
+            }
+        }
+
         val CALLBACK = object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
@@ -49,8 +109,29 @@ abstract class AppDatabase : RoomDatabase() {
                     
                     // Popolamento iniziale operazione di sistema (Reset)
                     db.execSQL(
-                        "INSERT OR IGNORE INTO operation_types (id, description, dismissed, isSystem, displayOrder) VALUES (?, ?, ?, ?, ?)",
-                        arrayOf(AppConstants.SYSTEM_OPERATION_RESET_ID, "Reset UdM", 0, 1, -1)
+                        "INSERT OR IGNORE INTO operation_types (id, description, dismissed, isSystem, displayOrder, unitId, isResettable, hasValue) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        arrayOf(AppConstants.SYSTEM_OPERATION_RESET_ID, "Reset UoM", 0, 1, -1, 4, 1, 1)
+                    )
+
+                    // Popolamento iniziale Sezione di default
+                    db.execSQL(
+                        "INSERT INTO sections (id, name, iconIdentifier, photoUri, color, displayOrder, dismissed, defaultUnitId, defaultUsageWindow, defaultUsageWindowUnit, defaultVisibilityHorizon, defaultVisibilityHorizonUnit, defaultEquipmentId, defaultOperationTypeId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        arrayOf(
+                            AppConstants.DEFAULT_SECTION_ID, 
+                            AppConstants.DEFAULT_SECTION_NAME, 
+                            AppConstants.DEFAULT_SECTION_ICON, 
+                            null, 
+                            AppConstants.DEFAULT_SECTION_COLOR, 
+                            0,
+                            0,
+                            1,
+                            30,
+                            "DAYS",
+                            30,
+                            "DAYS",
+                            null,
+                            null
+                        )
                     )
 
                     db.setTransactionSuccessful()

@@ -20,7 +20,7 @@ class ImageRepository(
     private val appColorDao: AppColorDao,
     private val appPreferenceDao: AppPreferenceDao,
     private val defaultColors: Array<String>,
-    private val defaultCategories: Array<String>
+    private val defaultCategories: Array<String>,
 ) {
 
     val allCategories: Flow<List<Category>> = categoryDao.getAllCategories()
@@ -73,7 +73,7 @@ class ImageRepository(
 
         // 3. Inizializza Icone per ogni categoria (tranne LOG, REPORTS, OPTIONS)
         categoryDao.getAllCategories().first().forEach { category ->
-            if (category.id != Category.LOGS && category.id != Category.REPORTS && category.id != Category.OPTIONS) {
+            if ((category.id != Category.LOGS) && (category.id != Category.REPORTS) && (category.id != Category.OPTIONS)) {
                 initializeIconsForCategory(category.id)
             }
         }

@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "equipments",
@@ -13,10 +14,20 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["unitId"],
             onDelete = ForeignKey.SET_DEFAULT
+        ),
+        ForeignKey(
+            entity = Section::class,
+            parentColumns = ["id"],
+            childColumns = ["sectionId"],
+            onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [androidx.room.Index(value = ["unitId"])]
+    indices = [
+        androidx.room.Index(value = ["unitId"]),
+        androidx.room.Index(value = ["sectionId"])
+    ]
 )
+@Serializable
 data class Equipment(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
@@ -24,13 +35,13 @@ data class Equipment(
     val photoUri: String? = null,
     val iconIdentifier: String? = null,
     val displayOrder: Int = 0,
-    @ColumnInfo(defaultValue = "false")
+    @ColumnInfo(defaultValue = "0")
     val dismissed: Boolean = false,
     val color: String? = null,
     @ColumnInfo(defaultValue = "1")
     val unitId: Int = 1,
-    @ColumnInfo(defaultValue = "false")
-    val isResettable: Boolean = false,
+    @ColumnInfo(defaultValue = "1")
+    val sectionId: Int = 1,
     @ColumnInfo(defaultValue = "30")
     val usageWindow: Int = 30,
     @ColumnInfo(defaultValue = "DAYS")
@@ -42,9 +53,11 @@ data class Equipment(
     val visibilityHorizon: Int = 30,
     @ColumnInfo(defaultValue = "DAYS")
     val visibilityHorizonUnit: TimeGranularity = TimeGranularity.DAYS,
-    @ColumnInfo(defaultValue = "false")
+    @ColumnInfo(defaultValue = "0")
     val useCustomUsageWindow: Boolean = false,
-    @ColumnInfo(defaultValue = "false")
+    @ColumnInfo(defaultValue = "0")
     val useCustomVisibilityHorizon: Boolean = false,
+    @ColumnInfo(defaultValue = "0")
+    val isResettable: Boolean = false,
     val estimatedCostPerUnit: Double? = null
 )

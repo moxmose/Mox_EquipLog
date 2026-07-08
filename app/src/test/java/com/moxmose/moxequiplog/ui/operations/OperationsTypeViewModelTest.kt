@@ -5,14 +5,9 @@ import app.cash.turbine.test
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.EquipmentDao
-import com.moxmose.moxequiplog.data.local.Image
-import com.moxmose.moxequiplog.data.local.ImageIdentifier
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDao
-import com.moxmose.moxequiplog.data.local.MaintenanceReminderDao
-import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.data.local.OperationTypeDao
+import com.moxmose.moxequiplog.data.SectionRepository
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.utils.UiConstants
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -51,6 +46,7 @@ class OperationsTypeViewModelTest {
     private lateinit var equipmentDao: EquipmentDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var appSettingsManager: AppSettingsManager
+    private lateinit var sectionRepository: SectionRepository
     private lateinit var maintenanceLogDao: MaintenanceLogDao
     private lateinit var maintenanceReminderDao: MaintenanceReminderDao
     private lateinit var maintenanceManager: MaintenanceManager
@@ -59,8 +55,9 @@ class OperationsTypeViewModelTest {
     private val activeOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
     private val allOperationTypesFlow = MutableStateFlow<List<OperationType>>(emptyList())
     private val operationImagesFlow = MutableStateFlow<List<Image>>(emptyList())
-    private val defaultOperationTypeIdFlow = MutableStateFlow<Int?>(null)
     private val allCategoriesFlow = MutableStateFlow<List<Category>>(emptyList())
+    private val selectedSectionIdFlow = MutableStateFlow(1)
+    private val allSectionsFlow = MutableStateFlow<List<Section>>(emptyList())
 
     @Before
     fun setup() {
@@ -68,10 +65,11 @@ class OperationsTypeViewModelTest {
         operationTypeDao = mockk(relaxed = true) {
             every { getActiveOperationTypes() } returns activeOperationTypesFlow
             every { getAllOperationTypes() } returns allOperationTypesFlow
+            every { getActiveOperationTypesBySection(any()) } returns activeOperationTypesFlow
+            every { getAllOperationTypesBySection(any()) } returns allOperationTypesFlow
         }
         equipmentDao = mockk(relaxed = true) {
             every { getActiveEquipmentList() } returns MutableStateFlow(emptyList())
-            every { countActiveResettableEquipment() } returns MutableStateFlow(0)
         }
         imageRepository = mockk(relaxed = true) {
             every { getImagesByCategory("OPERATION") } returns operationImagesFlow
@@ -81,7 +79,16 @@ class OperationsTypeViewModelTest {
             every { getCategoryDefaultPhoto("OPERATION") } returns MutableStateFlow("default_photo")
         }
         appSettingsManager = mockk(relaxed = true) {
-            every { defaultOperationTypeId } returns defaultOperationTypeIdFlow
+            every { selectedSectionId } returns selectedSectionIdFlow
+            every { showDismissedSections } returns MutableStateFlow(false)
+            every { sectionSelectorType } returns MutableStateFlow(UiConstants.DEFAULT_SECTION_SELECTOR_TYPE)
+            every { defaultVisibilityHorizonValue } returns MutableStateFlow(UiConstants.DEFAULT_VISIBILITY_HORIZON_VALUE)
+            every { defaultVisibilityHorizonUnit } returns MutableStateFlow(UiConstants.DEFAULT_VISIBILITY_HORIZON_UNIT)
+            every { getAllDraftsFlow(any()) } returns MutableStateFlow(emptyMap())
+            every { getDraftFlow(any(), any()) } returns MutableStateFlow(null)
+        }
+        sectionRepository = mockk(relaxed = true) {
+            every { allSections } returns allSectionsFlow
         }
         maintenanceLogDao = mockk(relaxed = true) {
             every { getLogsCountFlow() } returns MutableStateFlow(0)
@@ -95,6 +102,7 @@ class OperationsTypeViewModelTest {
             equipmentDao,
             imageRepository,
             appSettingsManager,
+            sectionRepository,
             maintenanceLogDao,
             maintenanceReminderDao,
             maintenanceManager
@@ -205,16 +213,16 @@ class OperationsTypeViewModelTest {
         // Toggle ON
         viewModel.toggleDefaultOperationType(5)
         testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultOperationTypeId(5) }
+        coVerify { sectionRepository.updateSectionDefaultOperationType(1, 5) }
 
-        // Simuliamo aggiornamento
-        defaultOperationTypeIdFlow.value = 5
+        // Simuliamo aggiornamento tramite allSections
+        allSectionsFlow.value = listOf(Section(id = 1, name = "S1", defaultOperationTypeId = 5))
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Toggle OFF (stesso ID)
         viewModel.toggleDefaultOperationType(5)
         testDispatcher.scheduler.advanceUntilIdle()
-        coVerify { appSettingsManager.setDefaultOperationTypeId(null) }
+        coVerify { sectionRepository.updateSectionDefaultOperationType(1, null) }
     }
 
     @Test
@@ -228,7 +236,7 @@ class OperationsTypeViewModelTest {
         coEvery { imageRepository.removeImage(any()) } throws RuntimeException()
         coEvery { imageRepository.updateImageOrder(any()) } throws RuntimeException()
         coEvery { imageRepository.toggleImageVisibility(any()) } throws RuntimeException()
-        coEvery { appSettingsManager.setDefaultOperationTypeId(any()) } throws RuntimeException()
+        coEvery { sectionRepository.updateSectionDefaultOperationType(any(), any()) } throws RuntimeException()
 
         viewModel.uiEvents.test {
             viewModel.updateOperationType(operationType)

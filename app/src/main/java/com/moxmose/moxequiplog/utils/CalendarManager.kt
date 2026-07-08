@@ -20,7 +20,7 @@ class CalendarManager(private val context: Context) {
     fun getCredential(accountName: String): GoogleAccountCredential {
         return GoogleAccountCredential.usingOAuth2(
             context,
-            Collections.singleton(CalendarScopes.CALENDAR_EVENTS)
+            Collections.singleton(CalendarScopes.CALENDAR_EVENTS),
         ).apply {
             selectedAccountName = accountName
         }

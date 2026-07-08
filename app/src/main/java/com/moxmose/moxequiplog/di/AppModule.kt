@@ -5,6 +5,7 @@ import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.AppSettingsManager
 import com.moxmose.moxequiplog.data.ImageRepository
 import com.moxmose.moxequiplog.data.MaintenanceManager
+import com.moxmose.moxequiplog.data.SectionRepository
 import com.moxmose.moxequiplog.data.local.AppDatabase
 import com.moxmose.moxequiplog.ui.equipment.EquipmentViewModel
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
@@ -35,7 +36,7 @@ val appModule = module {
             "mox_equiplog.db"
         )
         .addCallback(AppDatabase.CALLBACK)
-        .fallbackToDestructiveMigration(true)
+        .addMigrations(AppDatabase.MIGRATION_1_2)
         .build()
     }
 
@@ -49,8 +50,10 @@ val appModule = module {
     single { get<AppDatabase>().measurementUnitDao() }
     single { get<AppDatabase>().reportFilterDao() }
     single { get<AppDatabase>().maintenanceReminderDao() }
+    single { get<AppDatabase>().sectionDao() }
 
     // Repositories
+    single { SectionRepository(get()) }
     single { ImageRepository(get(), get(), get(), get(), get(named("defaultColors")), get(named("defaultCategories"))) }
     single { AppSettingsManager(get(), get(named("defaultUsername"))) }
     single { MaintenanceManager(get(), get(), get()) }

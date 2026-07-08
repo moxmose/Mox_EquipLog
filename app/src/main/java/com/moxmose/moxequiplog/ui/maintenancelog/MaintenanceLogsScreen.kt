@@ -1,130 +1,48 @@
 package com.moxmose.moxequiplog.ui.maintenancelog
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingFlat
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.toColorInt
 import com.moxmose.moxequiplog.R
-import com.moxmose.moxequiplog.data.local.Category
-import com.moxmose.moxequiplog.data.local.Equipment
-import com.moxmose.moxequiplog.data.local.MaintenanceLog
-import com.moxmose.moxequiplog.data.local.MaintenanceLogDetails
-import com.moxmose.moxequiplog.data.local.MaintenanceReminderDetails
-import com.moxmose.moxequiplog.data.local.MeasurementUnit
-import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.ui.components.ImageIcon
+import com.moxmose.moxequiplog.data.local.*
+import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
+import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogCard
+import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
+import com.moxmose.moxequiplog.ui.maintenancelog.components.RemindersDashboard
+import com.moxmose.moxequiplog.ui.maintenancelog.components.PredictionsDashboard
+import com.moxmose.moxequiplog.ui.equipment.OperationStatus
+import com.moxmose.moxequiplog.ui.equipment.EquipmentViewModel
 import com.moxmose.moxequiplog.utils.AppConstants
 import com.moxmose.moxequiplog.utils.UiConstants
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun MaintenanceLogScreen(
     viewModel: MaintenanceLogViewModel = koinViewModel(),
+    equipmentViewModel: EquipmentViewModel = koinViewModel(),
     onNavigateToOptions: () -> Unit = {}
 ) {
-    val logs by viewModel.logs.collectAsState()
+    val mainLogList by viewModel.logs.collectAsState()
     val activeReminders by viewModel.activeReminders.collectAsState()
-    val equipments by viewModel.allEquipments.collectAsState()
-    val operationTypes by viewModel.allOperationTypes.collectAsState()
+    val automaticPredictions by viewModel.automaticPredictions.collectAsState()
+    val allSections by viewModel.allSections.collectAsState()
+    val selectedSectionId by viewModel.selectedSectionId.collectAsState()
+    val showDismissedSections by viewModel.showDismissedSections.collectAsState()
+    val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
+    val allEquipments by viewModel.allEquipments.collectAsState()
+    val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val sortProperty by viewModel.sortProperty.collectAsState()
     val sortDirection by viewModel.sortDirection.collectAsState()
@@ -134,18 +52,22 @@ fun MaintenanceLogScreen(
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val syncCalendarByDefault by viewModel.syncCalendarByDefault.collectAsState()
     val googleAccountName by viewModel.googleAccountName.collectAsState()
-    val allEquipments by viewModel.allEquipments.collectAsState()
-    val allOperationTypes by viewModel.allOperationTypes.collectAsState()
     val costTrendThreshold by viewModel.costTrendThreshold.collectAsState()
     
+    val quickResetEquipmentId by equipmentViewModel.quickResetEquipmentId.collectAsState()
+
     val equipmentColor by viewModel.getCategoryColor(Category.EQUIPMENT).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
     val operationColor by viewModel.getCategoryColor(Category.OPERATION).collectAsState(initial = UiConstants.DEFAULT_FALLBACK_COLOR)
 
     val showAddDialog by viewModel.showAddDialog.collectAsState()
     val expandedCardId by viewModel.expandedCardId.collectAsState()
     val editingCardId by viewModel.editingCardId.collectAsState()
+    val allDrafts by viewModel.allDrafts.collectAsState()
     val selectedReminderForComplete by viewModel.selectedReminderForComplete.collectAsState()
     val selectedReminderForEdit by viewModel.selectedReminderForEdit.collectAsState()
+    val selectedPredictionForAdd by viewModel.selectedPredictionForAdd.collectAsState()
+    val logAddDraft by viewModel.logAddDraft.collectAsState()
+    val reminderAddDraft by viewModel.reminderAddDraft.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -157,24 +79,37 @@ fun MaintenanceLogScreen(
                 is MaintenanceLogViewModel.UiEvent.UpdateLogFailed -> context.getString(R.string.update_log_failed)
                 is MaintenanceLogViewModel.UiEvent.DismissLogFailed -> context.getString(R.string.dismiss_log_failed)
                 is MaintenanceLogViewModel.UiEvent.RestoreLogFailed -> context.getString(R.string.restore_log_failed)
-                is MaintenanceLogViewModel.UiEvent.DeleteLogFailed -> "Failed to delete log"
-                is MaintenanceLogViewModel.UiEvent.DeleteReminderFailed -> "Failed to delete reminder"
-                is MaintenanceLogViewModel.UiEvent.UpdateReminderFailed -> "Failed to update reminder"
-                is MaintenanceLogViewModel.UiEvent.RecalculateRemindersFailed -> "Failed to recalculate reminders"
+                is MaintenanceLogViewModel.UiEvent.DeleteLogFailed -> context.getString(R.string.delete_log_failed)
+                is MaintenanceLogViewModel.UiEvent.DeleteReminderFailed -> context.getString(R.string.delete_reminder_failed)
+                is MaintenanceLogViewModel.UiEvent.UpdateReminderFailed -> context.getString(R.string.update_reminder_failed)
+                is MaintenanceLogViewModel.UiEvent.RecalculateRemindersFailed -> context.getString(R.string.recalculate_reminders_failed)
             }
             snackbarHostState.showSnackbar(message)
         }
     }
 
-    val activeEquipments = remember(allEquipments) { allEquipments.filter { !it.dismissed }.sortedBy { it.displayOrder } }
-    val activeOperationTypes = remember(allOperationTypes) { allOperationTypes.filter { !it.dismissed }.sortedBy { it.displayOrder } }
+    val equipmentsToShow = remember(allEquipments, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allEquipments.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
+    val operationTypesToShow = remember(allOperationTypes, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allOperationTypes.filter { 
+            (showDismissed || !it.dismissed || it.isSystem) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds || it.isSystem)
+        }.sortedBy { it.displayOrder }
+    }
 
     if (selectedReminderForComplete != null) {
         val details = selectedReminderForComplete!!
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = activeOperationTypes,
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onCompleteReminder(null) },
             onConfirm = { log ->
                 viewModel.addLog(
@@ -200,7 +135,11 @@ fun MaintenanceLogScreen(
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
             costTrendThreshold = costTrendThreshold,
-            onNavigateToOptions = onNavigateToOptions
+            onNavigateToOptions = onNavigateToOptions,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = viewModel::updateLogAddDraft,
+            onUpdateReminderDraft = viewModel::updateReminderAddDraft
         )
     }
 
@@ -208,9 +147,10 @@ fun MaintenanceLogScreen(
         val reminderDetails = selectedReminderForEdit!!
         val reminder = reminderDetails.reminder
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = activeOperationTypes,
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onEditReminder(null) },
             onConfirm = { /* Not used in edit mode */ },
             onSchedule = { eqId, opId, date, value, sync ->
@@ -235,14 +175,109 @@ fun MaintenanceLogScreen(
             syncCalendarByDefault = syncCalendarByDefault,
             googleAccountName = googleAccountName,
             costTrendThreshold = costTrendThreshold,
-            onNavigateToOptions = onNavigateToOptions
+            onNavigateToOptions = onNavigateToOptions,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = viewModel::updateLogAddDraft,
+            onUpdateReminderDraft = viewModel::updateReminderAddDraft
+        )
+    }
+
+    if (selectedPredictionForAdd != null) {
+        val (eqId, status) = selectedPredictionForAdd!!
+        MaintenanceLogDialog(
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
+            measurementUnits = measurementUnits,
+            allSections = allSections,
+            onDismissRequest = { viewModel.onPredictionAction(0, null) },
+            onConfirm = { log ->
+                viewModel.addLog(
+                    log.equipmentId, 
+                    log.operationTypeId, 
+                    log.notes, 
+                    log.value, 
+                    log.date, 
+                    log.color, 
+                    log.resetAfter, 
+                    log.cost,
+                    log.isUnplanned
+                )
+                viewModel.onPredictionAction(0, null)
+            },
+            onSchedule = { equipmentId, opTypeId, date, value, sync ->
+                viewModel.addReminder(equipmentId, opTypeId, date, value, sync)
+                viewModel.onPredictionAction(0, null)
+            },
+            onEstimateDueDate = viewModel::estimateDueDate,
+            onEstimateTargetValue = viewModel::estimateTargetValue,
+            onGetOperationCostStats = viewModel::getOperationCostStats,
+            defaultEquipmentId = eqId,
+            defaultOperationTypeId = status.operation.id,
+            initialDate = if (status.nextPresumedDate != null && status.nextPresumedDate!! > System.currentTimeMillis()) status.nextPresumedDate!! else System.currentTimeMillis(),
+            initialTab = 1,
+            equipmentCategoryColor = equipmentColor,
+            operationCategoryColor = operationColor,
+            syncCalendarByDefault = syncCalendarByDefault,
+            googleAccountName = googleAccountName,
+            costTrendThreshold = costTrendThreshold,
+            onNavigateToOptions = onNavigateToOptions,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = viewModel::updateLogAddDraft,
+            onUpdateReminderDraft = viewModel::updateReminderAddDraft
+        )
+    }
+
+    if (quickResetEquipmentId != null) {
+        MaintenanceLogDialog(
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
+            measurementUnits = measurementUnits,
+            allSections = allSections,
+            onDismissRequest = { equipmentViewModel.onQuickResetAction(null) },
+            onConfirm = { log ->
+                viewModel.addLog(
+                    log.equipmentId, 
+                    log.operationTypeId, 
+                    log.notes, 
+                    log.value, 
+                    log.date, 
+                    log.color, 
+                    log.resetAfter,
+                    log.cost,
+                    log.isUnplanned
+                )
+                equipmentViewModel.onQuickResetAction(null)
+            },
+            onEstimateDueDate = viewModel::estimateDueDate,
+            onEstimateTargetValue = viewModel::estimateTargetValue,
+            defaultEquipmentId = quickResetEquipmentId,
+            defaultOperationTypeId = AppConstants.SYSTEM_OPERATION_RESET_ID,
+            initialValue = "",
+            equipmentCategoryColor = equipmentColor,
+            operationCategoryColor = operationColor,
+            syncCalendarByDefault = syncCalendarByDefault,
+            googleAccountName = googleAccountName,
+            costTrendThreshold = costTrendThreshold,
+            onNavigateToOptions = onNavigateToOptions,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = viewModel::updateLogAddDraft,
+            onUpdateReminderDraft = viewModel::updateReminderAddDraft
         )
     }
 
     MaintenanceLogScreenContent(
-        logs = logs,
-        equipments = activeEquipments,
-        operationTypes = activeOperationTypes,
+        mainLogList = mainLogList,
+        allSections = allSections,
+        selectedSectionId = selectedSectionId,
+        sectionSelectorType = sectionSelectorType,
+        onSectionSelected = viewModel::onSectionSelected,
+        showDismissedSections = showDismissedSections,
+        onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
+        equipments = equipmentsToShow,
+        operationTypes = operationTypesToShow,
         measurementUnits = measurementUnits,
         searchQuery = searchQuery,
         onSearchQueryChange = viewModel::onSearchQueryChanged,
@@ -263,12 +298,17 @@ fun MaintenanceLogScreen(
         expandedCardId = expandedCardId,
         onCardExpanded = viewModel::onCardExpanded,
         editingCardId = editingCardId,
-        onEditLog = viewModel::onEditLog,
+        allDrafts = allDrafts,
+        onStartEdit = viewModel::startEditing,
+        onCancelEdit = viewModel::cancelEditing,
+        onUpdateDraft = viewModel::updateDraft,
+        onSaveEdit = viewModel::saveEditing,
         onUpdateLog = viewModel::updateLog,
         onDeleteLog = viewModel::deleteLog,
         onDismissLog = viewModel::dismissLog,
         onRestoreLog = viewModel::restoreLog,
         activeReminders = activeReminders,
+        automaticPredictions = automaticPredictions,
         snackbarHostState = snackbarHostState,
         defaultEquipmentId = defaultEquipmentId,
         defaultOperationTypeId = defaultOperationTypeId,
@@ -276,302 +316,28 @@ fun MaintenanceLogScreen(
         operationCategoryColor = operationColor,
         onCompleteReminder = viewModel::onCompleteReminder,
         onEditReminder = viewModel::onEditReminder,
-        onDeleteReminder = viewModel::deleteReminder,
+        onPredictionAction = viewModel::onPredictionAction,
         syncCalendarByDefault = syncCalendarByDefault,
         googleAccountName = googleAccountName,
         costTrendThreshold = costTrendThreshold,
-        onNavigateToOptions = onNavigateToOptions
+        onNavigateToOptions = onNavigateToOptions,
+        logAddDraft = logAddDraft,
+        reminderAddDraft = reminderAddDraft,
+        onUpdateLogDraft = viewModel::updateLogAddDraft,
+        onUpdateReminderDraft = viewModel::updateReminderAddDraft
     )
-}
-
-@Composable
-fun RemindersDashboard(
-    reminders: List<MaintenanceReminderDetails>,
-    measurementUnits: List<MeasurementUnit>,
-    equipmentCategoryColor: String?,
-    operationCategoryColor: String?,
-    onComplete: (MaintenanceReminderDetails) -> Unit,
-    onEdit: (MaintenanceReminderDetails) -> Unit,
-    onRefresh: () -> Unit,
-    costTrendThreshold: Float
-) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    
-    if (reminders.isEmpty()) return
-
-    val eColor = remember(equipmentCategoryColor) {
-        try { equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
-    }
-    val oColor = remember(operationCategoryColor) {
-        try { operationCategoryColor?.toColorInt()?.let { Color(it) } ?: Color.Gray } catch (_: Exception) { Color.Gray }
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-            .animateContentSize(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.9f)
-        )
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .clickable { expanded = !expanded }
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Notifications,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.reminders_dashboard_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onRefresh) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Refresh all predictions",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Text(
-                        text = reminders.size.toString(),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null
-                )
-            }
-
-            if (expanded) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    reminders.forEach { reminderDetails ->
-                        ReminderItem(
-                            details = reminderDetails,
-                            measurementUnits = measurementUnits,
-                            eColor = eColor,
-                            oColor = oColor,
-                            onComplete = { onComplete(reminderDetails) },
-                            onEdit = { onEdit(reminderDetails) },
-                            costTrendThreshold = costTrendThreshold
-                        )
-                    }
-                    Spacer(modifier = Modifier.padding(bottom = 4.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ReminderItem(
-    details: MaintenanceReminderDetails,
-    measurementUnits: List<MeasurementUnit>,
-    eColor: Color,
-    oColor: Color,
-    onComplete: () -> Unit,
-    onEdit: () -> Unit,
-    costTrendThreshold: Float
-) {
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-    val unit = measurementUnits.find { it.id == details.unitId }
-    val unitLabel = unit?.label ?: "Km"
-    val decimalPlaces = unit?.decimalPlaces ?: 0
-
-    val fixedDate = details.reminder.dueDate
-    val presumedDate = details.reminder.presumedDate
-    val effectiveDate = fixedDate ?: presumedDate
-
-    val isOverdue = remember(effectiveDate) {
-        effectiveDate != null && effectiveDate < System.currentTimeMillis()
-    }
-    
-    // Warning if presumed date is before fixed date
-    val hasWarning = fixedDate != null && presumedDate != null && presumedDate < fixedDate
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ImageIcon(
-                        photoUri = details.equipmentPhotoUri,
-                        iconIdentifier = details.equipmentIconIdentifier,
-                        modifier = Modifier.size(20.dp),
-                        category = Category.EQUIPMENT,
-                        borderColor = eColor,
-                        contentPadding = 1.dp
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = details.equipmentDescription.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, details.reminder.equipmentId),
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ImageIcon(
-                        photoUri = details.operationTypePhotoUri,
-                        iconIdentifier = details.operationTypeIconIdentifier,
-                        modifier = Modifier.size(20.dp),
-                        category = Category.OPERATION,
-                        borderColor = oColor,
-                        contentPadding = 1.dp
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = details.operationTypeDescription.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, details.reminder.operationTypeId),
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                
-                // Display FIXED Date
-                if (fixedDate != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (isOverdue) Icons.Default.PriorityHigh else Icons.Default.DateRange,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = if (isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = (if (isOverdue) stringResource(R.string.reminder_overdue) + " - " else "") + 
-                                   stringResource(R.string.due_date_label, dateFormat.format(Date(fixedDate))),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isOverdue) MaterialTheme.colorScheme.error else Color.Unspecified
-                        )
-                    }
-                }
-                
-                // Display PRESUMED Date (only if fixed date is missing or if it adds info)
-                if (presumedDate != null && (fixedDate == null || hasWarning)) {
-                    val presumedIsOverdue = presumedDate < System.currentTimeMillis()
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = when {
-                                presumedIsOverdue -> Icons.Default.PriorityHigh
-                                hasWarning -> Icons.Default.Warning
-                                else -> Icons.Default.AccessTime
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = when {
-                                presumedIsOverdue -> MaterialTheme.colorScheme.error
-                                hasWarning -> Color(0xFFFF9800)
-                                else -> MaterialTheme.colorScheme.secondary
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = (if (presumedIsOverdue) stringResource(R.string.reminder_overdue) + " - " else "") +
-                                   (if (fixedDate == null) 
-                                       stringResource(R.string.estimated_date_prefix, dateFormat.format(Date(presumedDate))) 
-                                       else stringResource(R.string.likely_needed_by_prefix, dateFormat.format(Date(presumedDate)))),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = when {
-                                presumedIsOverdue -> MaterialTheme.colorScheme.error
-                                hasWarning -> Color(0xFFFF9800)
-                                else -> MaterialTheme.colorScheme.secondary
-                            }
-                        )
-                    }
-                }
-                
-                if (details.reminder.dueValue != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.AccessTime,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = stringResource(R.string.due_value_label, String.format(Locale.US, "%.${decimalPlaces}f", details.reminder.dueValue), unitLabel),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                }
-
-                val estimatedCost = details.lastLogCost ?: details.operationTypeEstimatedCost
-                if (estimatedCost != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.Payments,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.tertiary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = stringResource(R.string.estimated_cost_label, String.format(Locale.US, "%.2f €", estimatedCost)),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                        details.averageCost?.let { avg ->
-                            Spacer(Modifier.width(4.dp))
-                            val (icon, color) = when {
-                                estimatedCost > avg * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
-                                estimatedCost < avg * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
-                                else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
-                            }
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = color,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                }
-            }
-            
-            Row {
-                IconButton(onClick = onComplete) {
-                    Icon(Icons.Default.Done, contentDescription = stringResource(R.string.reminder_complete_log), tint = Color(0xFF4CAF50))
-                }
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_log), tint = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MaintenanceLogScreenContent(
-    logs: List<MaintenanceLogDetails>,
+    mainLogList: List<MaintenanceLogDetails>,
+    allSections: List<Section>,
+    selectedSectionId: Int,
+    sectionSelectorType: String,
+    onSectionSelected: (Int) -> Unit,
+    showDismissedSections: Boolean,
+    onToggleShowDismissedSections: () -> Unit,
     equipments: List<Equipment>,
     operationTypes: List<OperationType>,
     measurementUnits: List<MeasurementUnit>,
@@ -594,13 +360,17 @@ fun MaintenanceLogScreenContent(
     expandedCardId: Int?,
     onCardExpanded: (Int) -> Unit,
     editingCardId: Int?,
-    onEditLog: (MaintenanceLog) -> Unit,
+    allDrafts: Map<Int, MaintenanceLog>,
+    onStartEdit: (MaintenanceLog) -> Unit,
+    onCancelEdit: (Int) -> Unit,
+    onUpdateDraft: (MaintenanceLog) -> Unit,
+    onSaveEdit: (MaintenanceLog) -> Unit,
     onUpdateLog: (MaintenanceLog) -> Unit,
     onDeleteLog: (MaintenanceLog) -> Unit,
     onDismissLog: (MaintenanceLog) -> Unit,
     onRestoreLog: (MaintenanceLog) -> Unit,
-    modifier: Modifier = Modifier,
-    activeReminders: List<MaintenanceReminderDetails> = emptyList(),
+    activeReminders: List<MaintenanceReminderDetails>,
+    automaticPredictions: List<Pair<Equipment, OperationStatus>>,
     snackbarHostState: SnackbarHostState,
     defaultEquipmentId: Int?,
     defaultOperationTypeId: Int?,
@@ -608,23 +378,29 @@ fun MaintenanceLogScreenContent(
     operationCategoryColor: String?,
     onCompleteReminder: (MaintenanceReminderDetails) -> Unit,
     onEditReminder: (MaintenanceReminderDetails) -> Unit,
-    onDeleteReminder: (MaintenanceReminderDetails) -> Unit,
+    onPredictionAction: (Int, OperationStatus) -> Unit,
     syncCalendarByDefault: Boolean,
     googleAccountName: String?,
     costTrendThreshold: Float,
-    onNavigateToOptions: () -> Unit
+    logAddDraft: MaintenanceLog?,
+    reminderAddDraft: MaintenanceReminder?,
+    onUpdateLogDraft: (MaintenanceLog) -> Unit,
+    onUpdateReminderDraft: (MaintenanceReminder) -> Unit,
+    onNavigateToOptions: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = Color.Transparent, // RENDI TRASPARENTE
+        modifier = modifier,
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
                 FloatingActionButton(onClick = { onShowAddDialogChange(true) }) {
                     Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_log))
                 }
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 FloatingActionButton(
                     onClick = onShowDismissedToggle,
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -637,45 +413,60 @@ fun MaintenanceLogScreenContent(
             }
         }
     ) { paddingValues ->
-        if (showAddDialog) {
-            MaintenanceLogDialog(
-            equipments = equipments,
-            operationTypes = operationTypes,
-            measurementUnits = measurementUnits,
-            onDismissRequest = { onShowAddDialogChange(false) },
-            onConfirm = { log ->
-                onAddLog(
-                    log.equipmentId, 
-                    log.operationTypeId, 
-                    log.notes, 
-                    log.value, 
-                    log.date, 
-                    log.color, 
-                    log.resetAfter,
-                    log.cost,
-                    log.isUnplanned
-                )
-                onShowAddDialogChange(false)
-            },
-            onSchedule = { equipmentId, opTypeId, date, value, sync ->
-                    onAddReminder(equipmentId, opTypeId, date, value, sync)
-                    onShowAddDialogChange(false)
-                },
-                onEstimateDueDate = onEstimateDueDate,
-                onEstimateTargetValue = onEstimateTargetValue,
-                onGetOperationCostStats = onGetOperationCostStats,
-                defaultEquipmentId = defaultEquipmentId,
-                defaultOperationTypeId = defaultOperationTypeId,
-                equipmentCategoryColor = equipmentCategoryColor,
-                operationCategoryColor = operationCategoryColor,
-                syncCalendarByDefault = syncCalendarByDefault,
-                googleAccountName = googleAccountName,
-                costTrendThreshold = costTrendThreshold,
-                onNavigateToOptions = onNavigateToOptions
+        Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            UnifiedSectionSelector(
+                allSections = allSections,
+                selectedSectionId = selectedSectionId,
+                onSectionSelected = onSectionSelected,
+                showDismissedSections = showDismissedSections,
+                onToggleShowDismissedSections = onToggleShowDismissedSections,
+                selectorType = sectionSelectorType,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
-        }
+            
+            if (showAddDialog) {
+                MaintenanceLogDialog(
+                    equipments = equipments,
+                    operationTypes = operationTypes,
+                    measurementUnits = measurementUnits,
+                    allSections = allSections,
+                    onDismissRequest = { onShowAddDialogChange(false) },
+                    onConfirm = { log ->
+                        onAddLog(
+                            log.equipmentId, 
+                            log.operationTypeId, 
+                            log.notes, 
+                            log.value, 
+                            log.date, 
+                            log.color, 
+                            log.resetAfter,
+                            log.cost,
+                            log.isUnplanned
+                        )
+                        onShowAddDialogChange(false)
+                    },
+                    onSchedule = { equipmentId, opTypeId, date, value, sync ->
+                        onAddReminder(equipmentId, opTypeId, date, value, sync)
+                        onShowAddDialogChange(false)
+                    },
+                    onEstimateDueDate = onEstimateDueDate,
+                    onEstimateTargetValue = onEstimateTargetValue,
+                    onGetOperationCostStats = onGetOperationCostStats,
+                    defaultEquipmentId = defaultEquipmentId,
+                    defaultOperationTypeId = defaultOperationTypeId,
+                    equipmentCategoryColor = equipmentCategoryColor,
+                    operationCategoryColor = operationCategoryColor,
+                    syncCalendarByDefault = syncCalendarByDefault,
+                    googleAccountName = googleAccountName,
+                    costTrendThreshold = costTrendThreshold,
+                    onNavigateToOptions = onNavigateToOptions,
+                    logDraft = logAddDraft,
+                    reminderDraft = reminderAddDraft,
+                    onUpdateLogDraft = onUpdateLogDraft,
+                    onUpdateReminderDraft = onUpdateReminderDraft
+                )
+            }
 
-        Column(Modifier.padding(paddingValues)) {
             RemindersDashboard(
                 reminders = activeReminders,
                 measurementUnits = measurementUnits,
@@ -685,6 +476,13 @@ fun MaintenanceLogScreenContent(
                 onEdit = onEditReminder,
                 onRefresh = onRefreshReminders,
                 costTrendThreshold = costTrendThreshold
+            )
+
+            PredictionsDashboard(
+                predictions = automaticPredictions,
+                equipmentCategoryColor = equipmentCategoryColor,
+                operationCategoryColor = operationCategoryColor,
+                onPredictionClick = { equipment, status -> onPredictionAction(equipment.id, status) }
             )
             Row(
                 modifier = Modifier
@@ -698,41 +496,40 @@ fun MaintenanceLogScreenContent(
                     onValueChange = onSearchQueryChange,
                     label = { Text(stringResource(R.string.search_logs)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_logs)) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1.0f),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
                     )
                 )
 
-                Box {
-                    IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort_by))
-                    }
-                    DropdownMenu(
-                        expanded = showSortMenu,
-                        onDismissRequest = { showSortMenu = false }
-                    ) {
-                        SortProperty.entries.forEach { prop ->
-                            DropdownMenuItem(
-                                text = { 
-                                    val label = when (prop) {
-                                        SortProperty.VALUE -> stringResource(R.string.measurement_unit)
-                                        else -> prop.name.lowercase().replaceFirstChar { it.titlecase() }
-                                    }
-                                    Text(label) 
-                                },
-                                onClick = {
-                                    onSortPropertyChange(prop)
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (sortProperty == prop) {
-                                        Icon(Icons.Default.Check, contentDescription = stringResource(R.string.selected_content_desc))
-                                    }
+                IconButton(onClick = { showSortMenu = true }) {
+                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort_by))
+                }
+                
+                DropdownMenu(
+                    expanded = showSortMenu,
+                    onDismissRequest = { showSortMenu = false }
+                ) {
+                    SortProperty.entries.forEach { prop ->
+                        DropdownMenuItem(
+                            text = { 
+                                val label = when (prop) {
+                                    SortProperty.VALUE -> stringResource(R.string.measurement_unit)
+                                    else -> prop.name.lowercase().replaceFirstChar { it.titlecase() }
                                 }
-                            )
-                        }
+                                Text(label) 
+                            },
+                            onClick = {
+                                onSortPropertyChange(prop)
+                                showSortMenu = false
+                            },
+                            leadingIcon = {
+                                if (sortProperty == prop) {
+                                    Icon(Icons.Default.Check, contentDescription = stringResource(R.string.selected_content_desc))
+                                }
+                            }
+                        )
                     }
                 }
 
@@ -744,1177 +541,27 @@ fun MaintenanceLogScreenContent(
                 }
             }
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(8.dp)) {
-                items(logs, key = { it.log.id }) { logDetail ->
+                items(mainLogList, key = { it.log.id }) { logDetail ->
                     MaintenanceLogCard(
                         logDetail = logDetail,
                         equipments = equipments,
                         operationTypes = operationTypes,
                         measurementUnits = measurementUnits,
+                        allSections = allSections,
                         isExpanded = logDetail.log.id == expandedCardId,
-                        isEditing = logDetail.log.id == editingCardId,
+                        draft = allDrafts[logDetail.log.id],
+                        onStartEdit = { onStartEdit(logDetail.log) },
+                        onCancelEdit = { onCancelEdit(logDetail.log.id) },
+                        onUpdateDraft = onUpdateDraft,
+                        onSaveEdit = onSaveEdit,
                         onExpand = { onCardExpanded(logDetail.log.id) },
-                        onEdit = { onEditLog(logDetail.log) },
                         onSave = onUpdateLog,
                         onDelete = onDeleteLog,
-                        onDismiss = { onDismissLog(logDetail.log) },
-                        onRestore = { onRestoreLog(logDetail.log) },
                         onGetOperationCostStats = onGetOperationCostStats,
                         equipmentCategoryColor = equipmentCategoryColor,
                         operationCategoryColor = operationCategoryColor,
                         costTrendThreshold = costTrendThreshold
                     )
-                }
-            }
-        }
-    }
-}
-
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MaintenanceLogDialog(
-    equipments: List<Equipment>,
-    operationTypes: List<OperationType>,
-    measurementUnits: List<MeasurementUnit>,
-    onDismissRequest: () -> Unit,
-    onConfirm: (MaintenanceLog) -> Unit,
-    onSchedule: ((Int, Int, Long?, Double?, Boolean) -> Unit)? = null,
-    onDeleteReminder: (() -> Unit)? = null,
-    onEstimateDueDate: (suspend (Int, Double) -> Long?)? = null,
-    onEstimateTargetValue: (suspend (Int, Long) -> Double?)? = null,
-    onGetOperationCostStats: (suspend (Int) -> Pair<Double?, Double?>)? = null,
-    defaultEquipmentId: Int?,
-    defaultOperationTypeId: Int?,
-    initialDate: Long = System.currentTimeMillis(),
-    initialValue: String = "",
-    initialCost: String = "",
-    initialIsUnplanned: Boolean = false,
-    initialSyncToCalendar: Boolean? = null,
-    initialHasFixedDate: Boolean = true,
-    isEditMode: Boolean = false,
-    equipmentCategoryColor: String?,
-    operationCategoryColor: String?,
-    syncCalendarByDefault: Boolean = false,
-    googleAccountName: String? = null,
-    costTrendThreshold: Float = UiConstants.DEFAULT_COST_TREND_THRESHOLD,
-    initialTab: Int? = null,
-    onNavigateToOptions: () -> Unit = {}
-) {
-    val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-
-    var selectedTab by remember(isEditMode, initialTab) { 
-        mutableIntStateOf(initialTab ?: if (isEditMode) 1 else 0) 
-    } // 0: Completed, 1: Planned
-    var notes by remember { mutableStateOf("") }
-    var valueStr by remember { mutableStateOf(initialValue) }
-    var costStr by remember { mutableStateOf(initialCost) }
-    var isUnplanned by remember { mutableStateOf(initialIsUnplanned) }
-    var syncToCalendar by remember(syncCalendarByDefault, initialSyncToCalendar) { 
-        mutableStateOf(initialSyncToCalendar ?: syncCalendarByDefault) 
-    }
-    
-    var selectedEquipment by remember(defaultEquipmentId, equipments) { 
-        mutableStateOf(equipments.find { it.id == defaultEquipmentId }) 
-    }
-    var selectedOperationType by remember(defaultOperationTypeId, operationTypes) { 
-        mutableStateOf(operationTypes.find { it.id == defaultOperationTypeId }) 
-    }
-
-    val unit = remember(selectedEquipment, measurementUnits) {
-        measurementUnits.find { it.id == selectedEquipment?.unitId }
-    }
-    val unitLabel = unit?.label ?: "Km"
-    val decimalPlaces = unit?.decimalPlaces ?: 0
-    
-    var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
-    var isOperationDropdownExpanded by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableLongStateOf(initialDate) }
-    var hasFixedDate by remember(isEditMode, initialHasFixedDate) { 
-        mutableStateOf(if (isEditMode) initialHasFixedDate else true) 
-    }
-    
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-    var showDeleteReminderConfirmation by remember { mutableStateOf(false) }
-    var resetAfter by remember { mutableStateOf(false) }
-
-    var lastCost by remember { mutableStateOf<Double?>(null) }
-    var avgCost by remember { mutableStateOf<Double?>(null) }
-
-    LaunchedEffect(selectedOperationType) {
-        selectedOperationType?.id?.let { opId ->
-            onGetOperationCostStats?.invoke(opId)?.let { (last, avg) ->
-                lastCost = last
-                avgCost = avg
-            }
-        } ?: run {
-            lastCost = null
-            avgCost = null
-        }
-    }
-
-    val scope = rememberCoroutineScope()
-    var isEstimating by remember { mutableStateOf(false) }
-
-    val eColor = remember(equipmentCategoryColor) {
-        try {
-            equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: Color.Gray
-        } catch (_: Exception) {
-            Color.Gray
-        }
-    }
-    val oColor = remember(operationCategoryColor) {
-        try {
-            operationCategoryColor?.toColorInt()?.let { Color(it) } ?: Color.Gray
-        } catch (_: Exception) {
-            Color.Gray
-        }
-    }
-
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDate)
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { dateMillis ->
-                            val calendar = Calendar.getInstance()
-                            val currentCalendar = Calendar.getInstance().apply { timeInMillis = selectedDate }
-                            calendar.timeInMillis = dateMillis
-                            calendar.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY))
-                            calendar.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE))
-                            selectedDate = calendar.timeInMillis
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text(stringResource(R.string.button_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-
-    if (showTimePicker) {
-        val calendar = Calendar.getInstance().apply { timeInMillis = selectedDate }
-        val timePickerState = rememberTimePickerState(
-            initialHour = calendar.get(Calendar.HOUR_OF_DAY),
-            initialMinute = calendar.get(Calendar.MINUTE),
-            is24Hour = true
-        )
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val newCalendar = Calendar.getInstance().apply {
-                            timeInMillis = selectedDate
-                            set(Calendar.HOUR_OF_DAY, timePickerState.hour)
-                            set(Calendar.MINUTE, timePickerState.minute)
-                        }
-                        selectedDate = newCalendar.timeInMillis
-                        showTimePicker = false
-                    }
-                ) {
-                    Text(stringResource(R.string.button_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            },
-            text = {
-                TimePicker(state = timePickerState)
-            }
-        )
-    }
-
-    if (showDeleteReminderConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showDeleteReminderConfirmation = false },
-            title = { Text(stringResource(R.string.delete_reminder)) },
-            text = { Text("Are you sure you want to permanently delete this reminder?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteReminder?.invoke()
-                        showDeleteReminderConfirmation = false
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(stringResource(R.string.button_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteReminderConfirmation = false }) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            }
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { 
-            Text(
-                if (isEditMode && onSchedule != null) stringResource(R.string.edit_log) // Should ideally be a "Edit Deadline" string
-                else if (isEditMode) stringResource(R.string.edit_log)
-                else if (onSchedule != null) stringResource(R.string.add_new_maintenance_log) 
-                else stringResource(R.string.reminder_complete_log)
-            ) 
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (onSchedule != null && !isEditMode) {
-                    TabRow(selectedTabIndex = selectedTab) {
-                        Tab(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            text = { Text(stringResource(R.string.tab_log)) }
-                        )
-                        Tab(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            text = { Text(stringResource(R.string.tab_reminder)) }
-                        )
-                    }
-                }
-
-                ExposedDropdownMenuBox(
-                    expanded = isEquipmentDropdownExpanded,
-                    onExpandedChange = { isEquipmentDropdownExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = selectedEquipment?.description?.takeIf { it.isNotBlank() } ?: selectedEquipment?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_an_equipment),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.navigation_equipment)) },
-                        leadingIcon = {
-                            ImageIcon(
-                                photoUri = selectedEquipment?.photoUri,
-                                iconIdentifier = selectedEquipment?.iconIdentifier,
-                                modifier = Modifier.size(24.dp),
-                                category = Category.EQUIPMENT,
-                                borderColor = eColor,
-                                contentPadding = 2.dp
-                            )
-                        },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isEquipmentDropdownExpanded) },
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = isEquipmentDropdownExpanded,
-                        onDismissRequest = { isEquipmentDropdownExpanded = false }
-                    ) {
-                        equipments.forEach { equipment ->
-                            DropdownMenuItem(
-                                text = { Text(equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id)) },
-                                leadingIcon = {
-                                    ImageIcon(
-                                        photoUri = equipment.photoUri,
-                                        iconIdentifier = equipment.iconIdentifier,
-                                        modifier = Modifier.size(24.dp),
-                                        category = Category.EQUIPMENT,
-                                        borderColor = eColor,
-                                        contentPadding = 2.dp
-                                    )
-                                },
-                                onClick = {
-                                    selectedEquipment = equipment
-                                    isEquipmentDropdownExpanded = false
-                                    // Se l'operazione selezionata è di sistema (Reset) e l'equipment non è resettabile, resetta l'operazione
-                                    if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
-                                        selectedOperationType = null
-                                    }
-                                    if (!equipment.isResettable) {
-                                        resetAfter = false
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-                ExposedDropdownMenuBox(
-                    expanded = isOperationDropdownExpanded,
-                    onExpandedChange = { isOperationDropdownExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = selectedOperationType?.description?.takeIf { it.isNotBlank() } ?: selectedOperationType?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(R.string.select_an_operation),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(stringResource(R.string.navigation_operations)) },
-                        leadingIcon = {
-                            ImageIcon(
-                                photoUri = selectedOperationType?.photoUri,
-                                iconIdentifier = selectedOperationType?.iconIdentifier,
-                                modifier = Modifier.size(24.dp),
-                                category = Category.OPERATION,
-                                borderColor = oColor,
-                                contentPadding = 2.dp
-                            )
-                        },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOperationDropdownExpanded) },
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = isOperationDropdownExpanded,
-                        onDismissRequest = { isOperationDropdownExpanded = false }
-                    ) {
-                        operationTypes.filter { !it.isSystem || (selectedEquipment?.isResettable == true && it.id == AppConstants.SYSTEM_OPERATION_RESET_ID) }.forEach { operation ->
-                            DropdownMenuItem(
-                                text = { Text(operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, operation.id)) },
-                                leadingIcon = {
-                                    ImageIcon(
-                                        photoUri = operation.photoUri,
-                                        iconIdentifier = operation.iconIdentifier,
-                                        modifier = Modifier.size(24.dp),
-                                        category = Category.OPERATION,
-                                        borderColor = oColor,
-                                        contentPadding = 2.dp
-                                    )
-                                },
-                                onClick = {
-                                    selectedOperationType = operation
-                                    isOperationDropdownExpanded = false
-                                    if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
-                                        resetAfter = true
-                                        valueStr = "0"
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-
-                OutlinedTextField(
-                    value = valueStr,
-                    onValueChange = { input ->
-                        val filtered = input.replace(',', '.')
-                        // Permettiamo la cancellazione e stringhe parziali (solo punto, solo meno, o vuoto)
-                        if (filtered.isEmpty() || filtered == "." || filtered == "-") {
-                            valueStr = filtered
-                        } else {
-                            val doubleVal = filtered.toDoubleOrNull()
-                            if (doubleVal != null && filtered.length <= 10) {
-                                val dotIndex = filtered.indexOf('.')
-                                if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
-                                    valueStr = filtered
-                                }
-                            }
-                        }
-                    },
-                    label = { Text(if (selectedTab == 0) stringResource(R.string.value_optional, unitLabel) else stringResource(R.string.target_value, unitLabel)) },
-                    readOnly = selectedOperationType?.id == AppConstants.SYSTEM_OPERATION_RESET_ID,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    trailingIcon = {
-                        if (selectedTab == 1 && valueStr.isNotBlank() && onEstimateDueDate != null) {
-                            IconButton(onClick = {
-                                selectedEquipment?.id?.let { eqId ->
-                                    valueStr.toDoubleOrNull()?.let { target ->
-                                        scope.launch {
-                                            isEstimating = true
-                                            onEstimateDueDate(eqId, target)?.let { estimated ->
-                                                selectedDate = estimated
-                                            }
-                                            isEstimating = false
-                                        }
-                                    }
-                                }
-                            }) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Recalculate Date")
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (selectedTab == 0) {
-                    val isResettable = selectedEquipment?.isResettable == true
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = isResettable && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID) { 
-                                resetAfter = !resetAfter
-                                if (resetAfter) valueStr = "0"
-                            },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = resetAfter && isResettable,
-                            onCheckedChange = { 
-                                resetAfter = it 
-                                if (it) valueStr = "0"
-                            },
-                            enabled = isResettable && selectedOperationType?.id != AppConstants.SYSTEM_OPERATION_RESET_ID
-                        )
-                        Text(
-                            text = stringResource(R.string.reset_counter_after),
-                            color = if (isResettable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-
-                    OutlinedTextField(
-                        value = costStr,
-                        onValueChange = { input ->
-                            val filtered = input.replace(',', '.')
-                            if (filtered.isEmpty() || filtered == ".") {
-                                costStr = filtered
-                            } else {
-                                val doubleVal = filtered.toDoubleOrNull()
-                                if (doubleVal != null && filtered.length <= 10) {
-                                    costStr = filtered
-                                }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.cost_optional)) },
-                        supportingText = {
-                            if (lastCost != null && avgCost != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = stringResource(R.string.last_cost_label, String.format(Locale.US, "%.2f €", lastCost)),
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    val (icon, color) = when {
-                                        lastCost!! > avgCost!! * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
-                                        lastCost!! < avgCost!! * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
-                                        else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
-                                    }
-                                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { isUnplanned = !isUnplanned },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = isUnplanned,
-                            onCheckedChange = { isUnplanned = it }
-                        )
-                        Text(stringResource(R.string.unplanned_intervention))
-                    }
-
-                    OutlinedTextField(
-                        value = notes,
-                        onValueChange = { if (it.length <= 200) notes = it },
-                        label = { Text(stringResource(R.string.notes_optional)) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                if (selectedTab == 1) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = hasFixedDate,
-                            onCheckedChange = { hasFixedDate = it }
-                        )
-                        Text("Set fixed due date")
-                    }
-                }
-
-                if (selectedTab == 0 || hasFixedDate) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = dayFormat.format(Date(selectedDate)),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(if (selectedTab == 0) stringResource(R.string.date) else stringResource(R.string.due_date)) },
-                            trailingIcon = {
-                                IconButton(onClick = { showDatePicker = true }) {
-                                    Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date))
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = if (isEstimating) OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.primary
-                            ) else OutlinedTextFieldDefaults.colors()
-                        )
-
-                        OutlinedTextField(
-                            value = timeFormat.format(Date(selectedDate)),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.time)) },
-                            trailingIcon = {
-                                IconButton(onClick = { showTimePicker = true }) {
-                                    Icon(Icons.Default.AccessTime, contentDescription = stringResource(R.string.select_time))
-                                }
-                            },
-                            modifier = Modifier.weight(1f).clickable { showTimePicker = true }
-                        )
-                    }
-                }
-
-                LaunchedEffect(selectedDate, selectedTab) {
-                    if (selectedTab == 1 && valueStr.isEmpty() && onEstimateTargetValue != null) {
-                        selectedEquipment?.id?.let { eqId ->
-                            scope.launch {
-                                isEstimating = true
-                                onEstimateTargetValue(eqId, selectedDate)?.let { estimated ->
-                                    valueStr = String.format(Locale.US, "%.${decimalPlaces}f", estimated)
-                                }
-                                isEstimating = false
-                            }
-                        }
-                    }
-                }
-
-                if (selectedTab == 1) {
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = syncToCalendar,
-                                onCheckedChange = { syncToCalendar = it }
-                            )
-                            Text(stringResource(R.string.sync_to_calendar))
-                        }
-                        if (syncToCalendar && googleAccountName == null) {
-                            Text(
-                                text = stringResource(R.string.calendar_no_account),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier
-                                    .padding(start = 12.dp)
-                                    .clickable { onNavigateToOptions() }
-                            )
-                        }
-                    }
-                }
-            }
-        },
-
-        confirmButton = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = if (isEditMode && onDeleteReminder != null) Arrangement.SpaceBetween else Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isEditMode && onDeleteReminder != null) {
-                    TextButton(
-                        onClick = { showDeleteReminderConfirmation = true },
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.delete_reminder))
-                    }
-                }
-                
-                Button(
-                    onClick = {
-                        val equipment = selectedEquipment
-                        val op = selectedOperationType
-                        val targetValue = valueStr.toDoubleOrNull()
-                        val fixedDate = if (hasFixedDate) selectedDate else null
-                        
-                        // Validation: at least one must be present for reminders
-                        if (equipment != null && op != null && (selectedTab == 0 || fixedDate != null || targetValue != null)) {
-                            if (selectedTab == 0) {
-                                onConfirm(
-                                    MaintenanceLog(
-                                        equipmentId = equipment.id,
-                                        operationTypeId = op.id,
-                                        notes = notes.takeIf { it.isNotBlank() },
-                                        value = valueStr.toDoubleOrNull(),
-                                        date = selectedDate,
-                                        resetAfter = resetAfter,
-                                        cost = costStr.toDoubleOrNull(),
-                                        isUnplanned = isUnplanned
-                                    )
-                                )
-                            } else {
-                                onSchedule?.invoke(
-                                    equipment.id,
-                                    op.id,
-                                    fixedDate,
-                                    targetValue,
-                                    syncToCalendar
-                                )
-                            }
-                        }
-                    },
-                    enabled = selectedEquipment != null && selectedOperationType != null && 
-                            (selectedTab == 0 || hasFixedDate || valueStr.isNotBlank())
-                ) {
-                    Text(
-                        if (isEditMode) stringResource(R.string.save_operation_type)
-                        else if (selectedTab == 0) stringResource(R.string.button_add) 
-                        else stringResource(R.string.schedule_maintenance)
-                    )
-                }
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismissRequest) {
-                Text(stringResource(R.string.button_cancel))
-            }
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MaintenanceLogCard(
-    logDetail: MaintenanceLogDetails,
-    equipments: List<Equipment>,
-    operationTypes: List<OperationType>,
-    measurementUnits: List<MeasurementUnit>,
-    isExpanded: Boolean,
-    isEditing: Boolean,
-    onExpand: () -> Unit,
-    onEdit: () -> Unit,
-    onSave: (MaintenanceLog) -> Unit,
-    onDelete: (MaintenanceLog) -> Unit,
-    onDismiss: () -> Unit,
-    onRestore: () -> Unit,
-    onGetOperationCostStats: suspend (Int) -> Pair<Double?, Double?>,
-    modifier: Modifier = Modifier,
-    equipmentCategoryColor: String?,
-    operationCategoryColor: String?,
-    costTrendThreshold: Float
-) {
-    var editedNotes by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.notes ?: "") }
-    var editedValueStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.value?.toString() ?: "") }
-    var editedCostStr by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.cost?.toString() ?: "") }
-    var editedIsUnplanned by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.isUnplanned) }
-    var editedResetAfter by remember(logDetail, isEditing) { mutableStateOf(logDetail.log.resetAfter) }
-    var editedDate by remember(logDetail, isEditing) { mutableLongStateOf(logDetail.log.date) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
-    var selectedEquipment by remember(logDetail, isEditing) { mutableStateOf(equipments.find { it.id == logDetail.log.equipmentId }) }
-    var selectedOperationType by remember(logDetail, isEditing) { mutableStateOf(operationTypes.find { it.id == logDetail.log.operationTypeId }) }
-    var isEquipmentDropdownExpanded by remember { mutableStateOf(false) }
-    var isOperationDropdownExpanded by remember { mutableStateOf(false) }
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
-
-    var lastCost by remember { mutableStateOf<Double?>(null) }
-    var avgCost by remember { mutableStateOf<Double?>(null) }
-
-    LaunchedEffect(selectedOperationType) {
-        if (isEditing) {
-            selectedOperationType?.id?.let { opId ->
-                onGetOperationCostStats(opId).let { (last, avg) ->
-                    lastCost = last
-                    avgCost = avg
-                }
-            } ?: run {
-                lastCost = null
-                avgCost = null
-            }
-        }
-    }
-
-    val unit = remember(selectedEquipment, measurementUnits) {
-        measurementUnits.find { it.id == selectedEquipment?.unitId }
-    }
-    val unitLabel = unit?.label ?: "Km"
-    val decimalPlaces = unit?.decimalPlaces ?: 0
-
-    val cardAlpha = if (logDetail.log.dismissed) 0.5f else 1f
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
-    val dayFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-
-    val eColor = remember(equipmentCategoryColor) {
-        try {
-            equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: Color.Gray
-        } catch (_: Exception) {
-            Color.Gray
-        }
-    }
-    val oColor = remember(operationCategoryColor) {
-        try {
-            operationCategoryColor?.toColorInt()?.let { Color(it) } ?: Color.Gray
-        } catch (_: Exception) {
-            Color.Gray
-        }
-    }
-
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = editedDate)
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { dateMillis ->
-                            val calendar = Calendar.getInstance()
-                            val currentCalendar = Calendar.getInstance().apply { timeInMillis = editedDate }
-                            calendar.timeInMillis = dateMillis
-                            calendar.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY))
-                            calendar.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE))
-                            editedDate = calendar.timeInMillis
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text(stringResource(R.string.button_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-
-    if (showTimePicker) {
-        val calendar = Calendar.getInstance().apply { timeInMillis = editedDate }
-        val timePickerState = rememberTimePickerState(
-            initialHour = calendar.get(Calendar.HOUR_OF_DAY),
-            initialMinute = calendar.get(Calendar.MINUTE),
-            is24Hour = true
-        )
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val newCalendar = Calendar.getInstance().apply {
-                            timeInMillis = editedDate
-                            set(Calendar.HOUR_OF_DAY, timePickerState.hour)
-                            set(Calendar.MINUTE, timePickerState.minute)
-                        }
-                        editedDate = newCalendar.timeInMillis
-                        showTimePicker = false
-                    }
-                ) {
-                    Text(stringResource(R.string.button_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            },
-            text = {
-                TimePicker(state = timePickerState)
-            }
-        )
-    }
-
-    if (showDeleteConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text(stringResource(R.string.delete_log)) },
-            text = { Text(stringResource(R.string.delete_log_confirm)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete(logDetail.log)
-                        showDeleteConfirmation = false
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(stringResource(R.string.button_delete).ifEmpty { "Delete" })
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text(stringResource(R.string.button_cancel))
-                }
-            }
-        )
-    }
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .graphicsLayer(alpha = cardAlpha)
-            .clickable { onExpand() }
-            .animateContentSize(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) // Leggera trasparenza
-        )
-    ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (isEditing) {
-                    ExposedDropdownMenuBox(
-                        expanded = isEquipmentDropdownExpanded,
-                        onExpandedChange = { isEquipmentDropdownExpanded = it }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedEquipment?.description?.takeIf { it.isNotBlank() } ?: selectedEquipment?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(id = R.string.select_an_equipment),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.navigation_equipment)) },
-                            leadingIcon = {
-                                ImageIcon(
-                                    photoUri = selectedEquipment?.photoUri,
-                                    iconIdentifier = selectedEquipment?.iconIdentifier,
-                                    modifier = Modifier.size(24.dp),
-                                    category = Category.EQUIPMENT,
-                                    borderColor = eColor,
-                                    contentPadding = 2.dp
-                                )
-                            },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isEquipmentDropdownExpanded) },
-                            modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = isEquipmentDropdownExpanded,
-                            onDismissRequest = { isEquipmentDropdownExpanded = false }
-                        ) {
-                            equipments.forEach { equipment ->
-                                DropdownMenuItem(
-                                    text = { Text(equipment.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, equipment.id)) },
-                                    leadingIcon = {
-                                        ImageIcon(
-                                            photoUri = equipment.photoUri,
-                                            iconIdentifier = equipment.iconIdentifier,
-                                            modifier = Modifier.size(24.dp),
-                                            category = Category.EQUIPMENT,
-                                            borderColor = eColor,
-                                            contentPadding = 2.dp
-                                        )
-                                    },
-                                    onClick = {
-                                        selectedEquipment = equipment
-                                        isEquipmentDropdownExpanded = false
-                                        // Se l'operazione selezionata è di sistema (Reset) e l'equipment non è resettabile, resetta l'operazione
-                                        if (selectedOperationType?.isSystem == true && !equipment.isResettable) {
-                                            selectedOperationType = null
-                                        }
-                                        if (!equipment.isResettable) {
-                                            editedResetAfter = false
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    ExposedDropdownMenuBox(
-                        expanded = isOperationDropdownExpanded,
-                        onExpandedChange = { isOperationDropdownExpanded = it }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedOperationType?.description?.takeIf { it.isNotBlank() } ?: selectedOperationType?.let { stringResource(R.string.id_no_description, it.id) } ?: stringResource(id = R.string.select_an_operation),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.navigation_operations)) },
-                            leadingIcon = {
-                                ImageIcon(
-                                    photoUri = selectedOperationType?.photoUri,
-                                    iconIdentifier = selectedOperationType?.iconIdentifier,
-                                    modifier = Modifier.size(24.dp),
-                                    category = Category.OPERATION,
-                                    borderColor = oColor,
-                                    contentPadding = 2.dp
-                                )
-                            },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOperationDropdownExpanded) },
-                            modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = isOperationDropdownExpanded,
-                            onDismissRequest = { isOperationDropdownExpanded = false }
-                        ) {
-                            operationTypes.filter { !it.isSystem || (selectedEquipment?.isResettable == true && it.id == AppConstants.SYSTEM_OPERATION_RESET_ID) }.forEach { operation ->
-                                DropdownMenuItem(
-                                    text = { Text(operation.description.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, operation.id)) },
-                                    leadingIcon = {
-                                        ImageIcon(
-                                            photoUri = operation.photoUri,
-                                            iconIdentifier = operation.iconIdentifier,
-                                            modifier = Modifier.size(24.dp),
-                                            category = Category.OPERATION,
-                                            borderColor = oColor,
-                                            contentPadding = 2.dp
-                                        )
-                                    },
-                                    onClick = {
-                                        selectedOperationType = operation
-                                        isOperationDropdownExpanded = false
-                                        if (operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
-                                            editedResetAfter = true
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    OutlinedTextField(
-                        value = editedValueStr,
-                        onValueChange = { input ->
-                            val filtered = input.replace(',', '.')
-                            if (filtered.isEmpty() || filtered == "." || filtered == "-") {
-                                editedValueStr = filtered
-                            } else {
-                                val doubleVal = filtered.toDoubleOrNull()
-                                if (doubleVal != null && filtered.length <= 10) {
-                                    val dotIndex = filtered.indexOf('.')
-                                    if (dotIndex == -1 || filtered.length - dotIndex - 1 <= decimalPlaces) {
-                                        editedValueStr = filtered
-                                    }
-                                }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.value_optional, unitLabel)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    val isResettable = selectedEquipment?.isResettable == true
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = isResettable) { editedResetAfter = !editedResetAfter },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = editedResetAfter && isResettable,
-                            onCheckedChange = { editedResetAfter = it },
-                            enabled = isResettable
-                        )
-                        Text(
-                            text = stringResource(R.string.reset_counter_after),
-                            color = if (isResettable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-
-                    OutlinedTextField(
-                        value = editedNotes,
-                        onValueChange = { if (it.length <= 200) editedNotes = it },
-                        label = { Text(stringResource(R.string.notes_optional)) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = editedCostStr,
-                        onValueChange = { input ->
-                            val filtered = input.replace(',', '.')
-                            if (filtered.isEmpty() || filtered == ".") {
-                                editedCostStr = filtered
-                            } else {
-                                val doubleVal = filtered.toDoubleOrNull()
-                                if (doubleVal != null && filtered.length <= 10) {
-                                    editedCostStr = filtered
-                                }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.cost_optional)) },
-                        supportingText = {
-                            if (lastCost != null && avgCost != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = stringResource(R.string.last_cost_label, String.format(Locale.US, "%.2f €", lastCost)),
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    val (icon, color) = when {
-                                        lastCost!! > avgCost!! * (1 + costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingUp to Color.Red
-                                        lastCost!! < avgCost!! * (1 - costTrendThreshold) -> Icons.AutoMirrored.Filled.TrendingDown to Color.Green
-                                        else -> Icons.AutoMirrored.Filled.TrendingFlat to Color.Gray
-                                    }
-                                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { editedIsUnplanned = !editedIsUnplanned },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = editedIsUnplanned,
-                            onCheckedChange = { editedIsUnplanned = it }
-                        )
-                        Text(stringResource(R.string.unplanned_intervention))
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { showDatePicker = true }, modifier = Modifier.weight(1f)) {
-                            Text(text = dayFormat.format(Date(editedDate)))
-                        }
-                        Button(onClick = { showTimePicker = true }, modifier = Modifier.weight(1f)) {
-                            Text(text = timeFormat.format(Date(editedDate)))
-                        }
-                    }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val equipmentTextAlpha = if (logDetail.equipmentDismissed) 0.5f else 1f
-                        ImageIcon(
-                            photoUri = logDetail.equipmentPhotoUri,
-                            iconIdentifier = logDetail.equipmentIconIdentifier,
-                            modifier = Modifier.size(24.dp).graphicsLayer(alpha = equipmentTextAlpha),
-                            category = Category.EQUIPMENT,
-                            borderColor = eColor,
-                            contentPadding = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = (logDetail.equipmentDescription.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, logDetail.log.equipmentId)) + if (logDetail.equipmentDismissed) " " + stringResource(R.string.dismissed_suffix) else "",
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.graphicsLayer(alpha = equipmentTextAlpha)
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val operationTypeAlpha = if (logDetail.operationTypeDismissed) 0.5f else 1f
-                        ImageIcon(
-                            photoUri = logDetail.operationTypePhotoUri,
-                            iconIdentifier = logDetail.operationTypeIconIdentifier,
-                            modifier = Modifier.size(24.dp).graphicsLayer(alpha = operationTypeAlpha),
-                            category = Category.OPERATION,
-                            borderColor = oColor,
-                            contentPadding = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = (logDetail.operationTypeDescription.takeIf { it.isNotBlank() } ?: stringResource(R.string.id_no_description, logDetail.log.operationTypeId)) + if (logDetail.operationTypeDismissed) " " + stringResource(R.string.dismissed_suffix) else "",
-                            style = MaterialTheme.typography.bodyLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.graphicsLayer(alpha = operationTypeAlpha).weight(1f)
-                        )
-                        if (logDetail.log.isUnplanned) {
-                            Surface(
-                                shape = MaterialTheme.shapes.extraSmall,
-                                color = MaterialTheme.colorScheme.errorContainer,
-                                modifier = Modifier.padding(start = 4.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.unplanned_intervention),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val isValueIncongruent = remember(logDetail) {
-                            val currentVal = logDetail.log.value ?: 0.0
-                            val prevVal = logDetail.previousLogValue ?: 0.0
-                            !logDetail.operationTypeIsSystem && !logDetail.previousLogIsSystem && currentVal < prevVal
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = logDetail.log.value?.let { String.format(Locale.US, "%.${decimalPlaces}f %s", it, unitLabel) } ?: "",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (isValueIncongruent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            logDetail.log.cost?.let {
-                                Text(
-                                    text = String.format(Locale.US, "%.2f €", it),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Text(
-                            text = dateFormat.format(Date(logDetail.log.date)),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-
-                    logDetail.log.notes?.takeIf { it.isNotBlank() }?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = if (isExpanded) Int.MAX_VALUE else 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-            Column {
-                IconButton(onClick = {
-                    if (isEditing) {
-                        val updatedLog = logDetail.log.copy(
-                            notes = editedNotes,
-                            value = editedValueStr.toDoubleOrNull(),
-                            cost = editedCostStr.toDoubleOrNull(),
-                            isUnplanned = editedIsUnplanned,
-                            resetAfter = editedResetAfter,
-                            date = editedDate,
-                            equipmentId = selectedEquipment?.id ?: logDetail.log.equipmentId,
-                            operationTypeId = selectedOperationType?.id ?: logDetail.log.operationTypeId
-                        )
-                        onSave(updatedLog)
-                    } else {
-                        onEdit()
-                    }
-                }) {
-                    Icon(
-                        imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit,
-                        contentDescription = if (isEditing) stringResource(R.string.save_log) else stringResource(R.string.edit_log)
-                    )
-                }
-                if (isEditing) {
-                    IconButton(onClick = { showDeleteConfirmation = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.delete_log),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    IconButton(
-                        onClick = {
-                            if (logDetail.log.dismissed) {
-                                onRestore()
-                            } else {
-                                onDismiss()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (logDetail.log.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (logDetail.log.dismissed) stringResource(R.string.restore_log) else stringResource(R.string.dismiss_log)
-                        )
-                    }
                 }
             }
         }

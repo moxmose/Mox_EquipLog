@@ -11,8 +11,9 @@ import androidx.compose.ui.test.performTextInput
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
+import com.moxmose.moxequiplog.data.local.MeasurementUnit
 import com.moxmose.moxequiplog.data.local.OperationType
-import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.ui.operations.components.AddOperationTypeDialog
 import junit.framework.TestCase.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -38,15 +39,23 @@ class OperationTypeScreenTest {
                 operationTypes = operationTypes,
                 operationTypeImages = emptyList<Image>(),
                 allCategories = emptyList<Category>(),
+                allSections = emptyList(),
+                measurementUnits = emptyList<MeasurementUnit>(),
+                selectedSectionId = 0,
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 showDismissed = false,
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = {},
-                onAddOperationType = { _, _, _, _, _, _, _, _, _, _ -> },
+                onCloneOperationType = {},
+                onAddOperationType = { _, _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = { _ -> },
                 onUpdateOperationType = { _ -> },
+                onDeleteOperationType = { _ -> },
                 onDismissOperationType = { _ -> },
                 onRestoreOperationType = { _ -> },
                 onAddImage = { _, _ -> },
@@ -59,7 +68,14 @@ class OperationTypeScreenTest {
                 categoryDefaultIcons = emptyMap<String, String?>(),
                 categoryDefaultPhotos = emptyMap<String, String?>(),
                 operationStatuses = emptyMap<Int, OperationGlobalStatus>(),
-                onAffectedAction = { _, _ -> }
+                onUpdateAddDraft = {},
+                onStartEdit = {},
+                onCancelEdit = {},
+                onToggleDefaultInDraft = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
+                onAffectedAction = { _, _ -> },
+                sectionsResettableStatus = emptyMap<Int, Boolean>()
             )
         }
 
@@ -76,15 +92,23 @@ class OperationTypeScreenTest {
                 operationTypes = emptyList<OperationType>(),
                 operationTypeImages = emptyList<Image>(),
                 allCategories = emptyList<Category>(),
+                allSections = emptyList(),
+                measurementUnits = emptyList<MeasurementUnit>(),
+                selectedSectionId = 0,
+                onSectionSelected = {},
+                showDismissedSections = false,
+                onToggleShowDismissedSections = {},
                 defaultIcon = null,
                 defaultPhotoUri = null,
                 showDismissed = false,
                 onToggleShowDismissed = {},
                 showAddDialog = false,
                 onShowAddDialogChange = { onShowAddDialogChangeCalled.set(it) },
-                onAddOperationType = { _, _, _, _, _, _, _, _, _, _ -> },
+                onCloneOperationType = {},
+                onAddOperationType = { _, _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 onUpdateOperationTypes = { _ -> },
                 onUpdateOperationType = { _ -> },
+                onDeleteOperationType = { _ -> },
                 onDismissOperationType = { _ -> },
                 onRestoreOperationType = { _ -> },
                 onAddImage = { _, _ -> },
@@ -97,7 +121,14 @@ class OperationTypeScreenTest {
                 categoryDefaultIcons = emptyMap<String, String?>(),
                 categoryDefaultPhotos = emptyMap<String, String?>(),
                 operationStatuses = emptyMap<Int, OperationGlobalStatus>(),
-                onAffectedAction = { _, _ -> }
+                onUpdateAddDraft = {},
+                onStartEdit = {},
+                onCancelEdit = {},
+                onToggleDefaultInDraft = {},
+                onUpdateDraft = {},
+                onSaveEdit = {},
+                onAffectedAction = { _, _ -> },
+                sectionsResettableStatus = emptyMap<Int, Boolean>()
             )
         }
 
@@ -115,9 +146,15 @@ class OperationTypeScreenTest {
         composeTestRule.setContent {
             AddOperationTypeDialog(
                 onDismissRequest = {},
-                onConfirm = { desc, identifier, _, _, _, _, _, _, _, cost -> addedOperationInfo.set(Triple(desc, identifier, cost)) },
+                onConfirm = { desc, identifier, _, _, _, _, _, _, _, _, _, _, cost, _ ->
+                    addedOperationInfo.set(Triple(desc, identifier, cost)) 
+                },
                 imageLibrary = emptyList<Image>(),
                 categories = emptyList<Category>(),
+                allSections = emptyList(),
+                measurementUnits = emptyList<MeasurementUnit>(),
+                selectedSectionId = 0,
+                showDismissedSections = false,
                 categoryColors = emptyMap<String, String>(),
                 categoryDefaultIcons = emptyMap<String, String?>(),
                 categoryDefaultPhotos = emptyMap<String, String?>(),
@@ -125,7 +162,8 @@ class OperationTypeScreenTest {
                 defaultPhotoUri = null,
                 onAddImage = { _, _ -> },
                 onToggleImageVisibility = { _ -> },
-                operationCategoryColor = "#808080"
+                operationCategoryColor = "#808080",
+                sectionsResettableStatus = emptyMap<Int, Boolean>()
             )
         }
 

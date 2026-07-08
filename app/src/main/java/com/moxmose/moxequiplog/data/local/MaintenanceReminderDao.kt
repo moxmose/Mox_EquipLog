@@ -31,10 +31,53 @@ interface MaintenanceReminderDao {
              AND cost IS NOT NULL 
              ORDER BY date DESC LIMIT 1) as lastLogCost,
             (SELECT AVG(cost) FROM maintenance_logs 
-             WHERE operationTypeId = r.operationTypeId AND date >= :sinceDate) as averageCost
+             WHERE operationTypeId = r.operationTypeId AND date >= :sinceDate) as averageCost,
+            e.sectionId as equipmentSectionId,
+            se.name as equipmentSectionName,
+            se.color as equipmentSectionColor,
+            ot.sectionId as operationSectionId,
+            so.name as operationSectionName,
+            so.color as operationSectionColor
         FROM maintenance_reminders r
         JOIN equipments e ON r.equipmentId = e.id
         JOIN operation_types ot ON r.operationTypeId = ot.id
+        JOIN sections se ON e.sectionId = se.id
+        JOIN sections so ON ot.sectionId = so.id
+        WHERE r.isCompleted = 0 AND (e.sectionId = :sectionId OR ot.sectionId = :sectionId)
+        ORDER BY COALESCE(r.dueDate, r.presumedDate) ASC
+    """)
+    fun getActiveRemindersWithDetailsBySection(sinceDate: Long, sectionId: Int): Flow<List<MaintenanceReminderDetails>>
+
+    @Query("""
+        SELECT 
+            r.*, 
+            e.description as equipmentDescription, 
+            ot.description as operationTypeDescription,
+            e.photoUri as equipmentPhotoUri,
+            e.iconIdentifier as equipmentIconIdentifier,
+            ot.photoUri as operationTypePhotoUri,
+            ot.iconIdentifier as operationTypeIconIdentifier,
+            e.dismissed as equipmentDismissed,
+            ot.dismissed as operationTypeDismissed,
+            e.unitId as unitId,
+            ot.estimatedCost as operationTypeEstimatedCost,
+            (SELECT cost FROM maintenance_logs 
+             WHERE equipmentId = r.equipmentId AND operationTypeId = r.operationTypeId 
+             AND cost IS NOT NULL 
+             ORDER BY date DESC LIMIT 1) as lastLogCost,
+            (SELECT AVG(cost) FROM maintenance_logs 
+             WHERE operationTypeId = r.operationTypeId AND date >= :sinceDate) as averageCost,
+            e.sectionId as equipmentSectionId,
+            se.name as equipmentSectionName,
+            se.color as equipmentSectionColor,
+            ot.sectionId as operationSectionId,
+            so.name as operationSectionName,
+            so.color as operationSectionColor
+        FROM maintenance_reminders r
+        JOIN equipments e ON r.equipmentId = e.id
+        JOIN operation_types ot ON r.operationTypeId = ot.id
+        JOIN sections se ON e.sectionId = se.id
+        JOIN sections so ON ot.sectionId = so.id
         WHERE r.isCompleted = 0
         ORDER BY COALESCE(r.dueDate, r.presumedDate) ASC
     """)

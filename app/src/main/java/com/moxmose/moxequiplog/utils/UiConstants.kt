@@ -29,5 +29,10 @@ object UiConstants {
     // Cost trend defaults
     const val DEFAULT_COST_TREND_THRESHOLD = 0.05f
 
+    // UI Layout preferences
+    const val SECTION_SELECTOR_CHIPS = "CHIPS"
+    const val SECTION_SELECTOR_DROPDOWN = "DROPDOWN"
+    const val DEFAULT_SECTION_SELECTOR_TYPE = SECTION_SELECTOR_CHIPS
+
     val DEFAULT_PALETTE = listOf("#4285F4", "#34A853", "#FBBC05", "#EA4335", "#9C27B0", "#00BCD4")
 }

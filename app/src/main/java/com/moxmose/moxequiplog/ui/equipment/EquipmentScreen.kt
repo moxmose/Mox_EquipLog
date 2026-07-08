@@ -92,15 +92,21 @@ import coil.request.ImageRequest
 import com.moxmose.moxequiplog.R
 import com.moxmose.moxequiplog.data.local.Category
 import com.moxmose.moxequiplog.data.local.Equipment
+import com.moxmose.moxequiplog.data.local.EquipmentDraft
 import com.moxmose.moxequiplog.data.local.Image
 import com.moxmose.moxequiplog.data.local.ImageIdentifier
 import com.moxmose.moxequiplog.data.local.MeasurementUnit
+import com.moxmose.moxequiplog.data.local.Section
 import com.moxmose.moxequiplog.data.local.TimeGranularity
+import com.moxmose.moxequiplog.utils.AppConstants
+import com.moxmose.moxequiplog.utils.UiConstants
 import com.moxmose.moxequiplog.ui.components.DraggableLazyColumn
-import com.moxmose.moxequiplog.ui.components.ImagePickerDialog
-import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogDialog
+import com.moxmose.moxequiplog.ui.components.SectionChipBar
+import com.moxmose.moxequiplog.ui.components.UnifiedSectionSelector
+import com.moxmose.moxequiplog.ui.equipment.components.AddEquipmentDialog
+import com.moxmose.moxequiplog.ui.equipment.components.EquipmentCard
+import com.moxmose.moxequiplog.ui.maintenancelog.components.MaintenanceLogDialog
 import com.moxmose.moxequiplog.ui.maintenancelog.MaintenanceLogViewModel
-import com.moxmose.moxequiplog.ui.options.EquipmentIconProvider
 import com.moxmose.moxequiplog.ui.options.OptionsViewModel
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.androidx.compose.koinViewModel
@@ -118,10 +124,16 @@ fun EquipmentScreen(
     val allEquipments by viewModel.allEquipments.collectAsState()
     val equipmentImages by viewModel.equipmentImages.collectAsState()
     val allCategories by viewModel.allCategories.collectAsState()
+    val allSections by viewModel.allSections.collectAsState()
+    val selectedSectionId by viewModel.selectedSectionId.collectAsState()
+    val showDismissedSections by viewModel.showDismissedSections.collectAsState()
+    val sectionSelectorType by viewModel.sectionSelectorType.collectAsState()
     val defaultEquipmentId by viewModel.defaultEquipmentId.collectAsState()
     val measurementUnits by viewModel.measurementUnits.collectAsState()
     val defaultUnitId by viewModel.defaultUnitId.collectAsState()
     val equipmentStatuses by viewModel.equipmentStatuses.collectAsState()
+    val allDrafts by viewModel.allDrafts.collectAsState()
+    val addDraft by viewModel.addDraft.collectAsState()
     val allOperationTypes by logsViewModel.allOperationTypes.collectAsState()
     
     val categoryColor by viewModel.categoryColor.collectAsState()
@@ -130,8 +142,12 @@ fun EquipmentScreen(
 
     val showDismissed by viewModel.showDismissed.collectAsState()
     val showAddDialog by viewModel.showAddDialog.collectAsState()
+    val cloningEquipment by viewModel.cloningEquipment.collectAsState()
     val selectedPredictionForAdd by viewModel.selectedPredictionForAdd.collectAsState()
     val selectedPlannedForEdit by viewModel.selectedPlannedForEdit.collectAsState()
+    val quickResetEquipmentId by viewModel.quickResetEquipmentId.collectAsState()
+    val logAddDraft by logsViewModel.logAddDraft.collectAsState()
+    val reminderAddDraft by logsViewModel.reminderAddDraft.collectAsState()
 
     val categoriesUiState by optionsViewModel.categoriesUiState.collectAsState()
     val categoryColorsMap = remember(categoriesUiState) { categoriesUiState.associate { it.category.id to it.color } }
@@ -165,14 +181,28 @@ fun EquipmentScreen(
         }
     }
 
-    val equipmentsToShow = if (showDismissed) allEquipments else activeEquipments
+    val equipmentsToShow = remember(allEquipments, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allEquipments.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
+    val operationTypesToShow = remember(allOperationTypes, showDismissed, showDismissedSections, allSections) {
+        val dismissedSectionIds = allSections.filter { it.dismissed }.map { it.id }.toSet()
+        allOperationTypes.filter { 
+            (showDismissed || !it.dismissed) && 
+            (showDismissedSections || it.sectionId !in dismissedSectionIds)
+        }.sortedBy { it.displayOrder }
+    }
 
     if (selectedPredictionForAdd != null) {
         val (eqId, opStatus) = selectedPredictionForAdd!!
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = allOperationTypes.filter { !it.dismissed },
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onPredictionAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
@@ -205,16 +235,21 @@ fun EquipmentScreen(
             equipmentCategoryColor = categoryColor,
             operationCategoryColor = categoryColorsMap[Category.OPERATION],
             syncCalendarByDefault = syncCalendarByDefault,
-            googleAccountName = googleAccountName
+            googleAccountName = googleAccountName,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = logsViewModel::updateLogAddDraft,
+            onUpdateReminderDraft = logsViewModel::updateReminderAddDraft
         )
     }
 
     if (selectedPlannedForEdit != null) {
         val (eqId, opStatus) = selectedPlannedForEdit!!
         MaintenanceLogDialog(
-            equipments = activeEquipments,
-            operationTypes = allOperationTypes.filter { !it.dismissed },
+            equipments = equipmentsToShow,
+            operationTypes = operationTypesToShow,
             measurementUnits = measurementUnits,
+            allSections = allSections,
             onDismissRequest = { viewModel.onPlannedAction(0, null) },
             onConfirm = { log ->
                 val now = System.currentTimeMillis()
@@ -255,14 +290,65 @@ fun EquipmentScreen(
             equipmentCategoryColor = categoryColor,
             operationCategoryColor = categoryColorsMap[Category.OPERATION],
             syncCalendarByDefault = syncCalendarByDefault,
-            googleAccountName = googleAccountName
+            googleAccountName = googleAccountName,
+            logDraft = logAddDraft,
+            reminderDraft = reminderAddDraft,
+            onUpdateLogDraft = logsViewModel::updateLogAddDraft,
+            onUpdateReminderDraft = logsViewModel::updateReminderAddDraft
         )
+    }
+
+    if (quickResetEquipmentId != null) {
+        val eqId = quickResetEquipmentId!!
+        val equipment = equipmentsToShow.find { it.id == eqId }
+        if (equipment != null) {
+            MaintenanceLogDialog(
+                equipments = equipmentsToShow,
+                operationTypes = allOperationTypes,
+                measurementUnits = measurementUnits,
+                allSections = allSections,
+                onDismissRequest = { viewModel.onQuickResetAction(null) },
+                onConfirm = { log ->
+                    logsViewModel.addLog(
+                        log.equipmentId, 
+                        log.operationTypeId, 
+                        log.notes, 
+                        log.value, 
+                        log.date, 
+                        log.color, 
+                        log.resetAfter,
+                        log.cost,
+                        log.isUnplanned
+                    )
+                    viewModel.onQuickResetAction(null)
+                },
+                defaultEquipmentId = eqId,
+                defaultOperationTypeId = AppConstants.SYSTEM_OPERATION_RESET_ID,
+                initialDate = System.currentTimeMillis(),
+                initialValue = equipmentStatuses[eqId]?.health?.estimatedCurrentValue?.let { 
+                    String.format(Locale.US, "%.${measurementUnits.find { it.id == equipment.unitId }?.decimalPlaces ?: 0}f", it) 
+                } ?: "",
+                equipmentCategoryColor = categoryColor,
+                operationCategoryColor = categoryColorsMap[Category.OPERATION],
+                syncCalendarByDefault = syncCalendarByDefault,
+                googleAccountName = googleAccountName,
+                logDraft = logAddDraft,
+                reminderDraft = reminderAddDraft,
+                onUpdateLogDraft = logsViewModel::updateLogAddDraft,
+                onUpdateReminderDraft = logsViewModel::updateReminderAddDraft
+            )
+        }
     }
 
     EquipmentScreenContent(
         equipments = equipmentsToShow,
         equipmentImages = equipmentImages,
         allCategories = allCategories,
+        allSections = allSections,
+        selectedSectionId = selectedSectionId,
+        onSectionSelected = viewModel::onSectionSelected,
+        showDismissedSections = showDismissedSections,
+        onToggleShowDismissedSections = viewModel::onToggleShowDismissedSections,
         measurementUnits = measurementUnits,
         defaultUnitId = defaultUnitId,
         defaultIcon = categoryDefaultIcon,
@@ -271,12 +357,15 @@ fun EquipmentScreen(
         onAddEquipment = viewModel::addEquipment,
         onUpdateEquipments = viewModel::updateEquipments,
         onUpdateEquipment = viewModel::updateEquipment,
+        onDeleteEquipment = viewModel::deleteEquipment,
         onDismissEquipment = viewModel::dismissEquipment,
         onRestoreEquipment = viewModel::restoreEquipment,
         showDismissed = showDismissed,
         onToggleShowDismissed = viewModel::onToggleShowDismissed,
         showAddDialog = showAddDialog,
+        cloningEquipment = cloningEquipment,
         onShowAddDialogChange = viewModel::onShowAddDialogChange,
+        onCloneEquipment = viewModel::onCloneEquipment,
         onAddImage = viewModel::addImage,
         onToggleImageVisibility = viewModel::toggleImageVisibility,
         snackbarHostState = snackbarHostState,
@@ -286,8 +375,18 @@ fun EquipmentScreen(
         categoryDefaultIcons = categoryDefaultIconsMap,
         categoryDefaultPhotos = categoryDefaultPhotosMap,
         equipmentStatuses = equipmentStatuses,
+        sectionSelectorType = sectionSelectorType,
+        allDrafts = allDrafts,
+        addDraft = addDraft,
+        onUpdateAddDraft = viewModel::updateAddDraft,
+        onStartEdit = viewModel::startEditing,
+        onCancelEdit = viewModel::cancelEditing,
+        onToggleDefaultInDraft = viewModel::toggleDefaultInDraft,
+        onUpdateDraft = viewModel::updateDraft,
+        onSaveEdit = viewModel::saveEditing,
         onPredictionAction = viewModel::onPredictionAction,
-        onPlannedAction = viewModel::onPlannedAction
+        onPlannedAction = viewModel::onPlannedAction,
+        onQuickResetAction = viewModel::onQuickResetAction
     )
 }
 
@@ -297,6 +396,11 @@ fun EquipmentScreenContent(
     equipments: List<Equipment>,
     equipmentImages: List<Image>,
     allCategories: List<Category>,
+    allSections: List<Section>,
+    selectedSectionId: Int,
+    onSectionSelected: (Int) -> Unit,
+    showDismissedSections: Boolean,
+    onToggleShowDismissedSections: () -> Unit,
     measurementUnits: List<MeasurementUnit>,
     defaultUnitId: Int?,
     defaultIcon: String?,
@@ -305,10 +409,13 @@ fun EquipmentScreenContent(
     showDismissed: Boolean,
     onToggleShowDismissed: () -> Unit,
     showAddDialog: Boolean,
+    cloningEquipment: Equipment? = null,
     onShowAddDialogChange: (Boolean) -> Unit,
-    onAddEquipment: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
+    onCloneEquipment: (Equipment) -> Unit,
+    onAddEquipment: (String, ImageIdentifier?, Int, Int, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean, Boolean) -> Unit,
     onUpdateEquipments: (List<Equipment>) -> Unit,
     onUpdateEquipment: (Equipment) -> Unit,
+    onDeleteEquipment: (Equipment) -> Unit,
     onDismissEquipment: (Equipment) -> Unit,
     onRestoreEquipment: (Equipment) -> Unit,
     onAddImage: (ImageIdentifier, String) -> Unit,
@@ -320,8 +427,18 @@ fun EquipmentScreenContent(
     categoryDefaultIcons: Map<String, String?>,
     categoryDefaultPhotos: Map<String, String?>,
     equipmentStatuses: Map<Int, EquipmentStatus> = emptyMap(),
+    sectionSelectorType: String = UiConstants.DEFAULT_SECTION_SELECTOR_TYPE,
+    allDrafts: Map<Int, EquipmentDraft> = emptyMap(),
+    addDraft: EquipmentDraft? = null,
+    onUpdateAddDraft: (EquipmentDraft) -> Unit,
+    onStartEdit: (Equipment) -> Unit,
+    onCancelEdit: (Int) -> Unit,
+    onToggleDefaultInDraft: (Int) -> Unit,
+    onUpdateDraft: (EquipmentDraft) -> Unit,
+    onSaveEdit: (EquipmentDraft) -> Unit,
     onPredictionAction: (Int, OperationStatus) -> Unit,
     onPlannedAction: (Int, OperationStatus) -> Unit,
+    onQuickResetAction: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val equipmentsState = remember(equipments) { equipments.toMutableStateList() }
@@ -357,22 +474,37 @@ fun EquipmentScreenContent(
                 imageLibrary = equipmentImages,
                 categories = allCategories,
                 measurementUnits = measurementUnits,
+                allSections = allSections,
+                selectedSectionId = selectedSectionId,
+                showDismissedSections = showDismissedSections,
                 defaultUnitId = defaultUnitId,
                 equipmentCategoryColor = equipmentCategoryColor,
                 categoryColors = categoryColors,
                 categoryDefaultIcons = categoryDefaultIcons,
                 categoryDefaultPhotos = categoryDefaultPhotos,
                 onDismissRequest = { onShowAddDialogChange(false) },
-                onConfirm = { desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon ->
-                    onAddEquipment(desc, identifier, unitId, isResettable, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon)
+                onConfirm = { desc, identifier, unitId, sectionId, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon, isResettable ->
+                    onAddEquipment(desc, identifier, unitId, sectionId, window, windowUnit, avgValue, avgUnit, horizon, horizonUnit, customWindow, customHorizon, isResettable)
                     onShowAddDialogChange(false)
                 },
                 onAddImage = onAddImage,
-                onToggleImageVisibility = onToggleImageVisibility
+                onToggleImageVisibility = onToggleImageVisibility,
+                initialEquipment = cloningEquipment,
+                draft = addDraft,
+                onUpdateDraft = onUpdateAddDraft
             )
         }
 
         Column(Modifier.padding(paddingValues)) {
+            UnifiedSectionSelector(
+                allSections = allSections,
+                selectedSectionId = selectedSectionId,
+                onSectionSelected = onSectionSelected,
+                showDismissedSections = showDismissedSections,
+                onToggleShowDismissedSections = onToggleShowDismissedSections,
+                selectorType = sectionSelectorType,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -414,21 +546,44 @@ fun EquipmentScreenContent(
                 },
                 modifier = Modifier.fillMaxSize(),
                 itemContent = { _, equipment ->
+                    val draft = allDrafts[equipment.id]
+                    val isOrigDefault = equipment.id == allSections.find { it.id == equipment.sectionId }?.defaultEquipmentId
                     EquipmentCard(
                         equipment = equipment,
                         equipmentImages = equipmentImages,
                         allCategories = allCategories,
                         measurementUnits = measurementUnits,
+                        allSections = allSections,
+                        showDismissedSections = showDismissedSections,
                         onUpdateEquipment = onUpdateEquipment,
+                        onDeleteEquipment = onDeleteEquipment,
                         onDismissEquipment = onDismissEquipment,
                         onRestoreEquipment = onRestoreEquipment,
+                        onCloneEquipment = onCloneEquipment,
+                        draft = draft,
+                        onStartEdit = { onStartEdit(equipment) },
+                        onCancelEdit = { onCancelEdit(equipment.id) },
+                        onUpdateDraft = onUpdateDraft,
+                        onSaveEdit = onSaveEdit,
                         onAddImage = onAddImage,
                         onToggleImageVisibility = onToggleImageVisibility,
                         equipmentCategoryColor = equipmentCategoryColor,
-                        isDefault = equipment.id == defaultEquipmentId,
-                        onToggleDefault = { onToggleDefault(equipment.id) },
+                        isDefault = draft?.isDefault ?: isOrigDefault,
+                        originalIsDefault = isOrigDefault,
+                        showDefault = true,
+                        defaultEnabled = selectedSectionId != AppConstants.ALL_SECTIONS_ID,
+                        onToggleDefault = { 
+                            if (draft != null) onToggleDefaultInDraft(equipment.id)
+                            else onToggleDefault(equipment.id)
+                        },
                         status = equipmentStatuses[equipment.id],
-                        onPredictionAction = { onPredictionAction(equipment.id, it) },
+                        onPredictionAction = { 
+                            if (it.operation.id == AppConstants.SYSTEM_OPERATION_RESET_ID) {
+                                onQuickResetAction(equipment.id)
+                            } else {
+                                onPredictionAction(equipment.id, it)
+                            }
+                        },
                         onPlannedAction = { onPlannedAction(equipment.id, it) },
                         categoryColors = categoryColors,
                         categoryDefaultIcons = categoryDefaultIcons,
@@ -440,837 +595,4 @@ fun EquipmentScreenContent(
             )
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddEquipmentDialog(
-    onDismissRequest: () -> Unit,
-    onConfirm: (String, ImageIdentifier?, Int, Boolean, Int, TimeGranularity, Double?, TimeGranularity, Int, TimeGranularity, Boolean, Boolean) -> Unit,
-    defaultIcon: String?,
-    defaultPhotoUri: String?,
-    imageLibrary: List<Image>,
-    categories: List<Category>,
-    measurementUnits: List<MeasurementUnit>,
-    defaultUnitId: Int?,
-    equipmentCategoryColor: String?,
-    categoryColors: Map<String, String>,
-    categoryDefaultIcons: Map<String, String?>,
-    categoryDefaultPhotos: Map<String, String?>,
-    onAddImage: (ImageIdentifier, String) -> Unit,
-    onToggleImageVisibility: (Image) -> Unit
-) {
-    var description by rememberSaveable { mutableStateOf("") }
-    var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
-    var iconId by rememberSaveable { mutableStateOf<String?>(null) }
-    var unitId by rememberSaveable(defaultUnitId) { mutableIntStateOf(defaultUnitId ?: 1) }
-    var isResettable by rememberSaveable { mutableStateOf(false) }
-    
-    // Predictive Settings
-    var useCustomUsageWindow by rememberSaveable { mutableStateOf(false) }
-    var usageWindow by rememberSaveable { mutableIntStateOf(30) }
-    var usageWindowUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
-    
-    var manualAverageValue by rememberSaveable { mutableStateOf<Double?>(null) }
-    var manualAverageValueStr by rememberSaveable { mutableStateOf("") }
-    var manualAverageUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
-    
-    var useCustomVisibilityHorizon by rememberSaveable { mutableStateOf(false) }
-    var visibilityHorizon by rememberSaveable { mutableIntStateOf(30) }
-    var visibilityHorizonUnit by rememberSaveable { mutableStateOf(TimeGranularity.DAYS) }
-
-    var isPristine by rememberSaveable { mutableStateOf(true) }
-    var showImageSelectorDialog by remember { mutableStateOf(false) }
-    var showAdvancedSettings by rememberSaveable { mutableStateOf(false) }
-
-    val selectedUnit = measurementUnits.find { it.id == unitId }
-    val unitLabel = selectedUnit?.label ?: ""
-
-    if (isPristine && (defaultIcon != null || defaultPhotoUri != null)) {
-        LaunchedEffect(defaultIcon, defaultPhotoUri) {
-            iconId = defaultIcon
-            photoUri = defaultPhotoUri
-        }
-    }
-
-    if (showImageSelectorDialog) {
-        ImagePickerDialog(
-            onDismissRequest = { showImageSelectorDialog = false },
-            photoUri = photoUri,
-            iconIdentifier = iconId,
-            onImageSelected = { (newIconId, newPhotoUri) ->
-                isPristine = false
-                iconId = newIconId
-                photoUri = newPhotoUri
-                showImageSelectorDialog = false
-            },
-            imageLibrary = imageLibrary,
-            categories = categories,
-            categoryColors = categoryColors,
-            categoryDefaultIcons = categoryDefaultIcons,
-            categoryDefaultPhotos = categoryDefaultPhotos,
-            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
-            onUpdateImageOrder = null,
-            onToggleImageVisibility = { uri, category -> imageLibrary.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
-            onSetDefaultInCategory = null,
-            isPhotoUsed = null,
-            isPrefsMode = false,
-            forcedCategory = Category.EQUIPMENT
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text(text = stringResource(R.string.add_a_new_equipment), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val primaryColor = MaterialTheme.colorScheme.primary
-                    val borderColor = remember(equipmentCategoryColor, primaryColor) {
-                        try {
-                            equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor
-                        } catch (_: Exception) { primaryColor }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.secondaryContainer)
-                            .border(2.dp, borderColor, CircleShape)
-                            .clickable { showImageSelectorDialog = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (photoUri != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current).data(photoUri).crossfade(true).build(),
-                                contentDescription = stringResource(R.string.equipment_photo),
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            val icon = EquipmentIconProvider.getIcon(iconId)
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = stringResource(R.string.equipment_photo),
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
-                    OutlinedTextField(
-                        value = description,
-                        onValueChange = { if (it.length <= 50) description = it },
-                        label = { Text(stringResource(R.string.equipment_description)) },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-
-                UnitSelector(
-                    measurementUnits = measurementUnits,
-                    selectedUnitId = unitId,
-                    onUnitSelected = { unitId = it },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { isResettable = !isResettable },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Checkbox(checked = isResettable, onCheckedChange = { isResettable = it })
-                    Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
-                }
-
-                HorizontalDivider()
-
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { showAdvancedSettings = !showAdvancedSettings },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = stringResource(R.string.predictive_maintenance_settings),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Icon(
-                        imageVector = if (showAdvancedSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                if (showAdvancedSettings) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        // Trend Window Section
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth().clickable { useCustomUsageWindow = !useCustomUsageWindow }, verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = useCustomUsageWindow, onCheckedChange = { useCustomUsageWindow = it })
-                                Text("Use custom trend window", style = MaterialTheme.typography.bodySmall)
-                            }
-                            if (useCustomUsageWindow) {
-                                Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    OutlinedTextField(
-                                        value = usageWindow.toString(),
-                                        onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) usageWindow = it } },
-                                        label = { Text("Window Value") },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    TimeGranularitySelector(selected = usageWindowUnit, onSelected = { usageWindowUnit = it }, label = "Of last", modifier = Modifier.weight(1.2f))
-                                }
-                            } else {
-                                Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
-                            }
-                        }
-
-                        // Manual Average Section
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(
-                                    value = manualAverageValueStr,
-                                    onValueChange = { input ->
-                                        val filtered = input.replace(',', '.')
-                                        if (filtered.isEmpty() || filtered == "." || filtered == "-") {
-                                            manualAverageValueStr = filtered
-                                            manualAverageValue = null
-                                        } else {
-                                            val doubleVal = filtered.toDoubleOrNull()
-                                            if (doubleVal != null) {
-                                                manualAverageValueStr = filtered
-                                                manualAverageValue = doubleVal
-                                            }
-                                        }
-                                    },
-                                    label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
-                                    placeholder = { Text("Fallback") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                TimeGranularitySelector(selected = manualAverageUnit, onSelected = { manualAverageUnit = it }, label = "Every", modifier = Modifier.weight(1.2f))
-                            }
-                            Text(text = "Optional: expected usage when history is missing (fallback)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-
-                        // Visibility Horizon Row
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth().clickable { useCustomVisibilityHorizon = !useCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = useCustomVisibilityHorizon, onCheckedChange = { useCustomVisibilityHorizon = it })
-                                Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
-                            }
-                            if (useCustomVisibilityHorizon) {
-                                Row(modifier = Modifier.fillMaxWidth().padding(start = 32.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    OutlinedTextField(
-                                        value = visibilityHorizon.toString(),
-                                        onValueChange = { input -> input.toIntOrNull()?.let { if (it in 1..999) visibilityHorizon = it } },
-                                        label = { Text("Event Horizon") },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    TimeGranularitySelector(selected = visibilityHorizonUnit, onSelected = { visibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
-                                }
-                            } else {
-                                Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { 
-                    val identifier = when {
-                        photoUri != null -> ImageIdentifier.Photo(photoUri!!)
-                        iconId != null -> ImageIdentifier.Icon(iconId!!)
-                        else -> null
-                    }
-                    onConfirm(description, identifier, unitId, isResettable, usageWindow, usageWindowUnit, manualAverageValue, manualAverageUnit, visibilityHorizon, visibilityHorizonUnit, useCustomUsageWindow, useCustomVisibilityHorizon)
-                }
-            ) { Text(stringResource(R.string.button_add)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.button_cancel)) }
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TimeGranularitySelector(
-    selected: TimeGranularity,
-    onSelected: (TimeGranularity) -> Unit,
-    modifier: Modifier = Modifier,
-    label: String? = null
-) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
-        OutlinedTextField(
-            value = formatTimeGranularity(selected),
-            onValueChange = {},
-            readOnly = true,
-            label = label?.let { { Text(it) } },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor(type = MenuAnchorType.PrimaryNotEditable),
-            textStyle = MaterialTheme.typography.bodyMedium
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            TimeGranularity.entries.forEach { entry ->
-                DropdownMenuItem(text = { Text(formatTimeGranularity(entry)) }, onClick = { onSelected(entry); expanded = false })
-            }
-        }
-    }
-}
-
-fun formatTimeGranularity(granularity: TimeGranularity): String {
-    return when (granularity) {
-        TimeGranularity.MINUTES_5 -> "5 Minutes"
-        TimeGranularity.MINUTES_15 -> "15 Minutes"
-        else -> granularity.name.lowercase().replaceFirstChar { it.titlecase() }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun UnitSelector(
-    measurementUnits: List<MeasurementUnit>,
-    selectedUnitId: Int,
-    onUnitSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedUnit = measurementUnits.find { it.id == selectedUnitId }
-    ExposedDropdownMenuBox(
-        expanded = expanded, 
-        onExpandedChange = { expanded = it },
-        modifier = modifier
-    ) {
-        OutlinedTextField(
-            value = if (selectedUnit != null) {
-                if (selectedUnit.description.isNotBlank()) "${selectedUnit.label} - ${selectedUnit.description}"
-                else selectedUnit.label
-            } else "",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(stringResource(R.string.measurement_unit)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            measurementUnits.forEach { unit ->
-                DropdownMenuItem(
-                    text = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Text(unit.label, fontWeight = FontWeight.Bold); if (unit.description.isNotBlank()) Text(unit.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
-                    onClick = { onUnitSelected(unit.id); expanded = false }
-                )
-            }
-        }
-    }
-}
-
-
-
-@Composable
-fun EquipmentCard(
-    equipment: Equipment,
-    equipmentImages: List<Image>,
-    allCategories: List<Category>,
-    measurementUnits: List<MeasurementUnit>,
-    onUpdateEquipment: (Equipment) -> Unit,
-    onDismissEquipment: (Equipment) -> Unit,
-    onRestoreEquipment: (Equipment) -> Unit,
-    onAddImage: (ImageIdentifier, String) -> Unit,
-    onToggleImageVisibility: (Image) -> Unit,
-    equipmentCategoryColor: String?,
-    isDefault: Boolean,
-    onToggleDefault: () -> Unit,
-    modifier: Modifier = Modifier,
-    status: EquipmentStatus? = null,
-    onPredictionAction: (OperationStatus) -> Unit,
-    onPlannedAction: (OperationStatus) -> Unit,
-    categoryColors: Map<String, String>,
-    categoryDefaultIcons: Map<String, String?>,
-    categoryDefaultPhotos: Map<String, String?>,
-    expandAllTrigger: Int = 0,
-    collapseAllTrigger: Int = 0
-) {
-    var isEditing by remember { mutableStateOf(false) }
-    var isExpanded by rememberSaveable { mutableStateOf(false) }
-    
-    LaunchedEffect(expandAllTrigger) { if (expandAllTrigger > 0) isExpanded = true }
-    LaunchedEffect(collapseAllTrigger) { if (collapseAllTrigger > 0) isExpanded = false }
-
-    var editedDescription by remember(equipment.description) { mutableStateOf(equipment.description) }
-    var editedUnitId by remember(equipment.unitId) { mutableIntStateOf(equipment.unitId) }
-    var editedIconId by remember(equipment.iconIdentifier) { mutableStateOf(equipment.iconIdentifier) }
-    var editedPhotoUri by remember(equipment.photoUri) { mutableStateOf(equipment.photoUri) }
-    var editedIsResettable by remember(equipment.isResettable) { mutableStateOf(equipment.isResettable) }
-    
-    // Predictive Settings
-    var editedUseCustomUsageWindow by remember(equipment.useCustomUsageWindow) { mutableStateOf(equipment.useCustomUsageWindow) }
-    var editedUsageWindow by remember(equipment.usageWindow) { mutableIntStateOf(equipment.usageWindow) }
-    var editedUsageWindowUnit by remember(equipment.usageWindowUnit) { mutableStateOf(equipment.usageWindowUnit) }
-    
-    var editedManualAverageValue by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue) }
-    var editedManualAverageValueStr by remember(equipment.manualAverageValue) { mutableStateOf(equipment.manualAverageValue?.toString() ?: "") }
-    var editedManualAverageUnit by remember(equipment.manualAverageUnit) { mutableStateOf(equipment.manualAverageUnit) }
-    
-    var editedUseCustomVisibilityHorizon by remember(equipment.useCustomVisibilityHorizon) { mutableStateOf(equipment.useCustomVisibilityHorizon) }
-    var editedVisibilityHorizon by remember(equipment.visibilityHorizon) { mutableIntStateOf(equipment.visibilityHorizon) }
-    var editedVisibilityHorizonUnit by remember(equipment.visibilityHorizonUnit) { mutableStateOf(equipment.visibilityHorizonUnit) }
-    
-    var showFullImageDialog by remember { mutableStateOf<String?>(null) }
-    var showNoPictureDialog by remember { mutableStateOf(false) }
-    var showImageSelectorDialog by remember { mutableStateOf(false) }
-
-    if (showImageSelectorDialog) {
-        ImagePickerDialog(
-            onDismissRequest = { showImageSelectorDialog = false },
-            photoUri = editedPhotoUri,
-            iconIdentifier = editedIconId,
-            onImageSelected = { (newIconId, newPhotoUri) ->
-                editedIconId = newIconId
-                editedPhotoUri = newPhotoUri
-                showImageSelectorDialog = false
-            },
-            imageLibrary = equipmentImages,
-            categories = allCategories,
-            categoryColors = categoryColors,
-            categoryDefaultIcons = categoryDefaultIcons,
-            categoryDefaultPhotos = categoryDefaultPhotos,
-            onAddImage = { uri, category -> onAddImage(ImageIdentifier.Photo(uri), category) },
-            onRemoveImage = null,
-            onUpdateImageOrder = null,
-            onToggleImageVisibility = { uri, category -> equipmentImages.find { it.uri == uri && it.category == category }?.let { onToggleImageVisibility(it) } },
-            onSetDefaultInCategory = null,
-            isPhotoUsed = null,
-            isPrefsMode = false,
-            forcedCategory = Category.EQUIPMENT
-        )
-    }
-
-    val unit = measurementUnits.find { it.id == editedUnitId }
-    val unitLabel = unit?.label ?: ""
-    val decimalPlaces = unit?.decimalPlaces ?: 0
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val equipmentColor = remember(equipmentCategoryColor, primaryColor) {
-        try { equipmentCategoryColor?.toColorInt()?.let { Color(it) } ?: primaryColor } catch (_: Exception) { primaryColor }
-    }
-
-    Box(contentAlignment = Alignment.BottomEnd) {
-        Card(
-            modifier = modifier
-                .fillMaxWidth()
-                .animateContentSize()
-                .graphicsLayer(alpha = if (equipment.dismissed) 0.5f else 1f)
-                .then(if (isDefault) Modifier.border(3.dp, equipmentColor, MaterialTheme.shapes.medium) else Modifier)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { if (!isEditing) isExpanded = !isExpanded }),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(contentAlignment = Alignment.BottomEnd) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondaryContainer)
-                                .border(2.dp, equipmentColor, CircleShape)
-                                .clickable {
-                                    if (isEditing) showImageSelectorDialog = true
-                                    else if (editedPhotoUri != null) showFullImageDialog = editedPhotoUri
-                                    else if (editedIconId == null) showNoPictureDialog = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (editedPhotoUri != null) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(LocalContext.current).data(editedPhotoUri).crossfade(true).build(),
-                                    contentDescription = null,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = EquipmentIconProvider.getIcon(editedIconId),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
-                        
-                        // HEALTH TAGGER (Badge) - Esterno al clip per essere visibile
-                        if (!isExpanded && status != null && status.operationStatuses.isNotEmpty()) {
-                            val overdueCount = status.operationStatuses.count { it.isOverdue }
-                            val upcomingCount = status.operationStatuses.count { !it.isOverdue && (it.isPlanned || it.nextPresumedDate != null) }
-
-                            if (overdueCount > 0 || upcomingCount > 0) {
-                                val badgeColor = if (overdueCount > 0) MaterialTheme.colorScheme.error else Color(0xFFFFB300)
-                                val badgeIcon = if (overdueCount > 0) Icons.Default.Warning else Icons.Default.Schedule
-                                
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .offset(x = 4.dp, y = 4.dp)
-                                        .clip(CircleShape)
-                                        .background(badgeColor)
-                                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = badgeIcon,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    Column(modifier = Modifier.weight(1f)) {
-                        if (isEditing) {
-                            OutlinedTextField(
-                                value = editedDescription,
-                                onValueChange = { if (it.length <= 50) editedDescription = it },
-                                label = { Text(stringResource(R.string.equipment_description)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-                        } else {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = if (editedDescription.isNotBlank()) editedDescription else stringResource(R.string.id_no_description, equipment.id),
-                                    modifier = Modifier.weight(1f, fill = false),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            if (status != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val displayValue = status.health.currentSessionValue ?: status.health.lastRecordedValue
-                                    displayValue?.let { valStr ->
-                                        Text(text = "Last: ${String.format(Locale.US, "%.${decimalPlaces}f", valStr)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    
-                                    val displayEstimated = status.health.currentSessionEstimated ?: status.health.estimatedCurrentValue
-                                    displayEstimated?.let { estStr ->
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = "Now (est): ${String.format(Locale.US, "%.${decimalPlaces}f", estStr)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = equipmentColor, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                        if (isEditing) {
-                            IconButton(onClick = { if (equipment.dismissed) onRestoreEquipment(equipment) else onDismissEquipment(equipment) }) {
-                                Icon(imageVector = if (equipment.dismissed) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null)
-                            }
-                        }
-                        IconButton(onClick = {
-                            if (isEditing) {
-                                onUpdateEquipment(
-                                    equipment.copy(
-                                        description = editedDescription, 
-                                        unitId = editedUnitId,
-                                        iconIdentifier = editedIconId,
-                                        photoUri = editedPhotoUri,
-                                        isResettable = editedIsResettable,
-                                        usageWindow = editedUsageWindow,
-                                        usageWindowUnit = editedUsageWindowUnit,
-                                        manualAverageValue = editedManualAverageValue,
-                                        manualAverageUnit = editedManualAverageUnit,
-                                        visibilityHorizon = editedVisibilityHorizon,
-                                        visibilityHorizonUnit = editedVisibilityHorizonUnit,
-                                        useCustomUsageWindow = editedUseCustomUsageWindow,
-                                        useCustomVisibilityHorizon = editedUseCustomVisibilityHorizon
-                                    )
-                                )
-                            }
-                            isEditing = !isEditing
-                            if (isEditing) isExpanded = true
-                        }) {
-                            Icon(imageVector = if (isEditing) Icons.Filled.Done else Icons.Filled.Edit, contentDescription = null)
-                        }
-                        IconButton(onClick = { onToggleDefault() }) {
-                            Icon(imageVector = if (isDefault) Icons.Filled.Star else Icons.Filled.StarBorder, contentDescription = null, tint = if (isDefault) Color(0xFFFFB300) else LocalContentColor.current)
-                        }
-                        IconButton(onClick = {}) { Icon(imageVector = Icons.Filled.DragHandle, contentDescription = null) }
-                    }
-                }
-                
-                if (isEditing) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    UnitSelector(
-                        measurementUnits = measurementUnits,
-                        selectedUnitId = editedUnitId,
-                        onUnitSelected = { editedUnitId = it },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { editedIsResettable = !editedIsResettable }.padding(top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Checkbox(checked = editedIsResettable, onCheckedChange = { editedIsResettable = it })
-                        Text(text = stringResource(R.string.equipment_is_resettable), style = MaterialTheme.typography.bodyMedium)
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Text(
-                        text = stringResource(R.string.predictive_maintenance_settings),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    // Trend Window Section
-                    Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomUsageWindow = !editedUseCustomUsageWindow }, verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = editedUseCustomUsageWindow, onCheckedChange = { editedUseCustomUsageWindow = it })
-                            Text("Use custom trend window", style = MaterialTheme.typography.bodySmall)
-                        }
-                        if (editedUseCustomUsageWindow) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(start = 24.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                OutlinedTextField(
-                                    value = editedUsageWindow.toString(),
-                                    onValueChange = { input ->
-                                        input.toIntOrNull()?.let { if (it in 1..999) editedUsageWindow = it }
-                                    },
-                                    label = { Text("Window Value") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.weight(1f),
-                                    textStyle = MaterialTheme.typography.bodySmall
-                                )
-                                
-                                TimeGranularitySelector(
-                                    selected = editedUsageWindowUnit,
-                                    onSelected = { editedUsageWindowUnit = it },
-                                    label = "Of last",
-                                    modifier = Modifier.weight(1.2f)
-                                )
-                            }
-                        } else {
-                            Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
-                        }
-                    }
-
-                    // Manual Average Section
-                    Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = editedManualAverageValueStr,
-                                onValueChange = { input ->
-                                    val filtered = input.replace(',', '.')
-                                    if (filtered.isEmpty() || filtered == "." || filtered == "-") {
-                                        editedManualAverageValueStr = filtered
-                                        editedManualAverageValue = null
-                                    } else {
-                                        val doubleVal = filtered.toDoubleOrNull()
-                                        if (doubleVal != null) {
-                                            editedManualAverageValueStr = filtered
-                                            editedManualAverageValue = doubleVal
-                                        }
-                                    }
-                                },
-                                label = { Text(if (unitLabel.isNotBlank()) "Usage ($unitLabel)" else "Usage") },
-                                placeholder = { Text("Fallback") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                textStyle = MaterialTheme.typography.bodySmall
-                            )
-                            
-                            TimeGranularitySelector(
-                                selected = editedManualAverageUnit,
-                                onSelected = { editedManualAverageUnit = it },
-                                label = "Every",
-                                modifier = Modifier.weight(1.2f)
-                            )
-                        }
-                        Text(
-                            text = "Optional: expected usage when history is missing (fallback)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                    }
-
-                    // Visibility Horizon Section
-                    Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth().clickable { editedUseCustomVisibilityHorizon = !editedUseCustomVisibilityHorizon }, verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = editedUseCustomVisibilityHorizon, onCheckedChange = { editedUseCustomVisibilityHorizon = it })
-                            Text("Use custom visibility horizon", style = MaterialTheme.typography.bodySmall)
-                        }
-                        if (editedUseCustomVisibilityHorizon) {
-                            Row(modifier = Modifier.fillMaxWidth().padding(start = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(
-                                    value = editedVisibilityHorizon.toString(),
-                                    onValueChange = { input -> input.toIntOrNull()?.let { editedVisibilityHorizon = it } },
-                                    label = { Text("Event Horizon") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    modifier = Modifier.weight(1f),
-                                    textStyle = MaterialTheme.typography.bodySmall
-                                )
-                                TimeGranularitySelector(selected = editedVisibilityHorizonUnit, onSelected = { editedVisibilityHorizonUnit = it }, label = "Future span", modifier = Modifier.weight(1.2f))
-                            }
-                        } else {
-                            Text(text = "Using global default (set in Options)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
-                        }
-                    }
-                }
-
-                if (!isEditing && isExpanded && status != null && status.operationStatuses.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Upcoming Maintenance",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = equipmentColor,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Column(
-                        modifier = Modifier.padding(top = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        status.operationStatuses.sortedBy { it.nextPresumedDate ?: Long.MAX_VALUE }.take(5).forEach { opStatus ->
-                            val hasInconsistency = opStatus.isPlanned && opStatus.predictedDate != null && 
-                                    opStatus.predictedDate < (opStatus.nextPresumedDate ?: Long.MAX_VALUE) - 86400000L // 1 day buffer
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                    Icon(
-                                        imageVector = if (opStatus.isOverdue) Icons.Default.PriorityHigh else if (hasInconsistency) Icons.Default.Warning else if (opStatus.isPlanned) Icons.AutoMirrored.Filled.EventNote else Icons.Default.Schedule,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                        tint = if (opStatus.isOverdue) MaterialTheme.colorScheme.error 
-                                               else if (hasInconsistency) Color(0xFFFF9800) // Warning Orange
-                                               else if (opStatus.isPlanned) MaterialTheme.colorScheme.secondary 
-                                               else MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    
-                                    // Operation Icon
-                                    val opColor = remember(opStatus.operation.color, categoryColors) {
-                                        try { 
-                                            opStatus.operation.color?.toColorInt()?.let { Color(it) } 
-                                            ?: categoryColors[Category.OPERATION]?.toColorInt()?.let { Color(it) } 
-                                            ?: Color.Gray 
-                                        } catch (_: Exception) { Color.Gray }
-                                    }
-                                    
-                                    com.moxmose.moxequiplog.ui.components.ImageIcon(
-                                        photoUri = opStatus.operation.photoUri,
-                                        iconIdentifier = opStatus.operation.iconIdentifier,
-                                        modifier = Modifier.size(18.dp),
-                                        category = Category.OPERATION,
-                                        borderColor = opColor,
-                                        contentPadding = 1.dp
-                                    )
-
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = opStatus.operation.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = (if (opStatus.isOverdue) stringResource(R.string.reminder_overdue) + " - " else "") +
-                                               (opStatus.nextPresumedDate?.let { dateFormat.format(Date(it)) } ?: "Never"),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (opStatus.isOverdue) MaterialTheme.colorScheme.error 
-                                                else if (hasInconsistency) Color(0xFFFF9800)
-                                                else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Surface(
-                                        onClick = { if (opStatus.isPlanned) onPlannedAction(opStatus) else onPredictionAction(opStatus) },
-                                        shape = CircleShape,
-                                        color = equipmentColor.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, equipmentColor.copy(alpha = 0.5f)),
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = if (opStatus.isPlanned) Icons.Default.Edit else Icons.Default.Build,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
-                                                tint = equipmentColor
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (isDefault) {
-            Box(
-                modifier = Modifier.padding(end = 4.dp, bottom = 4.dp).size(24.dp).clip(CircleShape).background(equipmentColor).border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                contentAlignment = Alignment.Center
-            ) { Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White) }
-        }
-    }
-
-    if (showNoPictureDialog) {
-        AlertDialog(
-            onDismissRequest = { showNoPictureDialog = false },
-            title = { Text(stringResource(R.string.no_image_title)) },
-            text = { Text(stringResource(R.string.no_image_message)) },
-            confirmButton = { TextButton(onClick = { showNoPictureDialog = false }) { Text(stringResource(R.string.button_ok)) } }
-        )
-    }
-
-    showFullImageDialog?.let { uri ->
-        FullImageDialog(photoUri = uri, onDismiss = { showFullImageDialog = null })
-    }
-}
-
-@Composable
-fun FullImageDialog(photoUri: String, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { onDismiss() }) {
-                Text(stringResource(R.string.button_ok))
-            }
-        },
-        modifier = Modifier.padding(16.dp),
-        text = {
-            AsyncImage(
-                model = photoUri,
-                contentDescription = stringResource(R.string.full_size_equipment_photo),
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.Fit
-            )
-        }
-    )
 }

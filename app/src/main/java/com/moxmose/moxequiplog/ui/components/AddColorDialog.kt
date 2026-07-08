@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -33,6 +35,9 @@ import com.github.skydoves.colorpicker.compose.ColorEnvelope
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
+import androidx.compose.ui.res.stringResource
+import com.moxmose.moxequiplog.R
+
 @Composable
 fun AddColorDialog(
     onDismiss: () -> Unit,
@@ -44,7 +49,7 @@ fun AddColorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Aggiungi un nuovo colore") },
+        title = { Text(stringResource(R.string.add_color_title)) },
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -73,27 +78,25 @@ fun AddColorDialog(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Nome del colore") },
+                        label = { Text(stringResource(R.string.color_name_label)) },
                         singleLine = true
                     )
                 }
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
+            CommonActionButtons(
+                onConfirm = {
                     onAddColor(hexCode, name)
                     onDismiss()
                 },
-                enabled = name.isNotBlank() && hexCode.isNotBlank()
-            ) {
-                Text("Aggiungi")
-            }
+                onDismiss = onDismiss,
+                confirmText = stringResource(R.string.button_add),
+                confirmIcon = Icons.Default.Add,
+                confirmEnabled = name.isNotBlank() && hexCode.isNotBlank(),
+                compactMode = true
+            )
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annulla")
-            }
-        }
+        dismissButton = null
     )
 }
