@@ -76,7 +76,7 @@ class ReportsViewModelTest {
         }
         val maintenanceManager = mockk<MaintenanceManager>(relaxed = true) {
             every { findAutoGranularity(any(), any(), any()) } returns TimeGranularity.MONTHS
-            every { findBestGranularity(any(), any(), any(), any()) } returns TimeGranularity.MONTHS
+            every { findBestGranularity(any()) } returns TimeGranularity.MONTHS
         }
         val sectionRepository = mockk<SectionRepository>(relaxed = true) {
             every { allSections } returns MutableStateFlow(emptyList())

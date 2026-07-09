@@ -49,7 +49,6 @@ class OptionsViewModelTest {
     private lateinit var operationTypeDao: OperationTypeDao
     private lateinit var imageRepository: ImageRepository
     private lateinit var measurementUnitDao: MeasurementUnitDao
-    private lateinit var maintenanceReminderDao: MaintenanceReminderDao
     private lateinit var backupManager: BackupManager
     private lateinit var maintenanceManager: MaintenanceManager
     private lateinit var viewModel: OptionsViewModel
@@ -100,7 +99,6 @@ class OptionsViewModelTest {
         backupManager = mockk(relaxed = true)
         maintenanceLogDao = mockk(relaxed = true)
         operationTypeDao = mockk(relaxed = true)
-        maintenanceReminderDao = mockk(relaxed = true)
         maintenanceManager = mockk<MaintenanceManager>(relaxed = true)
 
         viewModel = OptionsViewModel(
@@ -111,7 +109,6 @@ class OptionsViewModelTest {
             operationTypeDao,
             imageRepository,
             measurementUnitDao,
-            maintenanceReminderDao,
             backupManager,
             maintenanceManager
         )
